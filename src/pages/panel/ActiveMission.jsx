@@ -53,7 +53,8 @@ export default function ActiveMission() {
     if (!mission || !panel) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('feedbacks').insert({
+      // 1. feedbacks 테이블에 저장
+      const { error: fbError } = await supabase.from('feedbacks').insert({
         mission_id:            mission.id,
         panel_id:              panel.id,
         clarity_score:         scores.clarity,
@@ -63,16 +64,26 @@ export default function ActiveMission() {
         trust_score:           scores.trust,
         strengths:             comments.clarity,
         weaknesses:            comments.relevance,
-        suggestions:           [comments.value, comments.differentiation, comments.trust].filter(Boolean).join('\n'),
+        suggestions:           [comments.value, comments.differentiation, comments.trust]
+                                 .filter(Boolean).join('\n'),
         purity_passed:         false,
         status:                'submitted',
       });
-      if (error) throw error;
+      if (fbError) throw fbError;
 
-      // 패널 미션 카운트 +1
-      await supabase.from('panels')
+      // 2. missions.filled_count +1
+      const { error: msError } = await supabase
+        .from('missions')
+        .update({ filled_count: (mission.filled_count || 0) + 1 })
+        .eq('id', mission.id);
+      if (msError) throw msError;
+
+      // 3. panels.total_missions +1
+      const { error: pnError } = await supabase
+        .from('panels')
         .update({ total_missions: (panel.total_missions || 0) + 1 })
         .eq('id', panel.id);
+      if (pnError) throw pnError;
 
       setStep(SECTIONS.length + 1);
     } catch (err) {

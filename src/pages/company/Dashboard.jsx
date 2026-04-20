@@ -110,8 +110,14 @@ export default function CompanyDashboard() {
                 )}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
-                <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>패널 수</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)' }}>{m.panel_count}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>피드백 수집</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)' }}>
+                  {m.filled_count || 0}
+                  <span style={{ fontSize: 16, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count}</span>
+                </div>
+                <div style={{ width: 120, height: 4, background: 'var(--border)', borderRadius: 2, marginTop: 8, overflow: 'hidden', marginLeft: 'auto' }}>
+                  <div style={{ width: `${Math.min(((m.filled_count || 0) / m.panel_count) * 100, 100)}%`, height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s' }} />
+                </div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
                   {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
                 </div>
