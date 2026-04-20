@@ -40,11 +40,18 @@ const CL = ({ children }) => <Layout role="company">{children}</Layout>;
 const PL = ({ children }) => <Layout role="panel">{children}</Layout>;
 const AL = ({ children }) => <Layout role="admin">{children}</Layout>;
 
-// 로그인 필요 라우트 — 미인증 시 /login으로 리다이렉트
-function PrivateRoute({ children }) {
-  const { user, loading } = useAuth();
+const ROLE_HOME = { company: '/company', panel: '/panel', admin: '/admin' };
+
+// 로그인 필요 + 역할 기반 접근 제어
+function RoleRoute({ role: required, children }) {
+  const { user, role, loading } = useAuth();
   if (loading) return null;
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  // role 없으면 로그인으로
+  if (!role) return <Navigate to="/login" replace />;
+  // 다른 역할이 접근하면 자기 포털로 리다이렉트
+  if (role !== required) return <Navigate to={ROLE_HOME[role]} replace />;
+  return children;
 }
 
 function AppRoutes() {
@@ -55,38 +62,38 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
 
-      {/* Company — 로그인 필요 */}
-      <Route path="/company" element={<PrivateRoute><CL><CompanyDashboard /></CL></PrivateRoute>} />
-      <Route path="/company/notifications" element={<PrivateRoute><CL><NotificationCenter role="company" /></CL></PrivateRoute>} />
-      <Route path="/company/new" element={<PrivateRoute><CL><NewMission /></CL></PrivateRoute>} />
-      <Route path="/company/results" element={<PrivateRoute><CL><Results /></CL></PrivateRoute>} />
-      <Route path="/company/diagnosis" element={<PrivateRoute><CL><Diagnosis /></CL></PrivateRoute>} />
-      <Route path="/company/preference" element={<PrivateRoute><CL><PreferenceTest /></CL></PrivateRoute>} />
-      <Route path="/company/pricing-test" element={<PrivateRoute><CL><PricingTest /></CL></PrivateRoute>} />
-      <Route path="/company/email-test" element={<PrivateRoute><CL><ColdEmailTest /></CL></PrivateRoute>} />
-      <Route path="/company/templates" element={<PrivateRoute><CL><QuestionTemplates /></CL></PrivateRoute>} />
-      <Route path="/company/icp" element={<PrivateRoute><CL><ICPResearch /></CL></PrivateRoute>} />
-      <Route path="/company/icp-pulse" element={<PrivateRoute><CL><ICPPulse /></CL></PrivateRoute>} />
-      <Route path="/company/brand" element={<PrivateRoute><CL><BrandTracking /></CL></PrivateRoute>} />
-      <Route path="/company/report" element={<PrivateRoute><CL><AIReport /></CL></PrivateRoute>} />
-      <Route path="/company/settings" element={<PrivateRoute><CL><AccountSettings /></CL></PrivateRoute>} />
-      <Route path="/company/plans" element={<PrivateRoute><CL><PricingPage /></CL></PrivateRoute>} />
+      {/* Company — company 역할만 접근 가능 */}
+      <Route path="/company" element={<RoleRoute role="company"><CL><CompanyDashboard /></CL></RoleRoute>} />
+      <Route path="/company/notifications" element={<RoleRoute role="company"><CL><NotificationCenter role="company" /></CL></RoleRoute>} />
+      <Route path="/company/new" element={<RoleRoute role="company"><CL><NewMission /></CL></RoleRoute>} />
+      <Route path="/company/results" element={<RoleRoute role="company"><CL><Results /></CL></RoleRoute>} />
+      <Route path="/company/diagnosis" element={<RoleRoute role="company"><CL><Diagnosis /></CL></RoleRoute>} />
+      <Route path="/company/preference" element={<RoleRoute role="company"><CL><PreferenceTest /></CL></RoleRoute>} />
+      <Route path="/company/pricing-test" element={<RoleRoute role="company"><CL><PricingTest /></CL></RoleRoute>} />
+      <Route path="/company/email-test" element={<RoleRoute role="company"><CL><ColdEmailTest /></CL></RoleRoute>} />
+      <Route path="/company/templates" element={<RoleRoute role="company"><CL><QuestionTemplates /></CL></RoleRoute>} />
+      <Route path="/company/icp" element={<RoleRoute role="company"><CL><ICPResearch /></CL></RoleRoute>} />
+      <Route path="/company/icp-pulse" element={<RoleRoute role="company"><CL><ICPPulse /></CL></RoleRoute>} />
+      <Route path="/company/brand" element={<RoleRoute role="company"><CL><BrandTracking /></CL></RoleRoute>} />
+      <Route path="/company/report" element={<RoleRoute role="company"><CL><AIReport /></CL></RoleRoute>} />
+      <Route path="/company/settings" element={<RoleRoute role="company"><CL><AccountSettings /></CL></RoleRoute>} />
+      <Route path="/company/plans" element={<RoleRoute role="company"><CL><PricingPage /></CL></RoleRoute>} />
 
-      {/* Panel — 로그인 필요 */}
-      <Route path="/panel" element={<PrivateRoute><PL><PanelDashboard /></PL></PrivateRoute>} />
-      <Route path="/panel/notifications" element={<PrivateRoute><PL><NotificationCenter role="panel" /></PL></PrivateRoute>} />
-      <Route path="/panel/missions" element={<PrivateRoute><PL><MissionList /></PL></PrivateRoute>} />
-      <Route path="/panel/active" element={<PrivateRoute><PL><ActiveMission /></PL></PrivateRoute>} />
-      <Route path="/panel/history" element={<PrivateRoute><PL><History /></PL></PrivateRoute>} />
-      <Route path="/panel/profile" element={<PrivateRoute><PL><PanelProfile /></PL></PrivateRoute>} />
+      {/* Panel — panel 역할만 접근 가능 */}
+      <Route path="/panel" element={<RoleRoute role="panel"><PL><PanelDashboard /></PL></RoleRoute>} />
+      <Route path="/panel/notifications" element={<RoleRoute role="panel"><PL><NotificationCenter role="panel" /></PL></RoleRoute>} />
+      <Route path="/panel/missions" element={<RoleRoute role="panel"><PL><MissionList /></PL></RoleRoute>} />
+      <Route path="/panel/active" element={<RoleRoute role="panel"><PL><ActiveMission /></PL></RoleRoute>} />
+      <Route path="/panel/history" element={<RoleRoute role="panel"><PL><History /></PL></RoleRoute>} />
+      <Route path="/panel/profile" element={<RoleRoute role="panel"><PL><PanelProfile /></PL></RoleRoute>} />
 
-      {/* Admin — 로그인 필요 */}
-      <Route path="/admin" element={<PrivateRoute><AL><AdminDashboard /></AL></PrivateRoute>} />
-      <Route path="/admin/notifications" element={<PrivateRoute><AL><NotificationCenter role="admin" /></AL></PrivateRoute>} />
-      <Route path="/admin/panels" element={<PrivateRoute><AL><PanelManagement /></AL></PrivateRoute>} />
-      <Route path="/admin/missions" element={<PrivateRoute><AL><AdminMissions /></AL></PrivateRoute>} />
-      <Route path="/admin/purity" element={<PrivateRoute><AL><PurityFilter /></AL></PrivateRoute>} />
-      <Route path="/admin/revenue" element={<PrivateRoute><AL><RevenueManagement /></AL></PrivateRoute>} />
+      {/* Admin — admin 역할만 접근 가능 */}
+      <Route path="/admin" element={<RoleRoute role="admin"><AL><AdminDashboard /></AL></RoleRoute>} />
+      <Route path="/admin/notifications" element={<RoleRoute role="admin"><AL><NotificationCenter role="admin" /></AL></RoleRoute>} />
+      <Route path="/admin/panels" element={<RoleRoute role="admin"><AL><PanelManagement /></AL></RoleRoute>} />
+      <Route path="/admin/missions" element={<RoleRoute role="admin"><AL><AdminMissions /></AL></RoleRoute>} />
+      <Route path="/admin/purity" element={<RoleRoute role="admin"><AL><PurityFilter /></AL></RoleRoute>} />
+      <Route path="/admin/revenue" element={<RoleRoute role="admin"><AL><RevenueManagement /></AL></RoleRoute>} />
     </Routes>
   );
 }

@@ -239,39 +239,6 @@ export default function Layout({ role, children }) {
           </button>
         </div>
 
-        {/* Role switcher */}
-        <div style={{ padding: collapsed ? '10px 0' : '10px 8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-          {!collapsed && (
-            <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 6, paddingLeft: 6, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
-              포털 전환
-            </div>
-          )}
-          <div style={{ display: 'flex', flexDirection: collapsed ? 'column' : 'row', gap: 4 }}>
-            {['company', 'panel', 'admin'].map(r => (
-              <button key={r} onClick={() => navigate(`/${r}`)}
-                title={collapsed ? ROLE_LABEL[r] : undefined}
-                style={{
-                  flex: collapsed ? 'none' : 1,
-                  padding: collapsed ? '8px 0' : '6px 0',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  justifyContent: 'center',
-                  background: role === r ? 'var(--surface)' : 'none',
-                  color: role === r ? 'var(--text)' : 'var(--text-3)',
-                  borderRadius: 8, fontSize: 12,
-                  fontWeight: role === r ? 600 : 400,
-                  border: role === r ? '1px solid var(--border)' : '1px solid transparent',
-                  transition: 'all 0.15s', cursor: 'pointer',
-                }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: role === r ? 'var(--text)' : 'var(--border)',
-                  flexShrink: 0,
-                }} />
-                {!collapsed && ROLE_LABEL[r]}
-              </button>
-            ))}
-          </div>
-        </div>
       </aside>
 
       <main style={{ flex: 1, minHeight: '100vh', overflow: 'auto' }}>{children}</main>
