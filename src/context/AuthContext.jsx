@@ -30,18 +30,7 @@ export function AuthProvider({ children }) {
       options: { data: { name, role: selectedRole } },
     });
     if (error) throw error;
-
-    // companies 또는 panels 테이블에 프로필 생성
-    if (data.user) {
-      const table = selectedRole === 'company' ? 'companies' : 'panels';
-      const { error: profileError } = await supabase.from(table).insert({
-        user_id: data.user.id,
-        name,
-        email,
-      });
-      if (profileError) throw profileError;
-    }
-
+    // 테이블 insert는 DB 트리거(handle_new_user)가 자동 처리
     return data;
   }
 

@@ -5,7 +5,9 @@ import {
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
   Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const NAV = {
   company: [
@@ -93,8 +95,14 @@ const ROLE_LABEL = { company: '기업', panel: '패널', admin: '어드민' };
 export default function Layout({ role, children }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, signOut } = useAuth();
   const navGroups = NAV[role] || [];
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login', { replace: true });
+  };
 
   const isActive = (path) =>
     location.pathname === path ||
@@ -204,6 +212,32 @@ export default function Layout({ role, children }) {
             </div>
           ))}
         </nav>
+
+        {/* 유저 정보 & 로그아웃 */}
+        <div style={{ padding: collapsed ? '10px 0' : '10px 10px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          {!collapsed && user && (
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8, paddingLeft: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.user_metadata?.name || user.email}
+            </div>
+          )}
+          <button
+            onClick={handleSignOut}
+            title={collapsed ? '로그아웃' : undefined}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              gap: 8, padding: collapsed ? '9px 0' : '8px 10px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              background: 'none', color: 'var(--red)',
+              borderRadius: 8, fontSize: 13, fontWeight: 500,
+              border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--red-dim)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <LogOut size={15} strokeWidth={2} style={{ flexShrink: 0 }} />
+            {!collapsed && '로그아웃'}
+          </button>
+        </div>
 
         {/* Role switcher */}
         <div style={{ padding: collapsed ? '10px 0' : '10px 8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>

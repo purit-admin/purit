@@ -12,7 +12,9 @@ const T3    = '#94A3B8';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn, dashboardPath } = useAuth();
+  const { signIn } = useAuth();
+
+  const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
   const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
@@ -28,8 +30,9 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await signIn({ email, password });
-      navigate(dashboardPath, { replace: true });
+      const { user } = await signIn({ email, password });
+      const role = user?.user_metadata?.role;
+      navigate(DEST[role] ?? '/company', { replace: true });
     } catch (err) {
       setError(err.message === 'Invalid login credentials'
         ? '이메일 또는 비밀번호가 올바르지 않습니다.'

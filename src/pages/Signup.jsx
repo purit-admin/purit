@@ -38,8 +38,9 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      await signUp({ email, password, name, role });
-      navigate(DEST[role], { replace: true });
+      const { user } = await signUp({ email, password, name, role });
+      const userRole = user?.user_metadata?.role ?? role;
+      navigate(DEST[userRole] ?? '/company', { replace: true });
     } catch (err) {
       if (err.message.includes('already registered')) {
         setError('이미 가입된 이메일입니다. 로그인해 주세요.');

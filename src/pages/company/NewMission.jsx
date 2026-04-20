@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Btn, Card } from '../../components/ui';
+import { supabase } from '../../lib/supabase';
 
 const STEPS = ['기본 정보', '페르소나 설정', '소재 업로드', '검토 & 제출'];
 
@@ -26,6 +27,50 @@ export default function NewMission() {
   }));
 
   const total = (PRICE_PER[form.panels] || 90) * 10000;
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      // 현재 로그인 유저의 company_id 조회
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      if (companyError) throw companyError;
+
+      const persona = [
+        form.personaAge && `연령: ${form.personaAge}`,
+        form.personaIncome && `소득: ${form.personaIncome}`,
+        form.personaRole && `직군: ${form.personaRole}`,
+        form.personaContext && form.personaContext,
+      ].filter(Boolean).join(' / ');
+
+      const { error } = await supabase.from('missions').insert({
+        company_id:   company.id,
+        title:        form.product || '미션',
+        type:         'landing_page',
+        target_url:   form.lpUrl,
+        description:  form.briefText,
+        persona,
+        panel_count:  form.panels,
+        reward_amount: (PRICE_PER[form.panels] || 90) * 1000,
+        status:       'active',
+        assets:       form.focusAreas,
+      });
+      if (error) throw error;
+
+      navigate('/company');
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.5s ease both' }}>
@@ -183,8 +228,13 @@ export default function NewMission() {
         <Btn variant="secondary" onClick={() => step > 0 ? setStep(s => s - 1) : navigate('/company')} size="md">
           {step === 0 ? '취소' : '이전'}
         </Btn>
-        <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : navigate('/company')} size="md">
-          {step === STEPS.length - 1 ? '의뢰 제출 →' : '다음 →'}
+        {submitError && (
+          <div style={{ color: 'var(--red)', fontSize: 13, padding: '8px 12px', background: 'var(--red-dim)', borderRadius: 8 }}>
+            {submitError}
+          </div>
+        )}
+        <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()} size="md" disabled={submitting}>
+          {step === STEPS.length - 1 ? (submitting ? '제출 중...' : '의뢰 제출 →') : '다음 →'}
         </Btn>
       </div>
     </div>

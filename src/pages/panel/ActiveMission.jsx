@@ -1,36 +1,94 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Btn, ScoreBar, Badge } from '../../components/ui';
-import { MISSIONS } from '../../lib/data';
+import { Card, Btn, Badge } from '../../components/ui';
+import { supabase } from '../../lib/supabase';
 
 const SECTIONS = [
-  { key: 'headline', label: '헤드라인 카피', desc: '첫 화면 메시지가 타겟에게 즉시 공명하는가?' },
-  { key: 'social', label: '소셜 프루프', desc: '후기, 수치, 보증이 신뢰를 만드는가?' },
-  { key: 'cta', label: 'CTA 효과', desc: 'CTA 버튼의 위치, 문구, 시인성은 적절한가?' },
-  { key: 'pricing', label: '가격 앵커링', desc: '가격 제시 방식이 구매 결정을 촉진하는가?' },
+  { key: 'clarity',         label: '명확성',   desc: '첫 화면 메시지가 타겟에게 즉시 이해되는가?' },
+  { key: 'relevance',       label: '관련성',   desc: '콘텐츠가 타겟 페르소나의 니즈에 정확히 맞는가?' },
+  { key: 'value',           label: '가치',     desc: '제품/서비스의 가치가 명확하게 전달되는가?' },
+  { key: 'differentiation', label: '차별화',   desc: '경쟁 대비 차별점이 설득력 있게 드러나는가?' },
+  { key: 'trust',           label: '신뢰',     desc: 'CTA, 소셜 프루프, 보증이 구매 신뢰를 만드는가?' },
 ];
 
 export default function ActiveMission() {
   const navigate = useNavigate();
-  const mission = MISSIONS[0];
-  const [step, setStep] = useState(0); // 0=brief, 1=feedback, 2=done
-  const [scores, setScores] = useState({ headline: 0, social: 0, cta: 0, pricing: 0 });
-  const [comments, setComments] = useState({ headline: '', social: '', cta: '', pricing: '' });
+  const [mission, setMission]   = useState(null);
+  const [panel, setPanel]       = useState(null);
+  const [step, setStep]         = useState(0);
+  const [scores, setScores]     = useState({ clarity: 0, relevance: 0, value: 0, differentiation: 0, trust: 0 });
+  const [comments, setComments] = useState({ clarity: '', relevance: '', value: '', differentiation: '', trust: '' });
   const [purityWarning, setPurityWarning] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const currentSection = SECTIONS[step - 1];
-  const totalSteps = SECTIONS.length + 1;
+  useEffect(() => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 패널 정보 조회
+      const { data: p } = await supabase
+        .from('panels').select('*').eq('user_id', user.id).single();
+      setPanel(p);
+
+      // 활성 미션 1개 조회
+      const { data: ms } = await supabase
+        .from('missions').select('*').eq('status', 'active').limit(1).single();
+      setMission(ms);
+    }
+    load();
+  }, []);
 
   const checkPurity = (text) => {
-    if (text.length > 10 && text.split(' ').length < 5) {
+    if (text.length > 10 && text.split(' ').length < 4) {
       setPurityWarning('⚠️ 너무 짧은 피드백은 Purity Filter에서 걸릴 수 있습니다. 구체적인 근거를 추가해주세요.');
-    } else if (/좋아요|나쁘네요|별로|좋은것같아요/i.test(text)) {
-      setPurityWarning('⚠️ 감성적 표현만으로는 필터를 통과하기 어렵습니다. 전환율에 영향을 미치는 구체적 이유를 작성해주세요.');
+    } else if (/^(좋아요|나쁘네요|별로|좋은것같아요|모르겠어요)$/i.test(text.trim())) {
+      setPurityWarning('⚠️ 감성적 표현만으로는 필터를 통과하기 어렵습니다. 구체적 이유를 작성해주세요.');
     } else {
       setPurityWarning('');
     }
   };
 
+  const handleSubmit = async () => {
+    if (!mission || !panel) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('feedbacks').insert({
+        mission_id:            mission.id,
+        panel_id:              panel.id,
+        clarity_score:         scores.clarity,
+        relevance_score:       scores.relevance,
+        value_score:           scores.value,
+        differentiation_score: scores.differentiation,
+        trust_score:           scores.trust,
+        strengths:             comments.clarity,
+        weaknesses:            comments.relevance,
+        suggestions:           [comments.value, comments.differentiation, comments.trust].filter(Boolean).join('\n'),
+        purity_passed:         false,
+        status:                'submitted',
+      });
+      if (error) throw error;
+
+      // 패널 미션 카운트 +1
+      await supabase.from('panels')
+        .update({ total_missions: (panel.total_missions || 0) + 1 })
+        .eq('id', panel.id);
+
+      setStep(SECTIONS.length + 1);
+    } catch (err) {
+      alert('제출 중 오류: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!mission) return (
+    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>
+      {mission === null ? '미션을 불러오는 중...' : '현재 참여 가능한 미션이 없습니다.'}
+    </div>
+  );
+
+  /* ─── 브리핑 화면 ─── */
   if (step === 0) return (
     <div style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
@@ -38,21 +96,26 @@ export default function ActiveMission() {
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <Badge type="green">진행 중</Badge>
-          <Badge type="gray">{mission.industry}</Badge>
         </div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>{mission.product}</h2>
-        <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 20, lineHeight: 1.7 }}>
-          🎯 <strong>타겟 페르소나:</strong> {mission.targetPersona}
-        </div>
-        <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 20, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
-          <strong style={{ color: 'var(--text)' }}>브리핑:</strong><br />
-          이 LP는 러닝화 첫 구매자를 타겟으로 합니다. 스크롤 흐름과 CTA 전환 가능성을 중심으로 피드백 부탁드립니다. 당신이 실제 구매자라면 이 페이지에서 구매 버튼을 누르겠습니까?
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-          {mission.tags.map(t => <Badge key={t} type="gold">{t}</Badge>)}
-        </div>
-        <div style={{ padding: '14px 18px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, lineHeight: 1.7 }}>
-          <strong style={{ color: 'var(--accent)' }}>보상: ₩{mission.reward.toLocaleString()}</strong>
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>{mission.title}</h2>
+        {mission.persona && (
+          <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.7 }}>
+            🎯 <strong>타겟 페르소나:</strong> {mission.persona}
+          </div>
+        )}
+        {mission.description && (
+          <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
+            <strong style={{ color: 'var(--text)' }}>브리핑:</strong><br />{mission.description}
+          </div>
+        )}
+        {mission.target_url && (
+          <a href={mission.target_url} target="_blank" rel="noreferrer"
+            style={{ fontSize: 13, color: 'var(--accent)', display: 'inline-block', marginBottom: 16 }}>
+            🔗 랜딩페이지 보기 →
+          </a>
+        )}
+        <div style={{ padding: '14px 18px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+          <strong style={{ color: 'var(--accent)' }}>보상: ₩{(mission.reward_amount || 0).toLocaleString()}</strong>
           <span style={{ color: 'var(--text-2)' }}> · Purity Filter 통과 시 자동 지급</span>
         </div>
       </Card>
@@ -63,23 +126,25 @@ export default function ActiveMission() {
     </div>
   );
 
+  /* ─── 완료 화면 ─── */
   if (step > SECTIONS.length) return (
     <div style={{ padding: '40px 48px', maxWidth: 600, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
       <div style={{ fontSize: 64, marginBottom: 20 }}>✅</div>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>피드백 제출 완료!</h1>
       <p style={{ color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 32 }}>
-        Purity Filter 검증 중입니다. 통과 시 <strong style={{ color: 'var(--green)' }}>₩{mission.reward.toLocaleString()}</strong>이 적립됩니다.<br />
-        일반적으로 2-4시간 내 결과가 확인됩니다.
+        Purity Filter 검증 중입니다. 통과 시{' '}
+        <strong style={{ color: 'var(--green)' }}>₩{(mission.reward_amount || 0).toLocaleString()}</strong>이 적립됩니다.
       </p>
       <Btn onClick={() => navigate('/panel')}>대시보드로 →</Btn>
     </div>
   );
 
+  /* ─── 피드백 입력 화면 ─── */
   const sec = SECTIONS[step - 1];
+  const isLast = step === SECTIONS.length;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.4s ease both' }}>
-      {/* Progress */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
         {SECTIONS.map((s, i) => (
           <div key={s.key} style={{
@@ -97,10 +162,9 @@ export default function ActiveMission() {
       <p style={{ color: 'var(--text-2)', marginBottom: 28 }}>{sec.desc}</p>
 
       <Card style={{ marginBottom: 20 }}>
-        {/* Score selector */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
-            전환 기여도 점수
+            점수 (1~5)
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {[1, 2, 3, 4, 5].map(n => (
@@ -110,17 +174,14 @@ export default function ActiveMission() {
                 color: scores[sec.key] === n ? '#0A0A08' : 'var(--text-2)',
                 border: '1px solid ' + (scores[sec.key] >= n ? 'rgba(232,213,163,0.4)' : 'var(--border)'),
                 fontWeight: 700, fontSize: 16, transition: 'all 0.15s', cursor: 'pointer',
-              }}>
-                {n}
-              </button>
+              }}>{n}</button>
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
-            <span>전환 방해</span><span>전환 기여</span>
+            <span>매우 낮음</span><span>매우 높음</span>
           </div>
         </div>
 
-        {/* Comment */}
         <div>
           <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             구체적 피드백
@@ -128,11 +189,11 @@ export default function ActiveMission() {
           <textarea
             value={comments[sec.key]}
             onChange={e => { setComments(c => ({ ...c, [sec.key]: e.target.value })); checkPurity(e.target.value); }}
-            placeholder={`${sec.label}에서 발견한 전환 결함이나 강점을 구체적으로 작성하세요.\n예) "헤드라인이 타겟의 고통점을 직접 건드리지 않아 이탈률이 높을 것 같습니다. 러닝 페이스 개선 수치 등 구체적 성과 언어로 교체 추천합니다."`}
+            placeholder={`${sec.label} 측면에서 발견한 문제점이나 강점을 구체적으로 작성해주세요.`}
             rows={5} style={{ resize: 'vertical' }}
           />
           {purityWarning && (
-            <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8, padding: '10px 14px', background: 'var(--red-dim)', borderRadius: 'var(--radius)', border: '1px solid rgba(224,112,112,0.2)' }}>
+            <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8, padding: '10px 14px', background: 'var(--red-dim)', borderRadius: 'var(--radius)' }}>
               {purityWarning}
             </div>
           )}
@@ -142,10 +203,10 @@ export default function ActiveMission() {
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <Btn variant="secondary" onClick={() => setStep(s => s - 1)}>이전</Btn>
         <Btn
-          disabled={!scores[sec.key] || !comments[sec.key].trim()}
-          onClick={() => setStep(s => s + 1)}
+          disabled={!scores[sec.key] || !comments[sec.key].trim() || submitting}
+          onClick={() => isLast ? handleSubmit() : setStep(s => s + 1)}
         >
-          {step === SECTIONS.length ? '제출하기 →' : '다음 →'}
+          {isLast ? (submitting ? '제출 중...' : '제출하기 →') : '다음 →'}
         </Btn>
       </div>
     </div>
