@@ -1,6 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Sidebar';
 import NotificationCenter from './components/ui/NotificationCenter';
+import Landing from './pages/Landing';
+import Login from './pages/Login';
 
 // Company pages
 import CompanyDashboard from './pages/company/Dashboard';
@@ -40,7 +42,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/company" replace />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
 
         {/* Company */}
         <Route path="/company" element={<CL><CompanyDashboard /></CL>} />
