@@ -1,8 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Sidebar';
 import NotificationCenter from './components/ui/NotificationCenter';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 
 // Company pages
 import CompanyDashboard from './pages/company/Dashboard';
@@ -38,46 +40,63 @@ const CL = ({ children }) => <Layout role="company">{children}</Layout>;
 const PL = ({ children }) => <Layout role="panel">{children}</Layout>;
 const AL = ({ children }) => <Layout role="admin">{children}</Layout>;
 
+// 로그인 필요 라우트 — 미인증 시 /login으로 리다이렉트
+function PrivateRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return user ? children : <Navigate to="/login" replace />;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* 공개 */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+
+      {/* Company — 로그인 필요 */}
+      <Route path="/company" element={<PrivateRoute><CL><CompanyDashboard /></CL></PrivateRoute>} />
+      <Route path="/company/notifications" element={<PrivateRoute><CL><NotificationCenter role="company" /></CL></PrivateRoute>} />
+      <Route path="/company/new" element={<PrivateRoute><CL><NewMission /></CL></PrivateRoute>} />
+      <Route path="/company/results" element={<PrivateRoute><CL><Results /></CL></PrivateRoute>} />
+      <Route path="/company/diagnosis" element={<PrivateRoute><CL><Diagnosis /></CL></PrivateRoute>} />
+      <Route path="/company/preference" element={<PrivateRoute><CL><PreferenceTest /></CL></PrivateRoute>} />
+      <Route path="/company/pricing-test" element={<PrivateRoute><CL><PricingTest /></CL></PrivateRoute>} />
+      <Route path="/company/email-test" element={<PrivateRoute><CL><ColdEmailTest /></CL></PrivateRoute>} />
+      <Route path="/company/templates" element={<PrivateRoute><CL><QuestionTemplates /></CL></PrivateRoute>} />
+      <Route path="/company/icp" element={<PrivateRoute><CL><ICPResearch /></CL></PrivateRoute>} />
+      <Route path="/company/icp-pulse" element={<PrivateRoute><CL><ICPPulse /></CL></PrivateRoute>} />
+      <Route path="/company/brand" element={<PrivateRoute><CL><BrandTracking /></CL></PrivateRoute>} />
+      <Route path="/company/report" element={<PrivateRoute><CL><AIReport /></CL></PrivateRoute>} />
+      <Route path="/company/settings" element={<PrivateRoute><CL><AccountSettings /></CL></PrivateRoute>} />
+      <Route path="/company/plans" element={<PrivateRoute><CL><PricingPage /></CL></PrivateRoute>} />
+
+      {/* Panel — 로그인 필요 */}
+      <Route path="/panel" element={<PrivateRoute><PL><PanelDashboard /></PL></PrivateRoute>} />
+      <Route path="/panel/notifications" element={<PrivateRoute><PL><NotificationCenter role="panel" /></PL></PrivateRoute>} />
+      <Route path="/panel/missions" element={<PrivateRoute><PL><MissionList /></PL></PrivateRoute>} />
+      <Route path="/panel/active" element={<PrivateRoute><PL><ActiveMission /></PL></PrivateRoute>} />
+      <Route path="/panel/history" element={<PrivateRoute><PL><History /></PL></PrivateRoute>} />
+      <Route path="/panel/profile" element={<PrivateRoute><PL><PanelProfile /></PL></PrivateRoute>} />
+
+      {/* Admin — 로그인 필요 */}
+      <Route path="/admin" element={<PrivateRoute><AL><AdminDashboard /></AL></PrivateRoute>} />
+      <Route path="/admin/notifications" element={<PrivateRoute><AL><NotificationCenter role="admin" /></AL></PrivateRoute>} />
+      <Route path="/admin/panels" element={<PrivateRoute><AL><PanelManagement /></AL></PrivateRoute>} />
+      <Route path="/admin/missions" element={<PrivateRoute><AL><AdminMissions /></AL></PrivateRoute>} />
+      <Route path="/admin/purity" element={<PrivateRoute><AL><PurityFilter /></AL></PrivateRoute>} />
+      <Route path="/admin/revenue" element={<PrivateRoute><AL><RevenueManagement /></AL></PrivateRoute>} />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-
-        {/* Company */}
-        <Route path="/company" element={<CL><CompanyDashboard /></CL>} />
-        <Route path="/company/notifications" element={<CL><NotificationCenter role="company" /></CL>} />
-        <Route path="/company/new" element={<CL><NewMission /></CL>} />
-        <Route path="/company/results" element={<CL><Results /></CL>} />
-        <Route path="/company/diagnosis" element={<CL><Diagnosis /></CL>} />
-        <Route path="/company/preference" element={<CL><PreferenceTest /></CL>} />
-        <Route path="/company/pricing-test" element={<CL><PricingTest /></CL>} />
-        <Route path="/company/email-test" element={<CL><ColdEmailTest /></CL>} />
-        <Route path="/company/templates" element={<CL><QuestionTemplates /></CL>} />
-        <Route path="/company/icp" element={<CL><ICPResearch /></CL>} />
-        <Route path="/company/icp-pulse" element={<CL><ICPPulse /></CL>} />
-        <Route path="/company/brand" element={<CL><BrandTracking /></CL>} />
-        <Route path="/company/report" element={<CL><AIReport /></CL>} />
-        <Route path="/company/settings" element={<CL><AccountSettings /></CL>} />
-        <Route path="/company/plans" element={<CL><PricingPage /></CL>} />
-
-        {/* Panel */}
-        <Route path="/panel" element={<PL><PanelDashboard /></PL>} />
-        <Route path="/panel/notifications" element={<PL><NotificationCenter role="panel" /></PL>} />
-        <Route path="/panel/missions" element={<PL><MissionList /></PL>} />
-        <Route path="/panel/active" element={<PL><ActiveMission /></PL>} />
-        <Route path="/panel/history" element={<PL><History /></PL>} />
-        <Route path="/panel/profile" element={<PL><PanelProfile /></PL>} />
-
-        {/* Admin */}
-        <Route path="/admin" element={<AL><AdminDashboard /></AL>} />
-        <Route path="/admin/notifications" element={<AL><NotificationCenter role="admin" /></AL>} />
-        <Route path="/admin/panels" element={<AL><PanelManagement /></AL>} />
-        <Route path="/admin/missions" element={<AL><AdminMissions /></AL>} />
-        <Route path="/admin/purity" element={<AL><PurityFilter /></AL>} />
-        <Route path="/admin/revenue" element={<AL><RevenueManagement /></AL>} />
-      </Routes>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
