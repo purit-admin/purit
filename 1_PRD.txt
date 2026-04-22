@@ -1,0 +1,125 @@
+================================================================
+1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
+최종 업데이트: 2026-04-22
+================================================================
+
+## 서비스 개요
+
+- 서비스명: Purity
+- 성격: 전환율 최적화(CRO) 패널 서베이 SaaS MVP
+- 목적: 기업이 자사 랜딩페이지/콘텐츠/가격 등을 실제 타겟 패널에게 검증받고,
+         정량적 피드백(5개 축 점수)을 통해 마케팅 자산을 개선하도록 지원
+- 사용자 역할: 3종 (company / panel / admin)
+
+================================================================
+## 역할 1: Company (기업)
+================================================================
+
+인증 후 /company 하위 라우트 접근 가능.
+
+### [개요]
+1. 대시보드 (/company)
+   - 등록된 미션 목록 요약 표시 (상태별: active/completed 등)
+   - 최근 미션 피드백 현황 수치 표시
+
+### [검증 도구]
+2. 의뢰 등록 (/company/new) — NewMission.jsx
+   - 제품명, LP URL 입력
+   - 타겟 페르소나 설정 (산업군, 직책, 경력 등)
+   - 패널 수 선택 → 보상금 자동 산출 (PRICE_PER 테이블 기반)
+   - 검증 포인트(assets) 선택 (다중 선택)
+   - 제출 시 Supabase missions 테이블에 INSERT, status='active'
+
+3. 피드백 결과 (/company/results) — Results.jsx
+   - 보유 미션 목록 표시 (missions 테이블 SELECT)
+   - 미션 선택 시 해당 피드백 목록 표시 (feedbacks 테이블 SELECT)
+   - 5개 축 평균 점수 시각화
+
+4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
+   - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
+
+5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx
+   - 두 개 소재 비교 테스트 UI
+
+6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx
+   - 가격 구성 검증 UI
+
+7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx
+   - 콜드 이메일 문안 검증 UI
+
+8. 질문 템플릿 관리 (/company/templates) — QuestionTemplates.jsx
+   - 커스텀 질문 템플릿 관리 UI
+
+### [인텔리전스]
+9.  ICP 리서치 (/company/icp) — ICPResearch.jsx
+10. ICP Pulse (/company/icp-pulse) — ICPPulse.jsx
+11. 브랜드 트래킹 (/company/brand) — BrandTracking.jsx
+12. AI 리포트 (/company/report) — AIReport.jsx
+
+### [계정]
+13. 팀 & 설정 (/company/settings) — Settings.jsx
+14. 플랜 & 가격 (/company/plans) — Pricing.jsx
+
+================================================================
+## 역할 2: Panel (패널/응답자)
+================================================================
+
+인증 후 /panel 하위 라우트 접근 가능.
+
+1. 대시보드 (/panel) — Dashboard.jsx
+   - 수익 현황, 완료 미션 수 요약
+   - 최신 활성 미션 5개 프리뷰 (missions SELECT, status='active', limit 5)
+
+2. 미션 탐색 (/panel/missions) — Missions.jsx
+   - 전체 활성 미션 목록 조회 (missions SELECT, created_at DESC)
+
+3. 미션 수행 (/panel/active) — ActiveMission.jsx
+   - 현재 활성 미션 1개 조회
+   - 5개 축 점수(1-5) 슬라이더 입력
+   - 강점/약점/제안 텍스트 입력
+   - 제출 시:
+     a. feedbacks INSERT (purity_passed=false, status='submitted')
+     b. missions.filled_count +1 UPDATE
+     c. panels.total_missions +1 UPDATE
+
+4. 수익 이력 (/panel/history) — History.jsx
+   - 완료 피드백 목록 (feedbacks SELECT + missions JOIN → title, reward_amount)
+
+5. 프로필 설정 (/panel/profile) — Profile.jsx
+   - 이름, 산업, 경력, 전문 분야, 은행 계좌 정보 조회/수정
+   - panels SELECT → panels UPDATE
+
+================================================================
+## 역할 3: Admin (관리자)
+================================================================
+
+인증 후 /admin 하위 라우트 접근 가능.
+(현재 구현: UI 레이아웃 + 기본 데이터 표시. 실 DB 연동 일부 미완)
+
+1. 플랫폼 대시보드 (/admin) — Dashboard.jsx
+2. 패널 관리 (/admin/panels) — PanelManagement.jsx
+3. 미션 관리 (/admin/missions) — Missions.jsx
+4. Purity Filter (/admin/purity) — PurityFilter.jsx
+   - 피드백 품질 필터링 / purity_passed 관리
+5. 수익 & 정산 (/admin/revenue) — Revenue.jsx
+
+================================================================
+## 인증 흐름
+================================================================
+
+- 방식: Supabase Auth (이메일 + 패스워드)
+- 회원가입: role 선택(company/panel) → signUp 호출 →
+             DB 트리거(handle_new_user)가 panels 또는 companies 테이블에 레코드 자동 생성
+- 로그인: signInWithPassword → user_metadata.role로 역할 판별 → 역할별 대시보드 리다이렉트
+- 세션: getSession() 초기 로드 + onAuthStateChange 실시간 구독
+- 접근 제어: RoleRoute 컴포넌트 — 비인증 시 /login 리다이렉트,
+             역할 불일치 시 해당 역할 홈으로 리다이렉트
+
+================================================================
+## 공용 라우트
+================================================================
+
+- / : Landing.jsx (공개)
+- /login : Login.jsx (공개)
+- /signup : Signup.jsx (공개, role 선택 포함)
+- /*/notifications : NotificationCenter.jsx (역할별 알림, 각 포털 공유)

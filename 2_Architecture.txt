@@ -1,0 +1,231 @@
+================================================================
+2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
+최종 업데이트: 2026-04-22
+================================================================
+
+## 기술 스택
+
+| 영역 | 기술 | 버전 |
+|------|------|------|
+| UI 프레임워크 | React | 18.2.0 |
+| 빌드 도구 | Vite | 5.1.0 |
+| 라우팅 | React Router DOM | 6.22.0 |
+| 백엔드/DB/Auth | Supabase (PostgreSQL) | JS SDK 2.103.3 |
+| 스타일링 | Tailwind CSS | 4.2.2 |
+| CSS 변수 시스템 | index.css (커스텀) | — |
+| 아이콘 | Lucide React | 0.383.0 |
+| 차트 | Recharts | 2.12.0 |
+| 배포 | Vercel (SPA rewrite) | — |
+| 언어 | JavaScript (TypeScript 미사용) | ES Module |
+
+================================================================
+## 폴더 구조
+================================================================
+
+purit/
+├── src/
+│   ├── App.jsx                      # 라우터 루트, RoleRoute 정의
+│   ├── main.jsx                     # React 진입점 (AuthProvider 감쌈)
+│   ├── index.css                    # 전역 스타일 + 디자인 시스템 CSS 변수
+│   │
+│   ├── lib/
+│   │   ├── supabase.js              # Supabase 클라이언트 싱글턴 (export: supabase)
+│   │   └── data.js                  # 목업 데이터 + 헬퍼함수 (getTierColor, getStatusColor)
+│   │
+│   ├── context/
+│   │   └── AuthContext.jsx          # AuthProvider + useAuth 훅
+│   │                                #   상태: user, role, loading
+│   │                                #   메서드: signIn, signUp, signOut
+│   │                                #   파생값: dashboardPath
+│   │
+│   ├── components/
+│   │   ├── layout/
+│   │   │   └── Sidebar.jsx          # 역할별 사이드바 레이아웃 래퍼 (CL/PL/AL)
+│   │   └── ui/
+│   │       ├── index.jsx            # 공용 컴포넌트 (아래 목록 참조)
+│   │       └── NotificationCenter.jsx  # 역할별 알림 센터 모달
+│   │
+│   └── pages/
+│       ├── Landing.jsx              # 공개 랜딩 페이지
+│       ├── Login.jsx                # 로그인
+│       ├── Signup.jsx               # 회원가입 (role 선택 포함)
+│       │
+│       ├── company/                 # Company 포털 (14개 페이지)
+│       │   ├── Dashboard.jsx
+│       │   ├── NewMission.jsx
+│       │   ├── Results.jsx
+│       │   ├── Diagnosis.jsx
+│       │   ├── PreferenceTest.jsx
+│       │   ├── PricingTest.jsx
+│       │   ├── ColdEmailTest.jsx
+│       │   ├── QuestionTemplates.jsx
+│       │   ├── ICPResearch.jsx
+│       │   ├── ICPPulse.jsx
+│       │   ├── BrandTracking.jsx
+│       │   ├── AIReport.jsx
+│       │   ├── Settings.jsx
+│       │   └── Pricing.jsx
+│       │
+│       ├── panel/                   # Panel 포털 (5개 페이지)
+│       │   ├── Dashboard.jsx
+│       │   ├── Missions.jsx
+│       │   ├── ActiveMission.jsx
+│       │   ├── History.jsx
+│       │   └── Profile.jsx
+│       │
+│       └── admin/                   # Admin 포털 (5개 페이지)
+│           ├── Dashboard.jsx
+│           ├── PanelManagement.jsx
+│           ├── Missions.jsx
+│           ├── PurityFilter.jsx
+│           └── Revenue.jsx
+│
+├── index.html
+├── vite.config.js                   # Vite 기본 설정 + @vitejs/plugin-react
+├── vercel.json                      # SPA 라우팅 rewrite 규칙
+└── package.json
+
+================================================================
+## 라우트 전체 목록 (26개)
+================================================================
+
+[공개]
+  /                          → Landing.jsx
+  /login                     → Login.jsx
+  /signup                    → Signup.jsx
+
+[Company 포털] — RoleRoute role="company"
+  /company                   → Dashboard.jsx
+  /company/notifications     → NotificationCenter.jsx
+  /company/new               → NewMission.jsx
+  /company/results           → Results.jsx
+  /company/diagnosis         → Diagnosis.jsx
+  /company/preference        → PreferenceTest.jsx
+  /company/pricing-test      → PricingTest.jsx
+  /company/email-test        → ColdEmailTest.jsx
+  /company/templates         → QuestionTemplates.jsx
+  /company/icp               → ICPResearch.jsx
+  /company/icp-pulse         → ICPPulse.jsx
+  /company/brand             → BrandTracking.jsx
+  /company/report            → AIReport.jsx
+  /company/settings          → Settings.jsx
+  /company/plans             → Pricing.jsx
+
+[Panel 포털] — RoleRoute role="panel"
+  /panel                     → Dashboard.jsx
+  /panel/notifications       → NotificationCenter.jsx
+  /panel/missions            → Missions.jsx
+  /panel/active              → ActiveMission.jsx
+  /panel/history             → History.jsx
+  /panel/profile             → Profile.jsx
+
+[Admin 포털] — RoleRoute role="admin"
+  /admin                     → Dashboard.jsx
+  /admin/notifications       → NotificationCenter.jsx
+  /admin/panels              → PanelManagement.jsx
+  /admin/missions            → Missions.jsx
+  /admin/purity              → PurityFilter.jsx
+  /admin/revenue             → Revenue.jsx
+
+================================================================
+## DB 스키마 (Supabase / PostgreSQL)
+================================================================
+
+※ 코드에서 역설계한 스키마. 실제 Supabase 대시보드와 교차 검증 필요.
+
+### [auth.users] — Supabase 내장
+  id              UUID  PK
+  email           TEXT
+  user_metadata   JSONB  { role: 'company'|'panel'|'admin', name: TEXT }
+
+---
+
+### [companies]
+  id              UUID  PK
+  user_id         UUID  FK → auth.users.id  (UNIQUE, 1:1)
+  name            TEXT
+  plan            TEXT  (플랜명, 예: free/pro 등)
+
+---
+
+### [panels]
+  id              UUID  PK
+  user_id         UUID  FK → auth.users.id  (UNIQUE, 1:1)
+  name            TEXT
+  industry        TEXT
+  experience      TEXT  (경력 연차 등)
+  bio             TEXT
+  expertise       TEXT[]  (전문 분야 배열)
+  bank_name       TEXT
+  bank_account    TEXT
+  bank_holder     TEXT
+  total_missions  INT   DEFAULT 0
+
+---
+
+### [missions]
+  id              UUID  PK
+  company_id      UUID  FK → companies.id
+  title           TEXT
+  type            TEXT  (예: 'landing_page')
+  target_url      TEXT  (LP URL)
+  description     TEXT  (브리프)
+  persona         JSONB (타겟 페르소나 설정값)
+  panel_count     INT   (요청 패널 수)
+  filled_count    INT   DEFAULT 0 (제출 완료 수)
+  reward_amount   INT   (보상금, 원 단위)
+  status          TEXT  ('active'|'completed'|'draft'|'in_review'|'cancelled')
+  assets          TEXT[]  (검증 포인트 목록)
+  created_at      TIMESTAMPTZ DEFAULT now()
+
+---
+
+### [feedbacks]
+  id                    UUID  PK
+  mission_id            UUID  FK → missions.id
+  panel_id              UUID  FK → panels.id
+  clarity_score         INT   (1–5)
+  relevance_score       INT   (1–5)
+  value_score           INT   (1–5)
+  differentiation_score INT   (1–5)
+  trust_score           INT   (1–5)
+  strengths             TEXT
+  weaknesses            TEXT
+  suggestions           TEXT
+  purity_passed         BOOL  DEFAULT false
+  status                TEXT  ('submitted'|'approved'|'rejected')
+  created_at            TIMESTAMPTZ DEFAULT now()
+
+---
+
+### 관계 요약
+
+  companies    ←1:1→  auth.users   (companies.user_id)
+  panels       ←1:1→  auth.users   (panels.user_id)
+  missions     ←N:1→  companies    (missions.company_id)
+  feedbacks    ←N:1→  missions     (feedbacks.mission_id)
+  feedbacks    ←N:1→  panels       (feedbacks.panel_id)
+
+================================================================
+## 공용 컴포넌트 (src/components/ui/index.jsx)
+================================================================
+
+재사용 시 이 컴포넌트들을 우선 사용할 것.
+
+  Btn          — 버튼 (variant: primary|secondary|ghost|danger|outline, size: sm|md|lg)
+  Card         — 카드 컨테이너 (클릭 가능, hover 효과)
+  Stat         — 지표 표시 (label, value, sub, accent)
+  ScoreBar     — 점수 바 (score, max=5, color)
+  Badge        — 태그/뱃지 (type: gray|gold|green|red|blue)
+  Divider      — 구분선
+  EmptyState   — 빈 상태 플레이스홀더 (icon, title, desc)
+
+================================================================
+## 환경 변수 (.env)
+================================================================
+
+  VITE_SUPABASE_URL       = https://[project].supabase.co
+  VITE_SUPABASE_ANON_KEY  = [anon public key]
+
+  ※ Vite 규칙: 클라이언트 노출 변수는 반드시 VITE_ 접두사 필요
+  ※ import.meta.env.VITE_* 로 접근
