@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-22
+최종 업데이트: 2026-04-23
 ================================================================
 
 ## 기술 스택
@@ -80,6 +80,10 @@ purit/
 │           ├── PurityFilter.jsx
 │           └── Revenue.jsx
 │
+├── supabase/
+│   └── migrations/
+│       ├── 001_all_tables.sql       # 신규 테이블 19개 DDL
+│       └── 002_seed_data.sql        # 초기 시드 데이터 (GMV·정산·청구·질문템플릿)
 ├── index.html
 ├── vite.config.js                   # Vite 기본 설정 + @vitejs/plugin-react
 ├── vercel.json                      # SPA 라우팅 rewrite 규칙
@@ -198,6 +202,144 @@ purit/
 
 ---
 
+### [gmv_snapshots] — 어드민 월간 GMV 스냅샷
+  id           UUID  PK
+  month_label  TEXT  (예: '7월')
+  year         INT
+  month_num    INT
+  gmv          NUMERIC
+  panel_pay    NUMERIC
+  margin       NUMERIC
+  created_at   TIMESTAMPTZ
+
+---
+
+### [settlements] — 패널 정산 내역
+  id             UUID  PK
+  panel_id       UUID  FK → panels.id  (NULLABLE)
+  panel_name     TEXT
+  tier           TEXT
+  missions_count INT
+  amount         NUMERIC
+  status         TEXT  ('pending'|'paid'|'rejected')
+  due_date       DATE
+  created_at     TIMESTAMPTZ
+
+---
+
+### [invoices] — 기업 청구서
+  id            UUID  PK
+  company_id    UUID  FK → companies.id  (NULLABLE)
+  company_name  TEXT
+  plan          TEXT
+  amount        NUMERIC
+  status        TEXT  ('pending'|'paid')
+  invoice_date  DATE
+  created_at    TIMESTAMPTZ
+
+---
+
+### [notifications] — 시스템 알림
+  id          UUID  PK
+  user_id     UUID  FK → auth.users.id  ON DELETE CASCADE
+  type        TEXT  ('success'|'warning'|'info')
+  icon        TEXT
+  title       TEXT
+  body        TEXT
+  action_url  TEXT
+  read        BOOL  DEFAULT false
+  created_at  TIMESTAMPTZ
+  INDEX: (user_id, read)
+
+---
+
+### [team_members] — 기업 팀원
+  id          UUID  PK
+  company_id  UUID  FK → companies.id  ON DELETE CASCADE
+  name        TEXT
+  email       TEXT
+  role        TEXT  ('admin'|'member'|'viewer')
+  status      TEXT  ('active'|'invited'|'inactive')
+  joined_at   DATE
+  created_at  TIMESTAMPTZ
+
+---
+
+### [question_templates] — 질문 템플릿
+  id          UUID  PK
+  company_id  UUID  FK → companies.id  (NULLABLE = 플랫폼 기본)
+  name        TEXT
+  icon        TEXT
+  category    TEXT
+  description TEXT
+  use_count   INT   DEFAULT 0
+  is_default  BOOL  DEFAULT false
+  created_at  TIMESTAMPTZ
+
+### [template_questions] — 템플릿 세부 문항
+  id            UUID  PK
+  template_id   UUID  FK → question_templates.id  ON DELETE CASCADE
+  question_text TEXT
+  question_order INT
+
+---
+
+### [preference_tests] — 소재 선호도 A/B 테스트
+  id          UUID  PK
+  company_id  UUID  FK → companies.id
+  asset_type  TEXT
+  variant_a   TEXT
+  variant_b   TEXT
+  panel_size  INT   DEFAULT 10
+  status      TEXT  ('draft'|'active'|'completed')
+  created_at  TIMESTAMPTZ
+
+### [preference_responses] — 선호도 응답
+  id          UUID  PK
+  test_id     UUID  FK → preference_tests.id  ON DELETE CASCADE
+  panel_id    UUID  FK → panels.id
+  preference  TEXT  ('A'|'B')
+  comment     TEXT
+  created_at  TIMESTAMPTZ
+
+---
+
+### [pricing_tests] / [pricing_axes] / [pricing_responses]
+  pricing_tests: id, company_id, status, created_at
+  pricing_axes:  id, test_id, axis_key, label, score
+  pricing_responses: id, test_id, panel_id, tier, would_buy, key_comment, barriers JSONB
+
+---
+
+### [cold_email_tests] / [email_responses]
+  cold_email_tests: id, company_id, email_text, status, created_at
+  email_responses:  id, test_id, panel_id, would_reply, hook_score, clarity_score, comment
+
+---
+
+### [icp_research] / [icp_pain_points] / [icp_buy_triggers] / [icp_language]
+  icp_research:     id, company_id, persona_name, status, created_at
+  icp_pain_points:  id, research_id, pain_text, percent
+  icp_buy_triggers: id, research_id, trigger_text, percent, priority_rank
+  icp_language:     id, research_id, phrase, frequency ('high'|'mid'|'low')
+
+---
+
+### [icp_pulse_subscriptions] / [icp_pulse_quarters] / [icp_pulse_pains] / [icp_pulse_gains]
+  icp_pulse_subscriptions: id, company_id, panel_size, status, created_at
+  icp_pulse_quarters:      id, subscription_id, quarter_label, buying_trigger, top_channel, collected_at
+  icp_pulse_pains:         id, quarter_id, pain_text, frequency_percent
+  icp_pulse_gains:         id, quarter_id, gain_text, frequency_percent
+
+---
+
+### [brand_tracking_campaigns] / [brand_tracking_monthly] / [brand_perception_items]
+  brand_tracking_campaigns:  id, company_id, panel_size, status, created_at
+  brand_tracking_monthly:    id, campaign_id, month_label, awareness_percent, clarity_score, differentiation_score, nps_score
+  brand_perception_items:    id, campaign_id, statement, agreement_percent
+
+---
+
 ### 관계 요약
 
   companies    ←1:1→  auth.users   (companies.user_id)
@@ -205,6 +347,10 @@ purit/
   missions     ←N:1→  companies    (missions.company_id)
   feedbacks    ←N:1→  missions     (feedbacks.mission_id)
   feedbacks    ←N:1→  panels       (feedbacks.panel_id)
+  notifications←N:1→  auth.users   (notifications.user_id)
+  team_members ←N:1→  companies    (team_members.company_id)
+  settlements  ←N:1→  panels       (settlements.panel_id, NULLABLE)
+  invoices     ←N:1→  companies    (invoices.company_id, NULLABLE)
 
 ================================================================
 ## 공용 컴포넌트 (src/components/ui/index.jsx)
@@ -224,8 +370,10 @@ purit/
 ## 환경 변수 (.env)
 ================================================================
 
-  VITE_SUPABASE_URL       = https://[project].supabase.co
-  VITE_SUPABASE_ANON_KEY  = [anon public key]
+  VITE_SUPABASE_URL         = https://[project].supabase.co
+  VITE_SUPABASE_ANON_KEY    = [anon public key]
+  SUPABASE_SERVICE_ROLE_KEY = [service role secret key]  ← 서버/스크립트 전용, VITE_ 없음
 
   ※ Vite 규칙: 클라이언트 노출 변수는 반드시 VITE_ 접두사 필요
   ※ import.meta.env.VITE_* 로 접근
+  ※ SUPABASE_SERVICE_ROLE_KEY 는 클라이언트에 절대 노출 금지

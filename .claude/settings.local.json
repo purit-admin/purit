@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git config *)",
+      "Bash(git commit *)",
+      "Bash(xargs grep *)",
+      "Bash(xargs basename *)"
+    ]
+  }
+}

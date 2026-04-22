@@ -1,157 +1,202 @@
-// AI 인사이트 리포트 — Wynter의 "CRO 전문가 요약 리포트" 옵션을
-// AI 자동 생성 리포트로 변형. 법적 리스크 없이 유사 가치 제공.
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
+import { supabase } from '../../lib/supabase';
 
-const REPORT = {
-  mission: '프리미엄 러닝화 LP',
-  company: '어반핏 코리아',
-  generatedAt: '2025-07-15 09:22',
-  panelCount: 5,
-  overallVerdict: '개선 필요',
-  verdictColor: 'var(--red)',
+const DIMS = [
+  { key: 'clarity_score',         label: '헤드라인·명확성' },
+  { key: 'relevance_score',       label: '관련성·페르소나' },
+  { key: 'value_score',           label: '가치·가격' },
+  { key: 'differentiation_score', label: '차별화' },
+  { key: 'trust_score',           label: '신뢰·사회적 증거' },
+];
 
-  tldr: '현재 LP는 "가격 대비 가치" 전달은 양호하지만, 헤드라인 명확성과 차별화 메시지 부재로 인해 첫 화면 이탈율이 높을 것으로 예상됩니다. 3가지 핵심 수술이 필요합니다.',
-
-  priorityFixes: [
-    {
-      priority: 1,
-      area: '헤드라인 재작성',
-      impact: '전환율 +15~25% 예상',
-      issue: '현재 헤드라인("새로운 나를 만나다")이 카테고리 정체성이 없어 타겟이 즉시 이탈합니다.',
-      action: '구체적 성과 수치를 포함한 헤드라인으로 교체하세요. 예: "12주 안에 5km 페이스 2분 단축. 카본 플레이트가 만든 차이."',
-    },
-    {
-      priority: 2,
-      area: 'CTA 플로팅 버튼 추가',
-      impact: '전환율 +10~18% 예상',
-      issue: 'CTA가 스크롤 중간에 소멸합니다. 모바일 기준 60% 이상의 사용자가 CTA를 한 번도 보지 못하고 이탈합니다.',
-      action: '스크롤 위치와 무관하게 고정되는 플로팅 CTA 버튼을 추가하세요. 버튼 배경색을 제품 이미지 색상과 대비되도록 조정하세요.',
-    },
-    {
-      priority: 3,
-      area: '경쟁사 대비 차별화 섹션',
-      impact: '전환율 +8~12% 예상',
-      issue: '"왜 이 제품이어야 하는가"에 대한 답이 없습니다. 패널 62%가 구체적 차별화 근거 부재를 지적했습니다.',
-      action: '경쟁 제품 대비 비교표 또는 "OO 브랜드와 다른 점" 섹션을 추가하세요. 단, 경쟁사명 직접 언급보다는 기능/소재 사양 중심으로 구성하세요.',
-    },
-  ],
-
-  strengths: [
-    '가격 앵커링(정가 vs 할인가) 표기 방식은 즉각적 구매 욕구를 자극함 — 유지 권장',
-    '상단 리뷰 수 표기(4.8★ 2,341개)는 즉각적 사회적 증거 역할 수행 — 유지 권장',
-    '제품 소재 스펙 상세 기재는 고관여 구매자 신뢰 형성에 기여',
-  ],
-
-  riskFlags: [
-    { level: 'high', text: '"한정 수량" 텍스트가 실제 재고 수치 없이 사용됨 — 불신 유발 가능성' },
-    { level: 'mid', text: '반품 정책이 FAQ에만 있고 구매 버튼 주변에 없음 — 구매 망설임 요인' },
-  ],
+const IMPACT_MAP = {
+  clarity_score:         ['전환율 +15~25% 예상', '헤드라인이 카테고리 정체성 없이 타겟이 즉시 이탈합니다.', '구체적 성과 수치를 포함한 헤드라인으로 교체하세요.'],
+  relevance_score:       ['전환율 +10~15% 예상', '타겟 고객의 상황·고통에 공감하는 메시지가 부족합니다.', '페르소나 언어로 재작성하고 "당신의 문제" 중심으로 구성하세요.'],
+  value_score:           ['전환율 +8~12% 예상', '가격 대비 가치 전달이 불명확합니다.', '구체적 수치·비교·사용 후기로 가치를 수치화하세요.'],
+  differentiation_score: ['전환율 +8~12% 예상', '"왜 이 제품이어야 하는가"에 대한 답이 없습니다.', '경쟁 대비 고유 강점 섹션 또는 비교표를 추가하세요.'],
+  trust_score:           ['전환율 +6~10% 예상', '신뢰 근거가 부족하거나 구매 흐름에서 보이지 않습니다.', '리뷰·수치·미디어 노출 근거를 구매 버튼 주변에 배치하세요.'],
 };
+
+function getVerdict(score) {
+  if (score >= 4.0) return { text: '우수', color: 'var(--green)' };
+  if (score >= 3.0) return { text: '보통', color: 'var(--accent)' };
+  return { text: '개선 필요', color: 'var(--red)' };
+}
 
 export default function AIReport() {
   const [expanded, setExpanded] = useState(null);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
+
+    const { data: co } = await supabase.from('companies').select('id, name').eq('user_id', user.id).single();
+    if (!co) { setLoading(false); return; }
+
+    const { data: missions } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).order('created_at', { ascending: false }).limit(1);
+    const latestMission = missions?.[0];
+
+    const missionIds = (await supabase.from('missions').select('id').eq('company_id', co.id)).data?.map(m => m.id) || [];
+    if (!missionIds.length) { setLoading(false); return; }
+
+    const { data: feedbacks } = await supabase.from('feedbacks')
+      .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,created_at')
+      .in('mission_id', missionIds)
+      .eq('purity_passed', true);
+
+    if (!feedbacks?.length) { setLoading(false); return; }
+
+    const dimAvgs = {};
+    DIMS.forEach(d => {
+      const vals = feedbacks.map(f => f[d.key]).filter(Boolean);
+      dimAvgs[d.key] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    });
+
+    const overallAvg = Object.values(dimAvgs).reduce((a, b) => a + b, 0) / DIMS.length;
+    const verdict = getVerdict(overallAvg);
+
+    const sortedDims = [...DIMS].sort((a, b) => dimAvgs[a.key] - dimAvgs[b.key]);
+    const priorityFixes = sortedDims.slice(0, 3).map((d, i) => ({
+      priority: i + 1,
+      area: d.label,
+      impact: IMPACT_MAP[d.key][0],
+      issue: IMPACT_MAP[d.key][1],
+      action: IMPACT_MAP[d.key][2],
+    }));
+
+    const topStrengths = [...DIMS].sort((a, b) => dimAvgs[b.key] - dimAvgs[a.key]).slice(0, 2);
+    const strengths = [
+      ...feedbacks.slice(0, 2).map(f => f.strengths).filter(Boolean),
+      ...topStrengths.map(d => `${d.label} 영역 점수 ${dimAvgs[d.key].toFixed(1)}/5 — 유지 권장`),
+    ].filter(Boolean).slice(0, 3);
+
+    const weakFeedbacks = feedbacks.map(f => f.weaknesses).filter(Boolean);
+    const riskFlags = weakFeedbacks.slice(0, 2).map((text, i) => ({
+      level: i === 0 ? 'high' : 'mid',
+      text,
+    }));
+
+    setReport({
+      mission: latestMission?.title || '최근 의뢰',
+      company: co.name,
+      generatedAt: new Date().toLocaleString('ko-KR'),
+      panelCount: feedbacks.length,
+      overallVerdict: verdict.text,
+      verdictColor: verdict.color,
+      tldr: `${co.name}의 LP는 종합 전환 점수 ${overallAvg.toFixed(1)}/5입니다. ${sortedDims[0].label} 개선이 가장 시급하며, ${topStrengths[0].label}은 강점으로 유지하세요.`,
+      priorityFixes,
+      strengths,
+      riskFlags,
+    });
+    setLoading(false);
+  }
+
+  if (loading) return (
+    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>리포트 생성 중…</div>
+  );
+
+  if (!report) return (
+    <div style={{ padding: '40px 48px', maxWidth: 880 }}>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>AI INSIGHT REPORT</div>
+      <Card style={{ padding: '60px', textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>🤖</div>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>분석할 피드백 데이터가 없습니다</div>
+        <div style={{ color: 'var(--text-2)', fontSize: 13 }}>미션을 등록하고 패널 피드백이 수집되면 AI 리포트가 자동 생성됩니다.</div>
+      </Card>
+    </div>
+  );
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 880, animation: 'fadeUp 0.5s ease both' }}>
-      {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>AI INSIGHT REPORT</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>인사이트 리포트</h1>
-        <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-          {REPORT.mission} · {REPORT.panelCount}명 패널 · {REPORT.generatedAt} 생성
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>{report.mission}</h1>
+            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
+              {report.company} · 패널 {report.panelCount}명 · {report.generatedAt}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>종합 판정</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: report.verdictColor }}>{report.overallVerdict}</div>
+          </div>
         </div>
       </div>
 
       {/* TL;DR */}
-      <Card style={{ marginBottom: 24, borderLeft: `4px solid ${REPORT.verdictColor}`, padding: '24px 28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            핵심 요약 (TL;DR)
-          </div>
-          <Badge type="red">{REPORT.overallVerdict}</Badge>
-        </div>
-        <p style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.8, fontWeight: 500 }}>
-          {REPORT.tldr}
-        </p>
+      <Card style={{ marginBottom: 24, background: 'linear-gradient(135deg, var(--surface), var(--bg-3))', borderLeft: '3px solid var(--accent)' }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.08em' }}>TL;DR — 핵심 요약</div>
+        <p style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--text)', marginBottom: 0 }}>{report.tldr}</p>
       </Card>
 
-      {/* Priority fixes */}
-      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)' }}>
-        🔧 우선순위 개선 항목
-      </h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
-        {REPORT.priorityFixes.map(fix => (
-          <Card key={fix.priority} onClick={() => setExpanded(expanded === fix.priority ? null : fix.priority)} style={{ cursor: 'pointer' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flex: 1 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                  background: fix.priority === 1 ? 'var(--red-dim)' : fix.priority === 2 ? 'var(--accent-dim)' : 'var(--blue-dim)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-mono)',
-                  color: fix.priority === 1 ? 'var(--red)' : fix.priority === 2 ? 'var(--accent)' : 'var(--blue)',
-                }}>
-                  P{fix.priority}
+      {/* Priority Fixes */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>우선 개선 과제</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {report.priorityFixes.map(fix => (
+            <Card
+              key={fix.priority}
+              style={{ cursor: 'pointer', transition: 'all 0.15s' }}
+              onClick={() => setExpanded(expanded === fix.priority ? null : fix.priority)}
+            >
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: fix.priority === 1 ? 'var(--red)' : fix.priority === 2 ? 'var(--accent)' : 'var(--blue)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                  {fix.priority}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: 15 }}>{fix.area}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{fix.area}</span>
                     <Badge type="green">{fix.impact}</Badge>
                   </div>
-                  <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>{fix.issue}</p>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: expanded === fix.priority ? 10 : 0 }}>{fix.issue}</div>
                   {expanded === fix.priority && (
-                    <div style={{ marginTop: 14, padding: '14px 16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', borderLeft: '3px solid var(--accent)' }}>
-                      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                        권장 액션
-                      </div>
-                      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>{fix.action}</p>
+                    <div style={{ padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
+                      <strong>권장 액션:</strong> {fix.action}
                     </div>
                   )}
                 </div>
               </div>
-              <span style={{ color: 'var(--text-3)', fontSize: 18, marginLeft: 12, flexShrink: 0 }}>
-                {expanded === fix.priority ? '↑' : '↓'}
-              </span>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))}
+        </div>
       </div>
 
       {/* Strengths */}
-      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: 'var(--text-2)' }}>✅ 유지해야 할 강점</h2>
-      <Card style={{ marginBottom: 24, padding: '20px 24px' }}>
-        {REPORT.strengths.map((s, i) => (
-          <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: i < REPORT.strengths.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
-            <span style={{ color: 'var(--green)', flexShrink: 0 }}>◆</span>
-            {s}
+      {report.strengths.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>유지할 강점</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {report.strengths.map((s, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: '3px solid var(--green)' }}>
+                <span style={{ color: 'var(--green)', flexShrink: 0 }}>✓</span>
+                <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>{s}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </Card>
+        </div>
+      )}
 
-      {/* Risk flags */}
-      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: 'var(--text-2)' }}>⚠️ 리스크 플래그</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 32 }}>
-        {REPORT.riskFlags.map((r, i) => (
-          <div key={i} style={{
-            padding: '12px 16px', borderRadius: 'var(--radius)',
-            background: r.level === 'high' ? 'var(--red-dim)' : 'rgba(232,213,163,0.08)',
-            border: '1px solid ' + (r.level === 'high' ? 'rgba(224,112,112,0.3)' : 'rgba(232,213,163,0.2)'),
-            fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6,
-          }}>
-            <span style={{ fontWeight: 600, color: r.level === 'high' ? 'var(--red)' : 'var(--accent)', marginRight: 8 }}>
-              {r.level === 'high' ? '🔴 HIGH' : '🟡 MID'}
-            </span>
-            {r.text}
+      {/* Risk Flags */}
+      {report.riskFlags.length > 0 && (
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>리스크 플래그</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {report.riskFlags.map((f, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: `3px solid ${f.level === 'high' ? 'var(--red)' : 'var(--accent)'}` }}>
+                <Badge type={f.level === 'high' ? 'red' : 'gold'} style={{ flexShrink: 0 }}>{f.level === 'high' ? 'HIGH' : 'MID'}</Badge>
+                <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>{f.text}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 12 }}>
-        <Btn>PDF 내보내기</Btn>
-        <Btn variant="secondary">팀원에게 공유</Btn>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

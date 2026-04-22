@@ -1,11 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Btn, Badge } from '../../components/ui';
-
-const TEAM_MEMBERS = [
-  { id: 'm1', name: '홍길동', email: 'gd.hong@urbanfit.kr', role: 'admin', joinedAt: '2024-02-01', status: 'active' },
-  { id: 'm2', name: '이마케팅', email: 'mk.lee@urbanfit.kr', role: 'member', joinedAt: '2024-05-10', status: 'active' },
-  { id: 'm3', name: '김인턴', email: 'intern@urbanfit.kr', role: 'viewer', joinedAt: '2025-07-01', status: 'active' },
-];
+import { supabase } from '../../lib/supabase';
 
 const ROLE_LABELS = { admin: '관리자', member: '멤버', viewer: '뷰어만' };
 const ROLE_PERMS = {
@@ -16,14 +11,72 @@ const ROLE_PERMS = {
 
 export default function AccountSettings() {
   const [activeTab, setActiveTab] = useState('team');
+  const [members, setMembers] = useState([]);
+  const [company, setCompany] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
-  const [notif, setNotif] = useState({
-    feedbackComplete: true,
-    purityAlert: true,
-    weeklyDigest: false,
-    newMission: true,
-  });
+  const [inviting, setInviting] = useState(false);
+  const [profile, setProfile] = useState({ name: '', industry: '', email: '', website: '' });
+  const [notif, setNotif] = useState({ feedbackComplete: true, purityAlert: true, weeklyDigest: false, newMission: true });
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
+
+    const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
+    setCompany(co);
+    if (co) {
+      setProfile({ name: co.name || '', industry: co.industry || '', email: user.email || '', website: co.website || '' });
+
+      const [membersRes, invRes] = await Promise.all([
+        supabase.from('team_members').select('*').eq('company_id', co.id).neq('status', 'inactive').order('joined_at'),
+        supabase.from('invoices').select('*').eq('company_id', co.id).order('invoice_date', { ascending: false }).limit(6),
+      ]);
+      if (!membersRes.error) setMembers(membersRes.data);
+      if (!invRes.error) setInvoices(invRes.data);
+    }
+    setLoading(false);
+  }
+
+  async function handleInvite() {
+    if (!inviteEmail.trim() || !company) return;
+    setInviting(true);
+    const { data, error } = await supabase.from('team_members').insert({
+      company_id: company.id,
+      email: inviteEmail.trim(),
+      role: inviteRole,
+      status: 'invited',
+    }).select().single();
+    if (!error) {
+      setMembers(m => [...m, data]);
+      setInviteEmail('');
+    }
+    setInviting(false);
+  }
+
+  async function handleRemove(id) {
+    const { error } = await supabase.from('team_members').update({ status: 'inactive' }).eq('id', id);
+    if (!error) setMembers(m => m.filter(x => x.id !== id));
+  }
+
+  async function handleSaveProfile() {
+    if (!company) return;
+    const updates = { name: profile.name };
+    if ('industry' in company) updates.industry = profile.industry;
+    if ('website' in company) updates.website = profile.website;
+    await supabase.from('companies').update(updates).eq('id', company.id);
+  }
+
+  if (loading) return (
+    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>데이터 로딩 중…</div>
+  );
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
@@ -48,13 +101,17 @@ export default function AccountSettings() {
       {/* TEAM TAB */}
       {activeTab === 'team' && (
         <div>
-          {/* Invite */}
           <Card style={{ marginBottom: 24, padding: '22px 24px' }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>팀원 초대</div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일</div>
-                <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="colleague@company.com" />
+                <input
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="colleague@company.com"
+                  onKeyDown={e => e.key === 'Enter' && handleInvite()}
+                />
               </div>
               <div style={{ width: 160 }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>권한</div>
@@ -64,7 +121,7 @@ export default function AccountSettings() {
                   <option value="viewer">뷰어만</option>
                 </select>
               </div>
-              <Btn size="md" onClick={() => { setInviteEmail(''); }}>초대 전송</Btn>
+              <Btn size="md" onClick={handleInvite} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>
             </div>
             {inviteRole && (
               <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-3)' }}>
@@ -73,33 +130,38 @@ export default function AccountSettings() {
             )}
           </Card>
 
-          {/* Member list */}
-          <Card style={{ padding: 0, overflow: 'hidden' }}>
-            {TEAM_MEMBERS.map((m, i) => (
-              <div key={m.id} style={{
-                display: 'flex', alignItems: 'center', gap: 16,
-                padding: '16px 20px',
-                borderBottom: i < TEAM_MEMBERS.length - 1 ? '1px solid var(--border)' : 'none',
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-dim)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+          {members.length === 0 ? (
+            <Card><div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>팀원이 없습니다. 위에서 초대하세요.</div></Card>
+          ) : (
+            <Card style={{ padding: 0, overflow: 'hidden' }}>
+              {members.map((m, i) => (
+                <div key={m.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  padding: '16px 20px',
+                  borderBottom: i < members.length - 1 ? '1px solid var(--border)' : 'none',
                 }}>
-                  {m.name[0]}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-dim)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+                  }}>
+                    {(m.name || m.email)[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name || '(이름 없음)'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.email}</div>
+                  </div>
+                  <Badge type={m.status === 'invited' ? 'gray' : m.role === 'admin' ? 'gold' : m.role === 'member' ? 'blue' : 'gray'}>
+                    {m.status === 'invited' ? '초대됨' : ROLE_LABELS[m.role]}
+                  </Badge>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>가입 {m.joined_at}</div>
+                  {m.role !== 'admin' && (
+                    <Btn size="sm" variant="ghost" style={{ color: 'var(--red)', fontSize: 12 }} onClick={() => handleRemove(m.id)}>제거</Btn>
+                  )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.email}</div>
-                </div>
-                <Badge type={m.role === 'admin' ? 'gold' : m.role === 'member' ? 'blue' : 'gray'}>{ROLE_LABELS[m.role]}</Badge>
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>가입 {m.joinedAt}</div>
-                {m.role !== 'admin' && (
-                  <Btn size="sm" variant="ghost" style={{ color: 'var(--red)', fontSize: 12 }}>제거</Btn>
-                )}
-              </div>
-            ))}
-          </Card>
+              ))}
+            </Card>
+          )}
         </div>
       )}
 
@@ -110,43 +172,29 @@ export default function AccountSettings() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>현재 플랜</div>
-                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Pro 플랜</div>
-                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>월 ₩1,980,000 · 연간 결제 · 2026년 2월 28일 갱신</div>
+                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{company?.plan || 'Starter'} 플랜</div>
               </div>
               <Btn size="sm" variant="outline">플랜 변경</Btn>
-            </div>
-            <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              {[
-                { label: '이번 달 의뢰', value: '2 / 20회' },
-                { label: '팀원', value: '3 / 5명' },
-                { label: '남은 기간', value: '226일' },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: '12px 16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>{label}</div>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>{value}</div>
-                </div>
-              ))}
             </div>
           </Card>
           <Card style={{ padding: '20px 24px' }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>결제 내역</div>
-            {[
-              { date: '2025-07-01', desc: 'Pro 플랜 (7월)', amount: '₩1,980,000', status: '완료' },
-              { date: '2025-06-01', desc: 'Pro 플랜 (6월)', amount: '₩1,980,000', status: '완료' },
-              { date: '2025-05-01', desc: 'Pro 플랜 (5월)', amount: '₩1,980,000', status: '완료' },
-            ].map((r, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < 2 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginRight: 12 }}>{r.date}</span>
-                  <span>{r.desc}</span>
+            {invoices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: 13 }}>결제 내역 없음</div>
+            ) : (
+              invoices.map((r, i) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginRight: 12 }}>{r.invoice_date}</span>
+                    <span>{r.plan} 플랜</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>₩{Number(r.amount).toLocaleString()}</span>
+                    <Badge type={r.status === 'paid' ? 'green' : 'red'}>{r.status === 'paid' ? '완료' : '미수금'}</Badge>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{r.amount}</span>
-                  <Badge type="green">{r.status}</Badge>
-                  <Btn size="sm" variant="ghost" style={{ fontSize: 11 }}>영수증</Btn>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </Card>
         </div>
       )}
@@ -166,20 +214,11 @@ export default function AccountSettings() {
                 <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3 }}>{label}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{desc}</div>
               </div>
-              {/* Toggle */}
               <div
                 onClick={() => setNotif(n => ({ ...n, [key]: !n[key] }))}
-                style={{
-                  width: 44, height: 24, borderRadius: 12, cursor: 'pointer',
-                  background: notif[key] ? 'var(--accent)' : 'var(--border-light)',
-                  position: 'relative', transition: 'background 0.2s', flexShrink: 0,
-                }}
+                style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: notif[key] ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
               >
-                <div style={{
-                  position: 'absolute', top: 3, left: notif[key] ? 23 : 3,
-                  width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                  transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                }} />
+                <div style={{ position: 'absolute', top: 3, left: notif[key] ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
               </div>
             </div>
           ))}
@@ -192,18 +231,23 @@ export default function AccountSettings() {
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 20 }}>기업 프로필</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {[
-              { label: '회사명', value: '어반핏 코리아', type: 'text' },
-              { label: '업종', value: '패션/커머스', type: 'text' },
-              { label: '대표 이메일', value: 'contact@urbanfit.kr', type: 'email' },
-              { label: '웹사이트', value: 'https://urbanfit.kr', type: 'url' },
-            ].map(({ label, value, type }) => (
-              <label key={label} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              { label: '회사명', key: 'name', type: 'text' },
+              { label: '업종', key: 'industry', type: 'text' },
+              { label: '대표 이메일', key: 'email', type: 'email' },
+              { label: '웹사이트', key: 'website', type: 'url' },
+            ].map(({ label, key, type }) => (
+              <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-                <input type={type} defaultValue={value} />
+                <input
+                  type={type}
+                  value={profile[key] || ''}
+                  onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))}
+                  disabled={key === 'email'}
+                />
               </label>
             ))}
             <div style={{ marginTop: 8 }}>
-              <Btn>변경사항 저장</Btn>
+              <Btn onClick={handleSaveProfile}>변경사항 저장</Btn>
             </div>
           </div>
         </Card>

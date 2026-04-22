@@ -1,181 +1,192 @@
-// 선호도 테스트 — Wynter의 Preference Test를 PURIT 서비스에 맞게 변형
-// 두 가지 카피/소재를 비교해 어느 쪽이 더 전환에 기여하는지 측정
-
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Card, Btn, Badge } from '../../components/ui';
+import { supabase } from '../../lib/supabase';
 
 const ASSET_TYPES = [
-  { key: 'headline', label: '헤드라인 카피', icon: '◎', desc: '두 가지 헤드라인 중 어느 쪽이 더 구매 욕구를 자극하는가' },
-  { key: 'cta', label: 'CTA 문구', icon: '▲', desc: '클릭을 유도하는 버튼 텍스트 비교' },
-  { key: 'value_prop', label: '가치 제안', icon: '◆', desc: '핵심 혜택 전달 방식 비교' },
-  { key: 'lp_section', label: 'LP 섹션', icon: '◈', desc: '랜딩페이지 특정 섹션의 두 가지 버전 비교' },
-  { key: 'ad_copy', label: '광고 카피', icon: '●', desc: '광고 텍스트 또는 이미지+카피 세트 비교' },
-  { key: 'email', label: '이메일 제목', icon: '✦', desc: '오픈율을 높이기 위한 이메일 제목 비교' },
+  { key: 'headline',   label: '헤드라인 카피', icon: '◎', desc: '두 가지 헤드라인 중 어느 쪽이 더 구매 욕구를 자극하는가' },
+  { key: 'cta',        label: 'CTA 문구',      icon: '▲', desc: '클릭을 유도하는 버튼 텍스트 비교' },
+  { key: 'value_prop', label: '가치 제안',     icon: '◆', desc: '제품의 핵심 가치를 설명하는 두 방식 비교' },
+  { key: 'lp_section', label: 'LP 섹션',       icon: '◈', desc: '랜딩페이지 특정 섹션의 두 버전 비교' },
+  { key: 'ad_copy',    label: '광고 소재',     icon: '●', desc: '두 광고 소재 중 클릭/전환 가능성이 높은 쪽' },
+  { key: 'email',      label: '이메일 제목',   icon: '✉', desc: '두 이메일 제목 중 열람율이 높을 쪽' },
 ];
 
-const MOCK_RESULTS = {
-  aPercent: 62,
-  bPercent: 38,
-  aComments: [
-    '숫자가 들어가니까 신뢰가 바로 생겼어요. 막연한 주장보다 훨씬 설득력 있음.',
-    '"3km 더 빠르게"라는 표현이 내가 원하는 결과를 정확히 건드림.',
-    '간결하고 임팩트 있어서 스크롤을 멈추게 만드는 카피.',
-  ],
-  bComments: [
-    '감성적이긴 한데 러닝화 구매와 직접 연결이 안 됨.',
-    '"새로운 나"라는 표현은 너무 많이 써서 식상함.',
-  ],
-};
-
 export default function PreferenceTest() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(0); // 0=setup, 1=results
-  const [type, setType] = useState('headline');
-  const [varA, setVarA] = useState('매주 3km 더 빠르게. 검증된 카본 플레이트 기술.');
-  const [varB, setVarB] = useState('새로운 나를 만나다. 러닝의 시작.');
-  const [panels, setPanels] = useState(15);
+  const [step, setStep] = useState('list');
+  const [assetType, setAssetType] = useState('');
+  const [variantA, setVariantA] = useState('');
+  const [variantB, setVariantB] = useState('');
+  const [panelSize, setPanelSize] = useState(10);
+  const [tests, setTests] = useState([]);
+  const [selectedTest, setSelectedTest] = useState(null);
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [companyId, setCompanyId] = useState(null);
 
-  if (step === 1) return <PreferenceResults varA={varA} varB={varB} onBack={() => setStep(0)} />;
+  useEffect(() => { load(); }, []);
 
-  const selectedType = ASSET_TYPES.find(t => t.key === type);
+  async function load() {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
+    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+    setCompanyId(co?.id);
+    if (co) {
+      const { data } = await supabase.from('preference_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
+      setTests(data || []);
+    }
+    setLoading(false);
+  }
+
+  async function handleSubmit() {
+    if (!variantA.trim() || !variantB.trim() || !assetType || !companyId) return;
+    setSubmitting(true);
+    const { data, error } = await supabase.from('preference_tests').insert({
+      company_id: companyId, asset_type: assetType, variant_a: variantA.trim(), variant_b: variantB.trim(), panel_size: panelSize, status: 'active',
+    }).select().single();
+    if (!error) {
+      setTests(ts => [data, ...ts]);
+      setStep('list');
+      setVariantA(''); setVariantB(''); setAssetType('');
+    }
+    setSubmitting(false);
+  }
+
+  async function loadResults(test) {
+    setSelectedTest(test);
+    const { data: responses } = await supabase.from('preference_responses').select('preference, comment').eq('test_id', test.id);
+    if (responses) {
+      const total = responses.length;
+      const aCount = responses.filter(r => r.preference === 'A').length;
+      const aComments = responses.filter(r => r.preference === 'A' && r.comment).map(r => r.comment);
+      const bComments = responses.filter(r => r.preference === 'B' && r.comment).map(r => r.comment);
+      setResults({ total, aPercent: total ? Math.round((aCount / total) * 100) : 0, bPercent: total ? Math.round(((total - aCount) / total) * 100) : 0, aComments, bComments });
+    }
+  }
+
+  if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>데이터 로딩 중…</div>;
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 800, animation: 'fadeUp 0.5s ease both' }}>
+    <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>PREFERENCE TEST</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>소재 비교 테스트</h1>
-        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>두 가지 카피/소재 중 어느 쪽이 실제 전환에 더 기여하는지 패널에게 직접 검증받습니다.</p>
-      </div>
-
-      {/* Asset type selector */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>검증 소재 유형</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          {ASSET_TYPES.map(t => (
-            <button key={t.key} onClick={() => setType(t.key)} style={{
-              padding: '14px', borderRadius: 'var(--radius)', textAlign: 'left',
-              background: type === t.key ? 'var(--accent-dim)' : 'var(--surface)',
-              border: '1px solid ' + (type === t.key ? 'var(--accent)' : 'var(--border)'),
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}>
-              <div style={{ fontSize: 16, marginBottom: 4 }}>{t.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: type === t.key ? 'var(--accent)' : 'var(--text)' }}>{t.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.4 }}>{t.desc}</div>
-            </button>
-          ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>선호도 테스트</h1>
+            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>두 가지 소재를 패널에게 제시하고 어느 쪽이 더 전환에 기여하는지 측정합니다.</p>
+          </div>
+          {step === 'list' && <Btn onClick={() => setStep('create')}>+ 새 테스트</Btn>}
+          {step === 'create' && <Btn variant="ghost" onClick={() => setStep('list')}>취소</Btn>}
         </div>
       </div>
 
-      {/* Variant input */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
-        {[
-          { label: 'A안', value: varA, set: setVarA, color: 'var(--blue)' },
-          { label: 'B안', value: varB, set: setVarB, color: '#C084FC' },
-        ].map(({ label, value, set, color }) => (
-          <Card key={label} style={{ padding: '20px', borderColor: color + '44' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>
-                {label}
+      {step === 'create' && (
+        <Card style={{ padding: '28px' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>소재 유형 선택</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
+            {ASSET_TYPES.map(t => (
+              <div key={t.key} onClick={() => setAssetType(t.key)} style={{ padding: '14px 16px', borderRadius: 'var(--radius)', border: `1px solid ${assetType === t.key ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer', background: assetType === t.key ? 'var(--accent-dim)' : 'var(--surface)', transition: 'all 0.15s' }}>
+                <div style={{ fontSize: 18, marginBottom: 6 }}>{t.icon}</div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{t.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.4 }}>{t.desc}</div>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{selectedType?.label} {label}</span>
-            </div>
-            <textarea
-              value={value}
-              onChange={e => set(e.target.value)}
-              rows={4}
-              style={{ resize: 'vertical', fontSize: 14, lineHeight: 1.6 }}
-            />
+            ))}
+          </div>
+          {assetType && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                {[['A', variantA, setVariantA], ['B', variantB, setVariantB]].map(([label, val, setter]) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>소재 {label}</div>
+                    <textarea value={val} onChange={e => setter(e.target.value)} rows={4} placeholder={`소재 ${label} 텍스트를 입력하세요`} style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
+                <label style={{ fontSize: 13 }}>패널 수:
+                  <select value={panelSize} onChange={e => setPanelSize(Number(e.target.value))} style={{ marginLeft: 8 }}>
+                    {[10, 15, 20, 30].map(n => <option key={n} value={n}>{n}명</option>)}
+                  </select>
+                </label>
+              </div>
+              <Btn onClick={handleSubmit} disabled={submitting}>{submitting ? '등록 중…' : '테스트 시작'}</Btn>
+            </>
+          )}
+        </Card>
+      )}
+
+      {step === 'list' && (
+        tests.length === 0 ? (
+          <Card style={{ padding: '60px', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>◎</div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 선호도 테스트가 없습니다</div>
+            <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>두 소재를 비교해 더 효과적인 카피를 찾아보세요.</div>
+            <Btn onClick={() => setStep('create')}>+ 첫 테스트 시작</Btn>
           </Card>
-        ))}
-      </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 14 }}>
+            {tests.map(test => (
+              <Card key={test.id} style={{ cursor: 'pointer' }} onClick={() => { loadResults(test); setStep('result'); }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <Badge type={test.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>{test.status === 'completed' ? '완료' : '진행중'}</Badge>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
+                      {ASSET_TYPES.find(a => a.key === test.asset_type)?.label || test.asset_type}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-2)' }}>패널 {test.panel_size}명 · {new Date(test.created_at).toLocaleDateString('ko-KR')}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--accent)' }}>결과 보기 →</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
+                  {['A', 'B'].map((label, i) => (
+                    <div key={label} style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', borderLeft: `2px solid ${i === 0 ? 'var(--blue)' : 'var(--accent)'}` }}>
+                      <span style={{ fontWeight: 700, color: i === 0 ? 'var(--blue)' : 'var(--accent)', marginRight: 6 }}>{label}</span>
+                      {(i === 0 ? test.variant_a : test.variant_b).slice(0, 60)}{(i === 0 ? test.variant_a : test.variant_b).length > 60 ? '…' : ''}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
+      )}
 
-      {/* Panel count */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>패널 규모</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[10, 15, 20, 30].map(n => (
-            <button key={n} onClick={() => setPanels(n)} style={{
-              flex: 1, padding: '10px', borderRadius: 'var(--radius)',
-              background: panels === n ? 'var(--accent)' : 'var(--surface-2)',
-              color: panels === n ? '#0A0A08' : 'var(--text-2)',
-              border: '1px solid ' + (panels === n ? 'var(--accent)' : 'var(--border)'),
-              fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s',
-            }}>
-              {n}명
-            </button>
-          ))}
-        </div>
-        <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-3)' }}>
-          * 정성 연구 기준 최소 12명 이상에서 유의미한 인사이트 포화(Saturation)에 도달합니다.
-        </div>
-      </div>
-
-      <Btn size="lg" onClick={() => setStep(1)}>테스트 시작 →</Btn>
-    </div>
-  );
-}
-
-function PreferenceResults({ varA, varB, onBack }) {
-  const { aPercent, bPercent, aComments, bComments } = MOCK_RESULTS;
-  const winner = aPercent > bPercent ? 'A' : 'B';
-
-  return (
-    <div style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
-      <button onClick={onBack} style={{ background: 'none', color: 'var(--text-3)', fontSize: 13, marginBottom: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-        ← 설정으로
-      </button>
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>RESULTS</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>비교 테스트 결과</h1>
-      </div>
-
-      {/* Winner banner */}
-      <Card style={{ marginBottom: 28, background: 'var(--green-dim)', borderColor: 'rgba(126,200,160,0.3)', padding: '24px 28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ fontSize: 40 }}>🏆</div>
-          <div>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Winner</div>
-            <div style={{ fontSize: 22, fontWeight: 800 }}>{winner}안 — {winner === 'A' ? aPercent : bPercent}% 선호</div>
-            <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-              {winner === 'A' ? varA : varB}
+      {step === 'result' && selectedTest && (
+        <div>
+          <button onClick={() => { setStep('list'); setSelectedTest(null); setResults(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 13, marginBottom: 20 }}>← 목록으로</button>
+          {!results || results.total === 0 ? (
+            <Card style={{ padding: '40px', textAlign: 'center' }}>
+              <div style={{ color: 'var(--text-3)', fontSize: 13 }}>아직 응답이 없습니다. 패널 수집 후 다시 확인하세요.</div>
+            </Card>
+          ) : (
+            <div>
+              <Card style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>선호도 결과 ({results.total}명 응답)</div>
+                {[{ label: 'A', pct: results.aPercent, color: 'var(--blue)' }, { label: 'B', pct: results.bPercent, color: 'var(--accent)' }].map(({ label, pct, color }) => (
+                  <div key={label} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
+                      <span style={{ fontWeight: 700, color }}>{label}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: 10, background: 'var(--border)', borderRadius: 5, overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 5, transition: 'width 0.8s ease' }} />
+                    </div>
+                  </div>
+                ))}
+              </Card>
+              {[{ label: 'A', comments: results.aComments, color: 'var(--blue)' }, { label: 'B', comments: results.bComments, color: 'var(--accent)' }].map(({ label, comments, color }) => comments.length > 0 && (
+                <div key={label} style={{ marginBottom: 16 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color }}>소재 {label} 코멘트</div>
+                  {comments.map((c, i) => (
+                    <div key={i} style={{ padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', marginBottom: 6, borderLeft: `3px solid ${color}` }}>"{c}"</div>
+                  ))}
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
-      </Card>
-
-      {/* Bar comparison */}
-      <Card style={{ marginBottom: 24 }}>
-        <div style={{ marginBottom: 16, fontSize: 13, fontWeight: 600 }}>선호도 분포</div>
-        <div style={{ display: 'flex', gap: 0, borderRadius: 8, overflow: 'hidden', height: 40, marginBottom: 12 }}>
-          <div style={{ width: `${aPercent}%`, background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', transition: 'width 0.8s ease' }}>
-            A {aPercent}%
-          </div>
-          <div style={{ width: `${bPercent}%`, background: '#C084FC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-            B {bPercent}%
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--blue)', fontFamily: 'var(--font-mono)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>A안 선택 이유</div>
-            {aComments.map((c, i) => (
-              <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 6, borderLeft: '2px solid var(--blue)', lineHeight: 1.6 }}>
-                {c}
-              </div>
-            ))}
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: '#C084FC', fontFamily: 'var(--font-mono)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>B안 선택 이유</div>
-            {bComments.map((c, i) => (
-              <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 6, borderLeft: '2px solid #C084FC', lineHeight: 1.6 }}>
-                {c}
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      <Btn variant="secondary" onClick={onBack}>새 테스트 설정</Btn>
+      )}
     </div>
   );
 }
