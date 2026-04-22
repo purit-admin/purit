@@ -4,14 +4,14 @@ import { Card, Badge, Btn } from '../ui';
 const NOTIFS_BY_ROLE = {
   company: [
     { id: 'n1', type: 'success', icon: '✓', title: '피드백 수집 완료', body: '프리미엄 러닝화 LP — 패널 5/8명 피드백 완료. 결과를 확인하세요.', time: '방금 전', read: false, action: '/company/results' },
-    { id: 'n2', type: 'warning', icon: '⚠', title: 'Purity Filter 탈락', body: '패널 1명의 피드백이 품질 기준 미달로 반려됐습니다. 대체 패널이 자동 배정됩니다.', time: '2시간 전', read: false, action: '/company/results' },
+    { id: 'n2', type: 'warning', icon: '⚠', title: 'Purit Filter 탈락', body: '패널 1명의 피드백이 품질 기준 미달로 반려됐습니다. 대체 패널이 자동 배정됩니다.', time: '2시간 전', read: false, action: '/company/results' },
     { id: 'n3', type: 'info', icon: '◆', title: 'ICP Pulse 분기 리포트 준비됨', body: '2025 Q3 ICP 인텔리전스 리포트가 생성됐습니다.', time: '어제', read: true, action: '/company/icp-pulse' },
     { id: 'n4', type: 'info', icon: '◎', title: '브랜드 추적 리서치 시작', body: '8월 브랜드 인지도 패널 조사가 시작됩니다. 20명 매칭 완료.', time: '3일 전', read: true, action: '/company/brand' },
   ],
   panel: [
     { id: 'n1', type: 'success', icon: '₩', title: '정산 완료', body: '단백질 구독 LP 피드백 ₩38,000 입금됐습니다.', time: '방금 전', read: false, action: '/panel/history' },
     { id: 'n2', type: 'info', icon: '◎', title: '새 미션 매칭', body: '핀테크베이스 — 법인카드 신청 LP 의뢰가 당신의 페르소나와 매칭됐습니다. ₩80,000', time: '1시간 전', read: false, action: '/panel/missions' },
-    { id: 'n3', type: 'warning', icon: '⚠', title: 'Purity 탈락 알림', body: '온라인 강의 LP 피드백이 구체성 지수 부족으로 반려됐습니다. Trust Score -8점.', time: '5일 전', read: true, action: '/panel/history' },
+    { id: 'n3', type: 'warning', icon: '⚠', title: 'Purit 탈락 알림', body: '온라인 강의 LP 피드백이 구체성 지수 부족으로 반려됐습니다. Trust Score -8점.', time: '5일 전', read: true, action: '/panel/history' },
   ],
   admin: [
     { id: 'n1', type: 'warning', icon: '⚠', title: '심사 대기 패널', body: '정유진님의 패널 가입 신청이 심사 대기 중입니다.', time: '방금 전', read: false, action: '/admin/panels' },

@@ -1,4 +1,4 @@
-// 커스텀 질문 템플릿 — Wynter의 Pre-made Question Templates를 PURITY 맥락으로 재설계
+// 커스텀 질문 템플릿 — Wynter의 Pre-made Question Templates를 PURIT 맥락으로 재설계
 // 의뢰 등록 시 검증 목적에 맞는 질문 세트를 선택하거나 직접 조합할 수 있는 라이브러리
 
 import { useState } from 'react';

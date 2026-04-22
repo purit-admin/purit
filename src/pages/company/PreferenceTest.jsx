@@ -1,4 +1,4 @@
-// 선호도 테스트 — Wynter의 Preference Test를 PURITY 서비스에 맞게 변형
+// 선호도 테스트 — Wynter의 Preference Test를 PURIT 서비스에 맞게 변형
 // 두 가지 카피/소재를 비교해 어느 쪽이 더 전환에 기여하는지 측정
 
 import { useState } from 'react';

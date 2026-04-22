@@ -1,4 +1,4 @@
-// 가격 페이지 전용 테스트 — Wynter의 Pricing Page Test를 PURITY 서비스 맥락으로 재설계
+// 가격 페이지 전용 테스트 — Wynter의 Pricing Page Test를 PURIT 서비스 맥락으로 재설계
 // 가격 구조의 명확성·지각 가치·행동 장벽·경쟁 포지셔닝을 4축으로 진단
 
 import { useState } from 'react';

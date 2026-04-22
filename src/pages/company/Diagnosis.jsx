@@ -1,5 +1,5 @@
 // 5차원 전환 진단 — Wynter의 Clarity/Relevance/Value/Differentiation/Brand 프레임을
-// PURITY 서비스에 맞게 재해석한 전환 진단 페이지
+// PURIT 서비스에 맞게 재해석한 전환 진단 페이지
 
 import { useState } from 'react';
 import { Card, Badge, ScoreBar, Btn } from '../../components/ui';

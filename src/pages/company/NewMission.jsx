@@ -217,7 +217,7 @@ export default function NewMission() {
               </div>
             ))}
             <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
-              ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purity Filter를 통과한 피드백만 전달됩니다.
+              ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
             </div>
           </div>
         )}

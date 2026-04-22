@@ -1,4 +1,4 @@
-// ICP Pulse — Wynter의 Always-on ICP Research를 PURITY 서비스에 맞게 재설계
+// ICP Pulse — Wynter의 Always-on ICP Research를 PURIT 서비스에 맞게 재설계
 // 분기마다 자동으로 타겟 고객 인사이트를 수집하고 변화 추이를 제공하는 구독 서비스
 
 import { useState } from 'react';

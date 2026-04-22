@@ -204,7 +204,7 @@ export default function PanelProfile() {
       {tab === 'payment' && (
         <Card>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>정산 계좌 정보</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>Purity Filter 통과 후 익영업일 자동 입금됩니다.</div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>Purit Filter 통과 후 익영업일 자동 입금됩니다.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <label style={lbl}>
               <span style={lblTxt}>은행</span>

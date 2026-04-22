@@ -83,7 +83,7 @@ const NAV = {
       items: [
         { path: '/admin/panels', label: '패널 관리', icon: Users },
         { path: '/admin/missions', label: '미션 관리', icon: ClipboardList },
-        { path: '/admin/purity', label: 'Purity Filter', icon: ShieldCheck },
+        { path: '/admin/purity', label: 'Purit Filter', icon: ShieldCheck },
         { path: '/admin/revenue', label: '수익 & 정산', icon: PieChart },
       ],
     },
@@ -127,7 +127,7 @@ export default function Layout({ role, children }) {
         }}>
           {!collapsed && (
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1 }}>PURITY</div>
+              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1 }}>PURIT</div>
               <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{ROLE_LABEL[role]} 포털</div>
             </div>
           )}

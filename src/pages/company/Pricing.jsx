@@ -1,5 +1,5 @@
 // 플랜·가격 페이지 — Wynter는 구독형 + 건당 구조를 운용
-// PURITY는 한국 B2B 시장에 맞게 3플랜 + 구독 리테이너 + ICP Pulse 구조로 설계
+// PURIT는 한국 B2B 시장에 맞게 3플랜 + 구독 리테이너 + ICP Pulse 구조로 설계
 
 import { useState } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
@@ -17,7 +17,7 @@ const PLANS = [
     features: [
       '랜딩페이지 전환 검증',
       '5차원 진단 리포트',
-      'Purity Filter 자동 적용',
+      'Purit Filter 자동 적용',
       '피드백 결과 대시보드',
       '이메일 지원',
     ],
@@ -186,7 +186,7 @@ export default function PricingPage() {
         {[
           ['첫 의뢰 결과가 기대에 못 미치면?', '결과 불만족 시 재검증 1회를 무료로 제공합니다. 패널 매칭 오류가 있었을 경우 환불 처리됩니다.'],
           ['팀 계정을 공유할 수 있나요?', 'Pro 이상에서 팀 멤버 최대 5명까지 동일 대시보드를 공유할 수 있습니다.'],
-          ['패널은 어떻게 검증되나요?', '직군·경력·구매 경험 기반의 서류 심사와 Purity Filter 통과 기록으로 관리됩니다. Trust Score 60 이하 패널은 자동 제외됩니다.'],
+          ['패널은 어떻게 검증되나요?', '직군·경력·구매 경험 기반의 서류 심사와 Purit Filter 통과 기록으로 관리됩니다. Trust Score 60 이하 패널은 자동 제외됩니다.'],
           ['결과는 얼마 만에 나오나요?', '패널 매칭 후 평균 24-48시간 내에 피드백이 취합됩니다.'],
         ].map(([q, a], i) => (
           <div key={i} style={{ padding: '14px 0', borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>

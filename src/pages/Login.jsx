@@ -68,7 +68,7 @@ export default function Login() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.05em', color: NAVY, marginBottom: 6 }}>
-            PURITY
+            PURIT
           </div>
           <div style={{ fontSize: 15, color: T2 }}>로그인</div>
         </div>

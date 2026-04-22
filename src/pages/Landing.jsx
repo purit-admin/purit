@@ -116,7 +116,7 @@ export default function Landing() {
         <div style={{ ...W, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span onClick={() => navigate('/')} style={{
             fontSize: 20, fontWeight: 800, letterSpacing: '-0.05em', color: NAVY, cursor: 'pointer',
-          }}>PURITY</span>
+          }}>PURIT</span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={() => navigate('/login')} style={{
@@ -154,7 +154,7 @@ export default function Landing() {
             fontSize: 13, color: MUTED, marginBottom: 40, fontWeight: 500,
           }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
-            AI Purity Filter 실시간 가동 중
+            AI Purit Filter 실시간 가동 중
           </div>
 
           <h1 style={{
@@ -198,7 +198,7 @@ export default function Landing() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
             {[
               { val: '48h',   label: '피드백 수집 완료' },
-              { val: '100%',  label: 'Purity Filter 통과 수율' },
+              { val: '100%',  label: 'Purit Filter 통과 수율' },
               { val: '40%+',  label: '평균 전환율 개선' },
               { val: '₩800만', label: '평균 절감 광고비' },
             ].map((m, i) => (
@@ -257,7 +257,7 @@ export default function Landing() {
           <div style={{ textAlign: 'center', marginBottom: 72 }}>
             <SectionLabel>솔루션</SectionLabel>
             <h2 style={{ fontSize: 'clamp(28px, 4vw, 46px)', fontWeight: 800, letterSpacing: '-0.04em', color: CHALK }}>
-              PURITY가 해결합니다
+              PURIT가 해결합니다
             </h2>
           </div>
 
@@ -340,7 +340,7 @@ export default function Landing() {
             <div style={{ position: 'absolute', top: 27, left: 'calc(16.66% + 20px)', right: 'calc(16.66% + 20px)', height: 1, background: NAVY, opacity: 0.1 }} />
             {[
               { n: '1', step: '1단계 — 의뢰 등록', desc: '타겟 페르소나와 검증할 랜딩페이지 URL을 입력합니다. 2분이면 충분합니다.', tag: '약 2분' },
-              { n: '2', step: '2단계 — 전문가 매칭', desc: 'Purity Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
+              { n: '2', step: '2단계 — 전문가 매칭', desc: 'Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
               { n: '3', step: '3단계 — 결과 수령', desc: 'AI 리포트와 함께 우선순위별 개선 액션을 48시간 내에 확인합니다.', tag: '48시간 내' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '0 40px', position: 'relative', zIndex: 1 }}>
@@ -401,11 +401,11 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* PURITY */}
+            {/* PURIT */}
             <div style={{ background: NAVY, border: `1px solid ${NAVY}`, borderRadius: 20, padding: '36px 32px' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>PURITY</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>PURIT</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 24 }}>
-                {['동일 페르소나 전문가 패널', 'Purity Filter 품질 보장', '수율 100%', '48시간 결과'].map(t => (
+                {['동일 페르소나 전문가 패널', 'Purit Filter 품질 보장', '수율 100%', '48시간 결과'].map(t => (
                   <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Check size={15} color="#22C55E" style={{ flexShrink: 0 }} />
                     <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{t}</span>
@@ -436,7 +436,7 @@ export default function Landing() {
                 name: '김OO', role: '마케팅팀장', company: '커머스 브랜드',
               },
               {
-                quote: 'A/B 테스트 대신 PURITY로 먼저 검증하니 시간과 비용이 절반으로 줄었습니다',
+                quote: 'A/B 테스트 대신 PURIT으로 먼저 검증하니 시간과 비용이 절반으로 줄었습니다',
                 name: '이OO', role: '그로스', company: '스타트업',
               },
               {
@@ -515,7 +515,7 @@ export default function Landing() {
         <div style={{ ...W, padding: '60px 32px 48px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 48, flexWrap: 'wrap', gap: 40 }}>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.05em', color: WHITE, marginBottom: 10 }}>PURITY</div>
+              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.05em', color: WHITE, marginBottom: 10 }}>PURIT</div>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.28)', lineHeight: 1.85, maxWidth: 260 }}>
                 광고비 집행 전, 전환 결함을 먼저 잡는<br />고순도 피드백 인텔리전스 플랫폼
               </div>
@@ -539,7 +539,7 @@ export default function Landing() {
             </div>
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 28, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)' }}>© 2026 PURITY. All rights reserved.</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)' }}>© 2026 PURIT. All rights reserved.</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)' }}>사업자등록번호 000-00-00000 · 대표 홍길동</div>
           </div>
         </div>
@@ -548,12 +548,12 @@ export default function Landing() {
       {/* 모바일 반응형 */}
       <style>{`
         @media (max-width: 900px) {
-          .purity-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
-          .purity-grid-3 { grid-template-columns: 1fr !important; }
-          .purity-grid-2 { grid-template-columns: 1fr !important; }
+          .purit-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+          .purit-grid-3 { grid-template-columns: 1fr !important; }
+          .purit-grid-2 { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 600px) {
-          .purity-grid-4 { grid-template-columns: 1fr 1fr !important; }
+          .purit-grid-4 { grid-template-columns: 1fr 1fr !important; }
           section { padding-top: 80px !important; padding-bottom: 80px !important; padding-left: 20px !important; padding-right: 20px !important; }
           footer > div { padding-left: 20px !important; padding-right: 20px !important; }
         }

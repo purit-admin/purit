@@ -1,4 +1,4 @@
-// 콜드 이메일 테스트 — Wynter의 Cold Email Test를 PURITY 버전으로 재설계
+// 콜드 이메일 테스트 — Wynter의 Cold Email Test를 PURIT 버전으로 재설계
 // 세일즈/아웃바운드 이메일의 훅·명확성·호기심 유발·답장 의향을 측정
 
 import { useState } from 'react';

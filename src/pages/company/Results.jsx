@@ -172,7 +172,7 @@ export default function Results() {
                       </div>
                     </div>
                     <Badge type={fb.purity_passed ? 'green' : 'gray'}>
-                      {fb.purity_passed ? 'Purity 통과' : '검토 중'}
+                      {fb.purity_passed ? 'Purit 통과' : '검토 중'}
                     </Badge>
                   </div>
 

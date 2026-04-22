@@ -41,7 +41,7 @@ export default function ActiveMission() {
 
   const checkPurity = (text) => {
     if (text.length > 10 && text.split(' ').length < 4) {
-      setPurityWarning('⚠️ 너무 짧은 피드백은 Purity Filter에서 걸릴 수 있습니다. 구체적인 근거를 추가해주세요.');
+      setPurityWarning('⚠️ 너무 짧은 피드백은 Purit Filter에서 걸릴 수 있습니다. 구체적인 근거를 추가해주세요.');
     } else if (/^(좋아요|나쁘네요|별로|좋은것같아요|모르겠어요)$/i.test(text.trim())) {
       setPurityWarning('⚠️ 감성적 표현만으로는 필터를 통과하기 어렵습니다. 구체적 이유를 작성해주세요.');
     } else {
@@ -127,7 +127,7 @@ export default function ActiveMission() {
         )}
         <div style={{ padding: '14px 18px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13 }}>
           <strong style={{ color: 'var(--accent)' }}>보상: ₩{(mission.reward_amount || 0).toLocaleString()}</strong>
-          <span style={{ color: 'var(--text-2)' }}> · Purity Filter 통과 시 자동 지급</span>
+          <span style={{ color: 'var(--text-2)' }}> · Purit Filter 통과 시 자동 지급</span>
         </div>
       </Card>
       <div style={{ display: 'flex', gap: 12 }}>
@@ -143,7 +143,7 @@ export default function ActiveMission() {
       <div style={{ fontSize: 64, marginBottom: 20 }}>✅</div>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>피드백 제출 완료!</h1>
       <p style={{ color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 32 }}>
-        Purity Filter 검증 중입니다. 통과 시{' '}
+        Purit Filter 검증 중입니다. 통과 시{' '}
         <strong style={{ color: 'var(--green)' }}>₩{(mission.reward_amount || 0).toLocaleString()}</strong>이 적립됩니다.
       </p>
       <Btn onClick={() => navigate('/panel')}>대시보드로 →</Btn>

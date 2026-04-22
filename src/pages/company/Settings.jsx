@@ -157,7 +157,7 @@ export default function AccountSettings() {
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 20 }}>알림 설정</div>
           {[
             { key: 'feedbackComplete', label: '피드백 수집 완료', desc: '의뢰한 패널이 모두 피드백을 제출하면 알림' },
-            { key: 'purityAlert', label: 'Purity Filter 탈락 알림', desc: '피드백이 자동 반려되어 패널이 재배정될 때' },
+            { key: 'purityAlert', label: 'Purit Filter 탈락 알림', desc: '피드백이 자동 반려되어 패널이 재배정될 때' },
             { key: 'weeklyDigest', label: '주간 요약 이메일', desc: '매주 월요일 오전 9시, 지난 주 인사이트 요약' },
             { key: 'newMission', label: '신규 의뢰 매칭 완료', desc: '패널 매칭이 시작되면 즉시 알림' },
           ].map(({ key, label, desc }) => (
