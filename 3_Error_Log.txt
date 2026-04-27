@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-27 (2차)
+최종 업데이트: 2026-04-28
 ================================================================
 
 ## 핵심 원칙
@@ -166,3 +166,41 @@ D-6. React 인라인 스타일 중복 키 경고 ✅ 해결 (2026-04-27)
             - RLS 정책 전면 정비 (4개 테이블)
             - RPC 함수 생성: increment_mission_filled_count, increment_panel_mission_count
             - missions.filled_count 실제 feedbacks 건수 기준으로 일괄 동기화
+
+2026-04-28  패널 미션 상태 분리 + 진행 중 목록 다중 지원
+            [해결된 오류]
+            - feedbacks_clarity_score_check 위반: draft INSERT 시 score에 0 대신 null 사용
+            - feedbacks_status_check 위반: 'draft' 값이 허용 목록에 없었음
+              → Supabase SQL Editor에서 CHECK 제약 DROP 후 재생성 (4개 값 포함)
+              → ALTER TABLE feedbacks DROP CONSTRAINT feedbacks_status_check;
+                 ALTER TABLE feedbacks ADD CONSTRAINT feedbacks_status_check
+                   CHECK (status IN ('draft', 'submitted', 'approved', 'rejected'));
+            - 수락하기 버튼 silent failure: panelId state 타이밍 이슈
+              → handleConfirmAccept에서 panelId가 null이면 직접 재조회 후 처리
+            [코드]
+            - panel/Missions.jsx: feedbackMap 기반 탭 분리 (참여가능/진행 중/완료)
+              진행 중 탭 클릭 시 /panel/active로 navigate
+              수락 확인 모달, 수락 취소 모달 추가
+            - panel/ActiveMission.jsx: 전면 재설계
+              · 목록 뷰 (/panel/active): draft 미션 전체 카드 목록, 진행 여부에 따라 버튼 분기
+              · 폼 뷰 (/panel/active?id=...): 브리핑 + 5단계 피드백 입력
+              · 자동 저장 (1.5s debounce) + 이탈 시 즉시 저장
+              · 이어하기: 점수 비어있는 첫 단계로 직접 이동 (getResumeStep)
+              · 제출 방식: INSERT → UPDATE (draft → submitted)
+              · strengths 필드 = draft 중 JSON 임시 저장, 제출 시 null 초기화
+            - panel/History.jsx: .neq('status', 'draft') 추가 → draft 미노출
+            - panel/Dashboard.jsx: 이미 참여한 미션(draft 포함) 참여가능 목록에서 제외
+            [SQL]
+            - 004_cancel_feedback_rpc.sql: cancel_panel_feedback(p_mission_id UUID) RPC
+              feedbacks DELETE RLS 없어 SECURITY DEFINER RPC로 처리
+
+D-7. feedbacks.status = 'draft' 패턴 ✅ 정착 (2026-04-28)
+     → 패널이 미션 수락 즉시 feedbacks INSERT(status='draft', 점수 null)
+     → draft는 수익 이력, 참여가능 목록에서 제외
+     → strengths 필드를 draft 중 코멘트 임시 JSON 저장소로 재활용
+     → 제출 시 UPDATE(status='submitted', strengths=null, suggestions=통합텍스트)
+
+D-8. feedbacks DELETE RLS 없음 — cancel_panel_feedback RPC 필수 (2026-04-28)
+     → feedbacks 테이블에 DELETE RLS 정책이 없어 패널이 직접 삭제 불가
+     → 수락 취소 시 반드시 cancel_panel_feedback(p_mission_id) RPC 호출할 것
+     → RPC는 status='draft'인 본인 피드백만 삭제 (SECURITY DEFINER 내 auth.uid() 체크)

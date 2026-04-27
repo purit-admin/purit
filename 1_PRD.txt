@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-27
+최종 업데이트: 2026-04-28
 ================================================================
 
 ## 서비스 개요
@@ -73,21 +73,37 @@
    - 잔여 슬롯: feedbacks 실제 건수 기준 표시 (filled_count 대신)
 
 2. 미션 탐색 (/panel/missions) — Missions.jsx
-   - 전체 활성 미션 목록 조회 (missions SELECT, created_at DESC)
+   - 탭 3개: 참여가능 / 진행 중(→/panel/active로 이동) / 완료
+   - 참여가능: missions status='active' + 미참여(feedbackMap에 없음) + 슬롯 여유 있는 것
+   - 완료: 패널이 submitted/approved/rejected 상태인 피드백이 있는 미션
+   - 수락 확인 모달: Purit Filter 경고 3항목 포함
+   - 수락 시 feedbacks INSERT(status='draft', 점수는 null) → /panel/active?id=... 이동
+   - 수락 취소 모달: cancel_panel_feedback RPC 호출 (draft 삭제, feedbacks DELETE RLS 없어 RPC 필수)
+   - Dashboard의 참여가능 목록에서는 draft 포함 모든 참여 미션 제외
 
 3. 미션 수행 (/panel/active) — ActiveMission.jsx
-   - URL ?id=<mission_id> 파라미터로 특정 미션 조회, 없으면 active 첫 번째
-   - 중복 제출 방지: 동일 mission+panel 조합 사전 체크
-   - 5개 축 점수(1-5) 입력
-   - 각 축 텍스트 코멘트 → [레이블]\n코멘트 형식으로 suggestions 하나에 통합 저장
-     (strengths/weaknesses는 null, 하위 호환 유지)
-   - 제출 시:
-     a. feedbacks INSERT (purity_passed=false, status='submitted')
-     b. missions.filled_count +1 → RPC increment_mission_filled_count (SECURITY DEFINER)
-     c. panels.total_missions +1 → RPC increment_panel_mission_count (SECURITY DEFINER)
+   ★ 목록 뷰 (id 파라미터 없음, /panel/active):
+     - 이 패널이 수락한(status='draft') 미션 전체를 카드 목록으로 표시
+     - 저장된 진행 없으면 "피드백 시작하기 →", 있으면 "이어하기 →" 버튼
+     - 버튼 클릭 시 /panel/active?id=<mission_id>로 이동
+   ★ 폼 뷰 (id 파라미터 있음, /panel/active?id=...):
+     - 특정 미션 브리핑 화면 → 5단계 피드백 입력 폼
+     - 브리핑에서도 저장 여부에 따라 "이어하기 →" / "피드백 시작하기 →"
+     - "이어하기" 클릭 시 점수가 비어있는 첫 번째 단계로 직접 이동 (resume)
+     - 중복 제출 방지: 동일 mission+panel 조합 사전 체크
+     - 5개 축 점수(1-5) 입력
+     - 각 축 텍스트 코멘트 → [레이블]\n코멘트 형식으로 suggestions 하나에 통합 저장
+       (strengths는 draft 중 JSON 임시 저장에 사용, 제출 시 null로 초기화)
+     - 자동 저장: 점수/코멘트 변경 후 1.5초 debounce → feedbacks UPDATE
+     - 수락 취소 버튼(draft 상태일 때) → cancel_panel_feedback RPC → /panel/missions 이동
+     - 제출 시:
+       a. feedbacks UPDATE (status: draft → submitted, strengths: null, suggestions 통합)
+       b. missions.filled_count +1 → RPC increment_mission_filled_count (SECURITY DEFINER)
+       c. panels.total_missions +1 → RPC increment_panel_mission_count (SECURITY DEFINER)
 
 4. 수익 이력 (/panel/history) — History.jsx
    - 완료 피드백 목록 (feedbacks SELECT + missions JOIN → title, reward_amount)
+   - draft 상태 피드백 제외 (.neq('status', 'draft'))
 
 5. 프로필 설정 (/panel/profile) — Profile.jsx
    - 이름, 산업, 경력, 전문 분야, 은행 계좌 정보 조회/수정

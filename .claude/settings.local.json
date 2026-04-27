@@ -6,7 +6,8 @@
       "Bash(xargs grep *)",
       "Bash(xargs basename *)",
       "Bash(npm run *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git push *)"
     ]
   }
 }

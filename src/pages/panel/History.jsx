@@ -22,6 +22,7 @@ export default function History() {
         .from('feedbacks')
         .select('*, missions(title, reward_amount)')
         .eq('panel_id', panel.id)
+        .neq('status', 'draft')
         .order('created_at', { ascending: false });
 
       setFeedbacks(fbs || []);

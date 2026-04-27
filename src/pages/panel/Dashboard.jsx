@@ -18,10 +18,14 @@ export default function PanelDashboard() {
         .from('panels').select('*').eq('user_id', user.id).single();
       setPanel(p);
 
-      const { data: ms } = await supabase
-        .from('missions').select('*, feedbacks(id)').eq('status', 'active')
-        .order('created_at', { ascending: false }).limit(5);
-      setMissions(ms || []);
+      const [{ data: ms }, { data: myFeedbacks }] = await Promise.all([
+        supabase.from('missions').select('*, feedbacks(id)').eq('status', 'active')
+          .order('created_at', { ascending: false }).limit(10),
+        supabase.from('feedbacks').select('mission_id').eq('panel_id', p?.id),
+      ]);
+
+      const myMissionIds = new Set((myFeedbacks || []).map(f => f.mission_id));
+      setMissions((ms || []).filter(m => !myMissionIds.has(m.id)));
 
       setLoading(false);
     }

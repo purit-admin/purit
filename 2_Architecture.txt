@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-23
+최종 업데이트: 2026-04-28
 ================================================================
 
 ## 기술 스택
@@ -188,17 +188,22 @@ purit/
   id                    UUID  PK
   mission_id            UUID  FK → missions.id
   panel_id              UUID  FK → panels.id
-  clarity_score         INT   (1–5)
-  relevance_score       INT   (1–5)
-  value_score           INT   (1–5)
-  differentiation_score INT   (1–5)
-  trust_score           INT   (1–5)
-  strengths             TEXT
-  weaknesses            TEXT
-  suggestions           TEXT
+  clarity_score         INT   (1–5, nullable — draft 중에는 null 허용)
+  relevance_score       INT   (1–5, nullable)
+  value_score           INT   (1–5, nullable)
+  differentiation_score INT   (1–5, nullable)
+  trust_score           INT   (1–5, nullable)
+  strengths             TEXT  (draft 중 임시 저장용: JSON.stringify(comments), 제출 시 null)
+  weaknesses            TEXT  (null 고정, 하위 호환용)
+  suggestions           TEXT  ([레이블]\n코멘트 형식 5개 섹션 통합, 제출 시에만 기록)
   purity_passed         BOOL  DEFAULT false
-  status                TEXT  ('submitted'|'approved'|'rejected')
+  status                TEXT  ('draft'|'submitted'|'approved'|'rejected')
+                               ※ draft: 수락 후 미완료 (패널이 수락하면 즉시 생성)
+                               ※ CHECK 제약: feedbacks_status_check 로 4개 값 허용
   created_at            TIMESTAMPTZ DEFAULT now()
+
+  ※ RLS: SELECT(인증된 전체), INSERT(패널), UPDATE(인증된 전체)
+  ※ DELETE 정책 없음 → 수락 취소는 cancel_panel_feedback RPC(SECURITY DEFINER)로 처리
 
 ---
 
@@ -351,6 +356,20 @@ purit/
   team_members ←N:1→  companies    (team_members.company_id)
   settlements  ←N:1→  panels       (settlements.panel_id, NULLABLE)
   invoices     ←N:1→  companies    (invoices.company_id, NULLABLE)
+
+---
+
+### SECURITY DEFINER RPC 함수 목록
+
+  increment_mission_filled_count(mission_id UUID)
+    → missions.filled_count +1 (패널이 직접 UPDATE 불가 → RPC 필수)
+
+  increment_panel_mission_count(panel_id UUID)
+    → panels.total_missions +1 (패널이 본인 panels 직접 UPDATE 불가 → RPC 필수)
+
+  cancel_panel_feedback(p_mission_id UUID)
+    → feedbacks DELETE (status='draft', 본인 panel) (DELETE RLS 없음 → RPC 필수)
+    → 파일: supabase/migrations/004_cancel_feedback_rpc.sql
 
 ================================================================
 ## 공용 컴포넌트 (src/components/ui/index.jsx)
