@@ -19,10 +19,11 @@ export default function AdminPanels() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('panels')
         .select('*')
         .order('created_at', { ascending: false });
+      if (error) console.error('[AdminPanels]', error.message);
       setPanels(data || []);
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export default function AdminPanels() {
             <button key={t} onClick={() => setTierFilter(t)} style={{
               padding: '5px 12px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500,
               background: tierFilter === t ? 'var(--accent)' : 'var(--surface)',
-              color: tierFilter === t ? '#0A0A08' : 'var(--text-3)',
+              color: tierFilter === t ? '#FFFFFF' : 'var(--text-3)',
               border: '1px solid ' + (tierFilter === t ? 'var(--accent)' : 'var(--border)'),
               cursor: 'pointer', transition: 'all 0.15s',
             }}>{t === 'all' ? '전체 등급' : t}</button>

@@ -19,23 +19,28 @@ const NAV = {
       ],
     },
     {
-      group: '검증 도구',
+      group: '메인 의뢰',
       items: [
+        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
         { path: '/company/new', label: '의뢰 등록', icon: Plus },
         { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
         { path: '/company/diagnosis', label: '5차원 진단', icon: Layers },
-        { path: '/company/preference', label: '소재 비교 A/B', icon: Columns2 },
-        { path: '/company/pricing-test', label: '가격 페이지', icon: Tag },
-        { path: '/company/email-test', label: '이메일 검증', icon: Mail },
-        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
       ],
     },
     {
-      group: '인텔리전스',
+      group: '서브 의뢰',
+      items: [
+        { path: '/company/preference', label: '소재 비교 A/B', icon: Columns2 },
+        { path: '/company/pricing-test', label: '가격 페이지', icon: Tag },
+        { path: '/company/email-test', label: '이메일 검증', icon: Mail },
+      ],
+    },
+    {
+      group: '리서치 및 자산',
       items: [
         { path: '/company/icp', label: 'ICP 리서치', icon: Users },
         { path: '/company/icp-pulse', label: 'ICP Pulse', icon: Activity },
-        { path: '/company/brand', label: '브랜드 추적', icon: TrendingUp },
+        { path: '/company/brand', label: '브랜드 트래킹', icon: TrendingUp },
         { path: '/company/report', label: 'AI 리포트', icon: Sparkles },
       ],
     },
@@ -95,7 +100,7 @@ const ROLE_LABEL = { company: '기업', panel: '패널', admin: '어드민' };
 export default function Layout({ role, children }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, role: authRole, signOut } = useAuth();
   const navGroups = NAV[role] || [];
   const [collapsed, setCollapsed] = useState(false);
 
@@ -147,6 +152,51 @@ export default function Layout({ role, children }) {
             }
           </button>
         </div>
+
+        {/* Admin portal switcher */}
+        {authRole === 'admin' && (
+          <div style={{ padding: collapsed ? '8px 6px' : '8px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            {collapsed ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                {[['admin', 'AD', '/admin'], ['company', 'CO', '/company'], ['panel', 'PN', '/panel']].map(([p, abbr, path]) => (
+                  <button key={p} onClick={() => navigate(path)} title={ROLE_LABEL[p] + ' 포털'}
+                    style={{
+                      width: 36, height: 22, borderRadius: 5, fontSize: 10, fontWeight: 700,
+                      background: role === p ? 'var(--accent)' : 'var(--surface)',
+                      color: role === p ? '#FFFFFF' : 'var(--text-3)',
+                      border: '1px solid ' + (role === p ? 'transparent' : 'var(--border)'),
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                    {abbr}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, paddingLeft: 4 }}>
+                  포털 전환
+                </div>
+                <div style={{ display: 'flex', gap: 3, background: 'var(--bg)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
+                  {[['admin', '어드민', '/admin'], ['company', '기업', '/company'], ['panel', '패널', '/panel']].map(([p, label, path]) => (
+                    <button key={p} onClick={() => navigate(path)}
+                      style={{
+                        flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 11, fontWeight: 600,
+                        background: role === p ? 'var(--accent)' : 'transparent',
+                        color: role === p ? '#FFFFFF' : 'var(--text-3)',
+                        border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { if (role !== p) { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.color = 'var(--text)'; } }}
+                      onMouseLeave={e => { if (role !== p) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-3)'; } }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '10px 0', overflowY: 'auto', overflowX: 'hidden' }}>

@@ -12,11 +12,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       const [
-        { count: mCount },
-        { count: pCount },
-        { count: fbCount },
-        { count: passedCount },
-        { data: panelList },
+        { count: mCount, error: e1 },
+        { count: pCount, error: e2 },
+        { count: fbCount, error: e3 },
+        { count: passedCount, error: e4 },
+        { data: panelList, error: e5 },
       ] = await Promise.all([
         supabase.from('missions').select('*', { count: 'exact', head: true }),
         supabase.from('panels').select('*', { count: 'exact', head: true }),
@@ -25,6 +25,7 @@ export default function AdminDashboard() {
         supabase.from('panels').select('*').order('created_at', { ascending: false }).limit(10),
       ]);
 
+      [e1,e2,e3,e4,e5].forEach((e,i) => e && console.error(`[AdminDashboard] query${i+1}:`, e.message));
       setStats({
         missions:  mCount  || 0,
         panels:    pCount  || 0,

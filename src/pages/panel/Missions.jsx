@@ -94,7 +94,7 @@ export default function MissionList() {
                       {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
                     </div>
                     {!isClosed ? (
-                      <Btn size="sm" onClick={() => navigate('/panel/active')}>수락하기</Btn>
+                      <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>수락하기</Btn>
                     ) : (
                       <Btn size="sm" variant="ghost" disabled>마감됨</Btn>
                     )}

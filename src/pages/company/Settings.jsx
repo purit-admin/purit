@@ -20,6 +20,8 @@ export default function AccountSettings() {
   const [inviting, setInviting] = useState(false);
   const [profile, setProfile] = useState({ name: '', industry: '', email: '', website: '' });
   const [notif, setNotif] = useState({ feedbackComplete: true, purityAlert: true, weeklyDigest: false, newMission: true });
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
     load();
@@ -68,10 +70,14 @@ export default function AccountSettings() {
 
   async function handleSaveProfile() {
     if (!company) return;
-    const updates = { name: profile.name };
-    if ('industry' in company) updates.industry = profile.industry;
-    if ('website' in company) updates.website = profile.website;
-    await supabase.from('companies').update(updates).eq('id', company.id);
+    setSaving(true);
+    setSaveMsg('');
+    const { error } = await supabase.from('companies')
+      .update({ name: profile.name, industry: profile.industry, website: profile.website })
+      .eq('id', company.id);
+    setSaving(false);
+    setSaveMsg(error ? '저장 실패: ' + error.message : '저장됐습니다.');
+    setTimeout(() => setSaveMsg(''), 3000);
   }
 
   if (loading) return (
@@ -233,8 +239,8 @@ export default function AccountSettings() {
             {[
               { label: '회사명', key: 'name', type: 'text' },
               { label: '업종', key: 'industry', type: 'text' },
-              { label: '대표 이메일', key: 'email', type: 'email' },
-              { label: '웹사이트', key: 'website', type: 'url' },
+              { label: '대표 이메일', key: 'email', type: 'text' },
+              { label: '웹사이트', key: 'website', type: 'text' },
             ].map(({ label, key, type }) => (
               <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
@@ -246,8 +252,9 @@ export default function AccountSettings() {
                 />
               </label>
             ))}
-            <div style={{ marginTop: 8 }}>
-              <Btn onClick={handleSaveProfile}>변경사항 저장</Btn>
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Btn onClick={handleSaveProfile} disabled={saving}>{saving ? '저장 중…' : '변경사항 저장'}</Btn>
+              {saveMsg && <span style={{ fontSize: 13, color: saveMsg.startsWith('저장 실패') ? 'var(--red)' : 'var(--accent)' }}>{saveMsg}</span>}
             </div>
           </div>
         </Card>

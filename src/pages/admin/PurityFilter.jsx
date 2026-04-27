@@ -41,15 +41,28 @@ export default function PurityFilter() {
 
   const approve = async (id) => {
     setActing(true);
-    await supabase.from('feedbacks').update({ purity_passed: true, status: 'approved' }).eq('id', id);
+    const { error } = await supabase.from('feedbacks').update({ purity_passed: true, status: 'approved' }).eq('id', id);
+    if (error) { alert('승인 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: true, status: 'approved' } : f));
+    setSelected(null);
     setActing(false);
   };
 
   const reject = async (id) => {
     setActing(true);
-    await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected' }).eq('id', id);
+    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected' }).eq('id', id);
+    if (error) { alert('반려 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected' } : f));
+    setSelected(null);
+    setActing(false);
+  };
+
+  const reset = async (id) => {
+    setActing(true);
+    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted' }).eq('id', id);
+    if (error) { alert('취소 실패: ' + error.message); setActing(false); return; }
+    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted' } : f));
+    setSelected(null);
     setActing(false);
   };
 
@@ -58,7 +71,7 @@ export default function PurityFilter() {
     : filter === 'approved' ? feedbacks.filter(f => f.purity_passed)
     : feedbacks.filter(f => f.status === 'rejected');
 
-  const fb = feedbacks.find(f => f.id === selected);
+  const fb = filtered.find(f => f.id === selected);
   const score = fb ? calcPurityScore(fb) : 0;
 
   if (loading) return (
@@ -76,7 +89,7 @@ export default function PurityFilter() {
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['pending', '검토 대기'], ['approved', '승인됨'], ['rejected', '반려됨'], ['all', '전체']].map(([v, l]) => (
-          <button key={v} onClick={() => setFilter(v)} style={{
+          <button key={v} onClick={() => { setFilter(v); setSelected(null); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -192,16 +205,28 @@ export default function PurityFilter() {
                   </div>
                 ))}
 
-                {fb.status !== 'approved' && fb.status !== 'rejected' && (
-                  <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                    <Btn size="sm" disabled={acting} onClick={() => approve(fb.id)}>
-                      {acting ? '처리 중...' : '✓ 승인'}
+                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                  {fb.status !== 'approved' && fb.status !== 'rejected' && (
+                    <>
+                      <Btn size="sm" disabled={acting} onClick={() => approve(fb.id)}>
+                        {acting ? '처리 중...' : '✓ 승인'}
+                      </Btn>
+                      <Btn size="sm" variant="danger" disabled={acting} onClick={() => reject(fb.id)}>
+                        {acting ? '처리 중...' : '✕ 반려'}
+                      </Btn>
+                    </>
+                  )}
+                  {fb.status === 'approved' && (
+                    <Btn size="sm" variant="outline" disabled={acting} onClick={() => reset(fb.id)}>
+                      {acting ? '처리 중...' : '승인 취소'}
                     </Btn>
-                    <Btn size="sm" variant="danger" disabled={acting} onClick={() => reject(fb.id)}>
-                      {acting ? '처리 중...' : '✕ 반려'}
+                  )}
+                  {fb.status === 'rejected' && (
+                    <Btn size="sm" variant="outline" disabled={acting} onClick={() => reset(fb.id)}>
+                      {acting ? '처리 중...' : '반려 취소'}
                     </Btn>
-                  </div>
-                )}
+                  )}
+                </div>
               </Card>
             </div>
           )}

@@ -23,9 +23,10 @@ export default function QuestionTemplates() {
       .select('*, template_questions(id, question_text, question_order)')
       .order('use_count', { ascending: false });
 
-    const { data } = await (co
+    const { data, error } = await (co
       ? baseQuery.or(`is_default.eq.true,company_id.eq.${co.id}`)
       : baseQuery.eq('is_default', true));
+    if (error) console.error('[QuestionTemplates] 쿼리 오류:', error.message);
     if (data) setTemplates(data.map(t => ({
       ...t,
       template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),

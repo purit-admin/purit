@@ -86,7 +86,7 @@ export default function NewMission() {
             <div style={{
               width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: i < step ? 'var(--green)' : i === step ? 'var(--accent)' : 'var(--surface-2)',
-              color: i <= step ? '#0A0A08' : 'var(--text-3)',
+              color: i < step ? '#FFFFFF' : i === step ? '#FFFFFF' : 'var(--text-3)',
               fontSize: 12, fontWeight: 700, transition: 'all 0.3s',
             }}>
               {i < step ? '✓' : i + 1}
@@ -159,10 +159,13 @@ export default function NewMission() {
                   <button key={n} onClick={() => set('panels', n)} style={{
                     flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
                     background: form.panels === n ? 'var(--accent)' : 'var(--surface-2)',
-                    color: form.panels === n ? '#0A0A08' : 'var(--text-2)',
+                    color: form.panels === n ? '#FFFFFF' : 'var(--text-2)',
                     border: '1px solid ' + (form.panels === n ? 'var(--accent)' : 'var(--border)'),
-                    fontWeight: 600, fontSize: 14, transition: 'all 0.15s',
-                  }}>
+                    fontWeight: 600, fontSize: 14, transition: 'all 0.15s', cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { if (form.panels !== n) e.currentTarget.style.background = 'var(--bg-3)'; }}
+                  onMouseLeave={e => { if (form.panels !== n) e.currentTarget.style.background = 'var(--surface-2)'; }}
+                  >
                     {n}명
                   </button>
                 ))}
@@ -181,10 +184,13 @@ export default function NewMission() {
                   <button key={f} onClick={() => toggleFocus(f)} style={{
                     padding: '6px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500,
                     background: form.focusAreas.includes(f) ? 'var(--accent)' : 'var(--surface-2)',
-                    color: form.focusAreas.includes(f) ? '#0A0A08' : 'var(--text-2)',
+                    color: form.focusAreas.includes(f) ? '#FFFFFF' : 'var(--text-2)',
                     border: '1px solid ' + (form.focusAreas.includes(f) ? 'var(--accent)' : 'var(--border)'),
                     transition: 'all 0.15s', cursor: 'pointer',
-                  }}>
+                  }}
+                  onMouseEnter={e => { if (!form.focusAreas.includes(f)) e.currentTarget.style.background = 'var(--bg-3)'; }}
+                  onMouseLeave={e => { if (!form.focusAreas.includes(f)) e.currentTarget.style.background = 'var(--surface-2)'; }}
+                  >
                     {f}
                   </button>
                 ))}

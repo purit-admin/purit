@@ -49,8 +49,8 @@ function RoleRoute({ role: required, children }) {
   if (!user) return <Navigate to="/login" replace />;
   // role 없으면 로그인으로
   if (!role) return <Navigate to="/login" replace />;
-  // 다른 역할이 접근하면 자기 포털로 리다이렉트
-  if (role !== required) return <Navigate to={ROLE_HOME[role]} replace />;
+  // admin은 모든 포털 접근 허용, 다른 역할은 자기 포털로 리다이렉트
+  if (role !== required && role !== 'admin') return <Navigate to={ROLE_HOME[role]} replace />;
   return children;
 }
 

@@ -81,10 +81,13 @@ export default function Results() {
             <button key={m.id} onClick={() => setSelected(m.id)} style={{
               padding: '6px 14px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500,
               background: selected === m.id ? 'var(--accent)' : 'var(--surface)',
-              color: selected === m.id ? '#0A0A08' : 'var(--text-2)',
+              color: selected === m.id ? '#FFFFFF' : 'var(--text-2)',
               border: '1px solid ' + (selected === m.id ? 'var(--accent)' : 'var(--border)'),
               cursor: 'pointer', transition: 'all 0.15s',
-            }}>
+            }}
+            onMouseEnter={e => { if (selected !== m.id) e.currentTarget.style.background = 'var(--bg-2)'; }}
+            onMouseLeave={e => { if (selected !== m.id) e.currentTarget.style.background = 'var(--surface)'; }}
+            >
               {m.title}
             </button>
           ))}

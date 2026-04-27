@@ -12,10 +12,11 @@ export default function AdminMissions() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('missions')
-        .select('*, companies(name)')
+        .select('*, companies(name), feedbacks(id)')
         .order('created_at', { ascending: false });
+      if (error) console.error('[AdminMissions]', error.message);
       setMissions(data || []);
       setLoading(false);
     }
@@ -80,7 +81,7 @@ export default function AdminMissions() {
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
                   <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 20, marginBottom: 4 }}>
-                    {m.filled_count || 0}/{m.panel_count}
+                    {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>패널 슬롯</div>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
@@ -98,7 +99,7 @@ export default function AdminMissions() {
               </div>
               <div style={{ marginTop: 14, width: '100%', height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
                 <div style={{
-                  width: `${Math.min(((m.filled_count || 0) / m.panel_count) * 100, 100)}%`,
+                  width: `${Math.min(((m.feedbacks?.length ?? m.filled_count ?? 0) / m.panel_count) * 100, 100)}%`,
                   height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s',
                 }} />
               </div>

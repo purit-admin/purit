@@ -19,7 +19,7 @@ export default function PanelDashboard() {
       setPanel(p);
 
       const { data: ms } = await supabase
-        .from('missions').select('*').eq('status', 'active')
+        .from('missions').select('*, feedbacks(id)').eq('status', 'active')
         .order('created_at', { ascending: false }).limit(5);
       setMissions(ms || []);
 
@@ -83,7 +83,7 @@ export default function PanelDashboard() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {missions.map(m => (
-            <Card key={m.id} onClick={() => navigate('/panel/active')} style={{ cursor: 'pointer' }}>
+            <Card key={m.id} onClick={() => navigate(`/panel/active?id=${m.id}`)} style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -102,7 +102,7 @@ export default function PanelDashboard() {
                     ₩{(m.reward_amount || 0).toLocaleString()}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
-                    잔여 {Math.max(0, (m.panel_count || 0) - (m.filled_count || 0))}/{m.panel_count} 슬롯
+                    잔여 {Math.max(0, (m.panel_count || 0) - (m.feedbacks?.length ?? m.filled_count ?? 0))}/{m.panel_count} 슬롯
                   </div>
                 </div>
               </div>

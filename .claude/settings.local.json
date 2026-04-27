@@ -4,7 +4,9 @@
       "Bash(git config *)",
       "Bash(git commit *)",
       "Bash(xargs grep *)",
-      "Bash(xargs basename *)"
+      "Bash(xargs basename *)",
+      "Bash(npm run *)",
+      "Bash(git add *)"
     ]
   }
 }

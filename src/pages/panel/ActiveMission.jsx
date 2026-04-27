@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -13,6 +13,7 @@ const SECTIONS = [
 
 export default function ActiveMission() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [mission, setMission]   = useState(null);
   const [panel, setPanel]       = useState(null);
   const [step, setStep]         = useState(0);
@@ -20,6 +21,7 @@ export default function ActiveMission() {
   const [comments, setComments] = useState({ clarity: '', relevance: '', value: '', differentiation: '', trust: '' });
   const [purityWarning, setPurityWarning] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -31,10 +33,24 @@ export default function ActiveMission() {
         .from('panels').select('*').eq('user_id', user.id).single();
       setPanel(p);
 
-      // 활성 미션 1개 조회
-      const { data: ms } = await supabase
-        .from('missions').select('*').eq('status', 'active').limit(1).single();
+      // URL의 id로 특정 미션 조회, 없으면 active 첫 번째
+      const missionId = searchParams.get('id');
+      const query = supabase.from('missions').select('*');
+      const { data: ms } = await (missionId
+        ? query.eq('id', missionId).single()
+        : query.eq('status', 'active').limit(1).single());
       setMission(ms);
+
+      // 중복 제출 체크
+      if (ms && p) {
+        const { data: existing } = await supabase
+          .from('feedbacks')
+          .select('id')
+          .eq('mission_id', ms.id)
+          .eq('panel_id', p.id)
+          .limit(1);
+        if (existing && existing.length > 0) setAlreadySubmitted(true);
+      }
     }
     load();
   }, []);
@@ -62,27 +78,25 @@ export default function ActiveMission() {
         value_score:           scores.value,
         differentiation_score: scores.differentiation,
         trust_score:           scores.trust,
-        strengths:             comments.clarity,
-        weaknesses:            comments.relevance,
-        suggestions:           [comments.value, comments.differentiation, comments.trust]
-                                 .filter(Boolean).join('\n'),
+        strengths:             null,
+        weaknesses:            null,
+        suggestions:           SECTIONS
+                                 .map(s => comments[s.key] ? `[${s.label}]\n${comments[s.key]}` : null)
+                                 .filter(Boolean)
+                                 .join('\n\n'),
         purity_passed:         false,
         status:                'submitted',
       });
       if (fbError) throw fbError;
 
-      // 2. missions.filled_count +1
+      // 2. missions.filled_count +1 (SECURITY DEFINER RPC로 원자적 증가)
       const { error: msError } = await supabase
-        .from('missions')
-        .update({ filled_count: (mission.filled_count || 0) + 1 })
-        .eq('id', mission.id);
+        .rpc('increment_mission_filled_count', { mission_id: mission.id });
       if (msError) throw msError;
 
-      // 3. panels.total_missions +1
+      // 3. panels.total_missions +1 (SECURITY DEFINER RPC로 원자적 증가)
       const { error: pnError } = await supabase
-        .from('panels')
-        .update({ total_missions: (panel.total_missions || 0) + 1 })
-        .eq('id', panel.id);
+        .rpc('increment_panel_mission_count', { panel_id: panel.id });
       if (pnError) throw pnError;
 
       setStep(SECTIONS.length + 1);
@@ -96,6 +110,15 @@ export default function ActiveMission() {
   if (!mission) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>
       {mission === null ? '미션을 불러오는 중...' : '현재 참여 가능한 미션이 없습니다.'}
+    </div>
+  );
+
+  if (alreadySubmitted) return (
+    <div style={{ padding: '40px 48px', maxWidth: 600, textAlign: 'center' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>✋</div>
+      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>이미 제출한 미션입니다</h2>
+      <p style={{ color: 'var(--text-2)', marginBottom: 28 }}>이 미션에 대한 피드백을 이미 제출하셨습니다.</p>
+      <Btn onClick={() => navigate('/panel/missions')}>다른 미션 보기</Btn>
     </div>
   );
 
@@ -182,7 +205,7 @@ export default function ActiveMission() {
               <button key={n} onClick={() => setScores(s => ({ ...s, [sec.key]: n }))} style={{
                 flex: 1, padding: '14px 0', borderRadius: 'var(--radius)',
                 background: scores[sec.key] === n ? 'var(--accent)' : scores[sec.key] > n ? 'var(--accent-dim)' : 'var(--surface-2)',
-                color: scores[sec.key] === n ? '#0A0A08' : 'var(--text-2)',
+                color: scores[sec.key] === n ? '#FFFFFF' : 'var(--text-2)',
                 border: '1px solid ' + (scores[sec.key] >= n ? 'rgba(232,213,163,0.4)' : 'var(--border)'),
                 fontWeight: 700, fontSize: 16, transition: 'all 0.15s', cursor: 'pointer',
               }}>{n}</button>
