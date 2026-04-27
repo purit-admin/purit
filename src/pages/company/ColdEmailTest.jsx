@@ -172,7 +172,7 @@ export default function ColdEmailTest() {
                         {r.hook_score && <span style={{ fontSize: 12, color: 'var(--text-3)' }}>훅 {r.hook_score}/5</span>}
                         {r.clarity_score && <span style={{ fontSize: 12, color: 'var(--text-3)' }}>명확성 {r.clarity_score}/5</span>}
                       </div>
-                      {r.comment && <div style={{ fontSize: 13, color: 'var(--text-2)', paddingLeft: 0, borderLeft: '2px solid var(--border)', paddingLeft: 10 }}>"{r.comment}"</div>}
+                      {r.comment && <div style={{ fontSize: 13, color: 'var(--text-2)', paddingLeft: 10, borderLeft: '2px solid var(--border)' }}>"{r.comment}"</div>}
                     </div>
                   ))}
                 </Card>

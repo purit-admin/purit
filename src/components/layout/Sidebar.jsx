@@ -171,7 +171,7 @@ export default function Layout({ role, children }) {
                   <button key={item.path} onClick={() => navigate(item.path)}
                     title={collapsed ? item.label : undefined}
                     style={{
-                      width: '100%', display: 'flex', alignItems: 'center',
+                      width: collapsed ? '100%' : 'calc(100% - 12px)', display: 'flex', alignItems: 'center',
                       gap: 9, padding: collapsed ? '9px 0' : '8px 12px',
                       margin: '1px 0',
                       justifyContent: collapsed ? 'center' : 'flex-start',
@@ -181,7 +181,6 @@ export default function Layout({ role, children }) {
                       borderRadius: collapsed ? 0 : 10,
                       marginLeft: collapsed ? 0 : 6,
                       marginRight: collapsed ? 0 : 6,
-                      width: collapsed ? '100%' : 'calc(100% - 12px)',
                       boxShadow: active ? 'var(--shadow)' : 'none',
                       transition: 'all 0.12s ease', position: 'relative',
                       whiteSpace: 'nowrap', overflow: 'hidden',
