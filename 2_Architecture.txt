@@ -423,6 +423,10 @@ purit/
   VITE_SUPABASE_ANON_KEY    = [anon public key]
   SUPABASE_SERVICE_ROLE_KEY = [service role secret key]  ← 서버/스크립트 전용, VITE_ 없음
 
+  [Supabase Edge Function Secrets — supabase secrets set 명령어로 등록]
+  ANTHROPIC_API_KEY = sk-ant-api03-...  ← generate-ai-report 함수에서 사용
+                                           미설정 시 Mock 응답 폴백 (서비스 중단 없음)
+
   ※ Vite 규칙: 클라이언트 노출 변수는 반드시 VITE_ 접두사 필요
   ※ import.meta.env.VITE_* 로 접근
   ※ SUPABASE_SERVICE_ROLE_KEY 는 클라이언트에 절대 노출 금지
