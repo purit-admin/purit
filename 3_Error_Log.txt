@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-28
+최종 업데이트: 2026-04-29
 ================================================================
 
 ## 핵심 원칙
@@ -167,6 +167,15 @@ D-6. React 인라인 스타일 중복 키 경고 ✅ 해결 (2026-04-27)
             - RPC 함수 생성: increment_mission_filled_count, increment_panel_mission_count
             - missions.filled_count 실제 feedbacks 건수 기준으로 일괄 동기화
 
+2026-04-29  Company Dashboard 시각화 엔진 구축
+            - framer-motion 패키지 설치
+            - Dashboard.jsx 전면 재작성: Recharts 3종 차트 추가
+              (RadarChart / RadialBarChart 반원 게이지 / BarChart 수평 스택)
+            - computeRadar / computeSentiment 함수로 feedbacks 실데이터 집계
+            - Stats 4번째 카드: plan → 수집 피드백 건수로 변경
+            - Framer Motion: fadeUp / staggerChildren / whileHover 적용
+            - 빌드 경고 0개 확인 (청크 크기 경고는 기존 이슈)
+
 2026-04-28  패널 미션 상태 분리 + 진행 중 목록 다중 지원
             [해결된 오류]
             - feedbacks_clarity_score_check 위반: draft INSERT 시 score에 0 대신 null 사용
@@ -204,3 +213,22 @@ D-8. feedbacks DELETE RLS 없음 — cancel_panel_feedback RPC 필수 (2026-04-2
      → feedbacks 테이블에 DELETE RLS 정책이 없어 패널이 직접 삭제 불가
      → 수락 취소 시 반드시 cancel_panel_feedback(p_mission_id) RPC 호출할 것
      → RPC는 status='draft'인 본인 피드백만 삭제 (SECURITY DEFINER 내 auth.uid() 체크)
+
+D-9. Company Dashboard 시각화 엔진 구축 (2026-04-29)
+     → framer-motion 패키지 추가 설치 (npm install framer-motion)
+     → Dashboard.jsx 전면 재작성: Recharts 3종 차트 + Framer Motion 애니메이션
+     → 차트 3종 구현 패턴:
+        - RadarChart: BENCHMARK 상수와 feedbacks 집계값 비교 (domain [0,5])
+        - RadialBarChart: startAngle=180, endAngle=0 → 반원 게이지
+        - BarChart: layout="vertical", stackId="a" → 수평 스택 바
+     → computeRadar(fbs): score 컬럼 null/0 필터링 후 평균 계산
+     → computeSentiment(missions, fbs): 미션별 feedbacks 분리 후 평균 ≥3.5 → 긍정 비율
+     → Stats 4번째 카드: plan → feedbacks.length(제출 완료 건수)로 변경
+     → 피드백 없을 때 차트 표시: 레이더 0점 / 게이지 0 / 스택 바 positive=0
+        (빈 상태도 차트 구조는 렌더링됨 — UI 깨짐 없음 확인)
+
+E-9. Recharts RadialBarChart 반원 게이지 구현 시 주의사항
+     → startAngle=180, endAngle=0 으로 설정해야 반원
+     → background prop을 RadialBar에 직접 넣어야 배경 트랙 표시됨
+        (RadialBarChart에 넣으면 무시됨)
+     → fill은 data 배열 각 항목에 직접 지정 (RadialBar의 fill prop 무시됨)

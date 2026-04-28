@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-28
+최종 업데이트: 2026-04-29
 ================================================================
 
 ## 기술 스택
@@ -15,6 +15,7 @@
 | CSS 변수 시스템 | index.css (커스텀) | — |
 | 아이콘 | Lucide React | 0.383.0 |
 | 차트 | Recharts | 2.12.0 |
+| 애니메이션 | Framer Motion | 최신 (2026-04-29 설치) |
 | 배포 | Vercel (SPA rewrite) | — |
 | 언어 | JavaScript (TypeScript 미사용) | ES Module |
 
@@ -51,7 +52,11 @@ purit/
 │       ├── Signup.jsx               # 회원가입 (role 선택 포함)
 │       │
 │       ├── company/                 # Company 포털 (14개 페이지)
-│       │   ├── Dashboard.jsx
+│       │   ├── Dashboard.jsx        # ★ 시각화 엔진 (Recharts 3종 + Framer Motion)
+│       │   │                        #   - RadarChart: 5차원 내점수 vs 벤치마크
+│       │   │                        #   - RadialBarChart: KPI 달성률 게이지
+│       │   │                        #   - BarChart: 미션별 긍/부정 스택 바
+│       │   │                        #   - feedbacks 실데이터 집계: computeRadar / computeSentiment
 │       │   ├── NewMission.jsx
 │       │   ├── Results.jsx
 │       │   ├── Diagnosis.jsx
@@ -81,9 +86,16 @@ purit/
 │           └── Revenue.jsx
 │
 ├── supabase/
-│   └── migrations/
-│       ├── 001_all_tables.sql       # 신규 테이블 19개 DDL
-│       └── 002_seed_data.sql        # 초기 시드 데이터 (GMV·정산·청구·질문템플릿)
+│   ├── migrations/
+│   │   ├── 001_all_tables.sql       # 신규 테이블 19개 DDL
+│   │   ├── 002_seed_data.sql        # 초기 시드 데이터 (GMV·정산·청구·질문템플릿)
+│   │   ├── 003_admin_records.sql    # admin 계정 panels/companies 레코드 생성
+│   │   ├── 004_cancel_feedback_rpc.sql  # cancel_panel_feedback RPC
+│   │   └── 005_ai_reports.sql       # ai_reports 테이블 + RLS
+│   └── functions/
+│       └── generate-ai-report/
+│           └── index.ts             # Deno Edge Function — Anthropic API → ai_reports INSERT
+├── MORNING_REPORT.md                # 배포 가이드 (Supabase Secret·CLI 설정 안내)
 ├── index.html
 ├── vite.config.js                   # Vite 기본 설정 + @vitejs/plugin-react
 ├── vercel.json                      # SPA 라우팅 rewrite 규칙
@@ -345,6 +357,22 @@ purit/
 
 ---
 
+### [ai_reports] — AI 리포트 결과
+  id              UUID  PK
+  mission_id      UUID  FK → missions.id
+  company_id      UUID  FK → companies.id
+  tldr            TEXT  (AI 생성 요약)
+  priority_fixes  JSONB  [{area, issue, action, impact}]
+  strengths       JSONB  [string]
+  risk_flags      JSONB  [{level: 'high'|'mid', text}]
+  overall_score   NUMERIC(3,2)
+  panel_count     INT
+  created_at      TIMESTAMPTZ DEFAULT now()
+
+  ※ RLS: SELECT(본인 company or admin), INSERT(service role — Edge Function)
+
+---
+
 ### 관계 요약
 
   companies    ←1:1→  auth.users   (companies.user_id)
@@ -352,6 +380,8 @@ purit/
   missions     ←N:1→  companies    (missions.company_id)
   feedbacks    ←N:1→  missions     (feedbacks.mission_id)
   feedbacks    ←N:1→  panels       (feedbacks.panel_id)
+  ai_reports   ←N:1→  missions     (ai_reports.mission_id)
+  ai_reports   ←N:1→  companies    (ai_reports.company_id)
   notifications←N:1→  auth.users   (notifications.user_id)
   team_members ←N:1→  companies    (team_members.company_id)
   settlements  ←N:1→  panels       (settlements.panel_id, NULLABLE)

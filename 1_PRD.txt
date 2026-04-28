@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-28
+최종 업데이트: 2026-04-29
 ================================================================
 
 ## 서비스 개요
@@ -18,9 +18,17 @@
 인증 후 /company 하위 라우트 접근 가능.
 
 ### [개요]
-1. 대시보드 (/company)
-   - 등록된 미션 목록 요약 표시 (상태별: active/completed 등)
-   - 최근 미션 피드백 현황 수치 표시
+1. 대시보드 (/company) — Dashboard.jsx
+   - Stats 카드 4개: 전체 의뢰 / 진행 중 / 완료 / 수집 피드백(제출 완료 건수)
+   - 5차원 레이더 차트: feedbacks 실데이터 집계 → 내 점수 vs 플랫폼 벤치마크 비교
+     (피드백 미수집 시 0점 표시, 수집 시 자동 반영)
+   - KPI 달성률 게이지: 5축 평균을 100점 환산한 반원형 RadialBarChart
+   - 긍/부정 스택 바 차트: 미션별 평균점수 ≥3.5 → 긍정 비율 수평 바 (최대 5개 미션)
+   - 진행 중인 의뢰 카드 목록 + 전체 의뢰 현황 리스트
+   - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren / 미션 카드 whileHover
+   ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') 실시간 집계
+     - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지
+     - computeSentiment(missions, fbs): 미션별 평균 ≥3.5 비율 → 스택 바
 
 ### [검증 도구]
 2. 의뢰 등록 (/company/new) — NewMission.jsx
@@ -55,6 +63,10 @@
 10. ICP Pulse (/company/icp-pulse) — ICPPulse.jsx
 11. 브랜드 트래킹 (/company/brand) — BrandTracking.jsx
 12. AI 리포트 (/company/report) — AIReport.jsx
+    - 피드백 데이터 기반 자동 리포트 (로컬 계산 폴백 + Anthropic AI 강화)
+    - "AI 리포트 생성" 버튼 → generate-ai-report Edge Function 호출 → ai_reports 테이블 저장
+    - 기존 AI 리포트 있으면 로드 시 자동 표시 (재생성 버튼으로 갱신 가능)
+    - ANTHROPIC_API_KEY 미설정 시 로컬 계산 기반 Mock 응답으로 폴백 (서비스 중단 없음)
 
 ### [계정]
 13. 팀 & 설정 (/company/settings) — Settings.jsx
