@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (이미지 어노테이션 기능 추가)
+최종 업데이트: 2026-04-29 (서브 의뢰 파이프라인 완성)
 ================================================================
 
 ## 기술 스택
@@ -94,7 +94,11 @@ purit/
 │   │   ├── 002_seed_data.sql        # 초기 시드 데이터 (GMV·정산·청구·질문템플릿)
 │   │   ├── 003_admin_records.sql    # admin 계정 panels/companies 레코드 생성
 │   │   ├── 004_cancel_feedback_rpc.sql  # cancel_panel_feedback RPC
-│   │   └── 005_ai_reports.sql       # ai_reports 테이블 + RLS
+│   │   ├── 005_ai_reports.sql       # ai_reports 테이블 + RLS
+│   │   ├── 006_image_annotations.sql  # feedback_annotations 테이블 + missions.image_urls
+│   │   ├── 007_subtest_missions.sql   # 서브 의뢰 테이블에 mission_id/template_id/status 추가
+│   │   │                               # preference/pricing/email 응답 테이블에 추가 점수 컬럼 + RLS
+│   │   └── 008_seed_templates.sql     # 브랜드 삭제, category 업데이트, 서브 의뢰 템플릿 6개 삽입
 │   └── functions/
 │       └── generate-ai-report/
 │           └── index.ts             # Deno Edge Function — Anthropic API → ai_reports INSERT
@@ -335,26 +339,60 @@ purit/
   status      TEXT  ('draft'|'active'|'completed')
   created_at  TIMESTAMPTZ
 
-### [preference_responses] — 선호도 응답
-  id          UUID  PK
-  test_id     UUID  FK → preference_tests.id  ON DELETE CASCADE
-  panel_id    UUID  FK → panels.id
-  preference  TEXT  ('A'|'B')
-  comment     TEXT
-  created_at  TIMESTAMPTZ
+### [preference_tests] / [preference_responses] — 소재 비교 A/B
+  preference_tests:
+    id, company_id, asset_type, variant_a, variant_b, panel_size, status, created_at
+    mission_id  UUID  FK → missions.id    ← 007 추가
+    template_id UUID  FK → question_templates.id  ← 007 추가
+
+  preference_responses:
+    id, test_id FK→preference_tests.id, panel_id FK→panels.id
+    preference  TEXT  ('A'|'B')
+    comment     TEXT
+    mission_id  UUID  FK → missions.id    ← 007 추가
+    status      TEXT  DEFAULT 'submitted'  ← 007 추가
+    message_clarity  INT CHECK (1-5)      ← 007 추가
+    purchase_intent  INT CHECK (1-5)      ← 007 추가
+    created_at  TIMESTAMPTZ
+  ※ RLS: panel_insert_pref(INSERT), auth_select_pref(SELECT), auth_update_pref(UPDATE)
 
 ---
 
 ### [pricing_tests] / [pricing_axes] / [pricing_responses]
-  pricing_tests: id, company_id, status, created_at
+  pricing_tests:
+    id, company_id, status, created_at
+    mission_id  UUID  FK → missions.id    ← 007 추가
+    template_id UUID  FK → question_templates.id  ← 007 추가
+
   pricing_axes:  id, test_id, axis_key, label, score
-  pricing_responses: id, test_id, panel_id, tier, would_buy, key_comment, barriers JSONB
+
+  pricing_responses:
+    id, test_id FK→pricing_tests.id, panel_id FK→panels.id
+    tier, would_buy, key_comment, barriers JSONB
+    mission_id     UUID  FK → missions.id  ← 007 추가
+    status         TEXT  DEFAULT 'submitted'  ← 007 추가
+    price_fairness INT CHECK (1-5)           ← 007 추가
+    value_perception INT CHECK (1-5)         ← 007 추가
+    created_at  TIMESTAMPTZ
+  ※ RLS: panel_insert_pricing(INSERT), auth_select_pricing(SELECT), auth_update_pricing(UPDATE)
 
 ---
 
 ### [cold_email_tests] / [email_responses]
-  cold_email_tests: id, company_id, email_text, status, created_at
-  email_responses:  id, test_id, panel_id, would_reply, hook_score, clarity_score, comment
+  cold_email_tests:
+    id, company_id, email_text, status, created_at
+    mission_id  UUID  FK → missions.id    ← 007 추가
+    template_id UUID  FK → question_templates.id  ← 007 추가
+
+  email_responses:
+    id, test_id FK→cold_email_tests.id, panel_id FK→panels.id
+    would_reply, hook_score, clarity_score, comment
+    mission_id     UUID  FK → missions.id  ← 007 추가
+    status         TEXT  DEFAULT 'submitted'  ← 007 추가
+    open_intent    INT CHECK (1-5)            ← 007 추가
+    curiosity_score INT CHECK (1-5)           ← 007 추가
+    created_at  TIMESTAMPTZ
+  ※ RLS: panel_insert_email(INSERT), auth_select_email(SELECT), auth_update_email(UPDATE)
 
 ---
 

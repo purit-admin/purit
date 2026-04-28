@@ -51,6 +51,24 @@ export default function ActiveMission() {
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
   const hasImages = Boolean(mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0);
+  const missionType = mission?.type || null;
+  const isSubMission = ['preference', 'pricing', 'email'].includes(missionType);
+
+  // ── SUB-MISSION STATE ──
+  const [prefChoice, setPrefChoice]           = useState('');     // 'A' | 'B'
+  const [prefClarity, setPrefClarity]         = useState(0);
+  const [prefIntent, setPrefIntent]           = useState(0);
+  const [prefComment, setPrefComment]         = useState('');
+  const [priceFairness, setPriceFairness]     = useState(0);
+  const [priceValue, setPriceValue]           = useState(0);
+  const [priceWouldBuy, setPriceWouldBuy]     = useState(null); // true | false
+  const [priceComment, setPriceComment]       = useState('');
+  const [emailOpenIntent, setEmailOpenIntent] = useState(0);
+  const [emailCuriosity, setEmailCuriosity]   = useState(0);
+  const [emailHook, setEmailHook]             = useState(0);
+  const [emailClarity, setEmailClarity]       = useState(0);
+  const [emailWouldReply, setEmailWouldReply] = useState(null); // true | false
+  const [emailComment, setEmailComment]       = useState('');
 
   useEffect(() => {
     setMission(null);
@@ -224,6 +242,51 @@ export default function ActiveMission() {
   const handleRemoveAnnotation = async (annId) => {
     await supabase.from('feedback_annotations').delete().eq('id', annId);
     setAnnotations(prev => prev.filter(a => a.id !== annId));
+  };
+
+  const handleSubMissionSubmit = async () => {
+    if (!mission || !panel || !draftId) return;
+    setSubmitting(true);
+    try {
+      let insertPayload = {};
+      let suggestionText = '';
+
+      if (missionType === 'preference') {
+        const { data: prefTest } = await supabase.from('preference_tests').select('id').eq('mission_id', mission.id).single();
+        const testId = prefTest?.id;
+        insertPayload = { test_id: testId, panel_id: panel.id, mission_id: mission.id, preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null, status: 'submitted' };
+        await supabase.from('preference_responses').insert(insertPayload);
+        suggestionText = `[선호 소재] ${prefChoice}\n[메시지 명확성] ${prefClarity}/5\n[구매 전환 의향] ${prefIntent}/5\n[코멘트] ${prefComment}`;
+      } else if (missionType === 'pricing') {
+        const { data: pricingTest } = await supabase.from('pricing_tests').select('id').eq('mission_id', mission.id).single();
+        const testId = pricingTest?.id;
+        insertPayload = { test_id: testId, panel_id: panel.id, mission_id: mission.id, would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null, status: 'submitted' };
+        await supabase.from('pricing_responses').insert(insertPayload);
+        suggestionText = `[구매 의향] ${priceWouldBuy ? '있음' : '없음'}\n[가격 적절성] ${priceFairness}/5\n[가치 인식] ${priceValue}/5\n[코멘트] ${priceComment}`;
+      } else if (missionType === 'email') {
+        const { data: emailTest } = await supabase.from('cold_email_tests').select('id').eq('mission_id', mission.id).single();
+        const testId = emailTest?.id;
+        insertPayload = { test_id: testId, panel_id: panel.id, mission_id: mission.id, would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, status: 'submitted' };
+        await supabase.from('email_responses').insert(insertPayload);
+        suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
+      }
+
+      const { error: fbError } = await supabase.from('feedbacks').update({
+        strengths: null, weaknesses: null,
+        suggestions: suggestionText,
+        purity_passed: false, status: 'submitted',
+      }).eq('id', draftId);
+      if (fbError) throw fbError;
+
+      await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
+      await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
+
+      setStep(SECTIONS.length + 1);
+    } catch (err) {
+      alert('제출 중 오류: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -467,6 +530,131 @@ export default function ActiveMission() {
       <Btn onClick={() => navigate('/panel')}>대시보드로 →</Btn>
     </div>
   );
+
+  /* ─── 서브 미션 폼 ─── */
+  if (isSubMission && step >= 1) {
+    let content = null;
+    try { content = JSON.parse(mission.description || '{}'); } catch { content = {}; }
+    const emailText = missionType === 'email' ? (mission.description || '') : '';
+
+    const ScoreRow = ({ label, value, setter }) => (
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[1, 2, 3, 4, 5].map(n => (
+            <button key={n} onClick={() => setter(n)} style={{
+              flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
+              background: value === n ? 'var(--accent)' : value > n ? 'var(--accent-dim)' : 'var(--surface-2)',
+              color: value === n ? '#FFF' : 'var(--text-2)',
+              border: `1px solid ${value >= n ? 'rgba(232,213,163,0.4)' : 'var(--border)'}`,
+              fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'all 0.15s',
+            }}>{n}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>
+          <span>매우 낮음</span><span>매우 높음</span>
+        </div>
+      </div>
+    );
+
+    const canSubmit = () => {
+      if (missionType === 'preference') return prefChoice && prefClarity && prefIntent && prefComment.trim();
+      if (missionType === 'pricing') return priceWouldBuy !== null && priceFairness && priceValue;
+      if (missionType === 'email') return emailWouldReply !== null && emailHook && emailClarity && emailOpenIntent;
+      return false;
+    };
+
+    return (
+      <div style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.4s ease both' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>FEEDBACK</div>
+            <h1 style={{ fontSize: 24, fontWeight: 800 }}>{mission.title}</h1>
+          </div>
+          <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
+        </div>
+
+        {/* 소재 비교 A/B */}
+        {missionType === 'preference' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[['A', content.variantA, 'var(--blue)'], ['B', content.variantB, 'var(--accent)']].map(([label, text, color]) => (
+                <div key={label} onClick={() => setPrefChoice(label)} style={{ padding: '16px', borderRadius: 'var(--radius)', border: `2px solid ${prefChoice === label ? color : 'var(--border)'}`, background: prefChoice === label ? 'var(--accent-dim)' : 'var(--surface)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                  <div style={{ fontWeight: 800, fontSize: 16, color, marginBottom: 10 }}>소재 {label} {prefChoice === label ? '✓' : ''}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{text}</div>
+                </div>
+              ))}
+            </div>
+            {prefChoice && <div style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, textAlign: 'center' }}>✓ 소재 {prefChoice}를 선택했습니다</div>}
+            <Card>
+              <ScoreRow label="메시지 명확성 (선택한 소재)" value={prefClarity} setter={setPrefClarity} />
+              <ScoreRow label="구매 전환 의향 (선택한 소재)" value={prefIntent} setter={setPrefIntent} />
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>선택 이유 및 개선 의견</div>
+              <textarea value={prefComment} onChange={e => setPrefComment(e.target.value)} rows={4} placeholder="어떤 이유로 해당 소재를 선택했는지, 개선할 점은 무엇인지 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
+            </Card>
+          </div>
+        )}
+
+        {/* 가격 페이지 */}
+        {missionType === 'pricing' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {mission.description && (
+              <div style={{ padding: '16px 20px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>가격 구성</div>
+                {mission.description}
+              </div>
+            )}
+            <Card>
+              <ScoreRow label="가격 적절성 (시장 대비)" value={priceFairness} setter={setPriceFairness} />
+              <ScoreRow label="가격 대비 가치 인식" value={priceValue} setter={setPriceValue} />
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>구매 의향</div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                {[['있음', true], ['없음', false]].map(([label, val]) => (
+                  <button key={label} onClick={() => setPriceWouldBuy(val)} style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius)', border: `1.5px solid ${priceWouldBuy === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`, background: priceWouldBuy === val ? (val ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.08)') : 'var(--surface)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s', color: priceWouldBuy === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--text-2)' }}>
+                    구매 의향 {label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>가격 피드백 (구매 장벽, 개선점)</div>
+              <textarea value={priceComment} onChange={e => setPriceComment(e.target.value)} rows={4} placeholder="가격에서 망설여지는 부분, 더 합리적이라고 느끼기 위해 필요한 것 등을 구체적으로 적어주세요." style={{ resize: 'vertical' }} />
+            </Card>
+          </div>
+        )}
+
+        {/* 이메일 */}
+        {missionType === 'email' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ padding: '16px 20px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.8, whiteSpace: 'pre-wrap', border: '1px solid var(--border)', fontFamily: 'inherit', maxHeight: 280, overflowY: 'auto' }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>이메일 원문</div>
+              {emailText}
+            </div>
+            <Card>
+              <ScoreRow label="제목줄 개봉 의향" value={emailOpenIntent} setter={setEmailOpenIntent} />
+              <ScoreRow label="훅 강도 (첫 문장)" value={emailHook} setter={setEmailHook} />
+              <ScoreRow label="메시지 명확성" value={emailClarity} setter={setEmailClarity} />
+              <ScoreRow label="호기심/답장 욕구" value={emailCuriosity} setter={setEmailCuriosity} />
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>답장 의향</div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                {[['답장하겠음', true], ['답장 안 함', false]].map(([label, val]) => (
+                  <button key={label} onClick={() => setEmailWouldReply(val)} style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius)', border: `1.5px solid ${emailWouldReply === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`, background: emailWouldReply === val ? (val ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.08)') : 'var(--surface)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s', color: emailWouldReply === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--text-2)' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일 피드백</div>
+              <textarea value={emailComment} onChange={e => setEmailComment(e.target.value)} rows={4} placeholder="가장 인상적인 부분과 개선이 필요한 부분을 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
+            </Card>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+          <Btn disabled={!canSubmit() || submitting} onClick={handleSubMissionSubmit}>
+            {submitting ? '제출 중...' : '피드백 제출하기 →'}
+          </Btn>
+        </div>
+      </div>
+    );
+  }
 
   /* ─── 이미지 어노테이션 모드 ─── */
   if (hasImages && step >= 1) {

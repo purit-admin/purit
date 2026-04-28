@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29
+최종 업데이트: 2026-04-29 (서브 의뢰 파이프라인 완성)
 ================================================================
 
 ## 서비스 개요
@@ -51,16 +51,30 @@
    - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
 
 5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx
-   - 두 개 소재 비교 테스트 UI
+   - 소재 유형 선택, variantA/variantB 텍스트 입력, 패널 수 & 보상 설정
+   - 질문 템플릿 선택 (광고소재 category): 드롭다운으로 pre-선택 or 수동 선택
+   - 등록 시: missions INSERT(type='preference', description=JSON.stringify({variantA,variantB})) + preference_tests INSERT(mission_id 연결)
+   - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 표시
 
 6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx
-   - 가격 구성 검증 UI
+   - 가격 페이지 설명 입력, 패널 수 설정
+   - 질문 템플릿 선택 (가격 category)
+   - 등록 시: missions INSERT(type='pricing') + pricing_tests INSERT(mission_id 연결)
+   - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + 4축 레이더
 
 7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx
-   - 콜드 이메일 문안 검증 UI
+   - 이메일 원문 입력(제목+본문), 패널 수 설정
+   - 질문 템플릿 선택 (이메일 category)
+   - 등록 시: missions INSERT(type='email', description=emailText) + cold_email_tests INSERT(mission_id 연결)
+   - 결과 화면: 답장 의향 비율 + open_intent / curiosity_score / hook_score / clarity_score 평균
 
 8. 질문 템플릿 관리 (/company/templates) — QuestionTemplates.jsx
-   - 커스텀 질문 템플릿 관리 UI
+   - 탭 3개: 소재 비교 A/B | 가격 페이지 | 이메일 검증
+   - 탭별 category 매핑: preference→'광고소재', pricing→'가격', email→'이메일'
+   - 템플릿 카드 클릭 시 우측 사이드패널에 질문 목록 미리보기
+   - "이 템플릿으로 의뢰하기" → 해당 서브 의뢰 페이지로 navigate(state: { templateId, templateName })
+   - Sidebar: 서브 의뢰 그룹 최 하단에 위치 (메인 의뢰 그룹에서 이동)
+   ※ 브랜드 포지셔닝 템플릿 삭제, category '광고' → '광고소재' / 'LP' → 'LP검증' 업데이트
 
 ### [인텔리전스]
 9.  ICP 리서치 (/company/icp) — ICPResearch.jsx
@@ -103,9 +117,14 @@
      - 저장된 진행 없으면 "피드백 시작하기 →", 있으면 "이어하기 →" 버튼
      - 버튼 클릭 시 /panel/active?id=<mission_id>로 이동
    ★ 폼 뷰 (id 파라미터 있음, /panel/active?id=...):
-     - 특정 미션 브리핑 화면 → 피드백 입력 폼
+     - 특정 미션 브리핑 화면 → mission.type에 따라 3가지 폼 분기
      - 브리핑에서도 저장 여부에 따라 "이어하기 →" / "피드백 시작하기 →"
-     ※ 이미지 미션 (image_urls 있음):
+     ※ 서브 미션 폼 (type='preference'|'pricing'|'email', isSubMission=true):
+       - preference: 두 소재(variantA/B) 나란히 표시 → A/B 선택 + message_clarity + purchase_intent + comment
+       - pricing: 가격 페이지 설명 표시 → price_fairness + value_perception + would_buy + comment
+       - email: 이메일 원문 표시 → open_intent + hook_score + clarity_score + curiosity_score + would_reply + comment
+       - 제출: preference_responses/pricing_responses/email_responses INSERT + feedbacks UPDATE(submitted) + RPC 2개
+     ※ 이미지 미션 (image_urls 있음, isSubMission=false):
        - ImageAnnotator 컴포넌트로 이미지 위에 드래그 영역 지정
        - 어노테이션 추가: dimension(5종) + score(1-5) + comment 입력
        - feedback_annotations 테이블에 실시간 저장/삭제
@@ -146,10 +165,19 @@
 1. 플랫폼 대시보드 (/admin) — Dashboard.jsx
 2. 패널 관리 (/admin/panels) — PanelManagement.jsx
 3. 미션 관리 (/admin/missions) — Missions.jsx
+3. 미션 관리 (/admin/missions) — Missions.jsx
+   - 미션 목록에 유형 뱃지 표시: LP 검증 / 소재 비교 / 가격 검증 / 이메일 검증
+
 4. Purity Filter (/admin/purity) — PurityFilter.jsx
    - 피드백 품질 필터링 / purity_passed 관리
    - 이미지 미션 피드백: ImageAnnotator(readonly) 로 어노테이션 오버레이 확인
      다중 이미지 탭 + 어노테이션 건수 배지 표시
+   - 서브 미션(preference/pricing/email) 피드백: missions.type 감지 → 해당 응답 테이블 로드
+     - preference: preference_responses에서 A/B 선택 + message_clarity + purchase_intent + comment 표시
+     - pricing: pricing_responses에서 would_buy + price_fairness + value_perception + key_comment 표시
+     - email: email_responses에서 would_reply + hook/clarity/open_intent/curiosity 점수 + comment 표시
+   - Purit Score: 서브 미션은 calcSubPurityScore (코멘트 충실도 + 지표 충실도 기반)
+   - 승인/반려: feedbacks.status 업데이트 (서브 미션도 동일)
 5. 수익 & 정산 (/admin/revenue) — Revenue.jsx
 
 ================================================================

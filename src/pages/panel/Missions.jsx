@@ -226,7 +226,7 @@ export default function MissionList() {
               <Card key={m.id} style={{ opacity: isDone ? 0.75 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
                       {isDone ? (
                         <Badge type="gray">완료</Badge>
                       ) : isInProgress ? (
@@ -234,6 +234,9 @@ export default function MissionList() {
                       ) : (
                         <Badge type="green">참여가능</Badge>
                       )}
+                      {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
+                      {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
+                      {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
                       <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
                         {m.id.slice(0, 8).toUpperCase()}
                       </span>

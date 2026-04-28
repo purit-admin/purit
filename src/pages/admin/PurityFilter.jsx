@@ -11,6 +11,30 @@ const DIM = [
   { key: 'trust_score',           label: '신뢰' },
 ];
 
+function calcSubPurityScore(sub, type) {
+  if (!sub) return 0;
+  let score = 20;
+  const comment = sub.comment || sub.key_comment || '';
+  if (comment.length > 10)  score += 25;
+  if (comment.length > 50)  score += 15;
+  if (type === 'preference') {
+    if (sub.preference)       score += 10;
+    if (sub.message_clarity)  score += 15;
+    if (sub.purchase_intent)  score += 15;
+  } else if (type === 'pricing') {
+    if (sub.would_buy !== null && sub.would_buy !== undefined) score += 10;
+    if (sub.price_fairness)   score += 15;
+    if (sub.value_perception) score += 15;
+  } else if (type === 'email') {
+    if (sub.would_reply !== null && sub.would_reply !== undefined) score += 10;
+    if (sub.hook_score)       score += 8;
+    if (sub.clarity_score)    score += 8;
+    if (sub.open_intent)      score += 7;
+    if (sub.curiosity_score)  score += 7;
+  }
+  return Math.min(100, score);
+}
+
 function calcPurityScore(fb) {
   const texts = [fb.strengths || '', fb.weaknesses || '', fb.suggestions || ''].join(' ');
   const length     = Math.min(texts.length / 8, 25);
@@ -28,12 +52,13 @@ export default function PurityFilter() {
   const [filter, setFilter]           = useState('pending');
   const [annotations, setAnnotations] = useState([]);
   const [adminImageIdx, setAdminImageIdx] = useState(0);
+  const [subResponse, setSubResponse] = useState(null);
 
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from('feedbacks')
-        .select('*, missions(title, image_urls), panels(name)')
+        .select('*, missions(title, type, image_urls, description), panels(name)')
         .order('created_at', { ascending: false });
       setFeedbacks(data || []);
       if (data && data.length > 0) setSelected(data[0].id);
@@ -43,9 +68,24 @@ export default function PurityFilter() {
   }, []);
 
   useEffect(() => {
-    if (!selected) { setAnnotations([]); return; }
+    if (!selected) { setAnnotations([]); setSubResponse(null); return; }
     const fb = feedbacks.find(f => f.id === selected);
-    if (!fb?.missions?.image_urls?.length) { setAnnotations([]); return; }
+    if (!fb) { setAnnotations([]); setSubResponse(null); return; }
+    const mType = fb.missions?.type;
+    if (['preference', 'pricing', 'email'].includes(mType)) {
+      setAnnotations([]);
+      setSubResponse(null);
+      const table = mType === 'preference' ? 'preference_responses'
+        : mType === 'pricing' ? 'pricing_responses' : 'email_responses';
+      supabase.from(table).select('*')
+        .eq('mission_id', fb.mission_id)
+        .eq('panel_id', fb.panel_id)
+        .single()
+        .then(({ data }) => setSubResponse(data || null));
+      return;
+    }
+    setSubResponse(null);
+    if (!fb.missions?.image_urls?.length) { setAnnotations([]); return; }
     setAdminImageIdx(0);
     supabase.from('feedback_annotations').select('*')
       .eq('feedback_id', selected).order('created_at')
@@ -85,7 +125,9 @@ export default function PurityFilter() {
     : feedbacks.filter(f => f.status === 'rejected');
 
   const fb = filtered.find(f => f.id === selected);
-  const score = fb ? calcPurityScore(fb) : 0;
+  const missionType = fb?.missions?.type;
+  const isSubMission = ['preference', 'pricing', 'email'].includes(missionType);
+  const score = fb ? (isSubMission ? calcSubPurityScore(subResponse, missionType) : calcPurityScore(fb)) : 0;
 
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
@@ -167,97 +209,233 @@ export default function PurityFilter() {
                   </Badge>
                 </div>
                 <div style={{ flex: 1 }}>
-                  {[
-                    { label: '텍스트 길이', val: Math.min(25, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').length / 8)), max: 25 },
-                    { label: '구체성 지수',  val: Math.min(30, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').match(/\d+|%|CTA|클릭|전환/gi)?.length||0)*5), max: 30 },
-                    { label: '실행 가능성', val: Math.min(25, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').match(/추천|바꿔|교체|추가|필요|개선/gi)?.length||0)*8), max: 25 },
-                    { label: 'AI 감지 패널티', val: 20, max: 20 },
-                  ].map(b => (
-                    <div key={b.label} style={{ marginBottom: 10 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
-                        <span>{b.label}</span><span>{Math.round(b.val)}/{b.max}</span>
+                  {isSubMission ? (
+                    // 서브 미션 점수 분해
+                    [
+                      { label: '기본 응답', val: 20, max: 20 },
+                      { label: '코멘트 충실도', val: Math.min(40, ((subResponse?.comment || subResponse?.key_comment || '').length > 50 ? 40 : (subResponse?.comment || subResponse?.key_comment || '').length > 10 ? 25 : 0)), max: 40 },
+                      { label: '지표 충실도', val: Math.min(40, missionType === 'preference' ? ((subResponse?.message_clarity ? 15 : 0) + (subResponse?.purchase_intent ? 15 : 0) + (subResponse?.preference ? 10 : 0)) : missionType === 'pricing' ? ((subResponse?.price_fairness ? 15 : 0) + (subResponse?.value_perception ? 15 : 0) + (subResponse?.would_buy !== null ? 10 : 0)) : ((subResponse?.hook_score ? 8 : 0) + (subResponse?.clarity_score ? 8 : 0) + (subResponse?.open_intent ? 7 : 0) + (subResponse?.curiosity_score ? 7 : 0))), max: 40 },
+                    ].map(b => (
+                      <div key={b.label} style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
+                          <span>{b.label}</span><span>{Math.round(b.val)}/{b.max}</span>
+                        </div>
+                        <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${(b.val/b.max)*100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                        </div>
                       </div>
-                      <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ width: `${(b.val/b.max)*100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                    ))
+                  ) : (
+                    // 기존 LP 피드백 점수 분해
+                    [
+                      { label: '텍스트 길이', val: Math.min(25, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').length / 8)), max: 25 },
+                      { label: '구체성 지수',  val: Math.min(30, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').match(/\d+|%|CTA|클릭|전환/gi)?.length||0)*5), max: 30 },
+                      { label: '실행 가능성', val: Math.min(25, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').match(/추천|바꿔|교체|추가|필요|개선/gi)?.length||0)*8), max: 25 },
+                      { label: 'AI 감지 패널티', val: 20, max: 20 },
+                    ].map(b => (
+                      <div key={b.label} style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
+                          <span>{b.label}</span><span>{Math.round(b.val)}/{b.max}</span>
+                        </div>
+                        <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${(b.val/b.max)*100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </Card>
 
               <Card>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>피드백 원문</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>
+                    {isSubMission ? (
+                      missionType === 'preference' ? '소재 비교 응답' :
+                      missionType === 'pricing' ? '가격 검증 응답' : '이메일 검증 응답'
+                    ) : '피드백 원문'}
+                  </div>
                   <Badge type={fb.purity_passed ? 'green' : fb.status === 'rejected' ? 'red' : 'gold'}>
                     {fb.purity_passed ? '승인됨' : fb.status === 'rejected' ? '반려됨' : '대기'}
                   </Badge>
                 </div>
 
-                {/* 이미지 + 어노테이션 오버레이 */}
-                {fb.missions?.image_urls?.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    {fb.missions.image_urls.length > 1 && (
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                        {fb.missions.image_urls.map((_, i) => (
-                          <button key={i} onClick={() => setAdminImageIdx(i)} style={{
-                            padding: '4px 12px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
-                            cursor: 'pointer', border: '1.5px solid',
-                            borderColor: adminImageIdx === i ? 'var(--accent)' : 'var(--border)',
-                            background: adminImageIdx === i ? 'var(--accent)' : 'var(--surface)',
-                            color: adminImageIdx === i ? '#fff' : 'var(--text-2)',
-                          }}>
-                            이미지 {i + 1}
-                            {annotations.filter(a => a.image_index === i).length > 0 && (
-                              <span style={{ marginLeft: 4, background: 'rgba(255,255,255,0.25)', borderRadius: 8, padding: '0 5px', fontSize: 10 }}>
-                                {annotations.filter(a => a.image_index === i).length}
-                              </span>
+                {/* ── 서브 미션 응답 ── */}
+                {isSubMission && (
+                  <div>
+                    {!subResponse ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>응답 데이터 로드 중...</div>
+                    ) : (
+                      <>
+                        {/* 소재 비교 */}
+                        {missionType === 'preference' && (() => {
+                          let varA = '', varB = '';
+                          try { const d = JSON.parse(fb.missions?.description || '{}'); varA = d.variantA || ''; varB = d.variantB || ''; } catch {}
+                          return (
+                            <div>
+                              {(varA || varB) && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                                  {[['A', varA], ['B', varB]].map(([label, text]) => (
+                                    <div key={label} style={{
+                                      padding: '12px', borderRadius: 'var(--radius)',
+                                      border: `2px solid ${subResponse.preference === label ? 'var(--accent)' : 'var(--border)'}`,
+                                      background: subResponse.preference === label ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
+                                    }}>
+                                      <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>소재 {label}{subResponse.preference === label ? ' ★ 선택됨' : ''}</div>
+                                      <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, wordBreak: 'break-all' }}>{text || '—'}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                                {[
+                                  { label: '선택', value: subResponse.preference ? `소재 ${subResponse.preference}` : '—' },
+                                  { label: '메시지 명확성', value: subResponse.message_clarity ? `${subResponse.message_clarity}/5` : '—' },
+                                  { label: '구매 의향', value: subResponse.purchase_intent ? `${subResponse.purchase_intent}/5` : '—' },
+                                ].map(({ label, value }) => (
+                                  <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 80 }}>
+                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* 가격 검증 */}
+                        {missionType === 'pricing' && (
+                          <div>
+                            {fb.missions?.description && (
+                              <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>가격 페이지 설명</div>
+                                {fb.missions.description}
+                              </div>
                             )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                      <ImageAnnotator
-                        imageUrl={fb.missions.image_urls[adminImageIdx]}
-                        imageIndex={adminImageIdx}
-                        annotations={annotations.filter(a => a.image_index === adminImageIdx)}
-                        onAdd={() => {}}
-                        onRemove={() => {}}
-                        readonly={true}
-                      />
-                    </div>
-                    {annotations.length > 0 && (
-                      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-                        총 어노테이션 {annotations.length}개
-                      </div>
+                            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                              {[
+                                { label: '구매 의향', value: subResponse.would_buy === true ? 'Yes' : subResponse.would_buy === false ? 'No' : '—' },
+                                { label: '가격 공정성', value: subResponse.price_fairness ? `${subResponse.price_fairness}/5` : '—' },
+                                { label: '가치 인식', value: subResponse.value_perception ? `${subResponse.value_perception}/5` : '—' },
+                              ].map(({ label, value }) => (
+                                <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 80 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                  <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 이메일 검증 */}
+                        {missionType === 'email' && (
+                          <div>
+                            {fb.missions?.description && (
+                              <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, maxHeight: 120, overflowY: 'auto', fontFamily: 'var(--font-mono)' }}>
+                                <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 6, fontFamily: 'sans-serif' }}>이메일 원문</div>
+                                {fb.missions.description}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                              {[
+                                { label: '답장 의향', value: subResponse.would_reply === true ? 'Yes' : subResponse.would_reply === false ? 'No' : '—' },
+                                { label: '후킹력', value: subResponse.hook_score ? `${subResponse.hook_score}/5` : '—' },
+                                { label: '명확성', value: subResponse.clarity_score ? `${subResponse.clarity_score}/5` : '—' },
+                                { label: '개봉 의향', value: subResponse.open_intent ? `${subResponse.open_intent}/5` : '—' },
+                                { label: '호기심', value: subResponse.curiosity_score ? `${subResponse.curiosity_score}/5` : '—' },
+                              ].map(({ label, value }) => (
+                                <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                  <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Comment (공통) */}
+                        {(subResponse.comment || subResponse.key_comment) && (
+                          <div style={{ padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>코멘트</div>
+                            <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
+                              {subResponse.comment || subResponse.key_comment}
+                            </p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
 
-                {/* 5차원 점수 */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                  {DIM.map(({ key, label }) => {
-                    const val = fb[key] || 0;
-                    return (
-                      <div key={key} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
-                        <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--accent)' : 'var(--red)' }}>{val}</div>
+                {/* ── 기존 랜딩페이지 피드백 ── */}
+                {!isSubMission && (
+                  <>
+                    {/* 이미지 + 어노테이션 오버레이 */}
+                    {fb.missions?.image_urls?.length > 0 && (
+                      <div style={{ marginBottom: 20 }}>
+                        {fb.missions.image_urls.length > 1 && (
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                            {fb.missions.image_urls.map((_, i) => (
+                              <button key={i} onClick={() => setAdminImageIdx(i)} style={{
+                                padding: '4px 12px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
+                                cursor: 'pointer', border: '1.5px solid',
+                                borderColor: adminImageIdx === i ? 'var(--accent)' : 'var(--border)',
+                                background: adminImageIdx === i ? 'var(--accent)' : 'var(--surface)',
+                                color: adminImageIdx === i ? '#fff' : 'var(--text-2)',
+                              }}>
+                                이미지 {i + 1}
+                                {annotations.filter(a => a.image_index === i).length > 0 && (
+                                  <span style={{ marginLeft: 4, background: 'rgba(255,255,255,0.25)', borderRadius: 8, padding: '0 5px', fontSize: 10 }}>
+                                    {annotations.filter(a => a.image_index === i).length}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                          <ImageAnnotator
+                            imageUrl={fb.missions.image_urls[adminImageIdx]}
+                            imageIndex={adminImageIdx}
+                            annotations={annotations.filter(a => a.image_index === adminImageIdx)}
+                            onAdd={() => {}}
+                            onRemove={() => {}}
+                            readonly={true}
+                          />
+                        </div>
+                        {annotations.length > 0 && (
+                          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                            총 어노테이션 {annotations.length}개
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
 
-                {/* Text content */}
-                {[
-                  { label: '강점', content: fb.strengths, color: 'var(--green)' },
-                  { label: '약점', content: fb.weaknesses, color: 'var(--red)' },
-                  { label: '개선 제안', content: fb.suggestions, color: 'var(--accent)' },
-                ].filter(s => s.content).map(({ label, content, color }) => (
-                  <div key={label} style={{ marginBottom: 12, padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
-                    <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{content}</p>
-                  </div>
-                ))}
+                    {/* 5차원 점수 */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                      {DIM.map(({ key, label }) => {
+                        const val = fb[key] || 0;
+                        return (
+                          <div key={key} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
+                            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                            <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--accent)' : 'var(--red)' }}>{val}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Text content */}
+                    {[
+                      { label: '강점', content: fb.strengths, color: 'var(--green)' },
+                      { label: '약점', content: fb.weaknesses, color: 'var(--red)' },
+                      { label: '개선 제안', content: fb.suggestions, color: 'var(--accent)' },
+                    ].filter(s => s.content).map(({ label, content, color }) => (
+                      <div key={label} style={{ marginBottom: 12, padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+                        <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{content}</p>
+                      </div>
+                    ))}
+                  </>
+                )}
 
                 <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                   {fb.status !== 'approved' && fb.status !== 'rejected' && (

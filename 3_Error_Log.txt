@@ -282,3 +282,47 @@ D-12. 이미지 업로드 + DB INSERT 타이밍 문제 패턴 (2026-04-29)
      → Storage 업로드 경로에 DB row id가 필요한 경우
      → crypto.randomUUID()로 클라이언트에서 UUID 사전 생성 후
         INSERT 시 id: missionUuid 로 직접 지정해 두 값을 동기화
+
+2026-04-29  서브 의뢰 파이프라인 완성 (5차)
+            [신규 파일]
+            - supabase/migrations/007_subtest_missions.sql
+              · preference_tests/pricing_tests/cold_email_tests에 mission_id, template_id 추가
+              · preference_responses에 mission_id, status, message_clarity, purchase_intent 추가
+              · pricing_responses에 mission_id, status, price_fairness, value_perception 추가
+              · email_responses에 mission_id, status, open_intent, curiosity_score 추가
+              · 서브 응답 테이블 RLS 정책 추가 (INSERT for panel, SELECT/UPDATE for authenticated)
+            - supabase/migrations/008_seed_templates.sql
+              · 브랜드 포지셔닝 템플릿 + 질문 삭제
+              · category '광고' → '광고소재', 'LP' → 'LP검증' 업데이트
+              · 서브 의뢰 템플릿 6개 신규 삽입 (소재 비교 2개, 가격 2개, 이메일 2개)
+            [전면 재작성 파일]
+            - company/QuestionTemplates.jsx: 3탭 레이아웃, "이 템플릿으로 의뢰하기" → navigate(state)
+            - company/PreferenceTest.jsx: 의뢰 등록 + missions INSERT(type='preference') + 결과 뷰
+            - company/PricingTest.jsx: 의뢰 등록 + missions INSERT(type='pricing') + 결과 뷰
+            - company/ColdEmailTest.jsx: 의뢰 등록 + missions INSERT(type='email') + 결과 뷰
+            [수정 파일]
+            - Sidebar.jsx: 질문 템플릿을 서브 의뢰 그룹 최 하단으로 이동
+            - panel/Missions.jsx: 미션 카드에 소재 비교/가격 검증/이메일 검증 뱃지 추가
+            - panel/ActiveMission.jsx: isSubMission 분기 → preference/pricing/email 전용 폼
+              제출: 타입별 응답 테이블 INSERT + feedbacks UPDATE(submitted) + RPC 2개
+            - admin/PurityFilter.jsx: missions(type,description) 조인 추가
+              서브 미션 선택 시 해당 응답 테이블 로드 + 타입별 UI 표시 + calcSubPurityScore
+            - admin/Missions.jsx: LP 검증 / 소재 비교 / 가격 검증 / 이메일 검증 뱃지 추가
+            [빌드]
+            - npm run build 경고 0개 확인
+
+D-13. 서브 미션 파이프라인 연동 패턴 (2026-04-29)
+     → 서브 의뢰 등록 시 missions 테이블에 먼저 INSERT (type='preference'/'pricing'/'email')
+        → preference_tests/pricing_tests/cold_email_tests에 mission_id FK 연결
+     → 패널은 missions 목록에서 서브 미션을 발견하고 feedbacks로 수락 (기존 동일)
+     → 패널 폼은 mission.type으로 분기: isSubMission 플래그 사용
+     → 서브 미션 응답은 타입별 응답 테이블(preference_responses 등)에 INSERT
+        동시에 feedbacks UPDATE(submitted) + 2개 RPC 호출
+     → 어드민 PurityFilter: feedbacks를 기준으로 목록 표시, 선택 시 mission.type으로
+        응답 테이블 분기 로드 (WHERE mission_id AND panel_id)
+
+D-14. 서브 미션 응답 테이블 조회 시 .single() 사용 주의 (2026-04-29)
+     → preference_responses.eq('mission_id', ...).eq('panel_id', ...).single() 사용
+     → 응답이 없으면 null (에러 아님) → data || null 처리 필수
+     → 마이그레이션 007 실행 전에는 mission_id 컬럼이 없어 쿼리 실패
+        반드시 Supabase SQL Editor에서 007, 008 순서대로 실행 후 사용
