@@ -36,7 +36,11 @@
    - 타겟 페르소나 설정 (산업군, 직책, 경력 등)
    - 패널 수 선택 → 보상금 자동 산출 (PRICE_PER 테이블 기반)
    - 검증 포인트(assets) 선택 (다중 선택)
-   - 제출 시 Supabase missions 테이블에 INSERT, status='active'
+   - 이미지 업로드 (최대 5장, 5MB 제한): Supabase Storage mission-assets 버킷
+     · 업로드 경로: {company_id}/{missionUuid}/{uuid}.{ext}
+     · 썸네일 미리보기 + 삭제 지원
+     · missions.image_urls TEXT[] 컬럼에 public URL 배열 저장
+   - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
 
 3. 피드백 결과 (/company/results) — Results.jsx
    - 보유 미션 목록 표시 (missions 테이블 SELECT)
@@ -99,14 +103,21 @@
      - 저장된 진행 없으면 "피드백 시작하기 →", 있으면 "이어하기 →" 버튼
      - 버튼 클릭 시 /panel/active?id=<mission_id>로 이동
    ★ 폼 뷰 (id 파라미터 있음, /panel/active?id=...):
-     - 특정 미션 브리핑 화면 → 5단계 피드백 입력 폼
+     - 특정 미션 브리핑 화면 → 피드백 입력 폼
      - 브리핑에서도 저장 여부에 따라 "이어하기 →" / "피드백 시작하기 →"
-     - "이어하기" 클릭 시 점수가 비어있는 첫 번째 단계로 직접 이동 (resume)
-     - 중복 제출 방지: 동일 mission+panel 조합 사전 체크
-     - 5개 축 점수(1-5) 입력
-     - 각 축 텍스트 코멘트 → [레이블]\n코멘트 형식으로 suggestions 하나에 통합 저장
-       (strengths는 draft 중 JSON 임시 저장에 사용, 제출 시 null로 초기화)
-     - 자동 저장: 점수/코멘트 변경 후 1.5초 debounce → feedbacks UPDATE
+     ※ 이미지 미션 (image_urls 있음):
+       - ImageAnnotator 컴포넌트로 이미지 위에 드래그 영역 지정
+       - 어노테이션 추가: dimension(5종) + score(1-5) + comment 입력
+       - feedback_annotations 테이블에 실시간 저장/삭제
+       - 제출 시 dimension별 평균점수 → clarity_score 등 컬럼에 반영
+         suggestions = 어노테이션 요약 텍스트 통합
+     ※ 텍스트 미션 (image_urls 없음, 하위 호환):
+       - "이어하기" 클릭 시 점수가 비어있는 첫 번째 단계로 직접 이동 (resume)
+       - 중복 제출 방지: 동일 mission+panel 조합 사전 체크
+       - 5개 축 점수(1-5) 입력
+       - 각 축 텍스트 코멘트 → [레이블]\n코멘트 형식으로 suggestions 하나에 통합 저장
+         (strengths는 draft 중 JSON 임시 저장에 사용, 제출 시 null로 초기화)
+       - 자동 저장: 점수/코멘트 변경 후 1.5초 debounce → feedbacks UPDATE
      - 수락 취소 버튼(draft 상태일 때) → cancel_panel_feedback RPC → /panel/missions 이동
      - 제출 시:
        a. feedbacks UPDATE (status: draft → submitted, strengths: null, suggestions 통합)
@@ -137,6 +148,8 @@
 3. 미션 관리 (/admin/missions) — Missions.jsx
 4. Purity Filter (/admin/purity) — PurityFilter.jsx
    - 피드백 품질 필터링 / purity_passed 관리
+   - 이미지 미션 피드백: ImageAnnotator(readonly) 로 어노테이션 오버레이 확인
+     다중 이미지 탭 + 어노테이션 건수 배지 표시
 5. 수익 & 정산 (/admin/revenue) — Revenue.jsx
 
 ================================================================

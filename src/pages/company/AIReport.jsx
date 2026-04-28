@@ -51,10 +51,19 @@ export default function AIReport() {
 
     if (latestMission?.id) setLatestMissionId(latestMission.id);
 
-    const { data: feedbacks } = await supabase.from('feedbacks')
+    let { data: feedbacks } = await supabase.from('feedbacks')
       .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,created_at')
       .in('mission_id', missionIds)
       .eq('purity_passed', true);
+
+    // purity_passed 없으면 submitted 전체로 폴백
+    if (!feedbacks?.length) {
+      const { data: fallback } = await supabase.from('feedbacks')
+        .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,created_at')
+        .in('mission_id', missionIds)
+        .eq('status', 'submitted');
+      feedbacks = fallback || [];
+    }
 
     if (!feedbacks?.length) { setLoading(false); return; }
 

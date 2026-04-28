@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29
+최종 업데이트: 2026-04-29 (이미지 어노테이션 기능 추가)
 ================================================================
 
 ## 기술 스택
@@ -44,6 +44,9 @@ purit/
 │   │   │   └── Sidebar.jsx          # 역할별 사이드바 레이아웃 래퍼 (CL/PL/AL)
 │   │   └── ui/
 │   │       ├── index.jsx            # 공용 컴포넌트 (아래 목록 참조)
+│   │       ├── ImageAnnotator.jsx   # 이미지 드래그 어노테이션 컴포넌트
+│   │       │                        #   Props: imageUrl, imageIndex, annotations, onAdd, onRemove, readonly
+│   │       │                        #   퍼센트 좌표 기반, window 레벨 mousemove/mouseup
 │   │       └── NotificationCenter.jsx  # 역할별 알림 센터 모달
 │   │
 │   └── pages/
@@ -192,6 +195,7 @@ purit/
   reward_amount   INT   (보상금, 원 단위)
   status          TEXT  ('active'|'completed'|'draft'|'in_review'|'cancelled')
   assets          TEXT[]  (검증 포인트 목록)
+  image_urls      TEXT[]  DEFAULT '{}' (업로드 이미지 public URL 배열, 최대 5개)
   created_at      TIMESTAMPTZ DEFAULT now()
 
 ---
@@ -216,6 +220,26 @@ purit/
 
   ※ RLS: SELECT(인증된 전체), INSERT(패널), UPDATE(인증된 전체)
   ※ DELETE 정책 없음 → 수락 취소는 cancel_panel_feedback RPC(SECURITY DEFINER)로 처리
+
+---
+
+### [feedback_annotations] — 이미지 영역 어노테이션 (006_image_annotations.sql)
+  id          UUID  PK
+  feedback_id UUID  FK → feedbacks.id   ON DELETE CASCADE
+  mission_id  UUID  FK → missions.id    ON DELETE CASCADE
+  panel_id    UUID  FK → panels.id      ON DELETE CASCADE
+  image_index INT   DEFAULT 0 (이미지 탭 인덱스)
+  x_pct       NUMERIC(6,2)  (좌측 시작점 %)
+  y_pct       NUMERIC(6,2)  (상단 시작점 %)
+  w_pct       NUMERIC(6,2)  (너비 %)
+  h_pct       NUMERIC(6,2)  (높이 %)
+  dimension   TEXT  CHECK IN ('clarity','relevance','value','differentiation','trust')
+  score       INT   CHECK BETWEEN 1 AND 5
+  comment     TEXT
+  created_at  TIMESTAMPTZ DEFAULT now()
+
+  ※ RLS: panel_own_annotations(ALL), company_read_annotations(SELECT), admin_read_annotations(SELECT)
+  INDEX: fa_feedback_idx, fa_mission_idx, fa_panel_idx
 
 ---
 
@@ -375,17 +399,20 @@ purit/
 
 ### 관계 요약
 
-  companies    ←1:1→  auth.users   (companies.user_id)
-  panels       ←1:1→  auth.users   (panels.user_id)
-  missions     ←N:1→  companies    (missions.company_id)
-  feedbacks    ←N:1→  missions     (feedbacks.mission_id)
-  feedbacks    ←N:1→  panels       (feedbacks.panel_id)
-  ai_reports   ←N:1→  missions     (ai_reports.mission_id)
-  ai_reports   ←N:1→  companies    (ai_reports.company_id)
-  notifications←N:1→  auth.users   (notifications.user_id)
-  team_members ←N:1→  companies    (team_members.company_id)
-  settlements  ←N:1→  panels       (settlements.panel_id, NULLABLE)
-  invoices     ←N:1→  companies    (invoices.company_id, NULLABLE)
+  companies            ←1:1→  auth.users   (companies.user_id)
+  panels               ←1:1→  auth.users   (panels.user_id)
+  missions             ←N:1→  companies    (missions.company_id)
+  feedbacks            ←N:1→  missions     (feedbacks.mission_id)
+  feedbacks            ←N:1→  panels       (feedbacks.panel_id)
+  feedback_annotations ←N:1→  feedbacks    (feedback_annotations.feedback_id)
+  feedback_annotations ←N:1→  missions     (feedback_annotations.mission_id)
+  feedback_annotations ←N:1→  panels       (feedback_annotations.panel_id)
+  ai_reports           ←N:1→  missions     (ai_reports.mission_id)
+  ai_reports           ←N:1→  companies    (ai_reports.company_id)
+  notifications        ←N:1→  auth.users   (notifications.user_id)
+  team_members         ←N:1→  companies    (team_members.company_id)
+  settlements          ←N:1→  panels       (settlements.panel_id, NULLABLE)
+  invoices             ←N:1→  companies    (invoices.company_id, NULLABLE)
 
 ---
 
@@ -407,13 +434,14 @@ purit/
 
 재사용 시 이 컴포넌트들을 우선 사용할 것.
 
-  Btn          — 버튼 (variant: primary|secondary|ghost|danger|outline, size: sm|md|lg)
-  Card         — 카드 컨테이너 (클릭 가능, hover 효과)
-  Stat         — 지표 표시 (label, value, sub, accent)
-  ScoreBar     — 점수 바 (score, max=5, color)
-  Badge        — 태그/뱃지 (type: gray|gold|green|red|blue)
-  Divider      — 구분선
-  EmptyState   — 빈 상태 플레이스홀더 (icon, title, desc)
+  Btn             — 버튼 (variant: primary|secondary|ghost|danger|outline, size: sm|md|lg)
+  Card            — 카드 컨테이너 (클릭 가능, hover 효과)
+  Stat            — 지표 표시 (label, value, sub, accent)
+  ScoreBar        — 점수 바 (score, max=5, color)
+  Badge           — 태그/뱃지 (type: gray|gold|green|red|blue)
+  Divider         — 구분선
+  EmptyState      — 빈 상태 플레이스홀더 (icon, title, desc)
+  ImageAnnotator  — 이미지 드래그 어노테이션 (ImageAnnotator.jsx, 별도 파일)
 
 ================================================================
 ## 환경 변수 (.env)

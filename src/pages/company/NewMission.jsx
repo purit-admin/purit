@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Btn, Card } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -8,15 +8,25 @@ const STEPS = ['기본 정보', '페르소나 설정', '소재 업로드', '검�
 const INDUSTRIES = ['패션/커머스', '뷰티/코스메틱', '헬스/보충제', '금융/핀테크', 'B2B SaaS', '교육/에듀테크', '부동산/인테리어', '식품/F&B', '기타'];
 const PANEL_COUNTS = [5, 8, 10, 15, 20];
 const PRICE_PER = { 5: 50, 8: 75, 10: 90, 15: 130, 20: 170 };
+const MAX_IMAGES = 5;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function NewMission() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [step, setStep] = useState(0);
+  // mission UUID 사전 생성 — Storage 업로드 경로와 INSERT id를 일치시키기 위함
+  const [missionUuid] = useState(() => crypto.randomUUID());
   const [form, setForm] = useState({
     company: '', product: '', industry: '', lpUrl: '',
     personaAge: '', personaIncome: '', personaRole: '', personaContext: '',
     panels: 8, briefText: '', focusAreas: [],
+    imageUrls: [],
   });
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const FOCUS = ['헤드라인 카피', 'CTA 효과', '가격 앵커링', '신뢰 지표', '모바일 UX', '이미지/비주얼', '폼 최적화', '소셜 프루프'];
 
@@ -27,20 +37,58 @@ export default function NewMission() {
   }));
 
   const total = (PRICE_PER[form.panels] || 90) * 10000;
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    const remaining = MAX_IMAGES - form.imageUrls.length;
+    const toUpload = files.slice(0, remaining);
+
+    // 크기 검증
+    for (const file of toUpload) {
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadError(`${file.name}이 5MB를 초과합니다.`);
+        e.target.value = '';
+        return;
+      }
+    }
+
+    setUploading(true);
+    setUploadError('');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: company } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+
+      const urls = [];
+      for (const file of toUpload) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const path = `${company.id}/${missionUuid}/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage.from('mission-assets').upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data: { publicUrl } } = supabase.storage.from('mission-assets').getPublicUrl(path);
+        urls.push(publicUrl);
+      }
+      set('imageUrls', [...form.imageUrls, ...urls]);
+    } catch (err) {
+      setUploadError('업로드 실패: ' + err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeImage = (url) => {
+    set('imageUrls', form.imageUrls.filter(u => u !== url));
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitError('');
     try {
-      // 현재 로그인 유저의 company_id 조회
       const { data: { user } } = await supabase.auth.getUser();
       const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+        .from('companies').select('id').eq('user_id', user.id).single();
       if (companyError) throw companyError;
 
       const persona = [
@@ -51,6 +99,7 @@ export default function NewMission() {
       ].filter(Boolean).join(' / ');
 
       const { error } = await supabase.from('missions').insert({
+        id:           missionUuid,
         company_id:   company.id,
         title:        form.product || '미션',
         type:         'landing_page',
@@ -61,9 +110,9 @@ export default function NewMission() {
         reward_amount: (PRICE_PER[form.panels] || 90) * 1000,
         status:       'active',
         assets:       form.focusAreas,
+        image_urls:   form.imageUrls,
       });
       if (error) throw error;
-
       navigate('/company');
     } catch (err) {
       setSubmitError(err.message);
@@ -196,6 +245,68 @@ export default function NewMission() {
                 ))}
               </div>
             </label>
+
+            {/* 이미지 업로드 */}
+            <label style={lbl}>
+              <span style={lblTxt}>검증 이미지 업로드 (선택 · 최대 {MAX_IMAGES}장 · 5MB 이하)</span>
+              <div style={{
+                border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
+                padding: '20px', textAlign: 'center',
+                background: form.imageUrls.length >= MAX_IMAGES ? 'var(--surface-2)' : 'var(--surface)',
+              }}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  disabled={uploading || form.imageUrls.length >= MAX_IMAGES}
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+                <Btn
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || form.imageUrls.length >= MAX_IMAGES}
+                >
+                  {uploading ? '업로드 중...' : '이미지 선택'}
+                </Btn>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
+                  {form.imageUrls.length >= MAX_IMAGES
+                    ? '최대 장수에 도달했습니다.'
+                    : '이미지를 업로드하면 패널이 영역을 드래그해 항목별 피드백을 남깁니다.'}
+                </div>
+                {uploadError && (
+                  <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>{uploadError}</div>
+                )}
+              </div>
+
+              {/* 썸네일 미리보기 */}
+              {form.imageUrls.length > 0 && (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                  {form.imageUrls.map((url, i) => (
+                    <div key={url} style={{ position: 'relative' }}>
+                      <img
+                        src={url}
+                        alt={`업로드 ${i + 1}`}
+                        style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', display: 'block' }}
+                      />
+                      <button
+                        onClick={() => removeImage(url)}
+                        style={{
+                          position: 'absolute', top: -6, right: -6,
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: 'var(--red)', color: '#fff',
+                          border: 'none', fontSize: 13, lineHeight: 1,
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </label>
+
             <label style={lbl}>
               <span style={lblTxt}>패널에게 전달할 브리핑</span>
               <textarea value={form.briefText} onChange={e => set('briefText', e.target.value)}
@@ -222,6 +333,17 @@ export default function NewMission() {
                 <span style={{ fontWeight: 500, fontSize: 13 }}>{v}</span>
               </div>
             ))}
+            {form.imageUrls.length > 0 && (
+              <div style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ width: 140, color: 'var(--text-3)', fontSize: 13, flexShrink: 0 }}>업로드 이미지</span>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {form.imageUrls.map((url, i) => (
+                    <img key={url} src={url} alt={`이미지 ${i + 1}`}
+                      style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
               ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
             </div>
@@ -239,7 +361,7 @@ export default function NewMission() {
             {submitError}
           </div>
         )}
-        <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()} size="md" disabled={submitting}>
+        <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()} size="md" disabled={submitting || uploading}>
           {step === STEPS.length - 1 ? (submitting ? '제출 중...' : '의뢰 제출 →') : '다음 →'}
         </Btn>
       </div>

@@ -255,3 +255,30 @@ E-9. Recharts RadialBarChart 반원 게이지 구현 시 주의사항
             - Supabase SQL Editor: 005_ai_reports.sql 실행
             - supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
             - supabase functions deploy generate-ai-report
+
+2026-04-29  이미지 어노테이션 시스템 구축 (4차)
+            [신규 파일]
+            - supabase/migrations/006_image_annotations.sql: feedback_annotations 테이블
+              missions.image_urls 컬럼 + Storage 버킷 + RLS 3종 (실행 완료)
+            - src/components/ui/ImageAnnotator.jsx: 드래그 영역 어노테이션 컴포넌트
+              퍼센트 좌표계, window 레벨 이벤트, fixed 모달 팝업
+            [수정 파일]
+            - company/NewMission.jsx: 이미지 업로드 (최대 5장, 5MB)
+              crypto.randomUUID()로 사전 UUID 생성 → Storage 경로와 DB id 동기화
+            - panel/ActiveMission.jsx: 이미지/텍스트 모드 분기
+              hasImages 플래그로 자동 판별, 이미지 없는 미션은 기존 텍스트 모드 유지
+              어노테이션 dimension별 평균 → clarity_score 등 컬럼에 반영
+            - admin/PurityFilter.jsx: missions(image_urls) 조인 추가
+              selected 변경 시 feedback_annotations 로드, ImageAnnotator readonly 표시
+            [빌드]
+            - npm run build 경고 0개 확인
+
+D-11. 이미지 어노테이션 퍼센트 좌표 패턴 ✅ 정착 (2026-04-29)
+     → 컨테이너 getBoundingClientRect() 기준 x/y/w/h 모두 % 단위 저장
+     → 이미지가 어떤 크기로 렌더링되어도 오버레이 위치 유지됨
+     → 드래그 중 커서가 컨테이너 밖으로 나가도 window 레벨 이벤트로 추적
+
+D-12. 이미지 업로드 + DB INSERT 타이밍 문제 패턴 (2026-04-29)
+     → Storage 업로드 경로에 DB row id가 필요한 경우
+     → crypto.randomUUID()로 클라이언트에서 UUID 사전 생성 후
+        INSERT 시 id: missionUuid 로 직접 지정해 두 값을 동기화

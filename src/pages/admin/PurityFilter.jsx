@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
+import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 
 const DIM = [
@@ -20,17 +21,19 @@ function calcPurityScore(fb) {
 }
 
 export default function PurityFilter() {
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [selected, setSelected]   = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [acting, setActing]       = useState(false);
-  const [filter, setFilter]       = useState('pending');
+  const [feedbacks, setFeedbacks]     = useState([]);
+  const [selected, setSelected]       = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [acting, setActing]           = useState(false);
+  const [filter, setFilter]           = useState('pending');
+  const [annotations, setAnnotations] = useState([]);
+  const [adminImageIdx, setAdminImageIdx] = useState(0);
 
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from('feedbacks')
-        .select('*, missions(title), panels(name)')
+        .select('*, missions(title, image_urls), panels(name)')
         .order('created_at', { ascending: false });
       setFeedbacks(data || []);
       if (data && data.length > 0) setSelected(data[0].id);
@@ -38,6 +41,16 @@ export default function PurityFilter() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (!selected) { setAnnotations([]); return; }
+    const fb = feedbacks.find(f => f.id === selected);
+    if (!fb?.missions?.image_urls?.length) { setAnnotations([]); return; }
+    setAdminImageIdx(0);
+    supabase.from('feedback_annotations').select('*')
+      .eq('feedback_id', selected).order('created_at')
+      .then(({ data }) => setAnnotations(data || []));
+  }, [selected, feedbacks]);
 
   const approve = async (id) => {
     setActing(true);
@@ -179,6 +192,47 @@ export default function PurityFilter() {
                     {fb.purity_passed ? '승인됨' : fb.status === 'rejected' ? '반려됨' : '대기'}
                   </Badge>
                 </div>
+
+                {/* 이미지 + 어노테이션 오버레이 */}
+                {fb.missions?.image_urls?.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    {fb.missions.image_urls.length > 1 && (
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                        {fb.missions.image_urls.map((_, i) => (
+                          <button key={i} onClick={() => setAdminImageIdx(i)} style={{
+                            padding: '4px 12px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
+                            cursor: 'pointer', border: '1.5px solid',
+                            borderColor: adminImageIdx === i ? 'var(--accent)' : 'var(--border)',
+                            background: adminImageIdx === i ? 'var(--accent)' : 'var(--surface)',
+                            color: adminImageIdx === i ? '#fff' : 'var(--text-2)',
+                          }}>
+                            이미지 {i + 1}
+                            {annotations.filter(a => a.image_index === i).length > 0 && (
+                              <span style={{ marginLeft: 4, background: 'rgba(255,255,255,0.25)', borderRadius: 8, padding: '0 5px', fontSize: 10 }}>
+                                {annotations.filter(a => a.image_index === i).length}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <ImageAnnotator
+                        imageUrl={fb.missions.image_urls[adminImageIdx]}
+                        imageIndex={adminImageIdx}
+                        annotations={annotations.filter(a => a.image_index === adminImageIdx)}
+                        onAdd={() => {}}
+                        onRemove={() => {}}
+                        readonly={true}
+                      />
+                    </div>
+                    {annotations.length > 0 && (
+                      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                        총 어노테이션 {annotations.length}개
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 5차원 점수 */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
