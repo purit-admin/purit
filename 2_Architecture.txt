@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (이미지 어노테이션 다중 드래그 + 코멘트 박스 UI)
+최종 업데이트: 2026-04-29 (기업·패널 참여도 향상 기능 전면 구현)
 ================================================================
 
 ## 기술 스택
@@ -56,16 +56,18 @@ purit/
 │       ├── Landing.jsx              # 공개 랜딩 페이지
 │       ├── Login.jsx                # 로그인
 │       ├── Signup.jsx               # 회원가입 (role 선택 포함)
+│       ├── ShareResult.jsx          # ★ 신규 — /share/:token 공개 공유 결과 페이지
 │       │
-│       ├── company/                 # Company 포털 (15개 페이지)
+│       ├── company/                 # Company 포털 (17개 페이지)
 │       │   ├── Dashboard.jsx        # ★ 시각화 엔진 (Recharts 3종 + Framer Motion)
 │       │   │                        #   - RadarChart: 5차원 내점수 vs 벤치마크
 │       │   │                        #   - RadialBarChart: KPI 달성률 게이지
 │       │   │                        #   - BarChart: 미션별 긍/부정 스택 바
 │       │   │                        #   - feedbacks 실데이터 집계: computeRadar / computeSentiment
-│       │   ├── NewMission.jsx
-│       │   ├── Results.jsx
-│       │   ├── Diagnosis.jsx
+│       │   ├── NewMission.jsx       # estimated_minutes + difficulty 필드 추가
+│       │   ├── Results.jsx          # ★ 패널 세그먼트 필터 + 공유 링크 생성/복사/해제
+│       │   ├── Diagnosis.jsx        # ★ '키워드 분석' 탭 추가 (태그 클라우드 + 빈도 바)
+│       │   ├── TimelineTracker.jsx  # ★ 신규 — 5차원 점수 시계열 LineChart (주간/미션별 뷰)
 │       │   ├── PreferenceTest.jsx
 │       │   ├── PricingTest.jsx
 │       │   ├── ColdEmailTest.jsx
@@ -74,24 +76,24 @@ purit/
 │       │   ├── ICPPulse.jsx
 │       │   ├── BrandTracking.jsx
 │       │   ├── AIReport.jsx
-│       │   ├── Account.jsx          # ★ 신규 — 기업 프로필 + 비밀번호 변경
+│       │   ├── Account.jsx          # 기업 프로필 + 비밀번호 변경
 │       │   ├── Settings.jsx         # 팀 관리 + 플랜·결제 + 알림설정(localStorage)
 │       │   └── Pricing.jsx          # 플랜 선택 — companies.plan Supabase 연동
 │       │
 │       ├── panel/                   # Panel 포털 (5개 페이지)
-│       │   ├── Dashboard.jsx
-│       │   ├── Missions.jsx
-│       │   ├── ActiveMission.jsx
+│       │   ├── Dashboard.jsx        # ★ 티어/스트릭/신뢰도 + Draft 알림 + 시간/난이도 표시
+│       │   ├── Missions.jsx         # ★ 시간/난이도 표시 + EXPERT/ELITE 고보상 정렬
+│       │   ├── ActiveMission.jsx    # ★ 제출 후 update_panel_gamification RPC + 기업 알림
 │       │   ├── History.jsx
-│       │   └── Profile.jsx          # 기본정보+전문분야+정산계좌+비밀번호변경(탭4개)
+│       │   └── Profile.jsx          # ★ '성과' 탭 추가 (티어/뱃지/스트릭 시각화)
 │       │
 │       └── admin/                   # Admin 포털 (6개 페이지)
 │           ├── Dashboard.jsx
-│           ├── PanelManagement.jsx
+│           ├── PanelManagement.jsx  # ★ 뱃지 섹션 추가
 │           ├── Missions.jsx
 │           ├── PurityFilter.jsx
 │           ├── Revenue.jsx
-│           └── Account.jsx          # ★ 신규 — 관리자 이름 + 비밀번호 변경
+│           └── Account.jsx          # 관리자 이름 + 비밀번호 변경
 │
 ├── supabase/
 │   ├── migrations/
@@ -103,7 +105,10 @@ purit/
 │   │   ├── 006_image_annotations.sql  # feedback_annotations 테이블 + missions.image_urls
 │   │   ├── 007_subtest_missions.sql   # 서브 의뢰 테이블에 mission_id/template_id/status 추가
 │   │   │                               # preference/pricing/email 응답 테이블에 추가 점수 컬럼 + RLS
-│   │   └── 008_seed_templates.sql     # 브랜드 삭제, category 업데이트, 서브 의뢰 템플릿 6개 삽입
+│   │   ├── 008_seed_templates.sql     # 브랜드 삭제, category 업데이트, 서브 의뢰 템플릿 6개 삽입
+│   │   ├── 009_gamification.sql       # panels 게이미피케이션 컬럼 + update_panel_gamification RPC
+│   │   │                               # missions estimated_minutes + difficulty 컬럼
+│   │   └── 010_sharing.sql            # missions.share_token + get_shared_mission RPC
 │   └── functions/
 │       └── generate-ai-report/
 │           └── index.ts             # Deno Edge Function — Anthropic API → ai_reports INSERT
@@ -121,6 +126,7 @@ purit/
   /                          → Landing.jsx
   /login                     → Login.jsx
   /signup                    → Signup.jsx
+  /share/:token              → ShareResult.jsx (공개, 인증 불필요)
 
 [Company 포털] — RoleRoute role="company"
   /company                   → Dashboard.jsx
@@ -128,6 +134,7 @@ purit/
   /company/new               → NewMission.jsx
   /company/results           → Results.jsx
   /company/diagnosis         → Diagnosis.jsx
+  /company/timeline          → TimelineTracker.jsx     ★ 신규
   /company/preference        → PreferenceTest.jsx
   /company/pricing-test      → PricingTest.jsx
   /company/email-test        → ColdEmailTest.jsx
@@ -179,35 +186,44 @@ purit/
 ---
 
 ### [panels]
-  id              UUID  PK
-  user_id         UUID  FK → auth.users.id  (UNIQUE, 1:1)
-  name            TEXT
-  industry        TEXT
-  experience      TEXT  (경력 연차 등)
-  bio             TEXT
-  expertise       TEXT[]  (전문 분야 배열)
-  bank_name       TEXT
-  bank_account    TEXT
-  bank_holder     TEXT
-  total_missions  INT   DEFAULT 0
+  id                UUID  PK
+  user_id           UUID  FK → auth.users.id  (UNIQUE, 1:1)
+  name              TEXT
+  industry          TEXT
+  experience        TEXT  (경력 연차 등)
+  bio               TEXT
+  expertise         TEXT[]  (전문 분야 배열)
+  bank_name         TEXT
+  bank_account      TEXT
+  bank_holder       TEXT
+  total_missions    INT   DEFAULT 0
+  tier              TEXT  DEFAULT 'ROOKIE'  (ROOKIE/PRO/EXPERT/ELITE — update_panel_gamification RPC 자동 계산)
+  trust_score       INT   DEFAULT 0  (purity_passed 건수 / 전체 submitted × 100)
+  streak_count      INT   DEFAULT 0  (최근 7일 내 submitted 건수)
+  last_mission_date TIMESTAMPTZ
+  badges            TEXT[]  DEFAULT '{}'
+  ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
 
 ---
 
 ### [missions]
-  id              UUID  PK
-  company_id      UUID  FK → companies.id
-  title           TEXT
-  type            TEXT  (예: 'landing_page')
-  target_url      TEXT  (LP URL)
-  description     TEXT  (브리프)
-  persona         JSONB (타겟 페르소나 설정값)
-  panel_count     INT   (요청 패널 수)
-  filled_count    INT   DEFAULT 0 (제출 완료 수)
-  reward_amount   INT   (보상금, 원 단위)
-  status          TEXT  ('active'|'completed'|'draft'|'in_review'|'cancelled')
-  assets          TEXT[]  (검증 포인트 목록)
-  image_urls      TEXT[]  DEFAULT '{}' (업로드 이미지 public URL 배열, 최대 5개)
-  created_at      TIMESTAMPTZ DEFAULT now()
+  id                 UUID  PK
+  company_id         UUID  FK → companies.id
+  title              TEXT
+  type               TEXT  (예: 'landing_page')
+  target_url         TEXT  (LP URL)
+  description        TEXT  (브리프)
+  persona            JSONB (타겟 페르소나 설정값)
+  panel_count        INT   (요청 패널 수)
+  filled_count       INT   DEFAULT 0 (제출 완료 수)
+  reward_amount      INT   (보상금, 원 단위)
+  status             TEXT  ('active'|'completed'|'draft'|'in_review'|'cancelled')
+  assets             TEXT[]  (검증 포인트 목록)
+  image_urls         TEXT[]  DEFAULT '{}' (업로드 이미지 public URL 배열, 최대 5개)
+  estimated_minutes  INT   DEFAULT 5  (예상 소요 시간, 009_gamification.sql)
+  difficulty         TEXT  DEFAULT 'normal'  CHECK IN ('easy','normal','hard')  (009_gamification.sql)
+  share_token        TEXT  UNIQUE  (010_sharing.sql, NULL이면 비공개)
+  created_at         TIMESTAMPTZ DEFAULT now()
 
 ---
 
@@ -472,6 +488,16 @@ purit/
   cancel_panel_feedback(p_mission_id UUID)
     → feedbacks DELETE (status='draft', 본인 panel) (DELETE RLS 없음 → RPC 필수)
     → 파일: supabase/migrations/004_cancel_feedback_rpc.sql
+
+  update_panel_gamification(p_panel_id UUID)
+    → trust_score / tier / streak_count / last_mission_date / badges 자동 계산·갱신
+    → 피드백 제출 성공 후 ActiveMission.jsx에서 호출
+    → 파일: supabase/migrations/009_gamification.sql
+
+  get_shared_mission(p_token TEXT) RETURNS jsonb
+    → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 반환
+    → 인증 불필요 (SECURITY DEFINER), /share/:token 공개 페이지에서 사용
+    → 파일: supabase/migrations/010_sharing.sql
 
 ================================================================
 ## 공용 컴포넌트 (src/components/ui/index.jsx)

@@ -5,6 +5,23 @@ import { supabase } from '../../lib/supabase';
 const INDUSTRIES = ['이커머스 마케터', 'B2B SaaS 세일즈', '스타트업 PM', 'B2B 영업', '퍼포먼스 마케터', '브랜드 마케터', 'CRO 전문가', '콘텐츠 마케터', '스타트업 대표', '기타'];
 const EXPERTISE  = ['랜딩페이지 전환', '카피라이팅', '가격 전략', 'B2B 세일즈 카피', 'UX 설계', '이메일 마케팅', 'SNS 광고', '고객 인터뷰', '데이터 분석'];
 
+const TIER_META = {
+  ROOKIE:  { label: 'ROOKIE',  color: 'var(--text-3)',        bg: 'var(--surface-2)', desc: '0~4개 미션 완료' },
+  PRO:     { label: 'PRO',     color: '#3b82f6',              bg: '#eff6ff',          desc: '5~14개 미션 완료' },
+  EXPERT:  { label: 'EXPERT',  color: 'var(--accent)',        bg: '#fffbeb',          desc: '15~29개 미션 완료' },
+  ELITE:   { label: 'ELITE',   color: 'var(--green)',         bg: '#f0fdf4',          desc: '30개+ 미션 완료' },
+};
+
+const BADGE_CATALOG = [
+  { key: '첫 미션',    emoji: '🚀', name: '첫 미션',    desc: '첫 번째 미션을 완료하세요' },
+  { key: '5회 완료',   emoji: '⭐', name: '5회 완료',   desc: '5개 미션을 완료하세요' },
+  { key: '10회 완료',  emoji: '🏅', name: '10회 완료',  desc: '10개 미션을 완료하세요' },
+  { key: '30회 완료',  emoji: '🏆', name: '30회 완료',  desc: '30개 미션을 완료하세요' },
+  { key: '품질 검증자', emoji: '✅', name: '품질 검증자', desc: 'Purit Filter 5회 이상 통과' },
+  { key: '연속 3회',   emoji: '🔥', name: '연속 3회',   desc: '7일 내 3건 이상 제출' },
+  { key: '연속 7회',   emoji: '💎', name: '연속 7회',   desc: '7일 내 7건 이상 제출' },
+];
+
 const lbl    = { display: 'flex', flexDirection: 'column', gap: 8 };
 const lblTxt = { fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
@@ -132,7 +149,7 @@ export default function PanelProfile() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
-        {[['profile', '기본 정보'], ['expertise', '전문 분야'], ['payment', '정산 계좌'], ['password', '비밀번호']].map(([v, l]) => (
+        {[['profile', '기본 정보'], ['expertise', '전문 분야'], ['payment', '정산 계좌'], ['password', '비밀번호'], ['achievement', '성과']].map(([v, l]) => (
           <button key={v} onClick={() => { setTab(v); setSaved(''); setPwMsg(''); }} style={{
             padding: '10px 18px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',
@@ -255,6 +272,88 @@ export default function PanelProfile() {
           </div>
         </Card>
       )}
+
+      {/* Achievement tab */}
+      {tab === 'achievement' && (() => {
+        const tier = panel?.tier || 'ROOKIE';
+        const tierMeta = TIER_META[tier] || TIER_META.ROOKIE;
+        const trustScore = panel?.trust_score || 0;
+        const streakCount = panel?.streak_count || 0;
+        const earnedBadges = new Set(panel?.badges || []);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* 티어 + 신뢰도 카드 */}
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+                <div style={{
+                  padding: '8px 18px', borderRadius: 20, fontWeight: 800, fontSize: 16,
+                  letterSpacing: '0.08em', color: tierMeta.color,
+                  background: tierMeta.bg, border: `1.5px solid ${tierMeta.color}`,
+                }}>
+                  {tier}
+                </div>
+                <div style={{ color: 'var(--text-2)', fontSize: 13 }}>{tierMeta.desc}</div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
+                {[
+                  { label: '완료 미션', value: panel?.total_missions || 0, unit: '개' },
+                  { label: '이번 주 제출', value: streakCount, unit: '건' },
+                  { label: '취득 뱃지', value: earnedBadges.size, unit: '개' },
+                ].map(item => (
+                  <div key={item.label} style={{ textAlign: 'center', padding: '12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{item.label}</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{item.value}<span style={{ fontSize: 14, color: 'var(--text-3)', marginLeft: 2 }}>{item.unit}</span></div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>신뢰도 (Purity Filter 통과율)</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-3)' }}>
+                    {trustScore}%
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 99,
+                    width: `${trustScore}%`,
+                    background: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : '#94a3b8',
+                    transition: 'width 0.6s ease',
+                  }} />
+                </div>
+              </div>
+            </Card>
+
+            {/* 뱃지 그리드 */}
+            <Card>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>획득 뱃지</div>
+              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>미션을 완료하고 다양한 뱃지를 획득하세요.</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                {BADGE_CATALOG.map(badge => {
+                  const earned = earnedBadges.has(badge.key);
+                  return (
+                    <div key={badge.key} style={{
+                      padding: '16px 14px', borderRadius: 'var(--radius)',
+                      border: `1.5px solid ${earned ? 'var(--accent)' : 'var(--border)'}`,
+                      background: earned ? 'var(--accent-dim)' : 'var(--surface)',
+                      textAlign: 'center',
+                      opacity: earned ? 1 : 0.5,
+                      transition: 'all 0.15s',
+                    }}>
+                      <div style={{ fontSize: 32, marginBottom: 8, filter: earned ? 'none' : 'grayscale(1)' }}>{badge.emoji}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: earned ? 'var(--text)' : 'var(--text-3)' }}>{badge.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>{earned ? '✓ 획득' : badge.desc}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Payment tab */}
       {tab === 'payment' && (

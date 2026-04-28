@@ -65,11 +65,29 @@ const DIMENSIONS = [
 
 const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
+const KO_STOP = new Set(['이','가','은','는','을','를','의','에','서','와','과','으로','로','에서','까지','부터','도','만','이다','있다','하다','되다','이고','그','그리고','또','하지만','그러나','하여','해서','것','수','더','또한','등','및','위해','대해','관해','있는','없는','하는','되는','많이','어서','입니다','습니다','합니다','했습니다','됩니다','같은','같이','때문에','통해','위한','않은','않고','않아','않습니다','없어','있어','있고','없고','없어서','이런','이렇게','저렇게','그렇게','좋은','좋아','나쁜','너무','매우','정말','조금','좀','잘','못','안','더욱','가장','좋습니다','입니다','있습니다','없습니다','하겠습니다','됩니다','됩니다만','입니다만']);
+
+function extractKeywords(feedbacks) {
+  const freq = {};
+  feedbacks.forEach(f => {
+    const text = [f.suggestions, f.strengths, f.weaknesses].filter(Boolean).join(' ');
+    text.split(/[\s,.\[\]「」『』【】〔〕《》\(\)\!\?\;\:\"\'\n\r]+/)
+      .map(w => w.replace(/[^가-힣a-zA-Z0-9]/g, '').trim())
+      .filter(w => w.length >= 2 && !KO_STOP.has(w))
+      .forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+  });
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 60)
+    .map(([word, count]) => ({ word, count }));
+}
+
 export default function Diagnosis() {
   const [activeTab, setActiveTab] = useState('overview');
   const [scores, setScores] = useState({});
   const [comments, setComments] = useState({});
   const [benchmarks, setBenchmarks] = useState({});
+  const [keywords, setKeywords] = useState([]);
   const [missions, setMissions] = useState([]);
   const [selectedMission, setSelectedMission] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -107,7 +125,7 @@ export default function Diagnosis() {
     const filter = missionFilter === 'all' ? ids : [missionFilter];
 
     const [myRes, allRes] = await Promise.all([
-      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses').in('mission_id', filter).eq('purity_passed', true),
+      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,suggestions').in('mission_id', filter).eq('purity_passed', true),
       supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
     ]);
 
@@ -134,6 +152,7 @@ export default function Diagnosis() {
     setScores(newScores);
     setComments(newComments);
     setBenchmarks(newBenchmarks);
+    setKeywords(extractKeywords(myFeedbacks));
   }
 
   if (loading) return (
@@ -190,7 +209,7 @@ export default function Diagnosis() {
           </Card>
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-            {[['overview', '차원별 점수'], ['comments', '패널 코멘트'], ['benchmark', '업계 벤치마크']].map(([v, l]) => (
+            {[['overview', '차원별 점수'], ['comments', '패널 코멘트'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석']].map(([v, l]) => (
               <button key={v} onClick={() => setActiveTab(v)} style={{
                 padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
                 background: activeTab === v ? 'var(--bg)' : 'transparent',
@@ -252,6 +271,60 @@ export default function Diagnosis() {
               ))}
             </div>
           )}
+
+          {activeTab === 'keywords' && (() => {
+            if (keywords.length === 0) return (
+              <Card style={{ padding: '40px', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>분석할 코멘트가 없습니다</div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)' }}>패널 코멘트가 쌓이면 자주 언급된 키워드가 여기에 표시됩니다.</div>
+              </Card>
+            );
+            const maxCount = keywords[0].count;
+            const minSize = 11, maxSize = 32;
+            return (
+              <div>
+                <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20, lineHeight: 1.7 }}>
+                  패널 코멘트에서 자주 등장한 키워드입니다. 글자 크기는 언급 빈도에 비례합니다.
+                </p>
+                <Card style={{ padding: '32px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 16px', alignItems: 'center', lineHeight: 1.8 }}>
+                    {keywords.map(({ word, count }) => {
+                      const ratio = (count - 1) / Math.max(maxCount - 1, 1);
+                      const size = Math.round(minSize + ratio * (maxSize - minSize));
+                      const opacity = 0.5 + ratio * 0.5;
+                      const hue = 210 + ratio * 40;
+                      return (
+                        <span key={word} title={`${count}회 언급`} style={{
+                          fontSize: size,
+                          fontWeight: ratio > 0.6 ? 800 : ratio > 0.3 ? 600 : 400,
+                          color: `hsla(${hue}, 80%, 65%, ${opacity})`,
+                          cursor: 'default',
+                          transition: 'color 0.2s',
+                          letterSpacing: size > 20 ? '-0.02em' : 'normal',
+                        }}>
+                          {word}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </Card>
+                <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>상위 10개 키워드</div>
+                  {keywords.slice(0, 10).map(({ word, count }, i) => (
+                    <div key={word} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)', width: 20 }}>0{i + 1}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, width: 100 }}>{word}</span>
+                      <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ width: `${(count / maxCount) * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                      </div>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-2)', width: 40, textAlign: 'right' }}>{count}회</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {activeTab === 'benchmark' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

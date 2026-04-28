@@ -195,6 +195,29 @@ export default function AdminPanels() {
                   </div>
                 </Card>
 
+                {/* 뱃지 */}
+                <Card style={{ padding: '18px 20px' }}>
+                  <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>획득 뱃지</div>
+                  {(panel.badges && panel.badges.length > 0) ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {panel.badges.map(b => (
+                        <span key={b} style={{
+                          padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                          background: 'var(--accent-dim)', color: 'var(--accent)',
+                          border: '1px solid rgba(232,213,163,0.4)',
+                        }}>{b}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>획득한 뱃지가 없습니다.</div>
+                  )}
+                  {(panel.streak_count > 0) && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-2)' }}>
+                      🔥 이번 주 {panel.streak_count}건 제출
+                    </div>
+                  )}
+                </Card>
+
                 {/* Actions */}
                 <Card style={{ padding: '18px 20px' }}>
                   <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>관리 액션</div>

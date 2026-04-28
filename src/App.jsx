@@ -23,6 +23,8 @@ import PricingPage from './pages/company/Pricing';
 import AccountSettings from './pages/company/Settings';
 import CompanyAccount from './pages/company/Account';
 import AdminAccount from './pages/admin/Account';
+import TimelineTracker from './pages/company/TimelineTracker';
+import ShareResult from './pages/ShareResult';
 
 // Panel pages
 import PanelDashboard from './pages/panel/Dashboard';
@@ -63,6 +65,7 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/share/:token" element={<ShareResult />} />
 
       {/* Company — company 역할만 접근 가능 */}
       <Route path="/company" element={<RoleRoute role="company"><CL><CompanyDashboard /></CL></RoleRoute>} />
@@ -70,6 +73,7 @@ function AppRoutes() {
       <Route path="/company/new" element={<RoleRoute role="company"><CL><NewMission /></CL></RoleRoute>} />
       <Route path="/company/results" element={<RoleRoute role="company"><CL><Results /></CL></RoleRoute>} />
       <Route path="/company/diagnosis" element={<RoleRoute role="company"><CL><Diagnosis /></CL></RoleRoute>} />
+      <Route path="/company/timeline" element={<RoleRoute role="company"><CL><TimelineTracker /></CL></RoleRoute>} />
       <Route path="/company/preference" element={<RoleRoute role="company"><CL><PreferenceTest /></CL></RoleRoute>} />
       <Route path="/company/pricing-test" element={<RoleRoute role="company"><CL><PricingTest /></CL></RoleRoute>} />
       <Route path="/company/email-test" element={<RoleRoute role="company"><CL><ColdEmailTest /></CL></RoleRoute>} />

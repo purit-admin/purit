@@ -22,6 +22,8 @@ export default function NewMission() {
     personaAge: '', personaIncome: '', personaRole: '', personaContext: '',
     panels: 8, briefText: '', focusAreas: [],
     imageUrls: [],
+    estimatedMinutes: 5,
+    difficulty: 'normal',
   });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -99,18 +101,20 @@ export default function NewMission() {
       ].filter(Boolean).join(' / ');
 
       const { error } = await supabase.from('missions').insert({
-        id:           missionUuid,
-        company_id:   company.id,
-        title:        form.product || '미션',
-        type:         'landing_page',
-        target_url:   form.lpUrl,
-        description:  form.briefText,
+        id:                missionUuid,
+        company_id:        company.id,
+        title:             form.product || '미션',
+        type:              'landing_page',
+        target_url:        form.lpUrl,
+        description:       form.briefText,
         persona,
-        panel_count:  form.panels,
-        reward_amount: (PRICE_PER[form.panels] || 90) * 1000,
-        status:       'active',
-        assets:       form.focusAreas,
-        image_urls:   form.imageUrls,
+        panel_count:       form.panels,
+        reward_amount:     (PRICE_PER[form.panels] || 90) * 1000,
+        status:            'active',
+        assets:            form.focusAreas,
+        image_urls:        form.imageUrls,
+        estimated_minutes: form.estimatedMinutes,
+        difficulty:        form.difficulty,
       });
       if (error) throw error;
       navigate('/company');
@@ -168,6 +172,29 @@ export default function NewMission() {
               <span style={lblTxt}>랜딩페이지 URL</span>
               <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
             </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <label style={lbl}>
+                <span style={lblTxt}>예상 소요 시간</span>
+                <select value={form.estimatedMinutes} onChange={e => set('estimatedMinutes', Number(e.target.value))}>
+                  {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}분</option>)}
+                </select>
+              </label>
+              <label style={lbl}>
+                <span style={lblTxt}>미션 난이도</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']].map(([v, l]) => (
+                    <button key={v} onClick={() => set('difficulty', v)} style={{
+                      flex: 1, padding: '10px 0', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', border: '1px solid',
+                      borderColor: form.difficulty === v ? 'var(--accent)' : 'var(--border)',
+                      background: form.difficulty === v ? 'var(--accent)' : 'var(--surface-2)',
+                      color: form.difficulty === v ? '#fff' : 'var(--text-2)',
+                      transition: 'all 0.15s',
+                    }}>{l}</button>
+                  ))}
+                </div>
+              </label>
+            </div>
           </div>
         )}
 
@@ -326,6 +353,8 @@ export default function NewMission() {
               ['타겟 페르소나', `${form.personaAge}, ${form.personaRole}` || '—'],
               ['패널 수', `${form.panels}명`],
               ['검증 포커스', form.focusAreas.join(', ') || '—'],
+              ['예상 소요 시간', `${form.estimatedMinutes}분`],
+              ['난이도', form.difficulty === 'easy' ? '쉬움' : form.difficulty === 'hard' ? '어려움' : '보통'],
               ['예상 비용', `₩ ${total.toLocaleString()}`],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>

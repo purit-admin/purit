@@ -182,6 +182,28 @@ export default function ActiveMission() {
     }
   };
 
+  // 제출 후 공통 후처리: 게이미피케이션 RPC + 기업 알림
+  const postSubmitActions = async () => {
+    if (!panel?.id) return;
+    await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
+
+    if (mission?.company_id) {
+      const { data: company } = await supabase
+        .from('companies').select('user_id').eq('id', mission.company_id).single();
+      if (company?.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: company.user_id,
+          type: 'success',
+          icon: '📊',
+          title: '새 피드백 도착',
+          body: `[${mission.title}] 패널이 피드백을 제출했습니다.`,
+          action_url: '/company/results',
+          read: false,
+        });
+      }
+    }
+  };
+
   const handleCancelAccept = async () => {
     setCancelConfirming(true);
     const { error } = await supabase.rpc('cancel_panel_feedback', { p_mission_id: mission.id });
@@ -299,6 +321,7 @@ export default function ActiveMission() {
 
       await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
       await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
+      await postSubmitActions();
 
       setStep(SECTIONS.length + 1);
     } catch (err) {
@@ -358,6 +381,7 @@ export default function ActiveMission() {
 
       await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
       await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
+      await postSubmitActions();
 
       setStep(SECTIONS.length + 1);
     } catch (err) {

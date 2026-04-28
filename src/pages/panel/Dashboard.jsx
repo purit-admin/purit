@@ -3,6 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
+const TIER_META = {
+  ROOKIE:  { label: 'ROOKIE',  color: 'var(--text-3)',   bg: 'var(--surface-2)' },
+  PRO:     { label: 'PRO',     color: 'var(--blue, #3b82f6)', bg: '#eff6ff' },
+  EXPERT:  { label: 'EXPERT',  color: 'var(--accent)',   bg: '#fffbeb' },
+  ELITE:   { label: 'ELITE',   color: 'var(--green)',    bg: '#f0fdf4' },
+};
+
+const DIFF_META = {
+  easy:   { label: '쉬움',   color: 'var(--green)' },
+  normal: { label: '보통',   color: '#3b82f6' },
+  hard:   { label: '어려움', color: 'var(--red, #ef4444)' },
+};
+
 export default function PanelDashboard() {
   const navigate = useNavigate();
   const [panel, setPanel]     = useState(null);
@@ -27,6 +40,49 @@ export default function PanelDashboard() {
       const myMissionIds = new Set((myFeedbacks || []).map(f => f.mission_id));
       setMissions((ms || []).filter(m => !myMissionIds.has(m.id)));
 
+      // Draft 이어하기 알림: 24h 이상 방치된 draft 미션마다 알림 생성
+      if (p?.id && user?.id) {
+        const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: staleDrafts } = await supabase
+          .from('feedbacks')
+          .select('mission_id, missions(title)')
+          .eq('panel_id', p.id)
+          .eq('status', 'draft')
+          .lt('created_at', cutoff);
+
+        if (staleDrafts && staleDrafts.length > 0) {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const { data: existingNotifs } = await supabase
+            .from('notifications')
+            .select('title')
+            .eq('user_id', user.id)
+            .ilike('title', '%이어하기 알림%')
+            .gte('created_at', todayStart.toISOString());
+
+          const sentTitles = new Set((existingNotifs || []).map(n => n.title));
+
+          const toInsert = staleDrafts
+            .filter(d => {
+              const title = `[${d.missions?.title || '미션'}] 이어하기 알림`;
+              return !sentTitles.has(title);
+            })
+            .map(d => ({
+              user_id: user.id,
+              type: 'warning',
+              icon: '⏰',
+              title: `[${d.missions?.title || '미션'}] 이어하기 알림`,
+              body: '24시간 이상 미완료 미션이 있습니다. 이어서 참여해주세요.',
+              action_url: `/panel/active?id=${d.mission_id}`,
+              read: false,
+            }));
+
+          if (toInsert.length > 0) {
+            await supabase.from('notifications').insert(toInsert);
+          }
+        }
+      }
+
       setLoading(false);
     }
     load();
@@ -37,17 +93,30 @@ export default function PanelDashboard() {
   );
 
   const name = panel?.name || '패널';
+  const tier = panel?.tier || 'ROOKIE';
+  const tierMeta = TIER_META[tier] || TIER_META.ROOKIE;
+  const trustScore = panel?.trust_score || 0;
+  const streakCount = panel?.streak_count || 0;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
         <div>
           <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>PANEL PORTAL</div>
           <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 4 }}>안녕하세요, {name}님</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-            <Badge type="green">ACTIVE</Badge>
-            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>패널 계정</span>
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+              padding: '3px 10px', borderRadius: 20,
+              color: tierMeta.color, background: tierMeta.bg,
+              border: `1px solid ${tierMeta.color}`,
+            }}>{tier}</span>
+            {streakCount >= 2 && (
+              <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
+                🔥 {streakCount}회 연속
+              </span>
+            )}
           </div>
         </div>
         <Btn onClick={() => navigate('/panel/missions')} size="lg" variant="outline">
@@ -55,12 +124,35 @@ export default function PanelDashboard() {
         </Btn>
       </div>
 
-      {/* Stats */}
+      {/* 신뢰도 + Stats */}
+      <div style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)', padding: '20px 28px', marginBottom: 24,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>내 신뢰도</span>
+          <span style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-2)' }}>
+            {trustScore}%
+          </span>
+        </div>
+        <div style={{ height: 6, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            width: `${trustScore}%`,
+            background: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : '#94a3b8',
+            transition: 'width 0.6s ease',
+          }} />
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6 }}>
+          Purity Filter 통과율 기준 — 높을수록 우선 미션 배정
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}>
         {[
           { label: '완료 미션', value: String(panel?.total_missions || 0), sub: '총 누적' },
-          { label: '활성 미션', value: String(missions.length), sub: '현재 참여 가능' },
-          { label: '내 상태', value: '활성', sub: '패널 등급', accent: true },
+          { label: '참여 가능', value: String(missions.length), sub: '현재 오픈 미션' },
+          { label: '이번 주 활동', value: String(streakCount), sub: '7일 내 제출', accent: streakCount >= 3 },
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--surface)', padding: '24px 28px' }}>
             <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{s.label}</div>
@@ -108,6 +200,18 @@ export default function PanelDashboard() {
                   <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
                     잔여 {Math.max(0, (m.panel_count || 0) - (m.feedbacks?.length ?? m.filled_count ?? 0))}/{m.panel_count} 슬롯
                   </div>
+                  {(m.estimated_minutes || m.difficulty) && (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+                      {m.estimated_minutes && (
+                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>⏱ {m.estimated_minutes}분</span>
+                      )}
+                      {m.difficulty && (
+                        <span style={{ fontSize: 11, fontWeight: 600, color: DIFF_META[m.difficulty]?.color || 'var(--text-3)' }}>
+                          {DIFF_META[m.difficulty]?.label || m.difficulty}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>

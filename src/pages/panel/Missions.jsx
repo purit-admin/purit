@@ -3,11 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
+const DIFF_META = {
+  easy:   { label: '쉬움',   color: 'var(--green)' },
+  normal: { label: '보통',   color: '#3b82f6' },
+  hard:   { label: '어려움', color: 'var(--red, #ef4444)' },
+};
+
 export default function MissionList() {
   const navigate = useNavigate();
   const [missions, setMissions]       = useState([]);
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]         = useState(null);
+  const [panelTier, setPanelTier]     = useState('ROOKIE');
   const [loading, setLoading]         = useState(true);
   const [filter, setFilter]           = useState('available');
   const [modal, setModal]             = useState(null); // { type: 'accept'|'cancel', mission }
@@ -19,9 +26,10 @@ export default function MissionList() {
       if (!user) return;
 
       const { data: p } = await supabase
-        .from('panels').select('id').eq('user_id', user.id).single();
+        .from('panels').select('id, tier').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
+      setPanelTier(p.tier || 'ROOKIE');
 
       const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
         supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p.id),
@@ -98,12 +106,21 @@ export default function MissionList() {
     }
   };
 
-  const filtered =
-    filter === 'available'
-      ? missions.filter(m => !feedbackMap[m.id] && m.status === 'active' && (m.filled_count || 0) < (m.panel_count || 0))
-    : filter === 'inProgress'
-      ? missions.filter(m => feedbackMap[m.id] === 'draft')
-      : missions.filter(m => ['submitted', 'approved', 'rejected'].includes(feedbackMap[m.id]));
+  const isHighTier = panelTier === 'EXPERT' || panelTier === 'ELITE';
+
+  const filtered = (() => {
+    let list;
+    if (filter === 'available') {
+      list = missions.filter(m => !feedbackMap[m.id] && m.status === 'active' && (m.filled_count || 0) < (m.panel_count || 0));
+      // EXPERT/ELITE 패널은 고보상 미션 우선 노출
+      if (isHighTier) list = [...list].sort((a, b) => (b.reward_amount || 0) - (a.reward_amount || 0));
+    } else if (filter === 'inProgress') {
+      list = missions.filter(m => feedbackMap[m.id] === 'draft');
+    } else {
+      list = missions.filter(m => ['submitted', 'approved', 'rejected'].includes(feedbackMap[m.id]));
+    }
+    return list;
+  })();
 
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
@@ -261,6 +278,21 @@ export default function MissionList() {
                     {!isDone && (
                       <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                         잔여 <strong style={{ color: 'var(--text)' }}>{Math.max(0, slots - filled)}</strong>/{slots} 슬롯
+                      </div>
+                    )}
+                    {(m.estimated_minutes || m.difficulty) && (
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        {m.estimated_minutes && (
+                          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>⏱ 예상 {m.estimated_minutes}분</span>
+                        )}
+                        {m.difficulty && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            color: DIFF_META[m.difficulty]?.color || 'var(--text-3)',
+                          }}>
+                            {DIFF_META[m.difficulty]?.label || m.difficulty}
+                          </span>
+                        )}
                       </div>
                     )}
                     <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>

@@ -5,7 +5,7 @@ import {
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
   Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
-  LogOut,
+  LogOut, LineChart,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -24,6 +24,7 @@ const NAV = {
         { path: '/company/new', label: '의뢰 등록', icon: Plus },
         { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
         { path: '/company/diagnosis', label: '5차원 진단', icon: Layers },
+        { path: '/company/timeline', label: '시계열 추적', icon: LineChart },
       ],
     },
     {

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (이미지 어노테이션 다중 드래그 + 코멘트 박스 UI)
+최종 업데이트: 2026-04-29 (기업·패널 참여도 향상 기능 전면 구현)
 ================================================================
 
 ## 서비스 개요
@@ -44,13 +44,26 @@
 
 3. 피드백 결과 (/company/results) — Results.jsx
    - 보유 미션 목록 표시 (missions 테이블 SELECT)
-   - 미션 선택 시 해당 피드백 목록 표시 (feedbacks 테이블 SELECT)
+   - 미션 선택 시 해당 피드백 목록 표시 (feedbacks JOIN panels SELECT)
    - 5개 축 평균 점수 시각화
+   - 패널 세그먼트 필터: 산업군·경력 드롭다운으로 feedbacks 필터링 → 실시간 점수 재계산
+   - 공유 링크 기능: missions.share_token 생성/복사/해제
+     · "링크 공유" 버튼 → crypto.randomUUID() → missions.share_token UPDATE
+     · 복사 → navigator.clipboard → /share/{token} URL
+     · 해제 → share_token = null
 
 4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
    - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
    - "개선 가이드 보기 →" 버튼: 가장 취약한 차원 감지 → 맞춤 개선 팁 5개 모달 표시
      (IMPROVEMENT_GUIDES 상수: 5개 차원별 실행 가능한 액션 아이템 정의)
+   - 탭 '키워드 분석' 추가: feedbacks suggestions/strengths/weaknesses 텍스트에서
+     한국어 불용어 제거 후 단어 빈도 분석 → 태그 클라우드 + 상위 10개 빈도 바
+
+4.5 시계열 추적 (/company/timeline) — TimelineTracker.jsx  ★ 신규
+   - 미션별·주간 뷰 전환 (주간/미션별 토글)
+   - 미션 칩 토글로 비교할 미션 선택
+   - Recharts LineChart: 5차원 점수 시계열 변화
+   - 하단 요약 테이블 (점수 색상 코딩)
 
 5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx
    - 소재 유형 선택, variantA/variantB 텍스트 입력, 패널 수 & 보상 설정
@@ -228,4 +241,8 @@
 - / : Landing.jsx (공개)
 - /login : Login.jsx (공개)
 - /signup : Signup.jsx (공개, role 선택 포함)
+- /share/:token : ShareResult.jsx (공개, 인증 불필요)
+  - get_shared_mission(p_token) SECURITY DEFINER RPC 호출
+  - 미션 제목·페르소나·피드백 수·5차원 평균 점수 표시
+  - 토큰 없거나 만료 시 404 화면
 - /*/notifications : NotificationCenter.jsx (역할별 알림, 각 포털 공유)

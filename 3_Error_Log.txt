@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29 (이미지 어노테이션 다중 드래그 + 코멘트 박스 UI)
+최종 업데이트: 2026-04-29 (기업·패널 참여도 향상 기능 전면 구현)
 ================================================================
 
 ## 핵심 원칙
@@ -420,3 +420,68 @@ D-18. Enterprise 플랜 문의 처리 패턴 (2026-04-29)
      → 문의 내용은 notifications 테이블에 INSERT (type='info', icon='📧')
      → 실제 이메일 발송이 없으므로 추후 Supabase Edge Function + 이메일 서비스 연동 권장
      → 현재: 어드민이 notifications 테이블 또는 알림 센터에서 문의 내용 확인 가능
+
+2026-04-29  패널 참여도 향상 게이미피케이션 (9차)
+            [신규 파일]
+            - supabase/migrations/009_gamification.sql:
+              · panels: streak_count / last_mission_date / badges 컬럼 추가
+              · missions: estimated_minutes / difficulty 컬럼 추가
+              · update_panel_gamification(p_panel_id UUID) SECURITY DEFINER RPC
+                (trust_score / tier / streak / badges 자동 계산)
+            [수정 파일]
+            - panel/Dashboard.jsx: 티어 배지 + 스트릭 + 신뢰도 프로그레스 바
+              Draft 24h 이어하기 알림 자동 생성 (오늘 중복 체크 후 INSERT)
+              미션 카드에 estimated_minutes / difficulty 표시
+            - panel/Missions.jsx: 카드에 시간·난이도 표시 / EXPERT+ELITE 보상 내림차순 정렬
+            - panel/ActiveMission.jsx: 제출 후 update_panel_gamification RPC 호출
+              기업 user_id 조회 → notifications INSERT (새 피드백 도착)
+            - panel/Profile.jsx: '성과' 5번째 탭 — 티어/trust_score/streak/뱃지 그리드
+            - company/NewMission.jsx: Step 0에 estimated_minutes 드롭다운 + difficulty 라디오
+            - admin/PanelManagement.jsx: 상세 패널에 획득 뱃지 섹션 추가
+            [빌드]
+            - npm run build 경고 0개 확인
+
+2026-04-29  기업 참여도 향상 — 세그먼트 필터·시계열·키워드·공유 (10차)
+            [신규 파일]
+            - supabase/migrations/010_sharing.sql:
+              · missions.share_token TEXT UNIQUE 컬럼 추가
+              · get_shared_mission(p_token TEXT) RETURNS jsonb SECURITY DEFINER RPC
+                (토큰으로 미션 정보 + purity_passed 피드백 집계, 인증 불필요)
+            - src/pages/company/TimelineTracker.jsx (신규):
+              · 미션별 칩 토글로 비교 미션 선택
+              · 주간/미션별 뷰 전환
+              · Recharts LineChart 5차원 점수 시계열
+              · 하단 요약 테이블 (색상 코딩)
+            - src/pages/ShareResult.jsx (신규):
+              · /share/:token 공개 페이지 (인증 불필요)
+              · get_shared_mission RPC 호출 → 종합 점수 + 5차원 바 + 페르소나 표시
+              · 토큰 없을 시 404 화면
+            [수정 파일]
+            - company/Results.jsx: feedbacks JOIN panels(industry, experience, name)
+              · 산업군·경력 드롭다운 필터 → filteredFeedbacks → 점수 재계산
+              · 공유 링크: share_token 생성(crypto.randomUUID 32자)/복사/해제 버튼
+            - company/Diagnosis.jsx: '키워드 분석' 탭 추가
+              · KO_STOP 한국어 불용어 Set (40여 개)
+              · extractKeywords(): suggestions/strengths/weaknesses 토큰화 → 빈도 상위 60개
+              · 태그 클라우드 (font-size / opacity / hue 빈도 비례)
+              · 상위 10개 빈도 바 차트
+            - App.jsx: /share/:token 공개 라우트 + /company/timeline 라우트 추가
+            - Sidebar.jsx: company 메인 의뢰 그룹에 '시계열 추적' 메뉴 추가 (LineChart 아이콘)
+            [SQL 실행 필요]
+            - Supabase SQL Editor에서 009_gamification.sql, 010_sharing.sql 순서대로 실행
+            [빌드]
+            - npm run build 경고 0개, 4.21s
+
+D-19. 공유 링크 share_token 생성 패턴 (2026-04-29)
+     → crypto.randomUUID().replace(/-/g, '') 로 32자 토큰 생성 (UUID 하이픈 제거)
+     → missions.share_token UPDATE 후 localStorage에도 캐싱 (재조회 없이 즉시 버튼 전환)
+     → 해제 시 share_token = null UPDATE
+     → get_shared_mission RPC는 SECURITY DEFINER이므로 RLS 우회 → 인증 없이 공개 접근 가능
+
+D-20. 한국어 키워드 클러스터링 패턴 (2026-04-29)
+     → feedbacks의 suggestions/strengths/weaknesses 3개 필드를 합산 후 토큰화
+     → 구분자: 공백·쉼표·괄호·특수기호 정규식 split
+     → 정제: 한글·영숫자만 남기기 → 길이 2 미만·불용어 Set 제거
+     → KO_STOP Set: 조사·접속사·자주 나오는 동사형 어미 40여 개 정의
+     → 상위 60개만 슬라이스 → 태그 클라우드로 렌더링
+     → 빌드에 외부 라이브러리 불필요 (순수 JS 구현)
