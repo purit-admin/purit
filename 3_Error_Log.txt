@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29
+최종 업데이트: 2026-04-29 (계정 페이지 전 포털 연동)
 ================================================================
 
 ## 핵심 원칙
@@ -320,6 +320,46 @@ D-13. 서브 미션 파이프라인 연동 패턴 (2026-04-29)
         동시에 feedbacks UPDATE(submitted) + 2개 RPC 호출
      → 어드민 PurityFilter: feedbacks를 기준으로 목록 표시, 선택 시 mission.type으로
         응답 테이블 분기 로드 (WHERE mission_id AND panel_id)
+
+2026-04-29  계정 페이지 전 포털 연동 (6차)
+            [신규 파일]
+            - company/Account.jsx: 기업 계정 페이지 (프로필 탭 + 비밀번호 탭)
+              · companies SELECT/UPDATE (name, industry, website)
+              · supabase.auth.updateUser({ password }) — signInWithPassword 검증 선행
+            - admin/Account.jsx: 어드민 계정 페이지 (관리자 정보 탭 + 비밀번호 탭)
+              · supabase.auth.updateUser({ data: { name } }) — user_metadata 업데이트
+              · supabase.auth.updateUser({ password }) — signInWithPassword 검증 선행
+            [수정 파일]
+            - panel/Profile.jsx: 비밀번호 탭 추가 (4번째 탭)
+              · email state 추가 (signInWithPassword에 사용)
+              · handleChangePw 함수 추가
+            - Sidebar.jsx:
+              · Company '계정' 그룹: '내 계정'(/company/account) 최상단 추가
+              · Admin: '계정' 그룹 신규 추가 → '내 계정'(/admin/account)
+            - App.jsx: /company/account, /admin/account 라우트 추가
+            - company/Settings.jsx: 기업 프로필 탭 제거 (Account.jsx로 이전)
+              · profile 상태·handleSaveProfile·탭 JSX 전체 삭제
+            - company/Settings.jsx 알림 설정: localStorage 영속화
+              · 키 'purit_notif_prefs', 초기값 JSON.parse 시도 → 폴백 기본값
+              · 토글 클릭 시 localStorage.setItem 동시 호출
+            - company/Pricing.jsx: Supabase 연동 추가
+              · companies.plan 로드 → 현재 플랜 배지("현재 플랜") + 테두리 강조
+              · CTA 버튼 → companies.plan UPDATE (starter/pro/enterprise)
+              · 현재 플랜 버튼 "사용 중" 표시·비활성화
+            [빌드]
+            - npm run build 경고 0개 확인
+
+D-15. 비밀번호 변경 시 현재 비밀번호 재검증 패턴 ✅ 정착 (2026-04-29)
+     → supabase.auth.updateUser({ password })만으로는 현재 비밀번호 확인 불가
+     → signInWithPassword({ email, password: curPw }) 먼저 호출해 검증
+     → 실패 시 "현재 비밀번호가 올바르지 않습니다." 메시지 표시 후 조기 반환
+     → 3개 포털 모두 동일 패턴 사용 (company/Account, admin/Account, panel/Profile)
+
+D-16. 알림 설정 localStorage 영속화 패턴 (2026-04-29)
+     → 알림 토글 설정을 위한 별도 DB 컬럼이 없을 때 localStorage 사용
+     → 키: 'purit_notif_prefs', 값: JSON.stringify({ key: bool, ... })
+     → useState 초기값에서 JSON.parse 시도 → 실패 시 기본값 폴백
+     → 주의: 기기 간 동기화 안 됨. 추후 DB 저장 필요 시 companies 컬럼 추가 권장
 
 D-14. 서브 미션 응답 테이블 조회 시 .single() 사용 주의 (2026-04-29)
      → preference_responses.eq('mission_id', ...).eq('panel_id', ...).single() 사용

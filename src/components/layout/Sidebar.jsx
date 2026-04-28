@@ -47,6 +47,7 @@ const NAV = {
     {
       group: '계정',
       items: [
+        { path: '/company/account', label: '내 계정', icon: UserCog },
         { path: '/company/settings', label: '팀 & 설정', icon: Settings },
         { path: '/company/plans', label: '플랜 & 가격', icon: CreditCard },
       ],
@@ -90,6 +91,12 @@ const NAV = {
         { path: '/admin/missions', label: '미션 관리', icon: ClipboardList },
         { path: '/admin/purity', label: 'Purit Filter', icon: ShieldCheck },
         { path: '/admin/revenue', label: '수익 & 정산', icon: PieChart },
+      ],
+    },
+    {
+      group: '계정',
+      items: [
+        { path: '/admin/account', label: '내 계정', icon: UserCog },
       ],
     },
   ],

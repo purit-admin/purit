@@ -1,8 +1,6 @@
-// 플랜·가격 페이지 — Wynter는 구독형 + 건당 구조를 운용
-// PURIT는 한국 B2B 시장에 맞게 3플랜 + 구독 리테이너 + ICP Pulse 구조로 설계
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
+import { supabase } from '../../lib/supabase';
 
 const PLANS = [
   {
@@ -81,9 +79,47 @@ const ADD_ONS = [
 
 export default function PricingPage() {
   const [billing, setBilling] = useState('annual');
+  const [company, setCompany] = useState(null);
+  const [changing, setChanging] = useState('');
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: co } = await supabase.from('companies').select('id, plan').eq('user_id', user.id).single();
+      if (co) setCompany(co);
+    }
+    load();
+  }, []);
+
+  async function handleSelectPlan(planId) {
+    if (!company) return;
+    setChanging(planId);
+    setMsg('');
+    const { error } = await supabase.from('companies').update({ plan: planId }).eq('id', company.id);
+    if (!error) {
+      setCompany(c => ({ ...c, plan: planId }));
+      setMsg(planId === 'enterprise' ? '영업팀에 문의 요청이 접수됐습니다.' : '플랜이 변경됐습니다.');
+    } else {
+      setMsg('변경 실패: ' + error.message);
+    }
+    setChanging('');
+    setTimeout(() => setMsg(''), 3000);
+  }
+
+  const currentPlan = company?.plan?.toLowerCase() || '';
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 1100, animation: 'fadeUp 0.5s ease both' }}>
+      {msg && (
+        <div style={{
+          marginBottom: 20, padding: '12px 20px', borderRadius: 'var(--radius)', fontSize: 13,
+          background: msg.includes('실패') ? 'var(--red-dim)' : 'var(--accent-dim, rgba(126,200,160,0.12))',
+          color: msg.includes('실패') ? 'var(--red)' : 'var(--accent)',
+          fontWeight: 600, textAlign: 'center',
+        }}>{msg}</div>
+      )}
       <div style={{ marginBottom: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>PRICING</div>
         <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 10 }}>광고비 낭비 전에 투자하세요</h1>
@@ -107,11 +143,16 @@ export default function PricingPage() {
         {PLANS.map(plan => (
           <Card key={plan.id} style={{
             padding: '28px 24px',
-            borderColor: plan.highlight ? 'var(--accent)' : 'var(--border)',
+            borderColor: currentPlan === plan.id ? 'var(--accent)' : plan.highlight ? 'var(--accent)' : 'var(--border)',
             position: 'relative',
             background: plan.highlight ? 'linear-gradient(160deg, var(--surface), var(--bg-3))' : 'var(--surface)',
           }}>
-            {plan.highlight && (
+            {currentPlan === plan.id && (
+              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--green, #7EC8A0)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
+                현재 플랜
+              </div>
+            )}
+            {plan.highlight && currentPlan !== plan.id && (
               <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
                 가장 인기
               </div>
@@ -159,8 +200,13 @@ export default function PricingPage() {
               ))}
             </div>
 
-            <Btn variant={plan.highlight ? 'primary' : 'secondary'} style={{ width: '100%', justifyContent: 'center' }}>
-              {plan.cta}
+            <Btn
+              variant={currentPlan === plan.id ? 'secondary' : plan.highlight ? 'primary' : 'secondary'}
+              style={{ width: '100%', justifyContent: 'center' }}
+              disabled={currentPlan === plan.id || changing === plan.id}
+              onClick={() => handleSelectPlan(plan.id)}
+            >
+              {currentPlan === plan.id ? '사용 중' : changing === plan.id ? '변경 중...' : plan.cta}
             </Btn>
           </Card>
         ))}

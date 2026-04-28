@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (서브 의뢰 파이프라인 완성)
+최종 업데이트: 2026-04-29 (계정 페이지 전 포털 연동)
 ================================================================
 
 ## 기술 스택
@@ -54,7 +54,7 @@ purit/
 │       ├── Login.jsx                # 로그인
 │       ├── Signup.jsx               # 회원가입 (role 선택 포함)
 │       │
-│       ├── company/                 # Company 포털 (14개 페이지)
+│       ├── company/                 # Company 포털 (15개 페이지)
 │       │   ├── Dashboard.jsx        # ★ 시각화 엔진 (Recharts 3종 + Framer Motion)
 │       │   │                        #   - RadarChart: 5차원 내점수 vs 벤치마크
 │       │   │                        #   - RadialBarChart: KPI 달성률 게이지
@@ -71,22 +71,24 @@ purit/
 │       │   ├── ICPPulse.jsx
 │       │   ├── BrandTracking.jsx
 │       │   ├── AIReport.jsx
-│       │   ├── Settings.jsx
-│       │   └── Pricing.jsx
+│       │   ├── Account.jsx          # ★ 신규 — 기업 프로필 + 비밀번호 변경
+│       │   ├── Settings.jsx         # 팀 관리 + 플랜·결제 + 알림설정(localStorage)
+│       │   └── Pricing.jsx          # 플랜 선택 — companies.plan Supabase 연동
 │       │
 │       ├── panel/                   # Panel 포털 (5개 페이지)
 │       │   ├── Dashboard.jsx
 │       │   ├── Missions.jsx
 │       │   ├── ActiveMission.jsx
 │       │   ├── History.jsx
-│       │   └── Profile.jsx
+│       │   └── Profile.jsx          # 기본정보+전문분야+정산계좌+비밀번호변경(탭4개)
 │       │
-│       └── admin/                   # Admin 포털 (5개 페이지)
+│       └── admin/                   # Admin 포털 (6개 페이지)
 │           ├── Dashboard.jsx
 │           ├── PanelManagement.jsx
 │           ├── Missions.jsx
 │           ├── PurityFilter.jsx
-│           └── Revenue.jsx
+│           ├── Revenue.jsx
+│           └── Account.jsx          # ★ 신규 — 관리자 이름 + 비밀번호 변경
 │
 ├── supabase/
 │   ├── migrations/
@@ -109,7 +111,7 @@ purit/
 └── package.json
 
 ================================================================
-## 라우트 전체 목록 (26개)
+## 라우트 전체 목록 (28개)
 ================================================================
 
 [공개]
@@ -131,6 +133,7 @@ purit/
   /company/icp-pulse         → ICPPulse.jsx
   /company/brand             → BrandTracking.jsx
   /company/report            → AIReport.jsx
+  /company/account           → Account.jsx          ★ 신규
   /company/settings          → Settings.jsx
   /company/plans             → Pricing.jsx
 
@@ -149,6 +152,7 @@ purit/
   /admin/missions            → Missions.jsx
   /admin/purity              → PurityFilter.jsx
   /admin/revenue             → Revenue.jsx
+  /admin/account             → Account.jsx          ★ 신규
 
 ================================================================
 ## DB 스키마 (Supabase / PostgreSQL)

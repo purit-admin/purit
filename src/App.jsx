@@ -21,6 +21,8 @@ import ICPPulse from './pages/company/ICPPulse';
 import QuestionTemplates from './pages/company/QuestionTemplates';
 import PricingPage from './pages/company/Pricing';
 import AccountSettings from './pages/company/Settings';
+import CompanyAccount from './pages/company/Account';
+import AdminAccount from './pages/admin/Account';
 
 // Panel pages
 import PanelDashboard from './pages/panel/Dashboard';
@@ -76,6 +78,7 @@ function AppRoutes() {
       <Route path="/company/icp-pulse" element={<RoleRoute role="company"><CL><ICPPulse /></CL></RoleRoute>} />
       <Route path="/company/brand" element={<RoleRoute role="company"><CL><BrandTracking /></CL></RoleRoute>} />
       <Route path="/company/report" element={<RoleRoute role="company"><CL><AIReport /></CL></RoleRoute>} />
+      <Route path="/company/account" element={<RoleRoute role="company"><CL><CompanyAccount /></CL></RoleRoute>} />
       <Route path="/company/settings" element={<RoleRoute role="company"><CL><AccountSettings /></CL></RoleRoute>} />
       <Route path="/company/plans" element={<RoleRoute role="company"><CL><PricingPage /></CL></RoleRoute>} />
 
@@ -94,6 +97,7 @@ function AppRoutes() {
       <Route path="/admin/missions" element={<RoleRoute role="admin"><AL><AdminMissions /></AL></RoleRoute>} />
       <Route path="/admin/purity" element={<RoleRoute role="admin"><AL><PurityFilter /></AL></RoleRoute>} />
       <Route path="/admin/revenue" element={<RoleRoute role="admin"><AL><RevenueManagement /></AL></RoleRoute>} />
+      <Route path="/admin/account" element={<RoleRoute role="admin"><AL><AdminAccount /></AL></RoleRoute>} />
     </Routes>
   );
 }

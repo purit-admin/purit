@@ -18,10 +18,12 @@ export default function AccountSettings() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
   const [inviting, setInviting] = useState(false);
-  const [profile, setProfile] = useState({ name: '', industry: '', email: '', website: '' });
-  const [notif, setNotif] = useState({ feedbackComplete: true, purityAlert: true, weeklyDigest: false, newMission: true });
-  const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
+
+  const NOTIF_KEY = 'purit_notif_prefs';
+  const [notif, setNotif] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(NOTIF_KEY)) || { feedbackComplete: true, purityAlert: true, weeklyDigest: false, newMission: true }; }
+    catch { return { feedbackComplete: true, purityAlert: true, weeklyDigest: false, newMission: true }; }
+  });
 
   useEffect(() => {
     load();
@@ -35,8 +37,6 @@ export default function AccountSettings() {
     const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
     setCompany(co);
     if (co) {
-      setProfile({ name: co.name || '', industry: co.industry || '', email: user.email || '', website: co.website || '' });
-
       const [membersRes, invRes] = await Promise.all([
         supabase.from('team_members').select('*').eq('company_id', co.id).neq('status', 'inactive').order('joined_at'),
         supabase.from('invoices').select('*').eq('company_id', co.id).order('invoice_date', { ascending: false }).limit(6),
@@ -68,18 +68,6 @@ export default function AccountSettings() {
     if (!error) setMembers(m => m.filter(x => x.id !== id));
   }
 
-  async function handleSaveProfile() {
-    if (!company) return;
-    setSaving(true);
-    setSaveMsg('');
-    const { error } = await supabase.from('companies')
-      .update({ name: profile.name, industry: profile.industry, website: profile.website })
-      .eq('id', company.id);
-    setSaving(false);
-    setSaveMsg(error ? '저장 실패: ' + error.message : '저장됐습니다.');
-    setTimeout(() => setSaveMsg(''), 3000);
-  }
-
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>데이터 로딩 중…</div>
   );
@@ -93,7 +81,7 @@ export default function AccountSettings() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
-        {[['team', '팀 관리'], ['plan', '플랜 & 결제'], ['notifications', '알림 설정'], ['profile', '기업 프로필']].map(([v, l]) => (
+        {[['team', '팀 관리'], ['plan', '플랜 & 결제'], ['notifications', '알림 설정']].map(([v, l]) => (
           <button key={v} onClick={() => setActiveTab(v)} style={{
             padding: '10px 20px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',
@@ -221,7 +209,7 @@ export default function AccountSettings() {
                 <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{desc}</div>
               </div>
               <div
-                onClick={() => setNotif(n => ({ ...n, [key]: !n[key] }))}
+                onClick={() => setNotif(n => { const next = { ...n, [key]: !n[key] }; localStorage.setItem(NOTIF_KEY, JSON.stringify(next)); return next; })}
                 style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: notif[key] ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
               >
                 <div style={{ position: 'absolute', top: 3, left: notif[key] ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
@@ -231,34 +219,6 @@ export default function AccountSettings() {
         </Card>
       )}
 
-      {/* PROFILE TAB */}
-      {activeTab === 'profile' && (
-        <Card>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 20 }}>기업 프로필</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {[
-              { label: '회사명', key: 'name', type: 'text' },
-              { label: '업종', key: 'industry', type: 'text' },
-              { label: '대표 이메일', key: 'email', type: 'text' },
-              { label: '웹사이트', key: 'website', type: 'text' },
-            ].map(({ label, key, type }) => (
-              <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-                <input
-                  type={type}
-                  value={profile[key] || ''}
-                  onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))}
-                  disabled={key === 'email'}
-                />
-              </label>
-            ))}
-            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 14 }}>
-              <Btn onClick={handleSaveProfile} disabled={saving}>{saving ? '저장 중…' : '변경사항 저장'}</Btn>
-              {saveMsg && <span style={{ fontSize: 13, color: saveMsg.startsWith('저장 실패') ? 'var(--red)' : 'var(--accent)' }}>{saveMsg}</span>}
-            </div>
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (서브 의뢰 파이프라인 완성)
+최종 업데이트: 2026-04-29 (계정 페이지 전 포털 연동)
 ================================================================
 
 ## 서비스 개요
@@ -87,8 +87,22 @@
     - ANTHROPIC_API_KEY 미설정 시 로컬 계산 기반 Mock 응답으로 폴백 (서비스 중단 없음)
 
 ### [계정]
-13. 팀 & 설정 (/company/settings) — Settings.jsx
-14. 플랜 & 가격 (/company/plans) — Pricing.jsx
+13. 내 계정 (/company/account) — Account.jsx  ★ 신규
+    - 탭 1 기업 프로필: 기업명·업종·웹사이트 → companies UPDATE / 이메일 읽기전용
+    - 탭 2 비밀번호 변경: signInWithPassword 검증 → supabase.auth.updateUser({ password })
+    - 사이드바 '계정' 그룹 최상단에 위치
+
+14. 팀 & 설정 (/company/settings) — Settings.jsx
+    - 탭 팀 관리: team_members INSERT/UPDATE (초대·제거)
+    - 탭 플랜 & 결제: companies.plan 표시 + invoices 결제 내역
+    - 탭 알림 설정: 토글 상태 localStorage 저장 (키: purit_notif_prefs), 재방문 복원
+    ※ 기업 프로필 탭 제거 → Account.jsx로 이전
+
+15. 플랜 & 가격 (/company/plans) — Pricing.jsx
+    - companies.plan Supabase 로드 → 현재 플랜 카드에 "현재 플랜" 배지 + 테두리 강조
+    - CTA 버튼 클릭 → companies.plan UPDATE (starter/pro/enterprise)
+    - 현재 사용 중 플랜 버튼 "사용 중" 표시·비활성화
+    - 성공/실패 메시지 상단 표시
 
 ================================================================
 ## 역할 2: Panel (패널/응답자)
@@ -148,8 +162,10 @@
    - draft 상태 피드백 제외 (.neq('status', 'draft'))
 
 5. 프로필 설정 (/panel/profile) — Profile.jsx
-   - 이름, 산업, 경력, 전문 분야, 은행 계좌 정보 조회/수정
-   - panels SELECT → panels UPDATE
+   - 탭 기본 정보: 이름·직군·경력·자기소개 → panels UPDATE
+   - 탭 전문 분야: expertise 배열 토글 → panels UPDATE
+   - 탭 정산 계좌: bank_name·bank_account·bank_holder → panels UPDATE
+   - 탭 비밀번호: signInWithPassword 검증 → supabase.auth.updateUser({ password })  ★ 신규
 
 ================================================================
 ## 역할 3: Admin (관리자)
@@ -165,7 +181,6 @@
 1. 플랫폼 대시보드 (/admin) — Dashboard.jsx
 2. 패널 관리 (/admin/panels) — PanelManagement.jsx
 3. 미션 관리 (/admin/missions) — Missions.jsx
-3. 미션 관리 (/admin/missions) — Missions.jsx
    - 미션 목록에 유형 뱃지 표시: LP 검증 / 소재 비교 / 가격 검증 / 이메일 검증
 
 4. Purity Filter (/admin/purity) — PurityFilter.jsx
@@ -179,6 +194,9 @@
    - Purit Score: 서브 미션은 calcSubPurityScore (코멘트 충실도 + 지표 충실도 기반)
    - 승인/반려: feedbacks.status 업데이트 (서브 미션도 동일)
 5. 수익 & 정산 (/admin/revenue) — Revenue.jsx
+6. 내 계정 (/admin/account) — Account.jsx  ★ 신규
+   - 탭 관리자 정보: 이름 → supabase.auth.updateUser({ data: { name } }) / 이메일 읽기전용
+   - 탭 비밀번호 변경: signInWithPassword 검증 → supabase.auth.updateUser({ password })
 
 ================================================================
 ## 인증 흐름

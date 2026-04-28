@@ -14,6 +14,13 @@ export default function PanelProfile() {
   const [saving, setSaving]     = useState(false);
   const [saved, setSaved]       = useState('');
   const [loading, setLoading]   = useState(true);
+  const [email, setEmail]       = useState('');
+
+  const [curPw, setCurPw]       = useState('');
+  const [newPw, setNewPw]       = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg]       = useState('');
 
   // form state
   const [name, setName]           = useState('');
@@ -29,6 +36,7 @@ export default function PanelProfile() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setEmail(user.email || '');
 
       const { data: p } = await supabase
         .from('panels').select('*').eq('user_id', user.id).single();
@@ -68,6 +76,21 @@ export default function PanelProfile() {
 
   const toggleExpertise = (e) =>
     setExpertise(prev => prev.includes(e) ? prev.filter(x => x !== e) : [...prev, e]);
+
+  async function handleChangePw() {
+    setPwMsg('');
+    if (!newPw || newPw.length < 6) { setPwMsg('새 비밀번호는 6자 이상이어야 합니다.'); return; }
+    if (newPw !== confirmPw) { setPwMsg('새 비밀번호가 일치하지 않습니다.'); return; }
+    setPwSaving(true);
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password: curPw });
+    if (signInErr) { setPwMsg('현재 비밀번호가 올바르지 않습니다.'); setPwSaving(false); return; }
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    setPwSaving(false);
+    if (error) { setPwMsg('변경 실패: ' + error.message); return; }
+    setPwMsg('비밀번호가 변경됐습니다.');
+    setCurPw(''); setNewPw(''); setConfirmPw('');
+    setTimeout(() => setPwMsg(''), 3000);
+  }
 
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
@@ -109,8 +132,8 @@ export default function PanelProfile() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
-        {[['profile', '기본 정보'], ['expertise', '전문 분야'], ['payment', '정산 계좌']].map(([v, l]) => (
-          <button key={v} onClick={() => { setTab(v); setSaved(''); }} style={{
+        {[['profile', '기본 정보'], ['expertise', '전문 분야'], ['payment', '정산 계좌'], ['password', '비밀번호']].map(([v, l]) => (
+          <button key={v} onClick={() => { setTab(v); setSaved(''); setPwMsg(''); }} style={{
             padding: '10px 18px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',
             color: tab === v ? 'var(--text)' : 'var(--text-3)',
@@ -121,6 +144,16 @@ export default function PanelProfile() {
       </div>
 
       {/* Feedback */}
+      {pwMsg && (
+        <div style={{
+          marginBottom: 16, padding: '10px 16px', borderRadius: 'var(--radius)', fontSize: 13,
+          background: pwMsg.includes('실패') || pwMsg.includes('않') ? 'var(--red-dim)' : 'var(--green-dim)',
+          color: pwMsg.includes('실패') || pwMsg.includes('않') ? 'var(--red)' : 'var(--green)',
+          fontWeight: 600,
+        }}>
+          {pwMsg}
+        </div>
+      )}
       {saved && (
         <div style={{
           marginBottom: 16, padding: '10px 16px', borderRadius: 'var(--radius)', fontSize: 13,
@@ -197,6 +230,29 @@ export default function PanelProfile() {
           <Btn disabled={saving} onClick={() => save({ expertise })}>
             {saving ? '저장 중...' : '저장'}
           </Btn>
+        </Card>
+      )}
+
+      {/* Password tab */}
+      {tab === 'password' && (
+        <Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <label style={lbl}>
+              <span style={lblTxt}>현재 비밀번호</span>
+              <input type="password" value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="현재 비밀번호 입력" />
+            </label>
+            <label style={lbl}>
+              <span style={lblTxt}>새 비밀번호</span>
+              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="6자 이상" />
+            </label>
+            <label style={lbl}>
+              <span style={lblTxt}>새 비밀번호 확인</span>
+              <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="동일하게 입력" />
+            </label>
+            <Btn style={{ alignSelf: 'flex-start' }} disabled={pwSaving} onClick={handleChangePw}>
+              {pwSaving ? '변경 중...' : '비밀번호 변경'}
+            </Btn>
+          </div>
         </Card>
       )}
 
