@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -10,6 +11,7 @@ const ROLE_PERMS = {
 };
 
 export default function AccountSettings() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('team');
   const [members, setMembers] = useState([]);
   const [company, setCompany] = useState(null);
@@ -168,7 +170,7 @@ export default function AccountSettings() {
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>현재 플랜</div>
                 <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{company?.plan || 'Starter'} 플랜</div>
               </div>
-              <Btn size="sm" variant="outline">플랜 변경</Btn>
+              <Btn size="sm" variant="outline" onClick={() => navigate('/company/plans')}>플랜 변경</Btn>
             </div>
           </Card>
           <Card style={{ padding: '20px 24px' }}>

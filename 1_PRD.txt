@@ -49,6 +49,8 @@
 
 4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
    - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
+   - "개선 가이드 보기 →" 버튼: 가장 취약한 차원 감지 → 맞춤 개선 팁 5개 모달 표시
+     (IMPROVEMENT_GUIDES 상수: 5개 차원별 실행 가능한 액션 아이템 정의)
 
 5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx
    - 소재 유형 선택, variantA/variantB 텍스트 입력, 패널 수 & 보상 설정
@@ -95,14 +97,19 @@
 14. 팀 & 설정 (/company/settings) — Settings.jsx
     - 탭 팀 관리: team_members INSERT/UPDATE (초대·제거)
     - 탭 플랜 & 결제: companies.plan 표시 + invoices 결제 내역
+      "플랜 변경" 버튼 → /company/plans 이동
     - 탭 알림 설정: 토글 상태 localStorage 저장 (키: purit_notif_prefs), 재방문 복원
     ※ 기업 프로필 탭 제거 → Account.jsx로 이전
 
 15. 플랜 & 가격 (/company/plans) — Pricing.jsx
     - companies.plan Supabase 로드 → 현재 플랜 카드에 "현재 플랜" 배지 + 테두리 강조
-    - CTA 버튼 클릭 → companies.plan UPDATE (starter/pro/enterprise)
+    - CTA 버튼 클릭 → companies.plan UPDATE (starter/pro)
     - 현재 사용 중 플랜 버튼 "사용 중" 표시·비활성화
     - 성공/실패 메시지 상단 표시
+    - Enterprise "영업팀 문의" 버튼: 문의 모달 표시
+      · 이메일 연락처(enterprise@purit.io) + 자유 문의 textarea
+      · 제출 시 notifications 테이블에 접수 기록 INSERT
+      · 완료 후 2.5초 뒤 모달 자동 닫힘
 
 ================================================================
 ## 역할 2: Panel (패널/응답자)

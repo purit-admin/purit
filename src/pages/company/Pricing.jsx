@@ -82,6 +82,10 @@ export default function PricingPage() {
   const [company, setCompany] = useState(null);
   const [changing, setChanging] = useState('');
   const [msg, setMsg] = useState('');
+  const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
+  const [contactMsg, setContactMsg] = useState('');
+  const [contactSending, setContactSending] = useState(false);
+  const [contactDone, setContactDone] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -94,18 +98,43 @@ export default function PricingPage() {
   }, []);
 
   async function handleSelectPlan(planId) {
+    if (planId === 'enterprise') {
+      setShowEnterpriseModal(true);
+      return;
+    }
     if (!company) return;
     setChanging(planId);
     setMsg('');
     const { error } = await supabase.from('companies').update({ plan: planId }).eq('id', company.id);
     if (!error) {
       setCompany(c => ({ ...c, plan: planId }));
-      setMsg(planId === 'enterprise' ? '영업팀에 문의 요청이 접수됐습니다.' : '플랜이 변경됐습니다.');
+      setMsg('플랜이 변경됐습니다.');
     } else {
       setMsg('변경 실패: ' + error.message);
     }
     setChanging('');
     setTimeout(() => setMsg(''), 3000);
+  }
+
+  async function handleContactSubmit() {
+    if (!contactMsg.trim()) return;
+    setContactSending(true);
+    await supabase.from('notifications').insert({
+      user_id: (await supabase.auth.getUser()).data.user?.id,
+      type: 'info',
+      icon: '📧',
+      title: 'Enterprise 문의 접수',
+      body: `문의 내용: ${contactMsg.slice(0, 100)}`,
+      action_url: '/company/plans',
+      read: false,
+    });
+    setContactSending(false);
+    setContactDone(true);
+    setContactMsg('');
+    setTimeout(() => {
+      setShowEnterpriseModal(false);
+      setContactDone(false);
+    }, 2500);
   }
 
   const currentPlan = company?.plan?.toLowerCase() || '';
@@ -225,6 +254,46 @@ export default function PricingPage() {
           </div>
         ))}
       </div>
+
+      {/* Enterprise 문의 모달 */}
+      {showEnterpriseModal && (
+        <div onClick={() => { setShowEnterpriseModal(false); setContactDone(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 36, maxWidth: 480, width: '100%', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Enterprise 플랜</div>
+                <div style={{ fontSize: 20, fontWeight: 800 }}>영업팀 문의</div>
+              </div>
+              <button onClick={() => { setShowEnterpriseModal(false); setContactDone(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1 }}>✕</button>
+            </div>
+            {contactDone ? (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>문의가 접수됐습니다</div>
+                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>영업팀이 1영업일 이내에 연락드립니다.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 20, padding: '16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 10 }}>직접 연락을 원하시면:</div>
+                  <a href="mailto:enterprise@purit.io" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>enterprise@purit.io</a>
+                </div>
+                <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600 }}>문의 내용을 남겨주세요</div>
+                <textarea
+                  value={contactMsg}
+                  onChange={e => setContactMsg(e.target.value)}
+                  placeholder="팀 규모, 월 광고비, 원하는 기능 등을 알려주시면 맞춤 견적을 드립니다."
+                  rows={4}
+                  style={{ width: '100%', resize: 'vertical', marginBottom: 16, boxSizing: 'border-box' }}
+                />
+                <Btn variant="primary" style={{ width: '100%', justifyContent: 'center' }} disabled={!contactMsg.trim() || contactSending} onClick={handleContactSubmit}>
+                  {contactSending ? '전송 중…' : '문의 전송'}
+                </Btn>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* FAQ */}
       <div style={{ marginTop: 48, padding: '28px', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>

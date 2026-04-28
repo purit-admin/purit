@@ -2,6 +2,59 @@ import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
+const IMPROVEMENT_GUIDES = {
+  clarity_score: {
+    title: '명확성 개선 가이드',
+    tips: [
+      '첫 문장에서 "누구를 위한 무엇"인지 명시하세요. (예: "B2B 마케터를 위한 전환율 분석 툴")',
+      '헤드라인을 3초 안에 읽히도록 10단어 이내로 줄이세요.',
+      '전문 용어·약어를 일반 언어로 바꾸세요. 업계 용어는 패널이 이해 못할 수 있습니다.',
+      'CTA 버튼 문구를 "시작하기" 대신 "무료로 전환율 진단받기"처럼 구체적으로 바꾸세요.',
+      '히어로 섹션에 제품 사용 화면 또는 결과물 이미지를 넣으세요.',
+    ],
+  },
+  relevance_score: {
+    title: '관련성 개선 가이드',
+    tips: [
+      '타겟 고객의 고통점을 첫 문단에서 직접 언급하세요. (예: "광고비는 쓰는데 전환이 안 되시나요?")',
+      'ICP(이상적 고객 프로필)의 언어를 그대로 사용하세요. 인터뷰·리뷰에서 실제 표현을 가져오세요.',
+      '특정 직군·산업군을 명시하면 관련성이 높아집니다. 범용 메시지는 아무에게도 와닿지 않습니다.',
+      '사용 사례(Use Case)를 3가지 이상 구체적 시나리오로 제시하세요.',
+      '헤드라인에 숫자·기간을 넣으세요. (예: "2주 안에 전환율 23% 개선")',
+    ],
+  },
+  value_score: {
+    title: '가치 개선 가이드',
+    tips: [
+      'ROI를 계산해서 보여주세요. (예: "월 100만 원 절감" vs "효율적인 마케팅")',
+      '경쟁사 대비 가격 이점 또는 품질 이점을 수치로 제시하세요.',
+      '무료 체험·환불 보장·성과 기반 요금제로 초기 진입 장벽을 낮추세요.',
+      '고객 사례(Before/After)를 숫자로 표현하세요. (예: "A사: 전환율 1.2% → 3.8%")',
+      '가격 페이지에서 각 플랜이 어떤 문제를 해결하는지 명확히 연결하세요.',
+    ],
+  },
+  differentiation_score: {
+    title: '차별화 개선 가이드',
+    tips: [
+      '"왜 우리인가" 섹션을 별도로 만들고 경쟁사와 기능 비교표를 추가하세요.',
+      '독보적인 데이터·특허·방법론이 있다면 수치로 강조하세요.',
+      '창업자 스토리나 팀의 독특한 배경을 짧게 소개하세요. 사람이 차별점이 될 수 있습니다.',
+      '고객 리뷰에서 "타 서비스와 달리..." 언급이 있으면 이를 문구로 활용하세요.',
+      '틈새 시장에 집중한다면 "유일한 [특정 대상]을 위한 솔루션"으로 포지셔닝하세요.',
+    ],
+  },
+  trust_score: {
+    title: '신뢰 개선 가이드',
+    tips: [
+      '고객사 로고를 히어로 섹션 바로 아래에 배치하세요. 브랜드 인지도가 신뢰를 전달합니다.',
+      '리뷰·후기를 직함·회사명과 함께 실명으로 표시하세요. 익명 후기는 효과가 낮습니다.',
+      '미디어 노출(언론 기사, 수상 이력)을 "~에 소개된"으로 표현하세요.',
+      '보안 인증·개인정보 처리방침 링크를 결제 CTA 근처에 배치하세요.',
+      '창업자·팀 소개 페이지에 LinkedIn 링크를 넣어 실존 인물임을 증명하세요.',
+    ],
+  },
+};
+
 const DIMENSIONS = [
   { key: 'clarity_score',         label: '명확성',   sublabel: 'Clarity',        icon: '◎', color: 'var(--blue)',   desc: '메시지를 처음 본 사람이 3초 안에 무엇을 파는지 이해하는가?', benchmark: 3.2 },
   { key: 'relevance_score',       label: '관련성',   sublabel: 'Relevance',      icon: '◆', color: 'var(--green)',  desc: '타겟 고객의 현실적인 고통과 욕구에 메시지가 정렬되어 있는가?', benchmark: 2.8 },
@@ -21,6 +74,7 @@ export default function Diagnosis() {
   const [selectedMission, setSelectedMission] = useState('all');
   const [loading, setLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => { load(); }, []);
   useEffect(() => { if (missions.length) loadFeedbacks(selectedMission); }, [selectedMission]);
@@ -131,7 +185,7 @@ export default function Diagnosis() {
                 가장 취약한 차원: <span style={{ color: worstDim.color }}>{worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)})</span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 14 }}>{worstDim.desc}</p>
-              <Btn size="sm" variant="outline">개선 가이드 보기 →</Btn>
+              <Btn size="sm" variant="outline" onClick={() => setShowGuide(true)}>개선 가이드 보기 →</Btn>
             </div>
           </Card>
 
@@ -230,6 +284,35 @@ export default function Diagnosis() {
           )}
         </>
       )}
+
+      {/* 개선 가이드 모달 */}
+      {showGuide && (() => {
+        const guide = IMPROVEMENT_GUIDES[worstDim.key];
+        return (
+          <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 36, maxWidth: 540, width: '100%', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: worstDim.color, marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>개선 가이드 — {worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)}/5)</div>
+                  <div style={{ fontSize: 20, fontWeight: 800 }}>{guide.title}</div>
+                </div>
+                <button onClick={() => setShowGuide(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {guide.tips.map((tip, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: `3px solid ${worstDim.color}` }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: worstDim.color, fontWeight: 700, flexShrink: 0, marginTop: 2 }}>0{i + 1}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{tip}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 20, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
+                이 가이드는 "{worstDim.label}" 차원 점수를 기반으로 자동 생성됩니다.
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

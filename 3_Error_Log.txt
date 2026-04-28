@@ -394,3 +394,29 @@ D-14. 서브 미션 응답 테이블 조회 시 .single() 사용 주의 (2026-04
      → 응답이 없으면 null (에러 아님) → data || null 처리 필수
      → 마이그레이션 007 실행 전에는 mission_id 컬럼이 없어 쿼리 실패
         반드시 Supabase SQL Editor에서 007, 008 순서대로 실행 후 사용
+
+2026-04-29  미연동 버튼 전면 활성화 (8차)
+            [수정 파일]
+            - company/Diagnosis.jsx:
+              · IMPROVEMENT_GUIDES 상수 추가 (5개 차원별 개선 팁 5개씩)
+              · showGuide state 추가
+              · "개선 가이드 보기 →" 버튼 onClick → setShowGuide(true)
+              · 가장 취약한 차원(worstDim) 기반 맞춤 개선 팁 모달 표시
+              · 배경 클릭 또는 ✕ 버튼으로 모달 닫힘
+            - company/Settings.jsx:
+              · useNavigate import 추가
+              · "플랜 변경" 버튼 onClick → navigate('/company/plans')
+            - company/Pricing.jsx:
+              · showEnterpriseModal / contactMsg / contactSending / contactDone state 추가
+              · handleSelectPlan: enterprise 선택 시 DB UPDATE 대신 모달 표시로 분기
+              · handleContactSubmit: 문의 내용 → notifications 테이블 INSERT
+              · Enterprise 문의 모달: 이메일(enterprise@purit.io) + textarea + 전송 버튼
+              · 전송 완료 시 성공 화면 2.5초 표시 후 자동 닫힘
+            [빌드]
+            - npm run build 경고 0개 확인
+
+D-18. Enterprise 플랜 문의 처리 패턴 (2026-04-29)
+     → Enterprise는 DB plan UPDATE 대신 모달 문의 접수로 처리
+     → 문의 내용은 notifications 테이블에 INSERT (type='info', icon='📧')
+     → 실제 이메일 발송이 없으므로 추후 Supabase Edge Function + 이메일 서비스 연동 권장
+     → 현재: 어드민이 notifications 테이블 또는 알림 센터에서 문의 내용 확인 가능
