@@ -2,49 +2,18 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Btn } from './index';
 
 const DIMENSIONS = [
-  { key: 'clarity',         label: '명확성',   color: '#34C759', bg: 'rgba(52,199,89,0.18)'   },
-  { key: 'relevance',       label: '관련성',   color: '#f59e0b', bg: 'rgba(245,158,11,0.18)'  },
-  { key: 'value',           label: '가치',     color: '#6366f1', bg: 'rgba(99,102,241,0.18)'  },
-  { key: 'differentiation', label: '차별화',   color: '#ef4444', bg: 'rgba(239,68,68,0.18)'   },
-  { key: 'trust',           label: '신뢰',     color: '#94a3b8', bg: 'rgba(148,163,184,0.18)' },
+  { key: 'clarity',         label: '명확성', short: '명', color: '#34C759', bg: 'rgba(52,199,89,0.18)'   },
+  { key: 'relevance',       label: '관련성', short: '관', color: '#f59e0b', bg: 'rgba(245,158,11,0.18)'  },
+  { key: 'value',           label: '가치',   short: '가', color: '#6366f1', bg: 'rgba(99,102,241,0.18)'  },
+  { key: 'differentiation', label: '차별화', short: '차', color: '#ef4444', bg: 'rgba(239,68,68,0.18)'   },
+  { key: 'trust',           label: '신뢰',   short: '신', color: '#94a3b8', bg: 'rgba(148,163,184,0.18)' },
 ];
 
 const dimMeta = Object.fromEntries(DIMENSIONS.map(d => [d.key, d]));
 
-function AnnotationTooltip({ ann, onRemove, onClose, readonly }) {
-  const meta = dimMeta[ann.dimension];
-  return (
-    <div
-      onClick={e => e.stopPropagation()}
-      style={{
-        position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
-        background: 'var(--bg)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)', padding: '10px 12px',
-        minWidth: 200, maxWidth: 280, zIndex: 20,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-        fontSize: 12,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
-          {meta.label}
-        </span>
-        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{ann.score}점</span>
-        <span style={{ marginLeft: 'auto', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }} onClick={onClose}>×</span>
-      </div>
-      {ann.comment && (
-        <div style={{ color: 'var(--text-2)', lineHeight: 1.5, marginBottom: readonly ? 0 : 8 }}>{ann.comment}</div>
-      )}
-      {!readonly && (
-        <button
-          onClick={() => { onRemove(ann.id); onClose(); }}
-          style={{ fontSize: 11, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        >
-          삭제
-        </button>
-      )}
-    </div>
-  );
+function getDimSeq(annotations, ann) {
+  const sameDim = annotations.filter(a => a.dimension === ann.dimension);
+  return sameDim.findIndex(a => a.id === ann.id) + 1;
 }
 
 export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations = [], onAdd, onRemove, readonly = false }) {
@@ -53,7 +22,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
   const [dragStart, setDragStart]     = useState({ x: 0, y: 0 });
   const [dragRect, setDragRect]       = useState(null);
   const [popup, setPopup]             = useState(null);
-  const [popupForm, setPopupForm]     = useState({ dimension: 'clarity', score: 3, comment: '' });
+  const [popupForm, setPopupForm]     = useState({ dimension: 'clarity', score: 3 });
   const [selectedAnn, setSelectedAnn] = useState(null);
 
   const getRelativePct = useCallback((clientX, clientY) => {
@@ -100,7 +69,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
       setDragRect(null);
       if (rect.w > 2 && rect.h > 2) {
         setPopup(rect);
-        setPopupForm({ dimension: 'clarity', score: 3, comment: '' });
+        setPopupForm({ dimension: 'clarity', score: 3 });
       }
     };
 
@@ -113,7 +82,6 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
   }, [dragging, dragStart, getRelativePct]);
 
   const handleConfirm = () => {
-    if (!popupForm.comment.trim()) return;
     onAdd({
       image_index: imageIndex,
       x_pct: popup.x,
@@ -122,7 +90,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
       h_pct: popup.h,
       dimension: popupForm.dimension,
       score:     popupForm.score,
-      comment:   popupForm.comment.trim(),
+      comment:   '',
     });
     setPopup(null);
   };
@@ -151,6 +119,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
         {/* 기존 어노테이션 오버레이 */}
         {annotations.map(ann => {
           const meta = dimMeta[ann.dimension];
+          const seqNum = getDimSeq(annotations, ann);
           const isSelected = selectedAnn === ann.id;
           return (
             <div
@@ -162,14 +131,14 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                 top:    `${ann.y_pct}%`,
                 width:  `${ann.w_pct}%`,
                 height: `${ann.h_pct}%`,
-                background: isSelected ? meta.bg : `${meta.bg}`,
+                background: meta.bg,
                 border: `2px solid ${meta.color}`,
                 borderRadius: 3,
                 cursor: 'pointer',
                 boxSizing: 'border-box',
               }}
             >
-              {/* 배지 */}
+              {/* 번호 뱃지 */}
               <div style={{
                 position: 'absolute', top: -1, left: -1,
                 background: meta.color, color: '#fff',
@@ -177,17 +146,44 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                 borderRadius: '2px 0 2px 0', lineHeight: 1.6,
                 whiteSpace: 'nowrap',
               }}>
-                {meta.label[0]} {ann.score}
+                {meta.short}{seqNum}
               </div>
 
               {/* 툴팁 */}
               {isSelected && (
-                <AnnotationTooltip
-                  ann={ann}
-                  onRemove={onRemove}
-                  onClose={() => setSelectedAnn(null)}
-                  readonly={readonly}
-                />
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
+                    background: 'var(--bg)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)', padding: '8px 12px',
+                    minWidth: 160, maxWidth: 240, zIndex: 20,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                    fontSize: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: ann.comment ? 6 : 0 }}>
+                    <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
+                      {meta.short}{seqNum}
+                    </span>
+                    <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{ann.score}점</span>
+                    <span
+                      style={{ marginLeft: 'auto', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }}
+                      onClick={() => setSelectedAnn(null)}
+                    >×</span>
+                  </div>
+                  {ann.comment && (
+                    <div style={{ color: 'var(--text-2)', lineHeight: 1.5, marginBottom: readonly ? 0 : 6 }}>{ann.comment}</div>
+                  )}
+                  {!readonly && (
+                    <button
+                      onClick={() => { onRemove(ann.id); setSelectedAnn(null); }}
+                      style={{ fontSize: 11, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           );
@@ -221,7 +217,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
         </div>
       )}
 
-      {/* 어노테이션 추가 팝업 */}
+      {/* 영역 설정 팝업 */}
       {popup && (
         <div
           onClick={() => setPopup(null)}
@@ -236,11 +232,11 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--bg)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)', padding: 28, width: 400,
+              borderRadius: 'var(--radius-lg)', padding: 28, width: 380,
               boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
             }}
           >
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>어노테이션 추가</div>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>영역 설정</div>
 
             {/* Dimension 선택 */}
             <div style={{ marginBottom: 16 }}>
@@ -266,7 +262,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
             </div>
 
             {/* 점수 선택 */}
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>점수 (1 = 매우 낮음 · 5 = 매우 높음)</div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {[1, 2, 3, 4, 5].map(n => (
@@ -288,27 +284,9 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
               </div>
             </div>
 
-            {/* 코멘트 */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>코멘트 <span style={{ color: 'var(--red)' }}>*</span></div>
-              <textarea
-                value={popupForm.comment}
-                onChange={e => setPopupForm(f => ({ ...f, comment: e.target.value }))}
-                placeholder="이 영역에서 발견한 문제점이나 강점을 구체적으로 작성해주세요."
-                rows={3}
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  padding: '10px 12px', borderRadius: 'var(--radius)',
-                  border: '1px solid var(--border)', background: 'var(--surface)',
-                  color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
-                  resize: 'vertical', fontFamily: 'inherit',
-                }}
-              />
-            </div>
-
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <Btn variant="secondary" size="sm" onClick={() => setPopup(null)}>취소</Btn>
-              <Btn size="sm" onClick={handleConfirm} disabled={!popupForm.comment.trim()}>추가</Btn>
+              <Btn size="sm" onClick={handleConfirm}>추가</Btn>
             </div>
           </div>
         </div>

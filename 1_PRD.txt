@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (계정 페이지 전 포털 연동)
+최종 업데이트: 2026-04-29 (이미지 어노테이션 다중 드래그 + 코멘트 박스 UI)
 ================================================================
 
 ## 서비스 개요
@@ -140,7 +140,11 @@
        - 제출: preference_responses/pricing_responses/email_responses INSERT + feedbacks UPDATE(submitted) + RPC 2개
      ※ 이미지 미션 (image_urls 있음, isSubMission=false):
        - ImageAnnotator 컴포넌트로 이미지 위에 드래그 영역 지정
-       - 어노테이션 추가: dimension(5종) + score(1-5) + comment 입력
+       - 어노테이션 추가: 팝업에서 dimension(5종) + score(1-5) 선택 → 확인
+       - 같은 dimension을 여러 번 드래그 가능 → 명1, 명2, 명3 / 가1, 가2 등 번호 자동 부여
+         (short 코드: 명확성=명, 관련성=관, 가치=가, 차별화=차, 신뢰=신)
+       - 이미지 아래 dimension별 번호 코멘트 박스 표시 → 각 박스에 textarea로 코멘트 입력
+       - 코멘트는 1초 debounce → feedback_annotations.comment 컬럼 실시간 UPDATE
        - feedback_annotations 테이블에 실시간 저장/삭제
        - 제출 시 dimension별 평균점수 → clarity_score 등 컬럼에 반영
          suggestions = 어노테이션 요약 텍스트 통합

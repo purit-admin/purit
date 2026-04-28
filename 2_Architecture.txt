@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (계정 페이지 전 포털 연동)
+최종 업데이트: 2026-04-29 (이미지 어노테이션 다중 드래그 + 코멘트 박스 UI)
 ================================================================
 
 ## 기술 스택
@@ -47,6 +47,9 @@ purit/
 │   │       ├── ImageAnnotator.jsx   # 이미지 드래그 어노테이션 컴포넌트
 │   │       │                        #   Props: imageUrl, imageIndex, annotations, onAdd, onRemove, readonly
 │   │       │                        #   퍼센트 좌표 기반, window 레벨 mousemove/mouseup
+│   │       │                        #   뱃지: {short}{seqNum} (명1, 명2, 가1 등 dimension별 번호)
+│   │       │                        #   팝업: dimension+score만 선택 (코멘트는 이미지 아래 박스에서)
+│   │       │                        #   getDimSeq(): 같은 dimension 내 순번 계산 헬퍼
 │   │       └── NotificationCenter.jsx  # 역할별 알림 센터 모달
 │   │
 │   └── pages/

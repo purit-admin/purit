@@ -14,6 +14,14 @@ const SECTIONS = [
 
 const DIM_LABEL = { clarity: '명확성', relevance: '관련성', value: '가치', differentiation: '차별화', trust: '신뢰' };
 
+const DIM_META = {
+  clarity:         { label: '명확성', short: '명', color: '#34C759' },
+  relevance:       { label: '관련성', short: '관', color: '#f59e0b' },
+  value:           { label: '가치',   short: '가', color: '#6366f1' },
+  differentiation: { label: '차별화', short: '차', color: '#ef4444' },
+  trust:           { label: '신뢰',   short: '신', color: '#94a3b8' },
+};
+
 const hasDraftProgress = (fb) => {
   if (fb.clarity_score || fb.relevance_score || fb.value_score || fb.differentiation_score || fb.trust_score) return true;
   if (!fb.strengths) return false;
@@ -43,6 +51,7 @@ export default function ActiveMission() {
   const [draftId, setDraftId]             = useState(null);
   const [autoSaving, setAutoSaving]       = useState(false);
   const autoSaveTimer = useRef(null);
+  const commentUpdateTimers = useRef({});
   const [cancelModal, setCancelModal]         = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
 
@@ -240,8 +249,18 @@ export default function ActiveMission() {
 
   // 어노테이션 삭제 (이미지 모드)
   const handleRemoveAnnotation = async (annId) => {
+    clearTimeout(commentUpdateTimers.current[annId]);
     await supabase.from('feedback_annotations').delete().eq('id', annId);
     setAnnotations(prev => prev.filter(a => a.id !== annId));
+  };
+
+  // 어노테이션 코멘트 업데이트 (debounce 1s)
+  const handleUpdateAnnotationComment = (annId, comment) => {
+    setAnnotations(prev => prev.map(a => a.id === annId ? { ...a, comment } : a));
+    clearTimeout(commentUpdateTimers.current[annId]);
+    commentUpdateTimers.current[annId] = setTimeout(() => {
+      supabase.from('feedback_annotations').update({ comment }).eq('id', annId);
+    }, 1000);
   };
 
   const handleSubMissionSubmit = async () => {
@@ -718,23 +737,47 @@ export default function ActiveMission() {
           />
         </div>
 
-        {/* 어노테이션 목록 요약 */}
-        {annotations.length > 0 && (
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 12, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              전체 어노테이션 ({annotations.length}개)
+        {/* 코멘트 박스 — 현재 이미지의 어노테이션별 */}
+        {curAnns.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
+              코멘트 작성 ({curAnns.length}개 영역)
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {annotations.map((a, i) => (
-                <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 0', borderBottom: i < annotations.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0, paddingTop: 1 }}>
-                    이미지{a.image_index + 1}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>{DIM_LABEL[a.dimension]}</span>
-                  <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{a.score}점</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1, lineHeight: 1.5 }}>{a.comment}</span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {curAnns.map(ann => {
+                const meta = DIM_META[ann.dimension];
+                const seqNum = curAnns.filter(a => a.dimension === ann.dimension).findIndex(a => a.id === ann.id) + 1;
+                return (
+                  <div key={ann.id} style={{
+                    border: '1px solid var(--border)',
+                    borderLeft: `3px solid ${meta.color}`,
+                    borderRadius: 'var(--radius)',
+                    padding: '12px 14px',
+                    background: 'var(--surface)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                        {meta.short}{seqNum}
+                      </span>
+                      <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600 }}>{meta.label}</span>
+                      <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{ann.score}점</span>
+                    </div>
+                    <textarea
+                      value={ann.comment || ''}
+                      onChange={e => handleUpdateAnnotationComment(ann.id, e.target.value)}
+                      placeholder={`${meta.label} 측면에서 발견한 문제점이나 강점을 구체적으로 작성해주세요.`}
+                      rows={3}
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        padding: '8px 10px', borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)', background: 'var(--bg)',
+                        color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
+                        resize: 'vertical', fontFamily: 'inherit',
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

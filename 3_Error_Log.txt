@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29 (계정 페이지 전 포털 연동)
+최종 업데이트: 2026-04-29 (이미지 어노테이션 다중 드래그 + 코멘트 박스 UI)
 ================================================================
 
 ## 핵심 원칙
@@ -360,6 +360,34 @@ D-16. 알림 설정 localStorage 영속화 패턴 (2026-04-29)
      → 키: 'purit_notif_prefs', 값: JSON.stringify({ key: bool, ... })
      → useState 초기값에서 JSON.parse 시도 → 실패 시 기본값 폴백
      → 주의: 기기 간 동기화 안 됨. 추후 DB 저장 필요 시 companies 컬럼 추가 권장
+
+2026-04-29  이미지 어노테이션 다중 드래그 + 코멘트 박스 UI (7차)
+            [수정 파일]
+            - src/components/ui/ImageAnnotator.jsx:
+              · DIMENSIONS에 short 필드 추가 (명/관/가/차/신)
+              · getDimSeq(annotations, ann) 헬퍼: 같은 dimension 내 순번 계산
+              · 이미지 위 뱃지: '{short}{seqNum}' 형식으로 변경 (명1, 명2, 가1 등)
+              · 팝업에서 코멘트 textarea 제거 → dimension + score만 선택 후 "추가"
+              · 확인 버튼 항상 활성화 (코멘트 필수 조건 제거)
+            - panel/ActiveMission.jsx:
+              · DIM_META 상수 추가 (5개 dimension의 label, short, color)
+              · commentUpdateTimers ref 추가 (annotation별 debounce 타이머 관리)
+              · handleUpdateAnnotationComment(annId, comment): 로컬 state 즉시 반영 +
+                1초 debounce → feedback_annotations.comment UPDATE
+              · handleRemoveAnnotation: 삭제 전 해당 타이머 clearTimeout
+              · 이미지 어노테이션 모드: 기존 "전체 어노테이션 요약" 목록 제거
+                → 현재 이미지(curAnns) 기준 번호 코멘트 박스로 교체
+                · 각 박스: 왼쪽 컬러 보더 + {short}{seqNum} 뱃지 + dimension + 점수 + textarea
+                · 이미지 탭 전환 시 해당 이미지 어노테이션 코멘트 박스로 자동 전환
+            [빌드]
+            - npm run build 경고 0개 확인
+
+D-17. 이미지 어노테이션 코멘트 UPDATE debounce 패턴 (2026-04-29)
+     → feedback_annotations.comment는 INSERT 시 '' 빈 문자열로 생성
+     → 패널이 이미지 아래 코멘트 박스에 입력할 때 1초 debounce로 UPDATE
+     → commentUpdateTimers ref에 { [annId]: timerHandle } 형태로 타이머 관리
+     → 어노테이션 삭제 시 반드시 clearTimeout(commentUpdateTimers.current[annId]) 선행
+     → 주의: 이미지 탭 전환 시 curAnns가 바뀌므로 타이머는 annId 기준으로 독립 관리
 
 D-14. 서브 미션 응답 테이블 조회 시 .single() 사용 주의 (2026-04-29)
      → preference_responses.eq('mission_id', ...).eq('panel_id', ...).single() 사용
