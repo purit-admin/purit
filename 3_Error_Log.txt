@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29 (피드백 결과 대공사 계획 수립)
+최종 업데이트: 2026-04-29 (Results.jsx draft 피드백 노출 버그 수정)
 ================================================================
 
 ## 핵심 원칙
@@ -764,6 +764,19 @@ D-33. 서브 미션 피드백 결과 지표 오분기 ⚠️ 미해결 (2026-04-
         - preference → preference_responses WHERE mission_id=selected
         - pricing    → pricing_responses WHERE mission_id=selected
         - email      → email_responses WHERE mission_id=selected
+
+2026-04-29  Results.jsx draft 피드백 노출 버그 수정 (18차)
+            [수정 파일]
+            - company/Results.jsx:
+              · feedbacks 쿼리에 .neq('status', 'draft') 조건 추가
+              · 기존: status 필터 없음 → 패널이 수락만 해도 기업 결과에 노출되는 버그
+              · 수정: status != 'draft' → 패널이 실제 제출(submitted 이상)해야 결과에 표시
+
+D-34. Results.jsx draft 피드백 노출 버그 ✅ 해결 (2026-04-29)
+     → 원인: feedbacks SELECT 쿼리에 status 필터가 없어 draft 상태도 포함됨
+     → 증상: 패널이 미션을 수락만 해도 기업의 피드백 결과 페이지에 피드백 카드가 노출됨
+     → 해결: .neq('status', 'draft') 추가 → submitted/approved/rejected만 표시
+     → 파일: src/pages/company/Results.jsx (feedbacks 쿼리, 약 75번째 줄)
 
 2026-04-29  기업 포털 UI 워딩 일괄 변경 — 미션→의뢰 (18차)
             [수정 파일 — UI 표시 텍스트만, 변수명/DB/라우트 불변]
