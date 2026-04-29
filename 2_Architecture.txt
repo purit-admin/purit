@@ -25,112 +25,25 @@
 
 purit/
 ├── src/
-│   ├── App.jsx                      # 라우터 루트, RoleRoute 정의
-│   ├── main.jsx                     # React 진입점 (AuthProvider 감쌈)
-│   ├── index.css                    # 전역 스타일 + 디자인 시스템 CSS 변수
-│   │
-│   ├── lib/
-│   │   ├── supabase.js              # Supabase 클라이언트 싱글턴 (export: supabase)
-│   │   ├── data.js                  # 목업 데이터 + 헬퍼함수 (getTierColor, getStatusColor)
-│   │   └── notify.js                # ★ 신규 — sendNotification(userId, {type,icon,title,body,actionUrl})
-│   │                                #   중앙 알림 INSERT 헬퍼, 모든 알림 발송 코드가 이곳을 경유
-│   │
-│   ├── context/
-│   │   └── AuthContext.jsx          # AuthProvider + useAuth 훅
-│   │                                #   상태: user, role, loading
-│   │                                #   메서드: signIn, signUp, signOut
-│   │                                #   파생값: dashboardPath
-│   │
+│   ├── App.jsx, main.jsx, index.css
+│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼)
+│   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
-│   │   ├── layout/
-│   │   │   └── Sidebar.jsx          # 역할별 사이드바 — ★ unreadCount 실시간 구독 뱃지
-│   │   └── ui/
-│   │       ├── index.jsx            # 공용 컴포넌트 (아래 목록 참조)
-│   │       │                        #   ConfirmModal ★ 신규 — ReactDOM.createPortal(document.body)
-│   │       │                        #   Props: title, desc, confirmLabel, cancelLabel, danger, onConfirm, onCancel
-│   │       │                        #   position:fixed + zIndex:9000 → overflow:auto 컨테이너 밖에 렌더
-│   │       ├── ImageAnnotator.jsx   # 이미지 드래그 어노테이션 컴포넌트
-│   │       │                        #   Props: imageUrl, imageIndex, annotations, onAdd, onRemove, readonly
-│   │       │                        #   퍼센트 좌표 기반, window 레벨 mousemove/mouseup
-│   │       │                        #   뱃지: {short}{seqNum} (명1, 명2, 가1 등 dimension별 번호)
-│   │       │                        #   팝업: dimension+score만 선택 (코멘트는 이미지 아래 박스에서)
-│   │       │                        #   getDimSeq(): 같은 dimension 내 순번 계산 헬퍼
-│   │       └── NotificationCenter.jsx  # 역할별 알림 센터 (action_url 클릭 시 navigate)
-│   │
+│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지)
+│   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
+│   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원)
+│   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   └── pages/
-│       ├── Landing.jsx              # 공개 랜딩 페이지
-│       ├── Login.jsx                # 로그인
-│       ├── Signup.jsx               # 회원가입 (role 선택 포함)
-│       ├── ShareResult.jsx          # ★ 신규 — /share/:token 공개 공유 결과 페이지
-│       │
-│       ├── company/                 # Company 포털 (17개 페이지)
-│       │   ├── Dashboard.jsx        # ★ 시각화 엔진 (Recharts 3종 + Framer Motion)
-│       │   │                        #   - RadarChart: 5차원 내점수 vs 벤치마크
-│       │   │                        #   - RadialBarChart: KPI 달성률 게이지
-│       │   │                        #   - BarChart: 미션별 긍/부정 스택 바
-│       │   │                        #   - feedbacks 실데이터 집계: computeRadar / computeSentiment
-│       │   │                        #   - NDA 배너: 최상단 표시, × 클릭 시 localStorage(purit_nda_banner_dismissed) 24h 비노출
-│       │   ├── NewMission.jsx       # ★ difficulty 제거, 타겟 상세, FOCUS 갱신
-│       │   │                        #   - 예상 소요 시간 UI 제거 (Step 0 · Step 3 검토), DB 기본값 5분 유지
-│       │   ├── Results.jsx          # ★ 패널 세그먼트 필터 + 공유 링크 생성/복사/해제
-│       │   ├── Diagnosis.jsx        # ★ '키워드 분석' + '시계열 추적' 탭 → navigate('/company/timeline')
-│       │   ├── TimelineTracker.jsx  # 5차원 점수 시계열 LineChart (Diagnosis 탭에서 navigate 진입)
-│       │   ├── PreferenceTest.jsx   # ★ step 기반(0-3), 이미지 업로드(va/vb), productDescription, customQuestions
-│       │   ├── PricingTest.jsx      # ★ step 기반(0-2), 이미지 업로드(pricing), productDescription, customQuestions
-│       │   │                        #   - Step 0 타이틀: "가격 페이지 설명" → "가격 페이지"
-│       │   ├── ColdEmailTest.jsx    # ★ step 기반(0-2), productDescription, customQuestions
-│       │   ├── QuestionTemplates.jsx
-│       │   ├── ICPResearch.jsx
-│       │   ├── ICPPulse.jsx
-│       │   ├── BrandTracking.jsx
-│       │   ├── AIReport.jsx
-│       │   ├── Account.jsx          # 기업 프로필 + 비밀번호 변경
-│       │   ├── Settings.jsx         # 팀 관리 + 플랜·결제 + 알림설정(localStorage)
-│       │   └── Pricing.jsx          # 플랜 선택 — companies.plan Supabase 연동
-│       │
-│       ├── panel/                   # Panel 포털 (5개 페이지)
-│       │   ├── Dashboard.jsx        # ★ 티어/스트릭/신뢰도 + Draft 알림 + 시간/난이도 표시
-│       │   ├── Missions.jsx         # ★ 시간/난이도 표시 + EXPERT/ELITE 고보상 정렬 + ConfirmModal
-│       │   ├── ActiveMission.jsx    # ★ parseSubDesc 헬퍼, 서브미션 이미지/productDescription 표시
-│       │   │                        #   ConfirmModal로 수락 취소 모달 교체 (step0 + 이미지 모드 양쪽)
-│       │   ├── History.jsx
-│       │   └── Profile.jsx          # ★ '성과' 탭 추가 (티어/뱃지/스트릭 시각화)
-│       │
-│       └── admin/                   # Admin 포털 (6개 페이지)
-│           ├── Dashboard.jsx
-│           ├── PanelManagement.jsx  # ★ 뱃지 섹션 추가
-│           ├── Missions.jsx         # ★ 탭 기본값 active, 완료도 제거, 재진행 버튼, 섹션 분리+페이지네이션
-│           │                        #   ConfirmModal 사용, 취소 미션 영구 삭제
-│           ├── PurityFilter.jsx     # ★ parseSubDesc 헬퍼, 서브미션 이미지/productDescription/customQuestions 표시
-│           │                        #   승인/반려 시 패널·기업 sendNotification 호출
-│           ├── Revenue.jsx
-│           └── Account.jsx          # 관리자 이름 + 비밀번호 변경
-│
+│       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
+│       ├── company/  (17개 — 라우트 목록 참조)
+│       ├── panel/    (5개 — 라우트 목록 참조)
+│       └── admin/    (6개 — 라우트 목록 참조)
 ├── supabase/
-│   ├── migrations/
-│   │   ├── 001_all_tables.sql       # 신규 테이블 19개 DDL
-│   │   ├── 002_seed_data.sql        # 초기 시드 데이터 (GMV·정산·청구·질문템플릿)
-│   │   ├── 003_admin_records.sql    # admin 계정 panels/companies 레코드 생성
-│   │   ├── 004_cancel_feedback_rpc.sql  # cancel_panel_feedback RPC
-│   │   ├── 005_ai_reports.sql       # ai_reports 테이블 + RLS
-│   │   ├── 006_image_annotations.sql  # feedback_annotations 테이블 + missions.image_urls
-│   │   ├── 007_subtest_missions.sql   # 서브 의뢰 테이블에 mission_id/template_id/status 추가
-│   │   │                               # preference/pricing/email 응답 테이블에 추가 점수 컬럼 + RLS
-│   │   ├── 008_seed_templates.sql     # 브랜드 삭제, category 업데이트, 서브 의뢰 템플릿 6개 삽입
-│   │   ├── 009_gamification.sql       # panels 게이미피케이션 컬럼 + update_panel_gamification RPC
-│   │   │                               # missions estimated_minutes + difficulty 컬럼
-│   │   ├── 010_sharing.sql            # missions.share_token + get_shared_mission RPC
-│   │   └── 011_notification_triggers.sql  # ★ 신규 — DB 트리거 2개
-│   │                                      #   on_mission_created: 미션 INSERT → 어드민 알림
-│   │                                      #   on_mission_slots_full: filled_count 완료 → 기업 알림
-│   └── functions/
-│       └── generate-ai-report/
-│           └── index.ts             # Deno Edge Function — Anthropic API → ai_reports INSERT
-├── MORNING_REPORT.md                # 배포 가이드 (Supabase Secret·CLI 설정 안내)
-├── index.html
-├── vite.config.js                   # Vite 기본 설정 + @vitejs/plugin-react
-├── vercel.json                      # SPA 라우팅 rewrite 규칙
-└── package.json
+│   ├── migrations/  001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
+│   │                006(annotations) 007(subtest) 008(templates) 009(gamification)
+│   │                010(sharing) 011(notification_triggers)
+│   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
+├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
 ## 라우트 전체 목록 (28개)
@@ -472,25 +385,6 @@ purit/
 
 ---
 
-### 관계 요약
-
-  companies            ←1:1→  auth.users   (companies.user_id)
-  panels               ←1:1→  auth.users   (panels.user_id)
-  missions             ←N:1→  companies    (missions.company_id)
-  feedbacks            ←N:1→  missions     (feedbacks.mission_id)
-  feedbacks            ←N:1→  panels       (feedbacks.panel_id)
-  feedback_annotations ←N:1→  feedbacks    (feedback_annotations.feedback_id)
-  feedback_annotations ←N:1→  missions     (feedback_annotations.mission_id)
-  feedback_annotations ←N:1→  panels       (feedback_annotations.panel_id)
-  ai_reports           ←N:1→  missions     (ai_reports.mission_id)
-  ai_reports           ←N:1→  companies    (ai_reports.company_id)
-  notifications        ←N:1→  auth.users   (notifications.user_id)
-  team_members         ←N:1→  companies    (team_members.company_id)
-  settlements          ←N:1→  panels       (settlements.panel_id, NULLABLE)
-  invoices             ←N:1→  companies    (invoices.company_id, NULLABLE)
-
----
-
 ### SECURITY DEFINER RPC 함수 목록
 
   increment_mission_filled_count(mission_id UUID)
@@ -514,24 +408,6 @@ purit/
     → 파일: supabase/migrations/010_sharing.sql
 
 ================================================================
-## 공용 컴포넌트 (src/components/ui/index.jsx)
-================================================================
-
-재사용 시 이 컴포넌트들을 우선 사용할 것.
-
-  Btn             — 버튼 (variant: primary|secondary|ghost|danger|outline, size: sm|md|lg)
-  Card            — 카드 컨테이너 (클릭 가능, hover 효과)
-                    ★ padding: '14px 18px' (이전: 28px — 소형화 적용)
-  Stat            — 지표 표시 (label, value, sub, accent)
-  ScoreBar        — 점수 바 (score, max=5, color)
-  Badge           — 태그/뱃지 (type: gray|gold|green|red|blue)
-  Divider         — 구분선
-  EmptyState      — 빈 상태 플레이스홀더 (icon, title, desc)
-  ConfirmModal    — 확인/취소 모달 (ReactDOM.createPortal(document.body), position:fixed, zIndex:9000)
-                    Props: title, desc, confirmLabel, cancelLabel, danger(bool), onConfirm, onCancel
-                    ※ overflow:auto 스크롤 컨테이너 내부에서도 뷰포트 중앙 고정됨
-  ImageAnnotator  — 이미지 드래그 어노테이션 (ImageAnnotator.jsx, 별도 파일)
-
 ## 반응형 CSS 유틸리티 클래스 (src/index.css)
 
   .mc-row    — 미션 카드 내부 좌/우 2열 레이아웃 (640px 이하: 1열로 전환)

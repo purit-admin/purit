@@ -1,0 +1,67 @@
+================================================================
+4_Backlog.txt — 미구현·재설계 예정 기능 목록
+최종 업데이트: 2026-04-29
+※ 이 파일은 자동 로드되지 않습니다.
+   신규 기능 개발 계획 시 또는 "작전 종료" 시 수동으로 읽고 업데이트하십시오.
+================================================================
+
+================================================================
+## [1] Results.jsx 전면 재설계
+================================================================
+
+대상 파일: src/pages/company/Results.jsx
+우선순위: HIGH
+
+### 현재 문제
+- 미션 선택 UI가 칩 버튼 나열 방식 → 10개 이상 시 여러 줄로 펼쳐져 UX 저하
+- 모든 미션 타입에 동일한 5축 점수 표시 → 서브 미션에 맞지 않는 지표 노출
+- 이미지 미션 어노테이션 결과 미표시
+
+### 재설계 목표
+
+**미션 선택 UI**
+- 좌측 패널 구조로 변경 (메인 의뢰 / 서브 의뢰 섹션 분리)
+- 각 미션 카드에 타입 뱃지 표시
+
+**미션 타입별 결과 분기**
+- landing_page → feedbacks 5축 점수 (clarity/relevance/value/differentiation/trust)
+  + 이미지 미션: 패널별 카드에 ImageAnnotator(readonly) + dimension별 코멘트 표시
+  + 페이지 하단: 전체 집계 5차원 평균
+- preference → preference_responses WHERE mission_id=selected
+  · A/B 선택 비율 바 + message_clarity + purchase_intent 평균
+- pricing → pricing_responses WHERE mission_id=selected
+  · would_buy 비율 + price_fairness + value_perception 평균
+- email → email_responses WHERE mission_id=selected
+  · would_reply 비율 + open_intent + hook_score + clarity_score + curiosity_score 평균
+
+================================================================
+## [2] 패널 이미지 피드백 제출 조건 강화
+================================================================
+
+대상 파일: src/pages/panel/ActiveMission.jsx (이미지 모드 제출 핸들러)
+우선순위: MEDIUM
+
+### 현재 문제
+- annotations.length > 0 이면 제출 가능 (어노테이션 1개만 있어도 통과)
+
+### 목표
+- 5개 dimension(clarity/relevance/value/differentiation/trust) 각각 최소 1개 이상 어노테이션 필수
+- 미충족 시 제출 버튼 비활성화 + "모든 차원에 최소 1개씩 어노테이션을 추가해주세요" 안내
+
+================================================================
+## [3] 미션 수정 기능
+================================================================
+
+대상 파일: company/NewMission.jsx 또는 별도 EditMission.jsx
+우선순위: LOW
+
+### 목표
+- filled_count = 0 인 미션에 한해 수정 허용
+- missions UPDATE (title, description, persona, panel_count, assets, image_urls)
+- 수정 진입: Dashboard 의뢰 카드 또는 Results.jsx에서 "수정" 버튼
+
+================================================================
+## [변경 이력]
+================================================================
+
+2026-04-29  최초 생성 — Results.jsx 재설계 방향을 1_PRD.txt에서 이관
