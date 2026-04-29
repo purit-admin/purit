@@ -126,10 +126,10 @@ export default function TimelineTracker() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>시계열 점수 추적</h1>
-            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>미션별·기간별 5차원 점수 변화를 추적하고 개선 추이를 확인하세요.</p>
+            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>의뢰별·기간별 5차원 점수 변화를 추적하고 개선 추이를 확인하세요.</p>
           </div>
           <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4 }}>
-            {[['weekly', '주간'], ['mission', '미션별']].map(([v, l]) => (
+            {[['weekly', '주간'], ['mission', '의뢰별']].map(([v, l]) => (
               <button key={v} onClick={() => switchView(v)} style={{
                 padding: '6px 14px', borderRadius: 3, fontSize: 12, fontWeight: 500,
                 background: view === v ? 'var(--bg)' : 'transparent',
@@ -161,7 +161,7 @@ export default function TimelineTracker() {
       {missions.length === 0 ? (
         <Card style={{ padding: '60px', textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📈</div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 미션이 없습니다</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 의뢰가 없습니다</div>
           <div style={{ color: 'var(--text-2)', fontSize: 13 }}>의뢰를 등록하고 피드백이 수집되면 시계열 차트가 표시됩니다.</div>
         </Card>
       ) : chartData.length === 0 ? (
@@ -204,7 +204,7 @@ export default function TimelineTracker() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase' }}>기간/미션</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase' }}>기간/의뢰</th>
                   {DIMS.map(d => (
                     <th key={d.key} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500 }}>
                       <span style={{ color: d.color }}>{d.label}</span>

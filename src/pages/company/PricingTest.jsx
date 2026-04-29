@@ -354,7 +354,7 @@ export default function PricingTest() {
               <Btn onClick={() => setCreateStep(s => s + 1)}>다음 →</Btn>
             ) : (
               <Btn onClick={handleSubmit} disabled={submitting}>
-                {submitting ? '등록 중…' : '미션 제출 →'}
+                {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}
           </div>

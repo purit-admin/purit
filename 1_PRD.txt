@@ -1,6 +1,8 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (피드백 결과 대공사 계획 수립)
+최종 업데이트: 2026-04-29 (기업 포털 UI 워딩 미션→의뢰 변경)
+※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
+             패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
 
 ## 서비스 개요
@@ -21,23 +23,23 @@
 1. 대시보드 (/company) — Dashboard.jsx
    - NDA 배너 최상단 표시: "Purit의 피드백 패널은 기업의 정보를 발설할 수 없습니다."
      × 클릭 시 localStorage(purit_nda_banner_dismissed) 저장 → 24시간 비노출
-   - Stats 카드 4개: 전체 미션 / 진행 중 / 완료 / 수집 피드백(제출 완료 건수)
+   - Stats 카드 4개: 전체 의뢰 / 진행 중 / 완료 / 수집 피드백(제출 완료 건수)
    - 5차원 레이더 차트: feedbacks 실데이터 집계 → 내 점수 vs 플랫폼 벤치마크 비교
      (피드백 미수집 시 0점 표시, 수집 시 자동 반영)
    - KPI 달성률 게이지: 5축 평균을 100점 환산한 반원형 RadialBarChart
-   - 긍/부정 스택 바 차트: 미션별 평균점수 ≥3.5 → 긍정 비율 수평 바 (최대 5개 미션)
-   - 전체 미션 현황 (통합 섹션): ★ 개편
-     · "진행 중인 미션" 별도 섹션 제거 → "전체 미션 현황"에 통합
+   - 긍/부정 스택 바 차트: 의뢰별 평균점수 ≥3.5 → 긍정 비율 수평 바 (최대 5개 의뢰)
+   - 전체 의뢰 현황 (통합 섹션): ★ 개편
+     · "진행 중인 의뢰" 별도 섹션 제거 → "전체 의뢰 현황"에 통합
      · 탭 4개: 전체 / 진행 / 완료 / 취소 (어드민 미션관리와 동일 구조)
      · 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리
      · 각 섹션 10개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
    - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
    ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') 실시간 집계
      - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지
-     - computeSentiment(missions, fbs): 미션별 평균 ≥3.5 비율 → 스택 바
+     - computeSentiment(missions, fbs): 의뢰별 평균 ≥3.5 비율 → 스택 바
 
 ### [검증 도구]
-2. 미션 등록 (/company/new) — NewMission.jsx
+2. 의뢰 등록 (/company/new) — NewMission.jsx
    - Step 0 기본 정보 (패널에게 공개되지 않는 내부 관리용 정보):
      · 제품명, LP URL 입력
      · 예상 소요 시간 선택 UI 제거됨 (DB 저장은 기본값 5분 유지)
@@ -49,7 +51,7 @@
      · 패널 수 선택 → 보상금 산출 + Pro 플랜 20% 할인 안내
      · 업로드 경로: {company_id}/{missionUuid}/{uuid}.{ext}
      · missions.image_urls TEXT[] 컬럼에 public URL 배열 저장
-   - Step 3 검토: 난이도 행 없음, '미션 제출 →' 버튼
+   - Step 3 검토: 난이도 행 없음, '의뢰 제출 →' 버튼
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
 
 3. 피드백 결과 (/company/results) — Results.jsx  ★ 전면 재설계 예정
@@ -80,8 +82,8 @@
 4.5 시계열 추적 (/company/timeline) — TimelineTracker.jsx
    - Diagnosis.jsx '시계열 추적' 탭 클릭 시 /company/timeline으로 navigate
    - 사이드바 메뉴에서는 제거됨 (Diagnosis 탭 링크로 흡수)
-   - 미션별·주간 뷰 전환 (주간/미션별 토글)
-   - 미션 칩 토글로 비교할 미션 선택
+   - 의뢰별·주간 뷰 전환 (주간/의뢰별 토글)
+   - 의뢰 칩 토글로 비교할 의뢰 선택
    - Recharts LineChart: 5차원 점수 시계열 변화
    - 하단 요약 테이블 (점수 색상 코딩)
 
@@ -124,7 +126,7 @@
    - 탭 3개: 소재 비교 A/B | 가격 페이지 | 이메일 검증
    - 탭별 category 매핑: preference→'광고소재', pricing→'가격', email→'이메일'
    - 템플릿 카드 클릭 시 우측 사이드패널에 질문 목록 미리보기
-   - "이 템플릿으로 미션하기" → 해당 서브 미션 페이지로 navigate(state: { templateId, templateName })
+   - "이 템플릿으로 의뢰하기" → 해당 서브 의뢰 페이지로 navigate(state: { templateId, templateName })
    - Sidebar: 서브 미션 그룹 최 하단에 위치
    ※ 브랜드 포지셔닝 템플릿 삭제, category '광고' → '광고소재' / 'LP' → 'LP검증' 업데이트
 

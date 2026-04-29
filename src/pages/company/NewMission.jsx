@@ -102,7 +102,7 @@ export default function NewMission() {
       const { error } = await supabase.from('missions').insert({
         id:                missionUuid,
         company_id:        company.id,
-        title:             form.product || '미션',
+        title:             form.product || '의뢰',
         type:              'landing_page',
         target_url:        form.lpUrl,
         description:       form.briefText,
@@ -127,7 +127,7 @@ export default function NewMission() {
     <div style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 36 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>NEW MISSION</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 등록</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>의뢰 등록</h1>
       </div>
 
       {/* Step indicator */}
@@ -351,7 +351,7 @@ export default function NewMission() {
               </div>
             )}
             <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
-              ⚡ 미션 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
+              ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
             </div>
           </div>
         )}
@@ -368,7 +368,7 @@ export default function NewMission() {
           </div>
         )}
         <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()} size="md" disabled={submitting || uploading}>
-          {step === STEPS.length - 1 ? (submitting ? '제출 중...' : '미션 제출 →') : '다음 →'}
+          {step === STEPS.length - 1 ? (submitting ? '제출 중...' : '의뢰 제출 →') : '다음 →'}
         </Btn>
       </div>
     </div>

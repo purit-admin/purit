@@ -313,7 +313,7 @@ export default function ColdEmailTest() {
               </Btn>
             ) : (
               <Btn onClick={handleSubmit} disabled={submitting || !emailText.trim()}>
-                {submitting ? '등록 중…' : '미션 제출 →'}
+                {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}
           </div>

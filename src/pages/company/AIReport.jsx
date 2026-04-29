@@ -181,7 +181,7 @@ export default function AIReport() {
       <Card style={{ padding: '60px', textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>🤖</div>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>분석할 피드백 데이터가 없습니다</div>
-        <div style={{ color: 'var(--text-2)', fontSize: 13 }}>미션을 등록하고 패널 피드백이 수집되면 AI 리포트가 자동 생성됩니다.</div>
+        <div style={{ color: 'var(--text-2)', fontSize: 13 }}>의뢰를 등록하고 패널 피드백이 수집되면 AI 리포트가 자동 생성됩니다.</div>
       </Card>
     </div>
   );

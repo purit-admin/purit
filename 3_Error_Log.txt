@@ -764,3 +764,30 @@ D-33. 서브 미션 피드백 결과 지표 오분기 ⚠️ 미해결 (2026-04-
         - preference → preference_responses WHERE mission_id=selected
         - pricing    → pricing_responses WHERE mission_id=selected
         - email      → email_responses WHERE mission_id=selected
+
+2026-04-29  기업 포털 UI 워딩 일괄 변경 — 미션→의뢰 (18차)
+            [수정 파일 — UI 표시 텍스트만, 변수명/DB/라우트 불변]
+            - company/Dashboard.jsx: 8곳
+              · "새 미션 등록" → "새 의뢰 등록" (버튼)
+              · "전체 미션" → "전체 의뢰" (Stats 카드)
+              · "의뢰를 등록하고 피드백이 수집되면 차트가 표시됩니다." (안내)
+              · "전체 미션 현황" → "전체 의뢰 현황" (섹션 제목)
+              · "등록된 의뢰가 없습니다." / "첫 의뢰를 등록해보세요 →" (빈 상태)
+              · "해당 조건의 의뢰가 없습니다." × 2 (메인/서브 섹션)
+            - company/NewMission.jsx: 4곳
+              · 페이지 제목 "의뢰 등록", DB 기본 title '의뢰', 안내 문구, 제출 버튼
+            - company/PreferenceTest.jsx: 제출 버튼 "의뢰 제출 →"
+            - company/PricingTest.jsx: 제출 버튼 "의뢰 제출 →"
+            - company/ColdEmailTest.jsx: 제출 버튼 "의뢰 제출 →"
+            - company/AIReport.jsx: 빈 상태 안내 문구
+            - company/Diagnosis.jsx: 드롭다운 옵션 "전체 의뢰", 빈 상태 안내
+            - company/TimelineTracker.jsx: 설명, 탭 "의뢰별", 빈 상태, 테이블 헤더
+            - company/Results.jsx: 빈 상태 "등록된 의뢰가 없습니다."
+            [빌드]
+            - npm run build 경고 0개, 5.37s
+
+D-34. 기업 포털 UI 워딩 규칙 ✅ 정착 (2026-04-29)
+     → 기업(Company) 포털 화면에 표시되는 한글 텍스트: "의뢰" 사용
+     → 패널·어드민 포털 표시 텍스트: "미션" 유지
+     → 코드 내부(변수명·함수명·DB컬럼·RPC·라우트): "mission/missions" 유지 (변경 없음)
+     → 이유: 기업 사용자 관점에서 "미션"보다 "의뢰"가 비즈니스 맥락에 자연스러움

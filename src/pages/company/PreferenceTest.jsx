@@ -407,7 +407,7 @@ export default function PreferenceTest() {
               </Btn>
             ) : (
               <Btn onClick={handleSubmit} disabled={submitting || !variantA.trim() || !variantB.trim()}>
-                {submitting ? '등록 중…' : '미션 제출 →'}
+                {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}
           </div>

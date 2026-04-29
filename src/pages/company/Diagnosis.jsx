@@ -178,7 +178,7 @@ export default function Diagnosis() {
           </div>
           {missions.length > 1 && (
             <select value={selectedMission} onChange={e => setSelectedMission(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="all">전체 미션</option>
+              <option value="all">전체 의뢰</option>
               {missions.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
             </select>
           )}
@@ -189,7 +189,7 @@ export default function Diagnosis() {
         <Card style={{ padding: '60px', textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📊</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>아직 피드백 데이터가 없습니다</div>
-          <div style={{ color: 'var(--text-2)', fontSize: 13 }}>미션을 등록하고 패널 피드백이 수집되면 5차원 진단 결과가 표시됩니다.</div>
+          <div style={{ color: 'var(--text-2)', fontSize: 13 }}>의뢰를 등록하고 패널 피드백이 수집되면 5차원 진단 결과가 표시됩니다.</div>
         </Card>
       ) : (
         <>

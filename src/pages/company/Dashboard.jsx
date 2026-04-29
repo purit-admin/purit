@@ -221,7 +221,7 @@ export default function CompanyDashboard() {
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: 14 }}>광고비 집행 전 전환 결함을 미리 잡으세요.</p>
         </div>
-        <Btn onClick={() => navigate('/company/new')} size="lg">+ 새 미션 등록</Btn>
+        <Btn onClick={() => navigate('/company/new')} size="lg">+ 새 의뢰 등록</Btn>
       </motion.div>
 
       {/* Stats */}
@@ -232,7 +232,7 @@ export default function CompanyDashboard() {
         style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}
       >
         {[
-          { label: '전체 미션',  value: String(missions.length),                                        sub: '누적' },
+          { label: '전체 의뢰',  value: String(missions.length),                                        sub: '누적' },
           { label: '진행 중',    value: String(missions.filter(m => m.status === 'active').length),    sub: '현재 활성' },
           { label: '완료',       value: String(missions.filter(m => m.status === 'completed').length), sub: '검증 완료' },
           { label: '수집 피드백', value: String(feedbacks.length),         sub: '제출 완료', accent: feedbacks.length > 0 },
@@ -348,14 +348,14 @@ export default function CompanyDashboard() {
           </ResponsiveContainer>
         ) : (
           <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', fontSize: 14 }}>
-            미션을 등록하고 피드백이 수집되면 차트가 표시됩니다.
+            의뢰를 등록하고 피드백이 수집되면 차트가 표시됩니다.
           </div>
         )}
       </motion.div>
 
       {/* 전체 미션 현황 (통합) */}
       <motion.div {...fadeUp(0.3)}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)' }}>전체 미션 현황</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)' }}>전체 의뢰 현황</h2>
 
         {/* 탭 */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
@@ -371,8 +371,8 @@ export default function CompanyDashboard() {
 
         {missions.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', color: 'var(--text-3)', fontSize: 14 }}>
-            등록된 미션이 없습니다.{' '}
-            <span style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }} onClick={() => navigate('/company/new')}>첫 미션을 등록해보세요 →</span>
+            등록된 의뢰가 없습니다.{' '}
+            <span style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }} onClick={() => navigate('/company/new')}>첫 의뢰를 등록해보세요 →</span>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -384,7 +384,7 @@ export default function CompanyDashboard() {
               </div>
               {mainMissions.length === 0 ? (
                 <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-                  해당 조건의 미션이 없습니다.
+                  해당 조건의 의뢰가 없습니다.
                 </div>
               ) : (
                 <>
@@ -404,7 +404,7 @@ export default function CompanyDashboard() {
               </div>
               {subMissions.length === 0 ? (
                 <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-                  해당 조건의 미션이 없습니다.
+                  해당 조건의 의뢰가 없습니다.
                 </div>
               ) : (
                 <>
