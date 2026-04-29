@@ -125,16 +125,18 @@ export default function PricingTest() {
       });
       if (mErr) throw mErr;
 
-      const { data: test, error } = await supabase.from('pricing_tests').insert({
+      const { data: test, error: tErr } = await supabase.from('pricing_tests').insert({
         company_id: companyId,
         status: 'active',
         mission_id: missionUuid,
         template_id: selectedTemplateId || null,
       }).select().single();
-      if (error) throw error;
+      if (tErr) console.warn('[PricingTest] 서브테이블 등록 실패:', tErr.message);
 
-      const axisRows = AXES.map(a => ({ test_id: test.id, axis_key: a.key, label: a.label, score: 0 }));
-      await supabase.from('pricing_axes').insert(axisRows);
+      if (test) {
+        const axisRows = AXES.map(a => ({ test_id: test.id, axis_key: a.key, label: a.label, score: 0 }));
+        await supabase.from('pricing_axes').insert(axisRows);
+      }
 
       setMissionUuid(crypto.randomUUID());
       navigate('/company');

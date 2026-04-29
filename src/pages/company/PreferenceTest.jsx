@@ -138,7 +138,7 @@ export default function PreferenceTest() {
       });
       if (mErr) throw mErr;
 
-      const { data, error } = await supabase.from('preference_tests').insert({
+      const { error: tErr } = await supabase.from('preference_tests').insert({
         company_id: companyId,
         asset_type: assetType,
         variant_a: variantA.trim(),
@@ -147,8 +147,8 @@ export default function PreferenceTest() {
         status: 'active',
         mission_id: missionUuid,
         template_id: selectedTemplateId || null,
-      }).select().single();
-      if (error) throw error;
+      });
+      if (tErr) console.warn('[PreferenceTest] 서브테이블 등록 실패:', tErr.message);
 
       setMissionUuid(crypto.randomUUID());
       navigate('/company');
@@ -399,7 +399,10 @@ export default function PreferenceTest() {
               {createStep === 0 ? '취소' : '이전'}
             </Btn>
             {createStep < STEPS.length - 1 ? (
-              <Btn onClick={() => setCreateStep(s => s + 1)} disabled={createStep === 0 && !assetType}>
+              <Btn onClick={() => setCreateStep(s => s + 1)} disabled={
+                (createStep === 0 && !assetType) ||
+                (createStep === 1 && (!variantA.trim() || !variantB.trim()))
+              }>
                 다음 →
               </Btn>
             ) : (

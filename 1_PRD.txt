@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (미션 목록 메인/서브 분리 + 페이지네이션 전면 적용)
+최종 업데이트: 2026-04-29 (서브 미션 버그 수정 — 제목 고정·navigate·Step validation)
 ================================================================
 
 ## 서비스 개요
@@ -80,6 +80,8 @@
 5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 전면 재설계
    - Step 0: 소재 유형 선택 (이미지/텍스트/랜딩페이지)
    - Step 1: 소재 A/B 입력 + 이미지 업로드 (선택, 각 1장)
+     · variantA / variantB 텍스트 필수 — 둘 중 하나라도 비어있으면 다음 단계 불가
+     · 이미지는 선택 사항 (텍스트만 입력해도 다음 진행 가능)
      · 업로드 경로: {companyId}/{missionUuid}/va.{ext} / vb.{ext}
      · 미리보기 썸네일 + 삭제 지원
    - Step 2: 제품/타겟 설명 입력 (패널에게 표시됨, productDescription)
@@ -106,7 +108,7 @@
    - Step 0: 이메일 원문 설명 입력
    - Step 1: 제품/타겟 설명 입력 (productDescription)
    - Step 2: 패널 수 + 질문 설정 (커스텀 질문 추가 포함)
-   - 등록 시: missions INSERT(type='email', description=JSON.stringify({
+   - 등록 시: missions INSERT(type='email', title='이메일 검증'(고정), description=JSON.stringify({
        content: emailText, productDescription, customQuestions})) + cold_email_tests INSERT
    - 결과 화면: 답장 의향 비율 + open_intent / curiosity_score / hook_score / clarity_score 평균
 

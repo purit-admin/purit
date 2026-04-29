@@ -86,11 +86,10 @@ export default function ColdEmailTest() {
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const firstLine = emailText.trim().split('\n')[0].replace(/^제목[:：]\s*/i, '').slice(0, 50);
       const { error: mErr } = await supabase.from('missions').insert({
         id: missionUuid,
         company_id: companyId,
-        title: `이메일 검증: ${firstLine || '콜드메일'}`,
+        title: '이메일 검증',
         type: 'email',
         description: JSON.stringify({
           content: emailText.trim(),
@@ -104,14 +103,14 @@ export default function ColdEmailTest() {
       });
       if (mErr) throw mErr;
 
-      const { data: test, error } = await supabase.from('cold_email_tests').insert({
+      const { error: tErr } = await supabase.from('cold_email_tests').insert({
         company_id: companyId,
         email_text: emailText.trim(),
         status: 'active',
         mission_id: missionUuid,
         template_id: selectedTemplateId || null,
-      }).select().single();
-      if (error) throw error;
+      });
+      if (tErr) console.warn('[ColdEmailTest] 서브테이블 등록 실패:', tErr.message);
 
       setMissionUuid(crypto.randomUUID());
       navigate('/company');

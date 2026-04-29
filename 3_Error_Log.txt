@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29 (전체 UI 개편 — 의뢰→미션 리브랜딩 + 서브미션 스텝 재설계)
+최종 업데이트: 2026-04-29 (서브 미션 버그 수정 — 제목 고정·navigate·Step validation)
 ================================================================
 
 ## 핵심 원칙
@@ -663,3 +663,25 @@ D-27. NDA 배너 localStorage 24h 비노출 패턴 (2026-04-29)
      → isBannerDismissed(): localStorage 값 읽어 24h 이내면 true
      → useState 초기값에서 !isBannerDismissed() 호출 → 마운트 시 즉시 상태 결정
      → try/catch 감쌈: 프라이빗 브라우징 등 localStorage 접근 불가 시 false 폴백
+
+2026-04-29  서브 미션 버그 수정 (15차)
+            [수정 파일]
+            - company/ColdEmailTest.jsx:
+              · missions.title: `이메일 검증: ${이메일 제목 파싱}` → '이메일 검증' 고정
+              · cold_email_tests INSERT 실패 시 throw 대신 console.warn → navigate 항상 실행
+            - company/PreferenceTest.jsx:
+              · Step 1 → Step 2 '다음 →' 버튼 disabled 조건 추가
+                (variantA.trim() && variantB.trim() 둘 다 있어야 활성화, 이미지는 선택)
+              · preference_tests INSERT 실패 시 throw 대신 console.warn → navigate 항상 실행
+            - company/PricingTest.jsx:
+              · pricing_tests INSERT 실패 시 throw 대신 console.warn → navigate 항상 실행
+              · pricing_axes INSERT는 test 객체 존재 시에만 실행 (null guard 추가)
+
+D-28. 서브 미션 사이드 테이블 INSERT silent failure 패턴 ✅ 해결 (2026-04-29)
+     → 문제: missions INSERT 성공 후 preference_tests/pricing_tests/cold_email_tests INSERT가
+             RLS 또는 스키마 제약으로 실패하면 catch로 빠져 navigate('/company')가 실행 안 됨
+     → 증상: 미션 제출 버튼 클릭 후 화면이 전환되지 않고 멈춤 (missions는 DB에 저장됨)
+     → 해결: 사이드 테이블 INSERT 에러를 `if (tErr) throw tErr` → `if (tErr) console.warn(...)` 으로 변경
+             missions INSERT 성공만 보장되면 navigate('/company') 항상 실행
+     → 주의: 이 패턴 적용 후 사이드 테이블 데이터 누락 가능성 있음
+             → 실제 환경에서 RLS 정책 점검 및 서브 테이블 INSERT 권한 확인 권장
