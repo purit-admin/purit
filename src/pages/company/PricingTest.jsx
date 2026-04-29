@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -16,7 +16,9 @@ const STEPS = ['가격 페이지', '제품 설명', '질문 설정'];
 
 export default function PricingTest() {
   const location = useLocation();
+  const navigate = useNavigate();
   const initTemplateId = location.state?.templateId || null;
+  const submittingRef = useRef(false);
 
   const [view, setView] = useState('list');
   const [createStep, setCreateStep] = useState(0);
@@ -101,6 +103,8 @@ export default function PricingTest() {
 
   async function handleSubmit() {
     if (!companyId) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const { error: mErr } = await supabase.from('missions').insert({
@@ -132,15 +136,12 @@ export default function PricingTest() {
       const axisRows = AXES.map(a => ({ test_id: test.id, axis_key: a.key, label: a.label, score: 0 }));
       await supabase.from('pricing_axes').insert(axisRows);
 
-      setTests(ts => [test, ...ts]);
       setMissionUuid(crypto.randomUUID());
-      setPricingDesc(''); setPricingImage(null);
-      setProductDescription(''); setCustomQuestions([]);
-      setSelectedTemplateId(initTemplateId); setCreateStep(0);
-      setView('list');
+      navigate('/company');
     } catch (err) {
       console.error('[PricingTest] 등록 실패:', err.message);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -16,7 +16,9 @@ const STEPS = ['이메일 원문', '제품 설명', '질문 설정'];
 
 export default function ColdEmailTest() {
   const location = useLocation();
+  const navigate = useNavigate();
   const initTemplateId = location.state?.templateId || null;
+  const submittingRef = useRef(false);
 
   const [view, setView] = useState('list');
   const [createStep, setCreateStep] = useState(0);
@@ -80,6 +82,8 @@ export default function ColdEmailTest() {
 
   async function handleSubmit() {
     if (!emailText.trim() || !companyId) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const firstLine = emailText.trim().split('\n')[0].replace(/^제목[:：]\s*/i, '').slice(0, 50);
@@ -109,14 +113,12 @@ export default function ColdEmailTest() {
       }).select().single();
       if (error) throw error;
 
-      setTests(ts => [test, ...ts]);
       setMissionUuid(crypto.randomUUID());
-      setEmailText(''); setProductDescription('');
-      setCustomQuestions([]); setSelectedTemplateId(initTemplateId);
-      setCreateStep(0); setView('list');
+      navigate('/company');
     } catch (err) {
       console.error('[ColdEmailTest] 등록 실패:', err.message);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }

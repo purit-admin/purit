@@ -623,3 +623,24 @@ D-25. 서브미션 중복 제출 방지 패턴 ✅ 정착 (2026-04-29)
      → missions INSERT 시 id: missionUuid 직접 지정 (Storage 경로와 DB id 동기화)
      → 제출 성공 후 setMissionUuid(crypto.randomUUID()) 호출 → 다음 미션 준비
      → 이 패턴으로 버튼 더블클릭 등 중복 제출 시 unique constraint 위반으로 자동 차단
+
+2026-04-29  서브 미션 제출 후 대시보드 이동 + ref 중복 제출 방지 (13차)
+            [수정 파일]
+            - company/PreferenceTest.jsx:
+              · useNavigate import 추가
+              · submittingRef = useRef(false) 추가
+              · handleSubmit 시작 시 submittingRef.current 동기 가드 추가
+              · 제출 성공 후 setView('list') → navigate('/company') 변경
+            - company/PricingTest.jsx: 위와 동일
+            - company/ColdEmailTest.jsx: 위와 동일 (useRef import도 추가)
+            [빌드]
+            - npm run build 경고 0개 확인
+
+D-26. 서브 미션 폼 제출 후 대시보드 redirect 패턴 ✅ 정착 (2026-04-29)
+     → 문제: 제출 후 setView('list')로 동일 페이지 목록 뷰로 돌아가 UX가 단절됨
+     → 해결: navigate('/company')로 대시보드로 이동
+     → 중복 제출 2중 방어:
+        1. submittingRef.current (동기 ref) — setSubmitting(true) 비동기 한계 보완
+        2. missionUuid unique constraint — DB 레벨 최후 방어
+     → React setState는 비동기라 빠른 더블클릭이 submitting state 업데이트 전에 두 번째 클릭을 허용함
+        → useRef는 동기적으로 즉시 차단되므로 필수 패턴

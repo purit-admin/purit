@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -18,7 +18,9 @@ const STEPS = ['소재 유형', '소재 입력', '제품 설명', '질문 설정
 
 export default function PreferenceTest() {
   const location = useLocation();
+  const navigate = useNavigate();
   const initTemplateId = location.state?.templateId || null;
+  const submittingRef = useRef(false);
 
   const [view, setView] = useState('list');
   const [createStep, setCreateStep] = useState(0);
@@ -112,6 +114,8 @@ export default function PreferenceTest() {
 
   async function handleSubmit() {
     if (!variantA.trim() || !variantB.trim() || !assetType || !companyId) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const { error: mErr } = await supabase.from('missions').insert({
@@ -146,16 +150,12 @@ export default function PreferenceTest() {
       }).select().single();
       if (error) throw error;
 
-      setTests(ts => [data, ...ts]);
       setMissionUuid(crypto.randomUUID());
-      setAssetType(''); setVariantA(''); setVariantB('');
-      setVariantAImage(null); setVariantBImage(null);
-      setProductDescription(''); setCustomQuestions([]);
-      setSelectedTemplateId(initTemplateId); setCreateStep(0);
-      setView('list');
+      navigate('/company');
     } catch (err) {
       console.error('[PreferenceTest] 등록 실패:', err.message);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
