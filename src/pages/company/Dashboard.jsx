@@ -91,9 +91,9 @@ function CompanyMissionCard({ m, navigate }) {
   const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
   return (
     <Card onClick={() => navigate('/company/results')}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="mc-row">
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
             <Badge type={STATUS_COLOR[m.status] || 'gray'}>{STATUS_LABEL[m.status] || m.status}</Badge>
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
@@ -103,18 +103,18 @@ function CompanyMissionCard({ m, navigate }) {
               {m.id.slice(0, 8).toUpperCase()}
             </span>
           </div>
-          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{m.title}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{m.title}</div>
           {m.target_url && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>}
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>피드백 수집</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>
-            {filled}<span style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count}</span>
+        <div className="mc-right">
+          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>피드백 수집</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)' }}>
+            {filled}<span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count}</span>
           </div>
-          <div style={{ width: 100, height: 4, background: 'var(--border)', borderRadius: 2, marginTop: 6, overflow: 'hidden', marginLeft: 'auto' }}>
+          <div style={{ width: 80, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
             <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s' }} />
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
             {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function CompanyDashboard() {
   );
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 1100 }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1100 }}>
 
       {/* NDA 배너 */}
       {showBanner && (

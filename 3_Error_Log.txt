@@ -791,3 +791,45 @@ D-34. 기업 포털 UI 워딩 규칙 ✅ 정착 (2026-04-29)
      → 패널·어드민 포털 표시 텍스트: "미션" 유지
      → 코드 내부(변수명·함수명·DB컬럼·RPC·라우트): "mission/missions" 유지 (변경 없음)
      → 이유: 기업 사용자 관점에서 "미션"보다 "의뢰"가 비즈니스 맥락에 자연스러움
+
+2026-04-29  미션 카드 소형화 + 반응형 적용 (19차)
+            [수정 파일]
+            - src/index.css:
+              · .mc-row 클래스 추가: 카드 내 좌/우 2열 flex 레이아웃
+              · .mc-right 클래스 추가: 우측 영역 (align-end, flex-col)
+              · .page-wrap 클래스 추가: 페이지 컨테이너
+              · @media (max-width: 640px): mc-row → 1열, page-wrap 패딩 20px 16px
+            - src/components/ui/index.jsx:
+              · Card 패딩: 28px → 14px 18px (전체 카드 소형화)
+            - company/Dashboard.jsx (CompanyMissionCard):
+              · 외부 div: className="mc-row" 적용 (inline flex 제거)
+              · 우측 div: className="mc-right" 적용
+              · 제목 fontSize: 17 → 14
+              · 피드백 수 fontSize: 24 → 18
+              · 프로그레스바 너비: 100 → 80
+              · page-wrap className 추가
+            - panel/Missions.jsx (PanelMissionCard):
+              · className="mc-row" / "mc-right" 적용
+              · 제목 fontSize: 18 → 15
+              · 보상 fontSize: 28 → 20
+              · page-wrap className 추가
+            - admin/Missions.jsx (MissionCard):
+              · className="mc-row" / "mc-right" 적용
+              · 제목 fontSize: 17 → 14
+              · 슬롯 fontSize: 20 → 16
+              · 날짜+보상 하단 분리 행 → mc-right 내 한 줄로 통합
+              · page-wrap className 추가
+            - panel/ActiveMission.jsx (renderDraftCard):
+              · className="mc-row" / "mc-right" 적용
+              · 제목 fontSize: 18 → 15
+              · 보상 fontSize: 28 → 20
+              · page-wrap className 추가
+            [빌드]
+            - npm run build 경고 0개, 4.94s
+
+D-35. 미션 카드 반응형 CSS 클래스 패턴 ✅ 정착 (2026-04-29)
+     → 문제: inline style만으로는 media query 적용 불가 → 모바일에서 카드 내 좌우 레이아웃이 overflow됨
+     → 해결: index.css에 .mc-row/.mc-right/.page-wrap 유틸리티 클래스 정의 + @media 640px 분기
+     → 패턴: inline style로 색상/폰트 등 시각적 속성 관리, CSS 클래스로 반응형 구조 관리
+     → 640px 이하에서 .mc-row는 flex-direction:column, .mc-right는 align-items:flex-start로 전환
+     → 신규 미션 카드 추가 시 className="mc-row" / "mc-right" 먼저 적용할 것

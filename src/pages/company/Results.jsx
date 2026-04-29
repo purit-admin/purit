@@ -73,6 +73,7 @@ export default function Results() {
       .from('feedbacks')
       .select('*, panels(industry, experience, name)')
       .eq('mission_id', selected)
+      .neq('status', 'draft')
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         const enriched = (data || []).map(f => ({

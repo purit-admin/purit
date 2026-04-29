@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (전체 UI 개편 — 의뢰→미션 리브랜딩 + 서브미션 스텝 재설계)
+최종 업데이트: 2026-04-29 (미션 카드 소형화 + 반응형 CSS 클래스 추가)
 ================================================================
 
 ## 기술 스택
@@ -521,6 +521,7 @@ purit/
 
   Btn             — 버튼 (variant: primary|secondary|ghost|danger|outline, size: sm|md|lg)
   Card            — 카드 컨테이너 (클릭 가능, hover 효과)
+                    ★ padding: '14px 18px' (이전: 28px — 소형화 적용)
   Stat            — 지표 표시 (label, value, sub, accent)
   ScoreBar        — 점수 바 (score, max=5, color)
   Badge           — 태그/뱃지 (type: gray|gold|green|red|blue)
@@ -530,6 +531,13 @@ purit/
                     Props: title, desc, confirmLabel, cancelLabel, danger(bool), onConfirm, onCancel
                     ※ overflow:auto 스크롤 컨테이너 내부에서도 뷰포트 중앙 고정됨
   ImageAnnotator  — 이미지 드래그 어노테이션 (ImageAnnotator.jsx, 별도 파일)
+
+## 반응형 CSS 유틸리티 클래스 (src/index.css)
+
+  .mc-row    — 미션 카드 내부 좌/우 2열 레이아웃 (640px 이하: 1열로 전환)
+  .mc-right  — 미션 카드 우측 영역 (보상금·슬롯·버튼 묶음)
+  .page-wrap — 페이지 컨테이너 (640px 이하: 패딩 20px 16px로 축소)
+  ※ 미션 카드 적용 대상: company/Dashboard, panel/Missions, panel/ActiveMission(목록뷰), admin/Missions
 
 ================================================================
 ## 환경 변수 (.env)

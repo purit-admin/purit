@@ -32,9 +32,9 @@ function Pagination({ page, total, onPage }) {
 function MissionCard({ m, onUpdateStatus, onDelete }) {
   return (
     <Card key={m.id}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="mc-row">
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 7, alignItems: 'center', flexWrap: 'wrap' }}>
             <Badge type={STATUS_TYPE[m.status] || 'gray'}>
               {STATUS_LABEL[m.status] || m.status}
             </Badge>
@@ -46,20 +46,20 @@ function MissionCard({ m, onUpdateStatus, onDelete }) {
               {m.id.slice(0, 8).toUpperCase()}
             </span>
           </div>
-          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{m.title}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{m.title}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 3 }}>
             {m.companies?.name || '—'}{m.persona ? ` · ${m.persona}` : ''}
           </div>
           {m.target_url && (
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
           )}
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 20, marginBottom: 4 }}>
+        <div className="mc-right">
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 16 }}>
             {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>패널 슬롯</div>
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>패널 슬롯</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {m.status === 'active' && (
               <Btn size="sm" variant="secondary" onClick={() => onUpdateStatus(m.id, 'completed')}>완료 처리</Btn>
             )}
@@ -76,11 +76,10 @@ function MissionCard({ m, onUpdateStatus, onDelete }) {
               <Btn size="sm" variant="danger" onClick={() => onDelete(m.id)}>삭제</Btn>
             )}
           </div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            {new Date(m.created_at).toLocaleDateString('ko-KR')} · ₩{(m.reward_amount || 0).toLocaleString()}/건
+          </div>
         </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginTop: 14 }}>
-        <span>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</span>
-        <span>보상 ₩{(m.reward_amount || 0).toLocaleString()}/건</span>
       </div>
     </Card>
   );
@@ -131,7 +130,7 @@ export default function AdminMissions() {
   );
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 관리</h1>

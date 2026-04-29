@@ -422,9 +422,9 @@ export default function ActiveMission() {
       const hasProgress = hasDraftProgress(fb);
       return (
         <Card key={fb.id}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+          <div className="mc-row">
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
                 <Badge type="gold">진행 중</Badge>
                 {TYPE_BADGE[m.type]}
                 {m.image_urls?.length > 0 && <Badge type="blue">이미지 {m.image_urls.length}장</Badge>}
@@ -432,19 +432,19 @@ export default function ActiveMission() {
                   {m.id.slice(0, 8).toUpperCase()}
                 </span>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{m.title}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{m.title}</div>
               {m.persona && (
-                <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4, lineHeight: 1.5 }}>
                   🎯 타겟: {m.persona}
                 </div>
               )}
             </div>
-            <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
+            <div className="mc-right">
               <div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
                   ₩{(m.reward_amount || 0).toLocaleString()}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>건당 보상</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>건당 보상</div>
               </div>
               <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>
                 {hasProgress ? '이어하기 →' : '피드백 시작하기 →'}
@@ -459,7 +459,7 @@ export default function ActiveMission() {
     const subDrafts  = drafts.filter(fb => fb.missions && ['preference', 'pricing', 'email'].includes(fb.missions.type));
 
     return (
-      <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
+      <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSIONS</div>
           <h1 style={{ fontSize: 28, fontWeight: 800 }}>진행 중인 미션</h1>

@@ -43,9 +43,9 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
   const isInProgress = myStatus === 'draft';
   return (
     <Card style={{ opacity: isDone ? 0.75 : 1 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+      <div className="mc-row">
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
             {isDone ? (
               <Badge type="gray">완료</Badge>
             ) : isInProgress ? (
@@ -60,9 +60,9 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
               {m.id.slice(0, 8).toUpperCase()}
             </span>
           </div>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{m.title}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{m.title}</div>
           {m.persona && (
-            <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, lineHeight: 1.5 }}>
               🎯 타겟: {m.persona}
             </div>
           )}
@@ -70,12 +70,12 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
           )}
         </div>
-        <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
+        <div className="mc-right">
           <div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
               ₩{(m.reward_amount || 0).toLocaleString()}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>건당 보상</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>건당 보상</div>
           </div>
           {!isDone && (
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
@@ -83,9 +83,9 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
             </div>
           )}
           {(m.estimated_minutes || m.difficulty) && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {m.estimated_minutes && (
-                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>⏱ 예상 {m.estimated_minutes}분</span>
+                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>⏱ {m.estimated_minutes}분</span>
               )}
               {m.difficulty && (
                 <span style={{ fontSize: 11, fontWeight: 700, color: DIFF_META[m.difficulty]?.color || 'var(--text-3)' }}>
@@ -95,12 +95,12 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
             </div>
           )}
           <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-            {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
+            {new Date(m.created_at).toLocaleDateString('ko-KR')}
           </div>
           {isDone ? (
             <Btn size="sm" variant="ghost" disabled>완료됨</Btn>
           ) : isInProgress ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>이어하기 →</Btn>
               <Btn size="sm" variant="ghost" onClick={() => setModal({ type: 'cancel', mission: m })}
                 style={{ fontSize: 11, color: 'var(--text-3)' }}>수락 취소</Btn>
@@ -239,7 +239,7 @@ export default function MissionList() {
   );
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
 
       {/* ── 수락 모달 (portal) ── */}
       {modal?.type === 'accept' && ReactDOM.createPortal(

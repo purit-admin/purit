@@ -57,7 +57,7 @@ export const Card = ({ children, style, className, onClick }) => (
       background: 'var(--surface)',
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-lg)',
-      padding: '28px',
+      padding: '14px 18px',
       cursor: onClick ? 'pointer' : 'default',
       transition: 'box-shadow 0.18s ease, border-color 0.18s ease',
       ...style,

@@ -112,3 +112,13 @@ input:focus, textarea:focus, select:focus {
 .tag-red { background: var(--red-dim); color: #C0392B; border: 1px solid rgba(255,59,48,0.2); }
 .tag-blue { background: var(--blue-dim); color: var(--text-2); border: 1px solid var(--border); }
 .tag-gray { background: var(--bg-2); color: var(--text-3); border: 1px solid var(--border); }
+
+/* Mission card responsive layout */
+.mc-row { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+.mc-right { flex-shrink:0; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+
+@media (max-width: 640px) {
+  .page-wrap { padding: 20px 16px !important; }
+  .mc-row { flex-direction: column; gap: 10px; }
+  .mc-right { width:100%; align-items:flex-start !important; text-align:left !important; }
+}
