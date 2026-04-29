@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29 (기업·패널 참여도 향상 기능 전면 구현)
+최종 업데이트: 2026-04-29 (알림 시스템 실동화 + 어드민 미션 삭제 기능)
 ================================================================
 
 ## 핵심 원칙
@@ -485,3 +485,44 @@ D-20. 한국어 키워드 클러스터링 패턴 (2026-04-29)
      → KO_STOP Set: 조사·접속사·자주 나오는 동사형 어미 40여 개 정의
      → 상위 60개만 슬라이스 → 태그 클라우드로 렌더링
      → 빌드에 외부 라이브러리 불필요 (순수 JS 구현)
+
+2026-04-29  어드민 미션 삭제 + 알림 시스템 실동화 (11차)
+            [수정 파일]
+            - admin/Missions.jsx: 취소(cancelled) 미션 영구 삭제 기능 추가
+              · confirmDelete state + deleteMission() 함수
+              · "삭제" 버튼 → 확인 모달 → missions DELETE → state 제거
+            [신규 파일]
+            - supabase/migrations/011_notification_triggers.sql: DB 트리거 2개
+              · on_mission_created: missions INSERT 시 auth.users에서 role='admin' user 조회 → 알림
+              · on_mission_slots_full: missions UPDATE 시 filled_count >= panel_count 조건 → 기업 알림
+              · 두 함수 모두 SECURITY DEFINER — 클라이언트 개입 없이 백엔드에서 자동 발송
+            - src/lib/notify.js: sendNotification(userId, {type, icon, title, body, actionUrl}) 헬퍼
+              · 모든 알림 INSERT를 단일 함수로 중앙화
+              · userId 없으면 즉시 반환 (방어 처리)
+            [수정 파일]
+            - Sidebar.jsx: badge: 2 하드코딩 제거 → unreadCount state + Supabase 실시간 구독
+              · 채널명 'sidebar-notif-badge' (NotificationCenter의 'notifications'와 분리)
+              · event: '*' 구독 → INSERT(신규 알림) + UPDATE(읽음 처리) 모두 반응 → count 재조회
+              · user?.id 의존성 → 로그아웃/로그인 시 구독 재초기화
+            - NotificationCenter.jsx: markOne(id, actionUrl) 추가 → 클릭 시 action_url navigate
+            - admin/PurityFilter.jsx:
+              · select 쿼리에 panels(user_id), missions(companies(user_id)) 추가
+              · approve/reject 성공 후 sendNotification으로 패널·기업 각각 알림 발송
+            - panel/ActiveMission.jsx: 인라인 notifications INSERT → sendNotification() 교체
+            [SQL 실행 필요]
+            - Supabase SQL Editor에서 011_notification_triggers.sql 실행
+            [빌드]
+            - npm run build 경고 0개, 7.39s
+
+D-21. 알림 시스템 아키텍처 원칙 ✅ 정착 (2026-04-29)
+     → 채널 분리: Sidebar = 'sidebar-notif-badge', NotificationCenter = 'notifications' — 충돌 없음
+     → 단방향 책임: Sidebar는 count만 추적, 목록 관리는 NotificationCenter만 담당
+     → 중앙 헬퍼: 모든 알림 INSERT는 src/lib/notify.js의 sendNotification() 경유
+     → 백엔드 트리거: 클라이언트가 개입 불가한 이벤트(미션 생성, 슬롯 완료)는 SQL 트리거로 처리
+     → 읽음 처리 시 Sidebar 뱃지 자동 감소: event='*' 구독이 UPDATE도 받아 count 재조회
+
+D-22. PurityFilter select 쿼리 중첩 join 패턴 (2026-04-29)
+     → missions(title, type, image_urls, description, company_id, companies(user_id)) 중첩 select 가능
+     → PostgREST FK 자동 감지: missions.company_id → companies.id
+     → 코드에서 fb.missions.companies.user_id 로 접근
+     → panels(user_id, name): panels.user_id가 알림 수신자 식별에 사용됨

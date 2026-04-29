@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Bell, Plus, BarChart2, Layers, Columns2,
@@ -8,6 +8,7 @@ import {
   LogOut, LineChart,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 const NAV = {
   company: [
@@ -15,7 +16,7 @@ const NAV = {
       group: '개요',
       items: [
         { path: '/company', label: '대시보드', icon: LayoutDashboard },
-        { path: '/company/notifications', label: '알림', icon: Bell, badge: 2 },
+        { path: '/company/notifications', label: '알림', icon: Bell },
       ],
     },
     {
@@ -59,7 +60,7 @@ const NAV = {
       group: '개요',
       items: [
         { path: '/panel', label: '대시보드', icon: LayoutDashboard },
-        { path: '/panel/notifications', label: '알림', icon: Bell, badge: 2 },
+        { path: '/panel/notifications', label: '알림', icon: Bell },
       ],
     },
     {
@@ -82,7 +83,7 @@ const NAV = {
       group: '개요',
       items: [
         { path: '/admin', label: '플랫폼 개요', icon: Monitor },
-        { path: '/admin/notifications', label: '알림', icon: Bell, badge: 2 },
+        { path: '/admin/notifications', label: '알림', icon: Bell },
       ],
     },
     {
@@ -111,6 +112,33 @@ export default function Layout({ role, children }) {
   const { user, role: authRole, signOut } = useAuth();
   const navGroups = NAV[role] || [];
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let sub;
+
+    async function loadCount() {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      setUnreadCount(count || 0);
+    }
+
+    loadCount();
+
+    sub = supabase
+      .channel('sidebar-notif-badge')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, loadCount)
+      .subscribe();
+
+    return () => { if (sub) supabase.removeChannel(sub); };
+  }, [user?.id]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -248,16 +276,16 @@ export default function Layout({ role, children }) {
                   >
                     <Icon size={16} strokeWidth={active ? 2 : 1.75} style={{ flexShrink: 0 }} />
                     {!collapsed && <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>}
-                    {!collapsed && item.badge && (
+                    {!collapsed && item.path === `/${role}/notifications` && unreadCount > 0 && (
                       <span style={{
                         minWidth: 18, height: 18, borderRadius: 9,
                         background: 'var(--red)', color: '#fff',
                         fontSize: 11, fontWeight: 700,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         padding: '0 5px', flexShrink: 0,
-                      }}>{item.badge}</span>
+                      }}>{unreadCount}</span>
                     )}
-                    {collapsed && item.badge && (
+                    {collapsed && item.path === `/${role}/notifications` && unreadCount > 0 && (
                       <div style={{
                         position: 'absolute', top: 7, right: 10,
                         width: 6, height: 6, borderRadius: '50%', background: 'var(--red)',

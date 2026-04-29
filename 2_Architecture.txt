@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (기업·패널 참여도 향상 기능 전면 구현)
+최종 업데이트: 2026-04-29 (알림 시스템 실동화 + 어드민 미션 삭제 기능)
 ================================================================
 
 ## 기술 스택
@@ -31,7 +31,9 @@ purit/
 │   │
 │   ├── lib/
 │   │   ├── supabase.js              # Supabase 클라이언트 싱글턴 (export: supabase)
-│   │   └── data.js                  # 목업 데이터 + 헬퍼함수 (getTierColor, getStatusColor)
+│   │   ├── data.js                  # 목업 데이터 + 헬퍼함수 (getTierColor, getStatusColor)
+│   │   └── notify.js                # ★ 신규 — sendNotification(userId, {type,icon,title,body,actionUrl})
+│   │                                #   중앙 알림 INSERT 헬퍼, 모든 알림 발송 코드가 이곳을 경유
 │   │
 │   ├── context/
 │   │   └── AuthContext.jsx          # AuthProvider + useAuth 훅
@@ -41,7 +43,7 @@ purit/
 │   │
 │   ├── components/
 │   │   ├── layout/
-│   │   │   └── Sidebar.jsx          # 역할별 사이드바 레이아웃 래퍼 (CL/PL/AL)
+│   │   │   └── Sidebar.jsx          # 역할별 사이드바 — ★ unreadCount 실시간 구독 뱃지
 │   │   └── ui/
 │   │       ├── index.jsx            # 공용 컴포넌트 (아래 목록 참조)
 │   │       ├── ImageAnnotator.jsx   # 이미지 드래그 어노테이션 컴포넌트
@@ -50,7 +52,7 @@ purit/
 │   │       │                        #   뱃지: {short}{seqNum} (명1, 명2, 가1 등 dimension별 번호)
 │   │       │                        #   팝업: dimension+score만 선택 (코멘트는 이미지 아래 박스에서)
 │   │       │                        #   getDimSeq(): 같은 dimension 내 순번 계산 헬퍼
-│   │       └── NotificationCenter.jsx  # 역할별 알림 센터 모달
+│   │       └── NotificationCenter.jsx  # 역할별 알림 센터 (action_url 클릭 시 navigate)
 │   │
 │   └── pages/
 │       ├── Landing.jsx              # 공개 랜딩 페이지
@@ -90,8 +92,9 @@ purit/
 │       └── admin/                   # Admin 포털 (6개 페이지)
 │           ├── Dashboard.jsx
 │           ├── PanelManagement.jsx  # ★ 뱃지 섹션 추가
-│           ├── Missions.jsx
-│           ├── PurityFilter.jsx
+│           ├── Missions.jsx         # ★ 취소 미션 삭제 버튼 + 확인 모달 추가
+│           ├── PurityFilter.jsx     # ★ 승인/반려 시 패널·기업 sendNotification 호출
+│           │                        #   select 쿼리에 panels(user_id), missions(companies(user_id)) 포함
 │           ├── Revenue.jsx
 │           └── Account.jsx          # 관리자 이름 + 비밀번호 변경
 │
@@ -108,7 +111,10 @@ purit/
 │   │   ├── 008_seed_templates.sql     # 브랜드 삭제, category 업데이트, 서브 의뢰 템플릿 6개 삽입
 │   │   ├── 009_gamification.sql       # panels 게이미피케이션 컬럼 + update_panel_gamification RPC
 │   │   │                               # missions estimated_minutes + difficulty 컬럼
-│   │   └── 010_sharing.sql            # missions.share_token + get_shared_mission RPC
+│   │   ├── 010_sharing.sql            # missions.share_token + get_shared_mission RPC
+│   │   └── 011_notification_triggers.sql  # ★ 신규 — DB 트리거 2개
+│   │                                      #   on_mission_created: 미션 INSERT → 어드민 알림
+│   │                                      #   on_mission_slots_full: filled_count 완료 → 기업 알림
 │   └── functions/
 │       └── generate-ai-report/
 │           └── index.ts             # Deno Edge Function — Anthropic API → ai_reports INSERT

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Btn } from '../ui';
 import { supabase } from '../../lib/supabase';
 
@@ -15,6 +16,7 @@ const TYPE_BG = {
 };
 
 export default function NotificationCenter({ role = 'company' }) {
+  const navigate = useNavigate();
   const [notifs, setNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
   const unread = notifs.filter(n => !n.read).length;
@@ -59,9 +61,10 @@ export default function NotificationCenter({ role = 'company' }) {
     setNotifs(ns => ns.map(n => ({ ...n, read: true })));
   }
 
-  async function markOne(id) {
+  async function markOne(id, actionUrl) {
     await supabase.from('notifications').update({ read: true }).eq('id', id);
     setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
+    if (actionUrl) navigate(actionUrl);
   }
 
   const roleColor = role === 'company' ? 'var(--blue)' : role === 'panel' ? 'var(--green)' : 'var(--accent)';
@@ -101,7 +104,7 @@ export default function NotificationCenter({ role = 'company' }) {
           {notifs.map(n => (
             <div
               key={n.id}
-              onClick={() => markOne(n.id)}
+              onClick={() => markOne(n.id, n.action_url)}
               style={{
                 display: 'flex', gap: 16, padding: '18px 20px',
                 background: n.read ? 'var(--surface)' : 'var(--surface-2)',

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (기업·패널 참여도 향상 기능 전면 구현)
+최종 업데이트: 2026-04-29 (알림 시스템 실동화 + 어드민 미션 삭제 기능)
 ================================================================
 
 ## 서비스 개요
@@ -206,6 +206,8 @@
 2. 패널 관리 (/admin/panels) — PanelManagement.jsx
 3. 미션 관리 (/admin/missions) — Missions.jsx
    - 미션 목록에 유형 뱃지 표시: LP 검증 / 소재 비교 / 가격 검증 / 이메일 검증
+   - 취소(cancelled) 상태 미션 영구 삭제 버튼 추가
+     · "삭제" 버튼 클릭 → 확인 모달 → missions DELETE (관련 데이터 CASCADE 삭제)
 
 4. Purity Filter (/admin/purity) — PurityFilter.jsx
    - 피드백 품질 필터링 / purity_passed 관리
@@ -217,6 +219,7 @@
      - email: email_responses에서 would_reply + hook/clarity/open_intent/curiosity 점수 + comment 표시
    - Purit Score: 서브 미션은 calcSubPurityScore (코멘트 충실도 + 지표 충실도 기반)
    - 승인/반려: feedbacks.status 업데이트 (서브 미션도 동일)
+   - ★ 승인/반려 시 패널 + 기업 양쪽에 알림 자동 발송 (sendNotification 사용)
 5. 수익 & 정산 (/admin/revenue) — Revenue.jsx
 6. 내 계정 (/admin/account) — Account.jsx  ★ 신규
    - 탭 관리자 정보: 이름 → supabase.auth.updateUser({ data: { name } }) / 이메일 읽기전용
@@ -246,3 +249,12 @@
   - 미션 제목·페르소나·피드백 수·5차원 평균 점수 표시
   - 토큰 없거나 만료 시 404 화면
 - /*/notifications : NotificationCenter.jsx (역할별 알림, 각 포털 공유)
+  - 알림 클릭 시 action_url 페이지로 자동 이동 (읽음 처리 동시)
+  - 알림 발송 이벤트 전체 목록:
+    · 새 미션 등록 (DB 트리거) → 어드민
+    · 피드백 제출 (ActiveMission.jsx) → 기업
+    · 슬롯 완료 (DB 트리거) → 기업
+    · 피드백 승인 (PurityFilter.jsx) → 패널 + 기업
+    · 피드백 반려 (PurityFilter.jsx) → 패널 + 기업
+    · 24h 미완료 draft (panel/Dashboard.jsx) → 패널
+    · Enterprise 문의 접수 (Pricing.jsx) → 기업(본인)

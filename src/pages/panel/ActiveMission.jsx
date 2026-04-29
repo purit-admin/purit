@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Btn, Badge } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
+import { sendNotification } from '../../lib/notify';
 
 const SECTIONS = [
   { key: 'clarity',         label: '명확성',   desc: '첫 화면 메시지가 타겟에게 즉시 이해되는가?' },
@@ -191,14 +192,12 @@ export default function ActiveMission() {
       const { data: company } = await supabase
         .from('companies').select('user_id').eq('id', mission.company_id).single();
       if (company?.user_id) {
-        await supabase.from('notifications').insert({
-          user_id: company.user_id,
+        sendNotification(company.user_id, {
           type: 'success',
           icon: '📊',
           title: '새 피드백 도착',
           body: `[${mission.title}] 패널이 피드백을 제출했습니다.`,
-          action_url: '/company/results',
-          read: false,
+          actionUrl: '/company/results',
         });
       }
     }

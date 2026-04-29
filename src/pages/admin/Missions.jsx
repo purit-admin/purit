@@ -9,6 +9,7 @@ export default function AdminMissions() {
   const [missions, setMissions] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('all');
+  const [confirmDelete, setConfirmDelete] = useState(null); // mission id to delete
 
   useEffect(() => {
     async function load() {
@@ -26,6 +27,12 @@ export default function AdminMissions() {
   const updateStatus = async (id, status) => {
     await supabase.from('missions').update({ status }).eq('id', id);
     setMissions(ms => ms.map(m => m.id === id ? { ...m, status } : m));
+  };
+
+  const deleteMission = async (id) => {
+    await supabase.from('missions').delete().eq('id', id);
+    setMissions(ms => ms.filter(m => m.id !== id));
+    setConfirmDelete(null);
   };
 
   const filtered = filter === 'all' ? missions : missions.filter(m => m.status === filter);
@@ -52,6 +59,28 @@ export default function AdminMissions() {
           }}>{l}</button>
         ))}
       </div>
+
+      {/* Delete confirm modal */}
+      {confirmDelete && (
+        <div onClick={() => setConfirmDelete(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+            padding: '28px 32px', width: 360, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>미션을 삭제하시겠습니까?</div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24 }}>
+              취소된 미션과 관련 데이터가 영구적으로 삭제됩니다.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <Btn variant="secondary" onClick={() => setConfirmDelete(null)}>취소</Btn>
+              <Btn variant="danger" onClick={() => deleteMission(confirmDelete)}>삭제</Btn>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
@@ -97,6 +126,9 @@ export default function AdminMissions() {
                     )}
                     {m.status === 'cancelled' && (
                       <Btn size="sm" onClick={() => updateStatus(m.id, 'active')}>재개</Btn>
+                    )}
+                    {m.status === 'cancelled' && (
+                      <Btn size="sm" variant="danger" onClick={() => setConfirmDelete(m.id)}>삭제</Btn>
                     )}
                   </div>
                 </div>

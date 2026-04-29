@@ -11,7 +11,9 @@
       "Bash(git status *)",
       "PowerShell(winget install Supabase.CLI --accept-source-agreements --accept-package-agreements 2>&1)",
       "PowerShell(winget search supabase --accept-source-agreements 2>&1)",
-      "PowerShell(scoop --version 2>&1)"
+      "PowerShell(scoop --version 2>&1)",
+      "Bash(npx vercel *)",
+      "Bash(npm install *)"
     ]
   }
 }

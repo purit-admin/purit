@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
+import { sendNotification } from '../../lib/notify';
 
 const DIM = [
   { key: 'clarity_score',         label: '명확성' },
@@ -58,7 +59,7 @@ export default function PurityFilter() {
     async function load() {
       const { data } = await supabase
         .from('feedbacks')
-        .select('*, missions(title, type, image_urls, description), panels(name)')
+        .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name)')
         .order('created_at', { ascending: false });
       setFeedbacks(data || []);
       if (data && data.length > 0) setSelected(data[0].id);
@@ -97,6 +98,14 @@ export default function PurityFilter() {
     const { error } = await supabase.from('feedbacks').update({ purity_passed: true, status: 'approved' }).eq('id', id);
     if (error) { alert('승인 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: true, status: 'approved' } : f));
+
+    const fb = feedbacks.find(f => f.id === id);
+    const panelUserId = fb?.panels?.user_id;
+    const companyUserId = fb?.missions?.companies?.user_id;
+    const missionTitle = fb?.missions?.title || '미션';
+    if (panelUserId) sendNotification(panelUserId, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${missionTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history' });
+    if (companyUserId) sendNotification(companyUserId, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${missionTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: '/company/results' });
+
     setSelected(null);
     setActing(false);
   };
@@ -106,6 +115,14 @@ export default function PurityFilter() {
     const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected' }).eq('id', id);
     if (error) { alert('반려 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected' } : f));
+
+    const fb = feedbacks.find(f => f.id === id);
+    const panelUserId = fb?.panels?.user_id;
+    const companyUserId = fb?.missions?.companies?.user_id;
+    const missionTitle = fb?.missions?.title || '미션';
+    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. 성의 있는 재참여 부탁드립니다.`, actionUrl: '/panel/missions' });
+    if (companyUserId) sendNotification(companyUserId, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${missionTitle}] 품질 기준 미달 피드백이 반려 처리되었습니다.`, actionUrl: '/company/results' });
+
     setSelected(null);
     setActing(false);
   };
