@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (전체 UI 개편 — 의뢰→미션 리브랜딩 + 서브미션 스텝 재설계)
+최종 업데이트: 2026-04-29 (미션 목록 메인/서브 분리 + 페이지네이션 전면 적용)
 ================================================================
 
 ## 서비스 개요
@@ -24,8 +24,12 @@
      (피드백 미수집 시 0점 표시, 수집 시 자동 반영)
    - KPI 달성률 게이지: 5축 평균을 100점 환산한 반원형 RadialBarChart
    - 긍/부정 스택 바 차트: 미션별 평균점수 ≥3.5 → 긍정 비율 수평 바 (최대 5개 미션)
-   - 진행 중인 미션 카드 목록 + 전체 미션 현황 리스트
-   - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren / 미션 카드 whileHover
+   - 전체 미션 현황 (통합 섹션): ★ 개편
+     · "진행 중인 미션" 별도 섹션 제거 → "전체 미션 현황"에 통합
+     · 탭 4개: 전체 / 진행 / 완료 / 취소 (어드민 미션관리와 동일 구조)
+     · 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리
+     · 각 섹션 10개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
+   - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
    ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') 실시간 집계
      - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지
      - computeSentiment(missions, fbs): 미션별 평균 ≥3.5 비율 → 스택 바
@@ -160,6 +164,8 @@
    - 탭 3개: 참여가능 / 진행 중(→/panel/active로 이동) / 완료
    - 참여가능: missions status='active' + 미참여(feedbackMap에 없음) + 슬롯 여유 있는 것
    - 완료: 패널이 submitted/approved/rejected 상태인 피드백이 있는 미션
+   - 참여가능·완료 탭: 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리 ★ 개편
+   - 각 섹션 10개씩 페이지네이션 (PanelMissionCard 컴포넌트 분리, 수락/취소 모달 유지) ★ 개편
    - 수락 확인 모달: Purit Filter 경고 3항목 포함 (ReactDOM.createPortal 기반, viewport 중앙 고정)
    - 수락 시 feedbacks INSERT(status='draft', 점수는 null) → /panel/active?id=... 이동
    - 수락 취소 모달: ConfirmModal 컴포넌트 사용, cancel_panel_feedback RPC 호출
@@ -230,8 +236,10 @@
 2. 패널 관리 (/admin/panels) — PanelManagement.jsx
 3. 미션 관리 (/admin/missions) — Missions.jsx  ★ UX 개선
    - 기본 탭: '진행' (active) — 사이드바 클릭 시 진행 중 미션으로 바로 진입
+   - 탭 4개: 전체 / 진행 / 완료 / 취소
+   - 모든 탭에서 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리 ★ 개편
+   - 각 섹션 10개씩 페이지네이션 (Pagination 컴포넌트, 모든 탭 공통 적용) ★ 개편
    - 미션 목록에 유형 뱃지 표시: LP 검증 / 소재 비교 / 가격 검증 / 이메일 검증
-   - 완료도(progress bar) 제거
    - 완료(completed) 탭에 '재진행' 버튼 추가 → missions.status = 'active'로 복원
    - 전체(all) 탭: 메인 미션 / 서브 미션 섹션 분리, 각 섹션 10개씩 페이지네이션
    - 취소(cancelled) 상태 미션 영구 삭제: 확인 모달(ConfirmModal) → missions DELETE

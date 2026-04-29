@@ -52,12 +52,77 @@ function computeSentiment(missions, fbs) {
   });
 }
 
+const PAGE_SIZE = 10;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>
+        이전
+      </button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)}
+          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>
+          {n}
+        </button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>
+        다음
+      </button>
+    </div>
+  );
+}
+
+function CompanyMissionCard({ m, navigate }) {
+  const filled = m.feedbacks?.length ?? m.filled_count ?? 0;
+  const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
+  return (
+    <Card onClick={() => navigate('/company/results')}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+            <Badge type={STATUS_COLOR[m.status] || 'gray'}>{STATUS_LABEL[m.status] || m.status}</Badge>
+            {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
+            {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
+            {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
+            {(!m.type || m.type === 'landing_page') && <Badge type="gray">LP 검증</Badge>}
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)' }}>
+              {m.id.slice(0, 8).toUpperCase()}
+            </span>
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{m.title}</div>
+          {m.target_url && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>}
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>피드백 수집</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)' }}>
+            {filled}<span style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count}</span>
+          </div>
+          <div style={{ width: 100, height: 4, background: 'var(--border)', borderRadius: 2, marginTop: 6, overflow: 'hidden', marginLeft: 'auto' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s' }} />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
+            {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function CompanyDashboard() {
   const navigate = useNavigate();
-  const [company, setCompany]     = useState(null);
-  const [missions, setMissions]   = useState([]);
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [company, setCompany]         = useState(null);
+  const [missions, setMissions]       = useState([]);
+  const [feedbacks, setFeedbacks]     = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [missionFilter, setMissionFilter] = useState('all');
+  const [mainMissionPage, setMainMissionPage] = useState(1);
+  const [subMissionPage, setSubMissionPage]   = useState(1);
 
   useEffect(() => {
     async function load() {
@@ -93,8 +158,13 @@ export default function CompanyDashboard() {
     load();
   }, []);
 
-  const activeMissions    = missions.filter(m => m.status === 'active');
-  const completedMissions = missions.filter(m => m.status === 'completed');
+  const missionFiltered = missionFilter === 'all'
+    ? missions
+    : missions.filter(m => m.status === (missionFilter === 'active' ? 'active' : missionFilter === 'completed' ? 'completed' : 'cancelled'));
+  const mainMissions = missionFiltered.filter(m => !m.type || m.type === 'landing_page');
+  const subMissions  = missionFiltered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+  const mainPaged    = mainMissions.slice((mainMissionPage - 1) * PAGE_SIZE, mainMissionPage * PAGE_SIZE);
+  const subPaged     = subMissions.slice((subMissionPage - 1) * PAGE_SIZE, subMissionPage * PAGE_SIZE);
 
   const radarData     = computeRadar(feedbacks);
   const overallScore  = radarData.reduce((acc, d) => acc + d.score, 0) / radarData.length;
@@ -131,9 +201,9 @@ export default function CompanyDashboard() {
         style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}
       >
         {[
-          { label: '전체 미션',  value: String(missions.length),          sub: '누적' },
-          { label: '진행 중',    value: String(activeMissions.length),    sub: '현재 활성' },
-          { label: '완료',       value: String(completedMissions.length), sub: '검증 완료' },
+          { label: '전체 미션',  value: String(missions.length),                                        sub: '누적' },
+          { label: '진행 중',    value: String(missions.filter(m => m.status === 'active').length),    sub: '현재 활성' },
+          { label: '완료',       value: String(missions.filter(m => m.status === 'completed').length), sub: '검증 완료' },
           { label: '수집 피드백', value: String(feedbacks.length),         sub: '제출 완료', accent: feedbacks.length > 0 },
         ].map(s => (
           <motion.div key={s.label} variants={staggerItem} style={{ background: 'var(--surface)', padding: '24px 28px' }}>
@@ -252,70 +322,68 @@ export default function CompanyDashboard() {
         )}
       </motion.div>
 
-      {/* 진행 중인 의뢰 */}
+      {/* 전체 미션 현황 (통합) */}
       <motion.div {...fadeUp(0.3)}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)' }}>진행 중인 미션</h2>
-        {activeMissions.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', color: 'var(--text-3)', fontSize: 14, marginBottom: 32 }}>
-            진행 중인 미션이 없습니다.{' '}
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)' }}>전체 미션 현황</h2>
+
+        {/* 탭 */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
+          {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['cancelled', '취소']].map(([v, l]) => (
+            <button key={v} onClick={() => { setMissionFilter(v); setMainMissionPage(1); setSubMissionPage(1); }} style={{
+              padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
+              background: missionFilter === v ? 'var(--bg)' : 'transparent',
+              color: missionFilter === v ? 'var(--text)' : 'var(--text-3)',
+              border: 'none', transition: 'all 0.15s', cursor: 'pointer',
+            }}>{l}</button>
+          ))}
+        </div>
+
+        {missions.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', color: 'var(--text-3)', fontSize: 14 }}>
+            등록된 미션이 없습니다.{' '}
             <span style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }} onClick={() => navigate('/company/new')}>첫 미션을 등록해보세요 →</span>
           </div>
         ) : (
-          <motion.div variants={stagger} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-            {activeMissions.map(m => (
-              <motion.div key={m.id} variants={staggerItem} whileHover={{ y: -2 }} transition={{ duration: 0.15 }}>
-                <Card onClick={() => navigate('/company/results')}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                        <Badge type="green">진행 중</Badge>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)' }}>
-                          {m.id.slice(0, 8).toUpperCase()}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{m.title}</div>
-                      {m.target_url && (
-                        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
-                      )}
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>피드백 수집</div>
-                      <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)' }}>
-                        {m.feedbacks?.length ?? m.filled_count ?? 0}
-                        <span style={{ fontSize: 16, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count}</span>
-                      </div>
-                      <div style={{ width: 120, height: 4, background: 'var(--border)', borderRadius: 2, marginTop: 8, overflow: 'hidden', marginLeft: 'auto' }}>
-                        <div style={{ width: `${Math.min(((m.feedbacks?.length ?? m.filled_count ?? 0) / m.panel_count) * 100, 100)}%`, height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s' }} />
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-                        {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </motion.div>
-
-      {/* 전체 의뢰 현황 */}
-      <motion.div {...fadeUp(0.35)}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, margin: '32px 0 16px', color: 'var(--text-2)' }}>전체 미션 현황</h2>
-        {missions.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>
-            등록된 미션이 없습니다.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {missions.map(m => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                <Badge type={STATUS_COLOR[m.status] || 'gray'}>{STATUS_LABEL[m.status] || m.status}</Badge>
-                <div style={{ flex: 1 }}><span style={{ fontWeight: 600 }}>{m.title}</span></div>
-                <div style={{ color: 'var(--text-3)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>패널 {m.panel_count}명</div>
-                <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{new Date(m.created_at).toLocaleDateString('ko-KR')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {/* 메인 의뢰 섹션 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)' }}>메인 의뢰</h3>
+                <Badge type="gray">{mainMissions.length}개</Badge>
               </div>
-            ))}
+              {mainMissions.length === 0 ? (
+                <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                  해당 조건의 미션이 없습니다.
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} />)}
+                  </div>
+                  <Pagination page={mainMissionPage} total={mainMissions.length} onPage={setMainMissionPage} />
+                </>
+              )}
+            </div>
+
+            {/* 서브 의뢰 섹션 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)' }}>서브 의뢰</h3>
+                <Badge type="blue">{subMissions.length}개</Badge>
+              </div>
+              {subMissions.length === 0 ? (
+                <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                  해당 조건의 미션이 없습니다.
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} />)}
+                  </div>
+                  <Pagination page={subMissionPage} total={subMissions.length} onPage={setSubMissionPage} />
+                </>
+              )}
+            </div>
           </div>
         )}
       </motion.div>

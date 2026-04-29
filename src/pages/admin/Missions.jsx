@@ -162,67 +162,52 @@ export default function AdminMissions() {
         />
       )}
 
-      {/* 전체 탭: 메인/서브 분리 */}
-      {filter === 'all' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {/* 메인 미션 섹션 */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 미션</h2>
-              <Badge type="gray">{mainMissions.length}개</Badge>
-            </div>
-            {mainMissions.length === 0 ? (
-              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-                해당 조건의 미션이 없습니다.
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {mainPaged.map(m => (
-                    <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
-                  ))}
-                </div>
-                <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
-              </>
-            )}
+      {/* 메인/서브 분리 (모든 탭 공통) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        {/* 메인 미션 섹션 */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 의뢰</h2>
+            <Badge type="gray">{mainMissions.length}개</Badge>
           </div>
-
-          {/* 서브 미션 섹션 */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 미션</h2>
-              <Badge type="blue">{subMissions.length}개</Badge>
+          {mainMissions.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+              해당 조건의 미션이 없습니다.
             </div>
-            {subMissions.length === 0 ? (
-              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-                해당 조건의 미션이 없습니다.
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {mainPaged.map(m => (
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
+                ))}
               </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {subPaged.map(m => (
-                    <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
-                  ))}
-                </div>
-                <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
-              </>
-            )}
-          </div>
+              <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
+            </>
+          )}
         </div>
-      ) : (
-        /* 진행/완료/취소 탭: 단일 목록 */
-        filtered.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-            해당 조건의 미션이 없습니다.
+
+        {/* 서브 의뢰 섹션 */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 의뢰</h2>
+            <Badge type="blue">{subMissions.length}개</Badge>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filtered.map(m => (
-              <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
-            ))}
-          </div>
-        )
-      )}
+          {subMissions.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+              해당 조건의 미션이 없습니다.
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {subPaged.map(m => (
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
+                ))}
+              </div>
+              <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

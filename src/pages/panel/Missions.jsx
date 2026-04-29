@@ -10,6 +10,110 @@ const DIFF_META = {
   hard:   { label: '어려움', color: 'var(--red, #ef4444)' },
 };
 
+const PAGE_SIZE = 10;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>
+        이전
+      </button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)}
+          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>
+          {n}
+        </button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>
+        다음
+      </button>
+    </div>
+  );
+}
+
+function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
+  const slots = m.panel_count || 0;
+  const filled = m.filled_count || 0;
+  const myStatus = feedbackMap[m.id];
+  const isDone = ['submitted', 'approved', 'rejected'].includes(myStatus);
+  const isInProgress = myStatus === 'draft';
+  return (
+    <Card style={{ opacity: isDone ? 0.75 : 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+            {isDone ? (
+              <Badge type="gray">완료</Badge>
+            ) : isInProgress ? (
+              <Badge type="gold">진행 중</Badge>
+            ) : (
+              <Badge type="green">참여가능</Badge>
+            )}
+            {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
+            {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
+            {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
+              {m.id.slice(0, 8).toUpperCase()}
+            </span>
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{m.title}</div>
+          {m.persona && (
+            <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
+              🎯 타겟: {m.persona}
+            </div>
+          )}
+          {m.target_url && (
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
+          )}
+        </div>
+        <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+              ₩{(m.reward_amount || 0).toLocaleString()}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>건당 보상</div>
+          </div>
+          {!isDone && (
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              잔여 <strong style={{ color: 'var(--text)' }}>{Math.max(0, slots - filled)}</strong>/{slots} 슬롯
+            </div>
+          )}
+          {(m.estimated_minutes || m.difficulty) && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              {m.estimated_minutes && (
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>⏱ 예상 {m.estimated_minutes}분</span>
+              )}
+              {m.difficulty && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: DIFF_META[m.difficulty]?.color || 'var(--text-3)' }}>
+                  {DIFF_META[m.difficulty]?.label || m.difficulty}
+                </span>
+              )}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+            {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
+          </div>
+          {isDone ? (
+            <Btn size="sm" variant="ghost" disabled>완료됨</Btn>
+          ) : isInProgress ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+              <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>이어하기 →</Btn>
+              <Btn size="sm" variant="ghost" onClick={() => setModal({ type: 'cancel', mission: m })}
+                style={{ fontSize: 11, color: 'var(--text-3)' }}>수락 취소</Btn>
+            </div>
+          ) : (
+            <Btn size="sm" onClick={() => setModal({ type: 'accept', mission: m })}>수락하기</Btn>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function MissionList() {
   const navigate = useNavigate();
   const [missions, setMissions]       = useState([]);
@@ -20,6 +124,8 @@ export default function MissionList() {
   const [filter, setFilter]           = useState('available');
   const [modal, setModal]             = useState(null); // { type: 'accept'|'cancel', mission }
   const [confirming, setConfirming]   = useState(false);
+  const [mainPage, setMainPage]       = useState(1);
+  const [subPage, setSubPage]         = useState(1);
 
   useEffect(() => {
     async function load() {
@@ -123,6 +229,11 @@ export default function MissionList() {
     return list;
   })();
 
+  const mainFiltered = filtered.filter(m => !m.type || m.type === 'landing_page');
+  const subFiltered  = filtered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+  const mainPaged    = mainFiltered.slice((mainPage - 1) * PAGE_SIZE, mainPage * PAGE_SIZE);
+  const subPaged     = subFiltered.slice((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE);
+
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
   );
@@ -182,7 +293,7 @@ export default function MissionList() {
       {/* ── 탭 ── */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['available', '참여가능'], ['inProgress', '진행 중'], ['done', '완료']].map(([v, l]) => (
-          <button key={v} onClick={() => v === 'inProgress' ? navigate('/panel/active') : setFilter(v)} style={{
+          <button key={v} onClick={() => { if (v === 'inProgress') { navigate('/panel/active'); } else { setFilter(v); setMainPage(1); setSubPage(1); } }} style={{
             padding: '6px 16px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -214,91 +325,48 @@ export default function MissionList() {
         </div>
       )}
 
-      {/* ── 미션 목록 ── */}
+      {/* ── 메인/서브 분리 목록 ── */}
       {filtered.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filtered.map(m => {
-            const slots = m.panel_count || 0;
-            const filled = m.filled_count || 0;
-            const myStatus = feedbackMap[m.id];
-            const isDone = ['submitted', 'approved', 'rejected'].includes(myStatus);
-            const isInProgress = myStatus === 'draft';
-            return (
-              <Card key={m.id} style={{ opacity: isDone ? 0.75 : 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-                      {isDone ? (
-                        <Badge type="gray">완료</Badge>
-                      ) : isInProgress ? (
-                        <Badge type="gold">진행 중</Badge>
-                      ) : (
-                        <Badge type="green">참여가능</Badge>
-                      )}
-                      {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
-                      {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
-                      {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
-                      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
-                        {m.id.slice(0, 8).toUpperCase()}
-                      </span>
-                    </div>
-                    <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{m.title}</div>
-                    {m.persona && (
-                      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
-                        🎯 타겟: {m.persona}
-                      </div>
-                    )}
-                    {m.target_url && (
-                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
-                    )}
-                  </div>
-                  <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
-                        ₩{(m.reward_amount || 0).toLocaleString()}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>건당 보상</div>
-                    </div>
-                    {!isDone && (
-                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                        잔여 <strong style={{ color: 'var(--text)' }}>{Math.max(0, slots - filled)}</strong>/{slots} 슬롯
-                      </div>
-                    )}
-                    {(m.estimated_minutes || m.difficulty) && (
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        {m.estimated_minutes && (
-                          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>⏱ 예상 {m.estimated_minutes}분</span>
-                        )}
-                        {m.difficulty && (
-                          <span style={{
-                            fontSize: 11, fontWeight: 700,
-                            color: DIFF_META[m.difficulty]?.color || 'var(--text-3)',
-                          }}>
-                            {DIFF_META[m.difficulty]?.label || m.difficulty}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-                      {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
-                    </div>
-
-                    {isDone ? (
-                      <Btn size="sm" variant="ghost" disabled>완료됨</Btn>
-                    ) : isInProgress ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-                        <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>이어하기 →</Btn>
-                        <Btn size="sm" variant="ghost" onClick={() => setModal({ type: 'cancel', mission: m })}
-                          style={{ fontSize: 11, color: 'var(--text-3)' }}>수락 취소</Btn>
-                      </div>
-                    ) : (
-                      <Btn size="sm" onClick={() => setModal({ type: 'accept', mission: m })}>수락하기</Btn>
-                    )}
-                  </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          {/* 메인 의뢰 섹션 */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 의뢰</h2>
+              <Badge type="gray">{mainFiltered.length}개</Badge>
+            </div>
+            {mainFiltered.length === 0 ? (
+              <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                해당 조건의 미션이 없습니다.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {mainPaged.map(m => <PanelMissionCard key={m.id} m={m} feedbackMap={feedbackMap} navigate={navigate} setModal={setModal} />)}
                 </div>
-              </Card>
-            );
-          })}
+                <Pagination page={mainPage} total={mainFiltered.length} onPage={setMainPage} />
+              </>
+            )}
+          </div>
+
+          {/* 서브 의뢰 섹션 */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 의뢰</h2>
+              <Badge type="blue">{subFiltered.length}개</Badge>
+            </div>
+            {subFiltered.length === 0 ? (
+              <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                해당 조건의 미션이 없습니다.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {subPaged.map(m => <PanelMissionCard key={m.id} m={m} feedbackMap={feedbackMap} navigate={navigate} setModal={setModal} />)}
+                </div>
+                <Pagination page={subPage} total={subFiltered.length} onPage={setSubPage} />
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -527,6 +527,39 @@ D-22. PurityFilter select 쿼리 중첩 join 패턴 (2026-04-29)
      → 코드에서 fb.missions.companies.user_id 로 접근
      → panels(user_id, name): panels.user_id가 알림 수신자 식별에 사용됨
 
+2026-04-29  미션 목록 메인/서브 분리 + 페이지네이션 전면 적용 (12차)
+            [수정 파일]
+            - admin/Missions.jsx:
+              · filter === 'all' 조건부 제거 → 모든 탭(전체/진행/완료/취소)에서 항상 메인/서브 분리 렌더링
+              · 섹션 레이블 "메인 미션" → "메인 의뢰", "서브 미션" → "서브 의뢰" 변경
+              · mainPage/subPage 리셋 로직은 기존 탭 전환 핸들러에 이미 포함 (변경 없음)
+            - company/Dashboard.jsx:
+              · "진행 중인 미션" 별도 섹션 완전 제거
+              · "전체 미션 현황" 섹션: 탭(전체/진행/완료/취소) + 메인/서브 분리 + 페이지네이션으로 전면 개편
+              · 신규 로컬 컴포넌트 추가:
+                - Pagination: admin과 동일 스타일
+                - CompanyMissionCard: 상태배지+타입배지+제목+URL+피드백 진행률 바
+              · 신규 state: missionFilter, mainMissionPage, subMissionPage
+              · Stats 카드의 activeMissions/completedMissions 참조 → 인라인 missions.filter(...)로 교체
+            - panel/Missions.jsx:
+              · 참여가능·완료 탭에 메인/서브 섹션 분리 + 페이지네이션 적용
+              · 기존 인라인 미션 카드를 PanelMissionCard 컴포넌트로 분리 (수락/취소 모달 로직 유지)
+              · 신규 로컬 컴포넌트 추가: Pagination, PanelMissionCard
+              · 신규 state: mainPage, subPage
+              · 탭 전환 핸들러: 페이지 리셋 추가
+            [빌드]
+            - npm run build 경고 0개, 6.53s
+
+D-23. 미션 목록 메인/서브 분리 페이지네이션 패턴 ✅ 정착 (2026-04-29)
+     → 타입 분류 기준 (3개 페이지 공통):
+        - 메인 의뢰: !m.type || m.type === 'landing_page'
+        - 서브 의뢰: ['preference', 'pricing', 'email'].includes(m.type)
+     → PAGE_SIZE = 10, Pagination 컴포넌트를 각 파일에 로컬로 복사 (공용 컴포넌트화 미적용)
+     → 탭 전환 시 반드시 mainPage/subPage를 1로 리셋할 것
+     → admin/Missions.jsx에는 Pagination + state가 이미 존재 — filter 조건만 제거하면 모든 탭 적용됨
+     → company/Dashboard.jsx: CompanyMissionCard에 navigate prop 전달 패턴 사용
+     → panel/Missions.jsx: PanelMissionCard에 feedbackMap, navigate, setModal 모두 prop으로 전달
+
 2026-04-29  전체 UI 개편 — 의뢰→미션 리브랜딩 + 서브미션 스텝 재설계 (12차)
             [수정 파일 — 워딩]
             - Sidebar.jsx: '메인 의뢰'→'메인 미션', '서브 의뢰'→'서브 미션', '의뢰 등록'→'미션 등록'
