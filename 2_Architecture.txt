@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (알림 시스템 실동화 + 어드민 미션 삭제 기능)
+최종 업데이트: 2026-04-29 (전체 UI 개편 — 의뢰→미션 리브랜딩 + 서브미션 스텝 재설계)
 ================================================================
 
 ## 기술 스택
@@ -46,6 +46,9 @@ purit/
 │   │   │   └── Sidebar.jsx          # 역할별 사이드바 — ★ unreadCount 실시간 구독 뱃지
 │   │   └── ui/
 │   │       ├── index.jsx            # 공용 컴포넌트 (아래 목록 참조)
+│   │       │                        #   ConfirmModal ★ 신규 — ReactDOM.createPortal(document.body)
+│   │       │                        #   Props: title, desc, confirmLabel, cancelLabel, danger, onConfirm, onCancel
+│   │       │                        #   position:fixed + zIndex:9000 → overflow:auto 컨테이너 밖에 렌더
 │   │       ├── ImageAnnotator.jsx   # 이미지 드래그 어노테이션 컴포넌트
 │   │       │                        #   Props: imageUrl, imageIndex, annotations, onAdd, onRemove, readonly
 │   │       │                        #   퍼센트 좌표 기반, window 레벨 mousemove/mouseup
@@ -66,13 +69,13 @@ purit/
 │       │   │                        #   - RadialBarChart: KPI 달성률 게이지
 │       │   │                        #   - BarChart: 미션별 긍/부정 스택 바
 │       │   │                        #   - feedbacks 실데이터 집계: computeRadar / computeSentiment
-│       │   ├── NewMission.jsx       # estimated_minutes + difficulty 필드 추가
+│       │   ├── NewMission.jsx       # ★ estimated_minutes 유지, difficulty 제거, 타겟 상세, FOCUS 갱신
 │       │   ├── Results.jsx          # ★ 패널 세그먼트 필터 + 공유 링크 생성/복사/해제
-│       │   ├── Diagnosis.jsx        # ★ '키워드 분석' 탭 추가 (태그 클라우드 + 빈도 바)
-│       │   ├── TimelineTracker.jsx  # ★ 신규 — 5차원 점수 시계열 LineChart (주간/미션별 뷰)
-│       │   ├── PreferenceTest.jsx
-│       │   ├── PricingTest.jsx
-│       │   ├── ColdEmailTest.jsx
+│       │   ├── Diagnosis.jsx        # ★ '키워드 분석' + '시계열 추적' 탭 → navigate('/company/timeline')
+│       │   ├── TimelineTracker.jsx  # 5차원 점수 시계열 LineChart (Diagnosis 탭에서 navigate 진입)
+│       │   ├── PreferenceTest.jsx   # ★ step 기반(0-3), 이미지 업로드(va/vb), productDescription, customQuestions
+│       │   ├── PricingTest.jsx      # ★ step 기반(0-2), 이미지 업로드(pricing), productDescription, customQuestions
+│       │   ├── ColdEmailTest.jsx    # ★ step 기반(0-2), productDescription, customQuestions
 │       │   ├── QuestionTemplates.jsx
 │       │   ├── ICPResearch.jsx
 │       │   ├── ICPPulse.jsx
@@ -84,17 +87,19 @@ purit/
 │       │
 │       ├── panel/                   # Panel 포털 (5개 페이지)
 │       │   ├── Dashboard.jsx        # ★ 티어/스트릭/신뢰도 + Draft 알림 + 시간/난이도 표시
-│       │   ├── Missions.jsx         # ★ 시간/난이도 표시 + EXPERT/ELITE 고보상 정렬
-│       │   ├── ActiveMission.jsx    # ★ 제출 후 update_panel_gamification RPC + 기업 알림
+│       │   ├── Missions.jsx         # ★ 시간/난이도 표시 + EXPERT/ELITE 고보상 정렬 + ConfirmModal
+│       │   ├── ActiveMission.jsx    # ★ parseSubDesc 헬퍼, 서브미션 이미지/productDescription 표시
+│       │   │                        #   ConfirmModal로 수락 취소 모달 교체 (step0 + 이미지 모드 양쪽)
 │       │   ├── History.jsx
 │       │   └── Profile.jsx          # ★ '성과' 탭 추가 (티어/뱃지/스트릭 시각화)
 │       │
 │       └── admin/                   # Admin 포털 (6개 페이지)
 │           ├── Dashboard.jsx
 │           ├── PanelManagement.jsx  # ★ 뱃지 섹션 추가
-│           ├── Missions.jsx         # ★ 취소 미션 삭제 버튼 + 확인 모달 추가
-│           ├── PurityFilter.jsx     # ★ 승인/반려 시 패널·기업 sendNotification 호출
-│           │                        #   select 쿼리에 panels(user_id), missions(companies(user_id)) 포함
+│           ├── Missions.jsx         # ★ 탭 기본값 active, 완료도 제거, 재진행 버튼, 섹션 분리+페이지네이션
+│           │                        #   ConfirmModal 사용, 취소 미션 영구 삭제
+│           ├── PurityFilter.jsx     # ★ parseSubDesc 헬퍼, 서브미션 이미지/productDescription/customQuestions 표시
+│           │                        #   승인/반려 시 패널·기업 sendNotification 호출
 │           ├── Revenue.jsx
 │           └── Account.jsx          # 관리자 이름 + 비밀번호 변경
 │
@@ -518,6 +523,9 @@ purit/
   Badge           — 태그/뱃지 (type: gray|gold|green|red|blue)
   Divider         — 구분선
   EmptyState      — 빈 상태 플레이스홀더 (icon, title, desc)
+  ConfirmModal    — 확인/취소 모달 (ReactDOM.createPortal(document.body), position:fixed, zIndex:9000)
+                    Props: title, desc, confirmLabel, cancelLabel, danger(bool), onConfirm, onCancel
+                    ※ overflow:auto 스크롤 컨테이너 내부에서도 뷰포트 중앙 고정됨
   ImageAnnotator  — 이미지 드래그 어노테이션 (ImageAnnotator.jsx, 별도 파일)
 
 ================================================================

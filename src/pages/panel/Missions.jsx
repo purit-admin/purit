@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const DIFF_META = {
@@ -129,64 +130,47 @@ export default function MissionList() {
   return (
     <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
 
-      {/* ── 모달 ── */}
-      {modal && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        }}>
-          <div style={{
-            background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px',
-            maxWidth: 440, width: '90%', border: '1px solid var(--border)',
-            animation: 'fadeUp 0.2s ease both',
-          }}>
-            {modal.type === 'accept' ? (
-              <>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 10, letterSpacing: '0.1em' }}>MISSION ACCEPT</div>
-                <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>미션을 수락하시겠어요?</h2>
-                <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 20, fontWeight: 600 }}>
-                  {modal.mission.title}
+      {/* ── 수락 모달 (portal) ── */}
+      {modal?.type === 'accept' && ReactDOM.createPortal(
+        <div onClick={() => setModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 440, width: '90%', border: '1px solid var(--border)', animation: 'fadeUp 0.2s ease both' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 10, letterSpacing: '0.1em' }}>MISSION ACCEPT</div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>미션을 수락하시겠어요?</h2>
+            <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 20, fontWeight: 600 }}>{modal.mission.title}</div>
+            <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                '피드백은 구체적인 근거와 함께 성의 있게 작성해야 합니다.',
+                '단순 감상·짧은 답변은 Purit Filter에서 자동 반려됩니다.',
+                '반려된 피드백은 보상이 지급되지 않습니다.',
+              ].map((t, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                  <span style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}>⚠</span>
+                  <span>{t}</span>
                 </div>
-                <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {[
-                    '피드백은 구체적인 근거와 함께 성의 있게 작성해야 합니다.',
-                    '단순 감상·짧은 답변은 Purit Filter에서 자동 반려됩니다.',
-                    '반려된 피드백은 보상이 지급되지 않습니다.',
-                  ].map((t, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
-                      <span style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}>⚠</span>
-                      <span>{t}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                  <Btn variant="secondary" onClick={() => setModal(null)} disabled={confirming}>취소</Btn>
-                  <Btn onClick={handleConfirmAccept} disabled={confirming}>
-                    {confirming ? '처리 중...' : '수락하기 →'}
-                  </Btn>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--red, #ef4444)', marginBottom: 10, letterSpacing: '0.1em' }}>CANCEL ACCEPT</div>
-                <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>수락을 취소할까요?</h2>
-                <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 20, fontWeight: 600 }}>
-                  {modal.mission.title}
-                </div>
-                <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 24, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
-                  작성 중이던 피드백 초안이 모두 삭제됩니다.<br />
-                  이 미션은 다시 참여가능 목록으로 돌아갑니다.
-                </div>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                  <Btn onClick={() => setModal(null)} disabled={confirming}>계속 작성하기</Btn>
-                  <Btn variant="danger" onClick={handleConfirmCancel} disabled={confirming}>
-                    {confirming ? '처리 중...' : '수락 취소'}
-                  </Btn>
-                </div>
-              </>
-            )}
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Btn variant="secondary" onClick={() => setModal(null)} disabled={confirming}>취소</Btn>
+              <Btn onClick={handleConfirmAccept} disabled={confirming}>
+                {confirming ? '처리 중...' : '수락하기 →'}
+              </Btn>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── 수락 취소 모달 ── */}
+      {modal?.type === 'cancel' && (
+        <ConfirmModal
+          title="수락을 취소할까요?"
+          desc={`작성 중이던 피드백 초안이 모두 삭제됩니다.\n이 미션은 다시 참여가능 목록으로 돌아갑니다.`}
+          confirmLabel={confirming ? '처리 중...' : '수락 취소'}
+          cancelLabel="계속 작성하기"
+          danger
+          onConfirm={handleConfirmCancel}
+          onCancel={() => setModal(null)}
+        />
       )}
 
       {/* ── 헤더 ── */}

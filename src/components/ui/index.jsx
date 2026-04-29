@@ -1,4 +1,5 @@
 import { clsx } from 'clsx';
+import ReactDOM from 'react-dom';
 
 export const Btn = ({ children, variant = 'primary', size = 'md', onClick, disabled, style, className }) => {
   const base = {
@@ -105,3 +106,24 @@ export const EmptyState = ({ icon, title, desc }) => (
     <div style={{ fontSize: 14, lineHeight: 1.6 }}>{desc}</div>
   </div>
 );
+
+export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel = '취소', onConfirm, onCancel, danger = false }) =>
+  ReactDOM.createPortal(
+    <div
+      onClick={onCancel}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '28px 32px', width: 380, textAlign: 'center', animation: 'fadeUp 0.18s ease both' }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{title}</div>
+        {desc && <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24, lineHeight: 1.6 }}>{desc}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <Btn variant="secondary" onClick={onCancel}>{cancelLabel}</Btn>
+          <Btn variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>{confirmLabel}</Btn>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );

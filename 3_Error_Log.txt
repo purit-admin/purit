@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29 (알림 시스템 실동화 + 어드민 미션 삭제 기능)
+최종 업데이트: 2026-04-29 (전체 UI 개편 — 의뢰→미션 리브랜딩 + 서브미션 스텝 재설계)
 ================================================================
 
 ## 핵심 원칙
@@ -509,8 +509,8 @@ D-20. 한국어 키워드 클러스터링 패턴 (2026-04-29)
               · select 쿼리에 panels(user_id), missions(companies(user_id)) 추가
               · approve/reject 성공 후 sendNotification으로 패널·기업 각각 알림 발송
             - panel/ActiveMission.jsx: 인라인 notifications INSERT → sendNotification() 교체
-            [SQL 실행 필요]
-            - Supabase SQL Editor에서 011_notification_triggers.sql 실행
+            [SQL 실행 완료]
+            - Supabase SQL Editor에서 011_notification_triggers.sql 실행 완료 (2026-04-29)
             [빌드]
             - npm run build 경고 0개, 7.39s
 
@@ -526,3 +526,67 @@ D-22. PurityFilter select 쿼리 중첩 join 패턴 (2026-04-29)
      → PostgREST FK 자동 감지: missions.company_id → companies.id
      → 코드에서 fb.missions.companies.user_id 로 접근
      → panels(user_id, name): panels.user_id가 알림 수신자 식별에 사용됨
+
+2026-04-29  전체 UI 개편 — 의뢰→미션 리브랜딩 + 서브미션 스텝 재설계 (12차)
+            [수정 파일 — 워딩]
+            - Sidebar.jsx: '메인 의뢰'→'메인 미션', '서브 의뢰'→'서브 미션', '의뢰 등록'→'미션 등록'
+              시계열 추적 사이드바 메뉴 제거 (LineChart import 제거)
+            - company/Dashboard.jsx: 전체 '의뢰' → '미션' 워딩
+            - company/Results.jsx: '등록된 의뢰가 없습니다.' → '등록된 미션이 없습니다.'
+            - admin/Missions.jsx: '해당 조건의 의뢰가 없습니다.' → '미션이 없습니다.'
+            [수정 파일 — ConfirmModal 포털 적용]
+            - src/components/ui/index.jsx: ConfirmModal 공용 컴포넌트 추가
+              ReactDOM.createPortal(document.body) 방식, zIndex:9000
+            - admin/Missions.jsx: 삭제 확인 모달 → ConfirmModal 교체
+            - panel/Missions.jsx: 수락 취소 모달 → ConfirmModal 교체 (수락 모달은 custom portal 유지)
+            - panel/ActiveMission.jsx: step0 + 이미지 모드 cancelModal → ConfirmModal 교체
+            [수정 파일 — 어드민 미션 UX]
+            - admin/Missions.jsx: 기본 탭 'all'→'active', 완료도 progress bar 제거
+              completed 탭 '재진행' 버튼 추가, all 탭 메인/서브 섹션 분리 + 페이지네이션(10개씩)
+            [수정 파일 — 메인 미션 등록]
+            - company/NewMission.jsx: 타이틀 '검증 의뢰 등록'→'미션 등록', 난이도 필드 제거
+              Step 0 패널 비공개 안내 문구, Step 1 '타겟 상세(선택)' 레이블·placeholder,
+              Step 2 FOCUS 키워드 8개 갱신 + Pro 할인 안내, Step 3 '미션 제출 →'
+            [수정 파일 — Diagnosis 시계열 탭 링크]
+            - company/Diagnosis.jsx: '시계열 추적' 탭 추가 → navigate('/company/timeline')
+            [전면 재설계 — 서브 미션 3종]
+            - company/PreferenceTest.jsx: step 0-3, 이미지 업로드(va/vb), productDescription,
+              커스텀 질문, 제출 후 UUID 리셋, '미션 제출 →'
+            - company/PricingTest.jsx: step 0-2, 이미지 업로드(pricing), productDescription,
+              커스텀 질문, 제출 후 UUID 리셋, '미션 제출 →'
+            - company/ColdEmailTest.jsx: step 0-2, productDescription, 커스텀 질문,
+              제출 후 UUID 리셋, '미션 제출 →'
+            [수정 파일 — 서브미션 하위 호환 파싱]
+            - panel/ActiveMission.jsx: parseSubDesc 헬퍼 추가
+              preference: variantAImage/variantBImage 이미지, productDescription 표시
+              pricing: parsedDesc.content + parsedDesc.image + productDescription 표시
+              email: parsedDesc.content + productDescription 표시
+            - admin/PurityFilter.jsx: parseSubDesc 헬퍼 추가
+              preference/pricing/email 모두 productDescription, customQuestions 표시
+              pricing/preference 이미지 표시
+            [빌드]
+            - npm run build 경고 0개, 7.29s
+
+D-23. ConfirmModal viewport 고정 패턴 ✅ 정착 (2026-04-29)
+     → 문제: <main style={{overflow:'auto'}}> 스크롤 컨테이너 내부의 position:fixed 모달이
+             뷰포트 기준이 아닌 컨테이너 기준으로 렌더되어 스크롤 시 모달이 사라짐
+     → 해결: ReactDOM.createPortal(..., document.body) 로 document.body에 직접 렌더
+     → 구현: ConfirmModal 컴포넌트 (src/components/ui/index.jsx) + 커스텀 accept 모달도 portal 사용
+     → 주의: portal 내부에서 e.stopPropagation() 필수 (배경 클릭 dismiss 오작동 방지)
+
+D-24. 서브미션 description JSON 하위 호환 파싱 패턴 ✅ 정착 (2026-04-29)
+     → 구 포맷: missions.description = raw text (e.g. "가격은 월 9,900원...")
+     → 신 포맷: missions.description = JSON.stringify({content, image, productDescription, customQuestions})
+     → parseSubDesc(desc, type) 헬퍼 패턴:
+        1. JSON.parse 시도
+        2. preference: 파싱 결과 전체 반환 (기존도 JSON 포맷이므로 호환)
+        3. pricing/email: 파싱 성공 + 'content' 키 있으면 신 포맷으로 처리
+        4. 파싱 실패 or 'content' 키 없으면 구 포맷 → {content: desc, productDescription:'', customQuestions:[]}
+     → 이 헬퍼는 ActiveMission.jsx, PurityFilter.jsx 양쪽에 동일 구현
+     → DB 컬럼 변경 없음 — missions.description TEXT 그대로 사용
+
+D-25. 서브미션 중복 제출 방지 패턴 ✅ 정착 (2026-04-29)
+     → 각 서브 미션 등록 폼은 useState(() => crypto.randomUUID()) 로 missionUuid 사전 생성
+     → missions INSERT 시 id: missionUuid 직접 지정 (Storage 경로와 DB id 동기화)
+     → 제출 성공 후 setMissionUuid(crypto.randomUUID()) 호출 → 다음 미션 준비
+     → 이 패턴으로 버튼 더블클릭 등 중복 제출 시 unique constraint 위반으로 자동 차단

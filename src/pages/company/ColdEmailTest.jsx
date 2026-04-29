@@ -12,14 +12,26 @@ const METRIC_META = {
 
 const PANEL_COUNTS = [10, 15, 20, 30];
 const PRICE_PER = { 10: 90, 15: 130, 20: 170, 30: 250 };
+const STEPS = ['이메일 원문', '제품 설명', '질문 설정'];
 
 export default function ColdEmailTest() {
   const location = useLocation();
   const initTemplateId = location.state?.templateId || null;
 
-  const [step, setStep] = useState('list');
+  const [view, setView] = useState('list');
+  const [createStep, setCreateStep] = useState(0);
+  const [missionUuid, setMissionUuid] = useState(() => crypto.randomUUID());
+
+  // Step 0
   const [emailText, setEmailText] = useState('');
+  // Step 1
+  const [productDescription, setProductDescription] = useState('');
+  // Step 2
   const [panelSize, setPanelSize] = useState(10);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(initTemplateId);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [customQuestions, setCustomQuestions] = useState([]);
+
   const [tests, setTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [metrics, setMetrics] = useState([]);
@@ -27,15 +39,11 @@ export default function ColdEmailTest() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState(null);
-
-  // 질문 템플릿
   const [templates, setTemplates] = useState([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(initTemplateId);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
 
   useEffect(() => {
     load();
-    if (initTemplateId) setStep('create');
+    if (initTemplateId) { setView('create'); setCreateStep(2); }
   }, []);
 
   useEffect(() => {
@@ -52,14 +60,12 @@ export default function ColdEmailTest() {
     if (!user) { setLoading(false); return; }
     const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
     setCompanyId(co?.id);
-
     if (co) {
       const [{ data: testsData }, { data: tmplData }] = await Promise.all([
         supabase.from('cold_email_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false }),
         supabase.from('question_templates')
           .select('*, template_questions(id, question_text, question_order)')
-          .eq('category', '이메일')
-          .eq('is_default', true),
+          .eq('category', '이메일').eq('is_default', true),
       ]);
       setTests(testsData || []);
       const sorted = (tmplData || []).map(t => ({
@@ -76,15 +82,17 @@ export default function ColdEmailTest() {
     if (!emailText.trim() || !companyId) return;
     setSubmitting(true);
     try {
-      // 1. missions INSERT
-      const missionId = crypto.randomUUID();
       const firstLine = emailText.trim().split('\n')[0].replace(/^제목[:：]\s*/i, '').slice(0, 50);
       const { error: mErr } = await supabase.from('missions').insert({
-        id: missionId,
+        id: missionUuid,
         company_id: companyId,
         title: `이메일 검증: ${firstLine || '콜드메일'}`,
         type: 'email',
-        description: emailText.trim(),
+        description: JSON.stringify({
+          content: emailText.trim(),
+          productDescription: productDescription.trim(),
+          customQuestions: customQuestions.filter(q => q.trim()),
+        }),
         panel_count: panelSize,
         reward_amount: (PRICE_PER[panelSize] || 90) * 1000,
         status: 'active',
@@ -92,20 +100,20 @@ export default function ColdEmailTest() {
       });
       if (mErr) throw mErr;
 
-      // 2. cold_email_tests INSERT
       const { data: test, error } = await supabase.from('cold_email_tests').insert({
         company_id: companyId,
         email_text: emailText.trim(),
         status: 'active',
-        mission_id: missionId,
+        mission_id: missionUuid,
         template_id: selectedTemplateId || null,
       }).select().single();
       if (error) throw error;
 
       setTests(ts => [test, ...ts]);
-      setEmailText('');
-      setSelectedTemplateId(initTemplateId);
-      setStep('list');
+      setMissionUuid(crypto.randomUUID());
+      setEmailText(''); setProductDescription('');
+      setCustomQuestions([]); setSelectedTemplateId(initTemplateId);
+      setCreateStep(0); setView('list');
     } catch (err) {
       console.error('[ColdEmailTest] 등록 실패:', err.message);
     } finally {
@@ -121,15 +129,17 @@ export default function ColdEmailTest() {
     ]);
     setMetrics(mRes.data || []);
     setResponses(rRes.data || []);
-    setStep('result');
+    setView('result');
   }
 
   if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>로딩 중…</div>;
 
   const replyCount = responses.filter(r => r.would_reply).length;
   const replyRate = responses.length ? Math.round((replyCount / responses.length) * 100) : 0;
-  const avgOpenIntent = responses.filter(r => r.open_intent).reduce((s, r) => s + r.open_intent, 0) / (responses.filter(r => r.open_intent).length || 1);
-  const avgCuriosity = responses.filter(r => r.curiosity_score).reduce((s, r) => s + r.curiosity_score, 0) / (responses.filter(r => r.curiosity_score).length || 1);
+  const openVals = responses.filter(r => r.open_intent);
+  const curiosityVals = responses.filter(r => r.curiosity_score);
+  const avgOpenIntent = openVals.length ? openVals.reduce((s, r) => s + r.open_intent, 0) / openVals.length : 0;
+  const avgCuriosity = curiosityVals.length ? curiosityVals.reduce((s, r) => s + r.curiosity_score, 0) / curiosityVals.length : 0;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
@@ -140,95 +150,183 @@ export default function ColdEmailTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>이메일 검증</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>대량 발송 전 타겟 패널에게 먼저 검증받아 개봉률과 답장율을 높이세요.</p>
           </div>
-          {step === 'list' && <Btn onClick={() => setStep('create')}>+ 새 테스트</Btn>}
-          {step !== 'list' && <Btn variant="ghost" onClick={() => { setStep('list'); setSelectedTest(null); }}>← 목록</Btn>}
+          {view === 'list' && <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>}
+          {view !== 'list' && <Btn variant="ghost" onClick={() => { setView('list'); setSelectedTest(null); }}>← 목록</Btn>}
         </div>
       </div>
 
-      {/* ── 생성 폼 ── */}
-      {step === 'create' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <Card>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>1. 이메일 원문 입력</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10 }}>
-              제목줄부터 서명까지 전체 이메일 내용을 입력하세요. 패널이 실제로 받는 것처럼 검토합니다.
-            </div>
-            <textarea
-              value={emailText}
-              onChange={e => setEmailText(e.target.value)}
-              rows={12}
-              placeholder={'제목: [이메일 제목줄]\n\n안녕하세요, [이름]님.\n\n[이메일 본문 내용 전체]\n\n[CTA 문구]\n\n감사합니다.\n[발신자 이름]'}
-              style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.7 }}
-            />
-          </Card>
-
-          <Card>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>2. 패널 설정 & 질문 템플릿</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              {PANEL_COUNTS.map(n => (
-                <button key={n} onClick={() => setPanelSize(n)} style={{
-                  flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
-                  background: panelSize === n ? 'var(--accent)' : 'var(--surface-2)',
-                  color: panelSize === n ? '#FFF' : 'var(--text-2)',
-                  border: `1px solid ${panelSize === n ? 'var(--accent)' : 'var(--border)'}`,
-                  fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s',
-                }}>{n}명</button>
-              ))}
-            </div>
-            <div style={{ background: 'var(--accent-dim)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20, display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-2)', fontSize: 13 }}>예상 비용</span>
-              <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
-                ₩ {((PRICE_PER[panelSize] || 90) * 1000).toLocaleString()}
-              </span>
-            </div>
-
-            {templates.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>질문 템플릿 (선택)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div
-                    onClick={() => setSelectedTemplateId(null)}
-                    style={{ padding: '10px 14px', borderRadius: 'var(--radius)', border: `1px solid ${!selectedTemplateId ? 'var(--accent)' : 'var(--border)'}`, background: !selectedTemplateId ? 'var(--accent-dim)' : 'var(--surface)', cursor: 'pointer', fontSize: 13, color: 'var(--text-2)', transition: 'all 0.15s' }}
-                  >기본 이메일 평가 질문만 사용</div>
-                  {templates.map(t => (
-                    <div key={t.id} onClick={() => setSelectedTemplateId(t.id)} style={{ padding: '10px 14px', borderRadius: 'var(--radius)', border: `1px solid ${selectedTemplateId === t.id ? 'var(--accent)' : 'var(--border)'}`, background: selectedTemplateId === t.id ? 'var(--accent-dim)' : 'var(--surface)', cursor: 'pointer', transition: 'all 0.15s' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>{t.icon} {t.name}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{t.template_questions?.length}개 문항</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.description}</div>
-                    </div>
-                  ))}
+      {/* ── 생성 폼 (스텝 기반) ── */}
+      {view === 'create' && (
+        <div>
+          {/* 스텝 인디케이터 */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 32 }}>
+            {STEPS.map((s, i) => (
+              <div key={s} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: i === 0 ? 'flex-start' : i === STEPS.length - 1 ? 'flex-end' : 'center', gap: 6 }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: i < createStep ? 'var(--green)' : i === createStep ? 'var(--accent)' : 'var(--surface)',
+                  color: i <= createStep ? '#fff' : 'var(--text-3)',
+                  fontSize: 11, fontWeight: 700, border: '1px solid',
+                  borderColor: i < createStep ? 'var(--green)' : i === createStep ? 'var(--accent)' : 'var(--border)',
+                  transition: 'all 0.2s',
+                }}>
+                  {i < createStep ? '✓' : i + 1}
                 </div>
-                {selectedTemplate && (
-                  <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>포함될 추가 질문</div>
-                    {selectedTemplate.template_questions.map((q, i) => (
-                      <div key={q.id} style={{ fontSize: 12, color: 'var(--text-2)', padding: '4px 0', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', flexShrink: 0 }}>Q{i + 1}</span>
-                        {q.question_text}
+                <span style={{ fontSize: 11, color: i === createStep ? 'var(--text)' : 'var(--text-3)', fontWeight: i === createStep ? 600 : 400, whiteSpace: 'nowrap' }}>{s}</span>
+              </div>
+            ))}
+          </div>
+
+          <Card>
+            {/* Step 0: 이메일 원문 설명 */}
+            {createStep === 0 && (
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>이메일 원문 설명</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
+                  제목줄부터 서명까지 전체 이메일 내용을 입력하세요. 패널이 실제로 받는 것처럼 검토합니다.
+                </div>
+                <textarea
+                  value={emailText}
+                  onChange={e => setEmailText(e.target.value)}
+                  rows={12}
+                  placeholder={'제목: [이메일 제목줄]\n\n안녕하세요, [이름]님.\n\n[이메일 본문 내용 전체]\n\n[CTA 문구]\n\n감사합니다.\n[발신자 이름]'}
+                  style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.7 }}
+                />
+              </div>
+            )}
+
+            {/* Step 1: 제품/타겟 설명 */}
+            {createStep === 1 && (
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>제품 / 타겟 설명</div>
+                <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>패널에게 표시됩니다. 어떤 제품인지, 어떤 타겟을 대상으로 하는지 간단히 적어주세요.</p>
+                <textarea
+                  value={productDescription}
+                  onChange={e => setProductDescription(e.target.value)}
+                  rows={4}
+                  placeholder={"예) 제품명: B2B 영업 자동화 툴 / 타겟: 스타트업 영업 담당자, SDR"}
+                  style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+                />
+              </div>
+            )}
+
+            {/* Step 2: 패널 수 & 질문 설정 */}
+            {createStep === 2 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>패널 수</div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    {PANEL_COUNTS.map(n => (
+                      <button key={n} onClick={() => setPanelSize(n)} style={{
+                        flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
+                        background: panelSize === n ? 'var(--accent)' : 'var(--surface)',
+                        color: panelSize === n ? '#FFF' : 'var(--text-2)',
+                        border: `1px solid ${panelSize === n ? 'var(--accent)' : 'var(--border)'}`,
+                        fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s',
+                      }}>{n}명</button>
+                    ))}
+                  </div>
+                  <div style={{ background: 'var(--accent-dim)', borderRadius: 'var(--radius)', padding: '12px 16px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-2)', fontSize: 13 }}>예상 비용</span>
+                    <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
+                      ₩ {((PRICE_PER[panelSize] || 90) * 1000).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>질문 설정</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div onClick={() => setSelectedTemplateId(null)} style={{
+                      padding: '12px 14px', borderRadius: 'var(--radius)',
+                      border: `1px solid ${!selectedTemplateId ? 'var(--accent)' : 'var(--border)'}`,
+                      background: !selectedTemplateId ? 'var(--accent-dim)' : 'var(--surface)',
+                      cursor: 'pointer', fontSize: 13, color: 'var(--text-2)', transition: 'all 0.15s',
+                    }}>기본 이메일 평가 질문만 사용</div>
+                    {templates.map(t => (
+                      <div key={t.id} onClick={() => setSelectedTemplateId(t.id)} style={{
+                        padding: '12px 14px', borderRadius: 'var(--radius)',
+                        border: `1px solid ${selectedTemplateId === t.id ? 'var(--accent)' : 'var(--border)'}`,
+                        background: selectedTemplateId === t.id ? 'var(--accent-dim)' : 'var(--surface)',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>{t.icon} {t.name}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{t.template_questions?.length}개 문항</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.description}</div>
                       </div>
                     ))}
                   </div>
-                )}
+
+                  {selectedTemplate && (
+                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {selectedTemplate.template_questions.map((q, i) => (
+                        <div key={q.id} style={{
+                          padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)',
+                          border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)',
+                          display: 'flex', gap: 10, alignItems: 'flex-start',
+                        }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
+                          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{q.question_text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {customQuestions.length > 0 && (
+                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {customQuestions.map((q, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <textarea
+                            value={q}
+                            onChange={e => setCustomQuestions(qs => qs.map((v, j) => j === i ? e.target.value : v))}
+                            rows={2}
+                            placeholder={`커스텀 질문 ${i + 1}`}
+                            style={{ flex: 1, resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+                          />
+                          <button onClick={() => setCustomQuestions(qs => qs.filter((_, j) => j !== i))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 18, padding: '4px', flexShrink: 0 }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {customQuestions.length < 3 && (
+                    <button onClick={() => setCustomQuestions(qs => [...qs, ''])}
+                      style={{ marginTop: 10, background: 'none', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', padding: '8px 14px', fontSize: 13, color: 'var(--text-3)', cursor: 'pointer', width: '100%' }}>
+                      + 커스텀 질문 추가
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </Card>
 
-          <Btn onClick={handleSubmit} disabled={submitting || !emailText.trim()}>
-            {submitting ? '등록 중…' : '이메일 검증 의뢰 시작 →'}
-          </Btn>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+            <Btn variant="secondary" onClick={() => createStep > 0 ? setCreateStep(s => s - 1) : setView('list')}>
+              {createStep === 0 ? '취소' : '이전'}
+            </Btn>
+            {createStep < STEPS.length - 1 ? (
+              <Btn onClick={() => setCreateStep(s => s + 1)} disabled={createStep === 0 && !emailText.trim()}>
+                다음 →
+              </Btn>
+            ) : (
+              <Btn onClick={handleSubmit} disabled={submitting || !emailText.trim()}>
+                {submitting ? '등록 중…' : '미션 제출 →'}
+              </Btn>
+            )}
+          </div>
         </div>
       )}
 
       {/* ── 목록 ── */}
-      {step === 'list' && (
+      {view === 'list' && (
         tests.length === 0 ? (
           <Card style={{ padding: '60px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 이메일 테스트가 없습니다</div>
             <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>발송 전 패널 검증으로 개봉률과 답장율을 높여보세요.</div>
-            <Btn onClick={() => setStep('create')}>+ 첫 테스트 시작</Btn>
+            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 첫 테스트 시작</Btn>
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>
@@ -255,7 +353,7 @@ export default function ColdEmailTest() {
       )}
 
       {/* ── 결과 ── */}
-      {step === 'result' && selectedTest && (
+      {view === 'result' && selectedTest && (
         <div style={{ display: 'grid', gap: 16 }}>
           {metrics.length === 0 && responses.length === 0 ? (
             <Card style={{ padding: '40px', textAlign: 'center' }}>
@@ -263,12 +361,11 @@ export default function ColdEmailTest() {
             </Card>
           ) : (
             <>
-              {/* 핵심 KPI */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                 {[
                   { label: '예상 답장율', value: `${replyRate}%`, color: replyRate >= 20 ? 'var(--green)' : replyRate >= 10 ? 'var(--accent)' : 'var(--red)' },
-                  { label: '개봉 의향', value: responses.some(r => r.open_intent) ? `${avgOpenIntent.toFixed(1)}/5` : '—', color: 'var(--blue)' },
-                  { label: '호기심 유발', value: responses.some(r => r.curiosity_score) ? `${avgCuriosity.toFixed(1)}/5` : '—', color: '#C084FC' },
+                  { label: '개봉 의향', value: openVals.length ? `${avgOpenIntent.toFixed(1)}/5` : '—', color: 'var(--blue)' },
+                  { label: '호기심 유발', value: curiosityVals.length ? `${avgCuriosity.toFixed(1)}/5` : '—', color: '#C084FC' },
                 ].map(s => (
                   <div key={s.label} style={{ padding: '16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
                     <div style={{ fontSize: 24, fontWeight: 800, color: s.color, fontFamily: 'var(--font-mono)' }}>{s.value}</div>
@@ -276,8 +373,6 @@ export default function ColdEmailTest() {
                   </div>
                 ))}
               </div>
-
-              {/* 4축 점수 */}
               {metrics.length > 0 && (
                 <Card>
                   <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>4축 진단 점수</div>
@@ -301,16 +396,12 @@ export default function ColdEmailTest() {
                   })}
                 </Card>
               )}
-
-              {/* 이메일 원문 */}
               <Card>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>검증된 이메일 원문</div>
                 <pre style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: 'var(--bg-3)', padding: '14px', borderRadius: 'var(--radius)', margin: 0 }}>
                   {selectedTest.email_text}
                 </pre>
               </Card>
-
-              {/* 패널 피드백 */}
               {responses.length > 0 && (
                 <Card>
                   <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>패널 피드백 ({responses.length}명)</div>

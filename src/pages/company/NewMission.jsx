@@ -23,14 +23,13 @@ export default function NewMission() {
     panels: 8, briefText: '', focusAreas: [],
     imageUrls: [],
     estimatedMinutes: 5,
-    difficulty: 'normal',
   });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const FOCUS = ['헤드라인 카피', 'CTA 효과', '가격 앵커링', '신뢰 지표', '모바일 UX', '이미지/비주얼', '폼 최적화', '소셜 프루프'];
+  const FOCUS = ['첫인상 / 가독성', 'CTA 전환율', '가격 및 가치 전달', '신뢰 요소', '모바일 최적화', '핵심 메시지 명확성', '비주얼 완성도', '타겟 일치도'];
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleFocus = (f) => setForm(prev => ({
@@ -114,7 +113,6 @@ export default function NewMission() {
         assets:            form.focusAreas,
         image_urls:        form.imageUrls,
         estimated_minutes: form.estimatedMinutes,
-        difficulty:        form.difficulty,
       });
       if (error) throw error;
       navigate('/company');
@@ -129,7 +127,7 @@ export default function NewMission() {
     <div style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 36 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>NEW MISSION</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>검증 의뢰 등록</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 등록</h1>
       </div>
 
       {/* Step indicator */}
@@ -153,6 +151,9 @@ export default function NewMission() {
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>기본 정보</h2>
+            <div style={{ padding: '12px 16px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)' }}>
+              💡 이 정보는 패널에게 공개되지 않습니다. 내부 관리용입니다.
+            </div>
             <label style={lbl}>
               <span style={lblTxt}>회사명</span>
               <input value={form.company} onChange={e => set('company', e.target.value)} placeholder="어반핏 코리아" />
@@ -172,29 +173,12 @@ export default function NewMission() {
               <span style={lblTxt}>랜딩페이지 URL</span>
               <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <label style={lbl}>
-                <span style={lblTxt}>예상 소요 시간</span>
-                <select value={form.estimatedMinutes} onChange={e => set('estimatedMinutes', Number(e.target.value))}>
-                  {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}분</option>)}
-                </select>
-              </label>
-              <label style={lbl}>
-                <span style={lblTxt}>미션 난이도</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {[['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']].map(([v, l]) => (
-                    <button key={v} onClick={() => set('difficulty', v)} style={{
-                      flex: 1, padding: '10px 0', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 600,
-                      cursor: 'pointer', border: '1px solid',
-                      borderColor: form.difficulty === v ? 'var(--accent)' : 'var(--border)',
-                      background: form.difficulty === v ? 'var(--accent)' : 'var(--surface-2)',
-                      color: form.difficulty === v ? '#fff' : 'var(--text-2)',
-                      transition: 'all 0.15s',
-                    }}>{l}</button>
-                  ))}
-                </div>
-              </label>
-            </div>
+            <label style={lbl}>
+              <span style={lblTxt}>예상 소요 시간</span>
+              <select value={form.estimatedMinutes} onChange={e => set('estimatedMinutes', Number(e.target.value))} style={{ maxWidth: 200 }}>
+                {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}분</option>)}
+              </select>
+            </label>
           </div>
         )}
 
@@ -217,9 +201,9 @@ export default function NewMission() {
               <input value={form.personaRole} onChange={e => set('personaRole', e.target.value)} placeholder="직장인 러너, 마케터 등" />
             </label>
             <label style={lbl}>
-              <span style={lblTxt}>구매 맥락 (선택)</span>
+              <span style={lblTxt}>타겟 상세 (선택)</span>
               <textarea value={form.personaContext} onChange={e => set('personaContext', e.target.value)}
-                placeholder="퇴근 후 운동하는 30-40대 직장인. 러닝화에 10만 원 이상 지출 경험 있음."
+                placeholder={"제품: 기능성 러닝화\n퇴근 후 운동하는 30-40대 직장인. 러닝화에 10만 원 이상 지출 경험 있음"}
                 rows={3} style={{ resize: 'vertical' }} />
             </label>
           </div>
@@ -253,6 +237,7 @@ export default function NewMission() {
                 ₩ {total.toLocaleString()}
               </span>
             </div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: -12 }}>Pro 플랜 구독 시 20% 할인 적용</div>
             <label style={lbl}>
               <span style={lblTxt}>검증 포커스 (복수 선택)</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
@@ -354,7 +339,6 @@ export default function NewMission() {
               ['패널 수', `${form.panels}명`],
               ['검증 포커스', form.focusAreas.join(', ') || '—'],
               ['예상 소요 시간', `${form.estimatedMinutes}분`],
-              ['난이도', form.difficulty === 'easy' ? '쉬움' : form.difficulty === 'hard' ? '어려움' : '보통'],
               ['예상 비용', `₩ ${total.toLocaleString()}`],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
@@ -374,7 +358,7 @@ export default function NewMission() {
               </div>
             )}
             <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
-              ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
+              ⚡ 미션 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
             </div>
           </div>
         )}
@@ -391,7 +375,7 @@ export default function NewMission() {
           </div>
         )}
         <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()} size="md" disabled={submitting || uploading}>
-          {step === STEPS.length - 1 ? (submitting ? '제출 중...' : '의뢰 제출 →') : '다음 →'}
+          {step === STEPS.length - 1 ? (submitting ? '제출 중...' : '미션 제출 →') : '다음 →'}
         </Btn>
       </div>
     </div>

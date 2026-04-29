@@ -1,15 +1,98 @@
 import { useEffect, useState } from 'react';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const STATUS_LABEL = { draft: '초안', active: '진행', in_review: '검토중', completed: '완료', cancelled: '취소' };
 const STATUS_TYPE  = { draft: 'gray', active: 'green', in_review: 'blue', completed: 'gold', cancelled: 'red' };
+const PAGE_SIZE = 10;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>
+        이전
+      </button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)}
+          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>
+          {n}
+        </button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>
+        다음
+      </button>
+    </div>
+  );
+}
+
+function MissionCard({ m, onUpdateStatus, onDelete }) {
+  return (
+    <Card key={m.id}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Badge type={STATUS_TYPE[m.status] || 'gray'}>
+              {STATUS_LABEL[m.status] || m.status}
+            </Badge>
+            {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
+            {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
+            {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
+            {(!m.type || m.type === 'landing_page') && <Badge type="gray">LP 검증</Badge>}
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)' }}>
+              {m.id.slice(0, 8).toUpperCase()}
+            </span>
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{m.title}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>
+            {m.companies?.name || '—'}{m.persona ? ` · ${m.persona}` : ''}
+          </div>
+          {m.target_url && (
+            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
+          )}
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 20, marginBottom: 4 }}>
+            {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>패널 슬롯</div>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            {m.status === 'active' && (
+              <Btn size="sm" variant="secondary" onClick={() => onUpdateStatus(m.id, 'completed')}>완료 처리</Btn>
+            )}
+            {m.status === 'active' && (
+              <Btn size="sm" variant="danger" onClick={() => onUpdateStatus(m.id, 'cancelled')}>취소</Btn>
+            )}
+            {m.status === 'completed' && (
+              <Btn size="sm" onClick={() => onUpdateStatus(m.id, 'active')}>재진행</Btn>
+            )}
+            {m.status === 'cancelled' && (
+              <Btn size="sm" onClick={() => onUpdateStatus(m.id, 'active')}>재개</Btn>
+            )}
+            {m.status === 'cancelled' && (
+              <Btn size="sm" variant="danger" onClick={() => onDelete(m.id)}>삭제</Btn>
+            )}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginTop: 14 }}>
+        <span>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</span>
+        <span>보상 ₩{(m.reward_amount || 0).toLocaleString()}/건</span>
+      </div>
+    </Card>
+  );
+}
 
 export default function AdminMissions() {
   const [missions, setMissions] = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [filter, setFilter]     = useState('all');
-  const [confirmDelete, setConfirmDelete] = useState(null); // mission id to delete
+  const [filter, setFilter]     = useState('active');
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [mainPage, setMainPage] = useState(1);
+  const [subPage, setSubPage]   = useState(1);
 
   useEffect(() => {
     async function load() {
@@ -37,6 +120,12 @@ export default function AdminMissions() {
 
   const filtered = filter === 'all' ? missions : missions.filter(m => m.status === filter);
 
+  const mainMissions = filtered.filter(m => !m.type || m.type === 'landing_page');
+  const subMissions  = filtered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+
+  const mainPaged = mainMissions.slice((mainPage - 1) * PAGE_SIZE, mainPage * PAGE_SIZE);
+  const subPaged  = subMissions.slice((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE);
+
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
   );
@@ -51,7 +140,7 @@ export default function AdminMissions() {
       {/* Filter */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['cancelled', '취소']].map(([v, l]) => (
-          <button key={v} onClick={() => setFilter(v)} style={{
+          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -60,92 +149,79 @@ export default function AdminMissions() {
         ))}
       </div>
 
-      {/* Delete confirm modal */}
+      {/* Delete confirm modal (portal) */}
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
-            padding: '28px 32px', width: 360, textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>미션을 삭제하시겠습니까?</div>
-            <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24 }}>
-              취소된 미션과 관련 데이터가 영구적으로 삭제됩니다.
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-              <Btn variant="secondary" onClick={() => setConfirmDelete(null)}>취소</Btn>
-              <Btn variant="danger" onClick={() => deleteMission(confirmDelete)}>삭제</Btn>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          title="미션을 삭제하시겠습니까?"
+          desc="취소된 미션과 관련 데이터가 영구적으로 삭제됩니다."
+          confirmLabel="삭제"
+          cancelLabel="취소"
+          danger
+          onConfirm={() => deleteMission(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
-      {filtered.length === 0 ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-          해당 조건의 의뢰가 없습니다.
+      {/* 전체 탭: 메인/서브 분리 */}
+      {filter === 'all' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          {/* 메인 미션 섹션 */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 미션</h2>
+              <Badge type="gray">{mainMissions.length}개</Badge>
+            </div>
+            {mainMissions.length === 0 ? (
+              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                해당 조건의 미션이 없습니다.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {mainPaged.map(m => (
+                    <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
+                  ))}
+                </div>
+                <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
+              </>
+            )}
+          </div>
+
+          {/* 서브 미션 섹션 */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 미션</h2>
+              <Badge type="blue">{subMissions.length}개</Badge>
+            </div>
+            {subMissions.length === 0 ? (
+              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                해당 조건의 미션이 없습니다.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {subPaged.map(m => (
+                    <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
+                  ))}
+                </div>
+                <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
+              </>
+            )}
+          </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filtered.map(m => (
-            <Card key={m.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Badge type={STATUS_TYPE[m.status] || 'gray'}>
-                      {STATUS_LABEL[m.status] || m.status}
-                    </Badge>
-                    {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
-                    {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
-                    {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
-                    {(!m.type || m.type === 'landing_page') && <Badge type="gray">LP 검증</Badge>}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)' }}>
-                      {m.id.slice(0, 8).toUpperCase()}
-                    </span>
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{m.title}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>
-                    {m.companies?.name || '—'}{m.persona ? ` · ${m.persona}` : ''}
-                  </div>
-                  {m.target_url && (
-                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 20, marginBottom: 4 }}>
-                    {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>패널 슬롯</div>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                    {m.status === 'active' && (
-                      <Btn size="sm" variant="secondary" onClick={() => updateStatus(m.id, 'completed')}>완료 처리</Btn>
-                    )}
-                    {m.status === 'active' && (
-                      <Btn size="sm" variant="danger" onClick={() => updateStatus(m.id, 'cancelled')}>취소</Btn>
-                    )}
-                    {m.status === 'cancelled' && (
-                      <Btn size="sm" onClick={() => updateStatus(m.id, 'active')}>재개</Btn>
-                    )}
-                    {m.status === 'cancelled' && (
-                      <Btn size="sm" variant="danger" onClick={() => setConfirmDelete(m.id)}>삭제</Btn>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div style={{ marginTop: 14, width: '100%', height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{
-                  width: `${Math.min(((m.feedbacks?.length ?? m.filled_count ?? 0) / m.panel_count) * 100, 100)}%`,
-                  height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s',
-                }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
-                <span>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</span>
-                <span>보상 ₩{(m.reward_amount || 0).toLocaleString()}/건</span>
-              </div>
-            </Card>
-          ))}
-        </div>
+        /* 진행/완료/취소 탭: 단일 목록 */
+        filtered.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+            해당 조건의 미션이 없습니다.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filtered.map(m => (
+              <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
+            ))}
+          </div>
+        )
       )}
     </div>
   );

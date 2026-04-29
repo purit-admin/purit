@@ -164,7 +164,7 @@ export default function Results() {
 
       {missions.length === 0 ? (
         <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-          등록된 의뢰가 없습니다.
+          등록된 미션이 없습니다.
         </div>
       ) : (
         <>

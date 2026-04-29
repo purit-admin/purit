@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -83,6 +84,7 @@ function extractKeywords(feedbacks) {
 }
 
 export default function Diagnosis() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [scores, setScores] = useState({});
   const [comments, setComments] = useState({});
@@ -209,8 +211,8 @@ export default function Diagnosis() {
           </Card>
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-            {[['overview', '차원별 점수'], ['comments', '패널 코멘트'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석']].map(([v, l]) => (
-              <button key={v} onClick={() => setActiveTab(v)} style={{
+            {[['overview', '차원별 점수'], ['comments', '패널 코멘트'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['timeline', '시계열 추적']].map(([v, l]) => (
+              <button key={v} onClick={() => v === 'timeline' ? navigate('/company/timeline') : setActiveTab(v)} style={{
                 padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
                 background: activeTab === v ? 'var(--bg)' : 'transparent',
                 color: activeTab === v ? 'var(--text)' : 'var(--text-3)',

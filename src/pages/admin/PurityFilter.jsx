@@ -45,6 +45,18 @@ function calcPurityScore(fb) {
   return Math.max(0, Math.min(100, Math.round(length + specific + actionable + aiPenalty + 20)));
 }
 
+function parseSubDesc(desc, type) {
+  if (!desc) return {};
+  try {
+    const p = JSON.parse(desc);
+    if (type === 'preference') return p;
+    if (p && typeof p === 'object' && 'content' in p) return p;
+    return { content: desc, productDescription: '', customQuestions: [] };
+  } catch {
+    return { content: desc || '', productDescription: '', customQuestions: [] };
+  }
+}
+
 export default function PurityFilter() {
   const [feedbacks, setFeedbacks]     = useState([]);
   const [selected, setSelected]       = useState(null);
@@ -285,25 +297,34 @@ export default function PurityFilter() {
                       <>
                         {/* 소재 비교 */}
                         {missionType === 'preference' && (() => {
-                          let varA = '', varB = '';
-                          try { const d = JSON.parse(fb.missions?.description || '{}'); varA = d.variantA || ''; varB = d.variantB || ''; } catch {}
+                          const d = parseSubDesc(fb.missions?.description, 'preference');
+                          const varA = d.variantA || '';
+                          const varB = d.variantB || '';
+                          const customQs = Array.isArray(d.customQuestions) ? d.customQuestions.filter(Boolean) : [];
                           return (
                             <div>
-                              {(varA || varB) && (
+                              {d.productDescription && (
+                                <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
+                                  {d.productDescription}
+                                </div>
+                              )}
+                              {(varA || varB || d.variantAImage || d.variantBImage) && (
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-                                  {[['A', varA], ['B', varB]].map(([label, text]) => (
+                                  {[['A', varA, d.variantAImage], ['B', varB, d.variantBImage]].map(([label, text, imgUrl]) => (
                                     <div key={label} style={{
                                       padding: '12px', borderRadius: 'var(--radius)',
                                       border: `2px solid ${subResponse.preference === label ? 'var(--accent)' : 'var(--border)'}`,
                                       background: subResponse.preference === label ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
                                     }}>
                                       <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>소재 {label}{subResponse.preference === label ? ' ★ 선택됨' : ''}</div>
+                                      {imgUrl && <img src={imgUrl} alt={`소재 ${label}`} style={{ width: '100%', borderRadius: 4, marginBottom: 8, objectFit: 'cover', maxHeight: 120 }} />}
                                       <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, wordBreak: 'break-all' }}>{text || '—'}</div>
                                     </div>
                                   ))}
                                 </div>
                               )}
-                              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                              <div style={{ display: 'flex', gap: 8, marginBottom: customQs.length ? 14 : 0 }}>
                                 {[
                                   { label: '선택', value: subResponse.preference ? `소재 ${subResponse.preference}` : '—' },
                                   { label: '메시지 명확성', value: subResponse.message_clarity ? `${subResponse.message_clarity}/5` : '—' },
@@ -315,59 +336,99 @@ export default function PurityFilter() {
                                   </div>
                                 ))}
                               </div>
+                              {customQs.length > 0 && (
+                                <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
+                                  {customQs.map((q, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 2 }}>{i + 1}. {q}</div>)}
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
 
                         {/* 가격 검증 */}
-                        {missionType === 'pricing' && (
-                          <div>
-                            {fb.missions?.description && (
-                              <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>가격 페이지 설명</div>
-                                {fb.missions.description}
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-                              {[
-                                { label: '구매 의향', value: subResponse.would_buy === true ? 'Yes' : subResponse.would_buy === false ? 'No' : '—' },
-                                { label: '가격 공정성', value: subResponse.price_fairness ? `${subResponse.price_fairness}/5` : '—' },
-                                { label: '가치 인식', value: subResponse.value_perception ? `${subResponse.value_perception}/5` : '—' },
-                              ].map(({ label, value }) => (
-                                <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 80 }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-                                  <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                        {missionType === 'pricing' && (() => {
+                          const pd = parseSubDesc(fb.missions?.description, 'pricing');
+                          const customQs = Array.isArray(pd.customQuestions) ? pd.customQuestions.filter(Boolean) : [];
+                          return (
+                            <div>
+                              {(pd.content || pd.image) && (
+                                <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>가격 페이지 설명</div>
+                                  {pd.image && <img src={pd.image} alt="가격 페이지" style={{ width: '100%', borderRadius: 4, marginBottom: 8, objectFit: 'cover', maxHeight: 160 }} />}
+                                  {pd.content && <div style={{ whiteSpace: 'pre-wrap' }}>{pd.content}</div>}
                                 </div>
-                              ))}
+                              )}
+                              {pd.productDescription && (
+                                <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)' }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
+                                  {pd.productDescription}
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: 8, marginBottom: customQs.length ? 14 : 0, flexWrap: 'wrap' }}>
+                                {[
+                                  { label: '구매 의향', value: subResponse.would_buy === true ? 'Yes' : subResponse.would_buy === false ? 'No' : '—' },
+                                  { label: '가격 공정성', value: subResponse.price_fairness ? `${subResponse.price_fairness}/5` : '—' },
+                                  { label: '가치 인식', value: subResponse.value_perception ? `${subResponse.value_perception}/5` : '—' },
+                                ].map(({ label, value }) => (
+                                  <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 80 }}>
+                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {customQs.length > 0 && (
+                                <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
+                                  {customQs.map((q, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 2 }}>{i + 1}. {q}</div>)}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* 이메일 검증 */}
-                        {missionType === 'email' && (
-                          <div>
-                            {fb.missions?.description && (
-                              <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, maxHeight: 120, overflowY: 'auto', fontFamily: 'var(--font-mono)' }}>
-                                <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 6, fontFamily: 'sans-serif' }}>이메일 원문</div>
-                                {fb.missions.description}
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-                              {[
-                                { label: '답장 의향', value: subResponse.would_reply === true ? 'Yes' : subResponse.would_reply === false ? 'No' : '—' },
-                                { label: '후킹력', value: subResponse.hook_score ? `${subResponse.hook_score}/5` : '—' },
-                                { label: '명확성', value: subResponse.clarity_score ? `${subResponse.clarity_score}/5` : '—' },
-                                { label: '개봉 의향', value: subResponse.open_intent ? `${subResponse.open_intent}/5` : '—' },
-                                { label: '호기심', value: subResponse.curiosity_score ? `${subResponse.curiosity_score}/5` : '—' },
-                              ].map(({ label, value }) => (
-                                <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-                                  <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                        {missionType === 'email' && (() => {
+                          const pd = parseSubDesc(fb.missions?.description, 'email');
+                          const emailContent = pd.content || fb.missions?.description || '';
+                          const customQs = Array.isArray(pd.customQuestions) ? pd.customQuestions.filter(Boolean) : [];
+                          return (
+                            <div>
+                              {emailContent && (
+                                <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, maxHeight: 120, overflowY: 'auto', fontFamily: 'var(--font-mono)' }}>
+                                  <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 6, fontFamily: 'sans-serif' }}>이메일 원문</div>
+                                  {emailContent}
                                 </div>
-                              ))}
+                              )}
+                              {pd.productDescription && (
+                                <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)' }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
+                                  {pd.productDescription}
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: 8, marginBottom: customQs.length ? 14 : 0, flexWrap: 'wrap' }}>
+                                {[
+                                  { label: '답장 의향', value: subResponse.would_reply === true ? 'Yes' : subResponse.would_reply === false ? 'No' : '—' },
+                                  { label: '후킹력', value: subResponse.hook_score ? `${subResponse.hook_score}/5` : '—' },
+                                  { label: '명확성', value: subResponse.clarity_score ? `${subResponse.clarity_score}/5` : '—' },
+                                  { label: '개봉 의향', value: subResponse.open_intent ? `${subResponse.open_intent}/5` : '—' },
+                                  { label: '호기심', value: subResponse.curiosity_score ? `${subResponse.curiosity_score}/5` : '—' },
+                                ].map(({ label, value }) => (
+                                  <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
+                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {customQs.length > 0 && (
+                                <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
+                                  {customQs.map((q, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 2 }}>{i + 1}. {q}</div>)}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Comment (공통) */}
                         {(subResponse.comment || subResponse.key_comment) && (

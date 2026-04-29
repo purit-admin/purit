@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Btn, Badge } from '../../components/ui';
+import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -31,6 +31,18 @@ const hasDraftProgress = (fb) => {
     return Object.values(saved).some(v => v && v.trim());
   } catch { return false; }
 };
+
+function parseSubDesc(desc, type) {
+  if (!desc) return {};
+  try {
+    const p = JSON.parse(desc);
+    if (type === 'preference') return p;
+    if (p && typeof p === 'object' && 'content' in p) return p;
+    return { content: desc, productDescription: '', customQuestions: [] };
+  } catch {
+    return { content: desc || '', productDescription: '', customQuestions: [] };
+  }
+}
 
 export default function ActiveMission() {
   const navigate = useNavigate();
@@ -491,23 +503,15 @@ export default function ActiveMission() {
   if (step === 0) return (
     <div style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
       {cancelModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 400, width: '90%', border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#ef4444', marginBottom: 10, letterSpacing: '0.1em' }}>CANCEL ACCEPT</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>수락을 취소할까요?</h2>
-            <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 600, marginBottom: 16 }}>{mission.title}</div>
-            <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: 24, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
-              작성 중이던 피드백 초안이 모두 삭제됩니다.<br />
-              이 미션은 다시 참여가능 목록으로 돌아갑니다.
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <Btn onClick={() => setCancelModal(false)} disabled={cancelConfirming}>계속 작성하기</Btn>
-              <Btn variant="danger" onClick={handleCancelAccept} disabled={cancelConfirming}>
-                {cancelConfirming ? '처리 중...' : '수락 취소'}
-              </Btn>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          title="수락을 취소할까요?"
+          desc={`작성 중이던 피드백 초안이 모두 삭제됩니다.\n이 미션은 다시 참여가능 목록으로 돌아갑니다.`}
+          confirmLabel={cancelConfirming ? '처리 중...' : '수락 취소'}
+          cancelLabel="계속 작성하기"
+          danger
+          onConfirm={handleCancelAccept}
+          onCancel={() => setCancelModal(false)}
+        />
       )}
 
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
@@ -575,9 +579,7 @@ export default function ActiveMission() {
 
   /* ─── 서브 미션 폼 ─── */
   if (isSubMission && step >= 1) {
-    let content = null;
-    try { content = JSON.parse(mission.description || '{}'); } catch { content = {}; }
-    const emailText = missionType === 'email' ? (mission.description || '') : '';
+    const parsedDesc = parseSubDesc(mission.description, missionType);
 
     const ScoreRow = ({ label, value, setter }) => (
       <div style={{ marginBottom: 14 }}>
@@ -619,10 +621,19 @@ export default function ActiveMission() {
         {/* 소재 비교 A/B */}
         {missionType === 'preference' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {parsedDesc.productDescription && (
+              <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
+                {parsedDesc.productDescription}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[['A', content.variantA, 'var(--blue)'], ['B', content.variantB, 'var(--accent)']].map(([label, text, color]) => (
+              {[['A', parsedDesc.variantA, parsedDesc.variantAImage, 'var(--blue)'], ['B', parsedDesc.variantB, parsedDesc.variantBImage, 'var(--accent)']].map(([label, text, imgUrl, color]) => (
                 <div key={label} onClick={() => setPrefChoice(label)} style={{ padding: '16px', borderRadius: 'var(--radius)', border: `2px solid ${prefChoice === label ? color : 'var(--border)'}`, background: prefChoice === label ? 'var(--accent-dim)' : 'var(--surface)', cursor: 'pointer', transition: 'all 0.15s' }}>
                   <div style={{ fontWeight: 800, fontSize: 16, color, marginBottom: 10 }}>소재 {label} {prefChoice === label ? '✓' : ''}</div>
+                  {imgUrl && (
+                    <img src={imgUrl} alt={`소재 ${label}`} style={{ width: '100%', borderRadius: 'var(--radius)', marginBottom: 10, objectFit: 'cover', maxHeight: 160 }} />
+                  )}
                   <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{text}</div>
                 </div>
               ))}
@@ -640,10 +651,19 @@ export default function ActiveMission() {
         {/* 가격 페이지 */}
         {missionType === 'pricing' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {mission.description && (
-              <div style={{ padding: '16px 20px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', border: '1px solid var(--border)' }}>
+            {(parsedDesc.content || parsedDesc.image) && (
+              <div style={{ padding: '16px 20px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>가격 구성</div>
-                {mission.description}
+                {parsedDesc.image && (
+                  <img src={parsedDesc.image} alt="가격 페이지" style={{ width: '100%', borderRadius: 'var(--radius)', marginBottom: 10, objectFit: 'cover', maxHeight: 240 }} />
+                )}
+                {parsedDesc.content && <div style={{ whiteSpace: 'pre-wrap' }}>{parsedDesc.content}</div>}
+              </div>
+            )}
+            {parsedDesc.productDescription && (
+              <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
+                {parsedDesc.productDescription}
               </div>
             )}
             <Card>
@@ -668,8 +688,14 @@ export default function ActiveMission() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ padding: '16px 20px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.8, whiteSpace: 'pre-wrap', border: '1px solid var(--border)', fontFamily: 'inherit', maxHeight: 280, overflowY: 'auto' }}>
               <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>이메일 원문</div>
-              {emailText}
+              {parsedDesc.content || mission.description}
             </div>
+            {parsedDesc.productDescription && (
+              <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
+                {parsedDesc.productDescription}
+              </div>
+            )}
             <Card>
               <ScoreRow label="제목줄 개봉 의향" value={emailOpenIntent} setter={setEmailOpenIntent} />
               <ScoreRow label="훅 강도 (첫 문장)" value={emailHook} setter={setEmailHook} />
@@ -820,22 +846,16 @@ export default function ActiveMission() {
           </Btn>
         </div>
 
-        {/* 수락 취소 모달 */}
         {cancelModal && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 400, width: '90%', border: '1px solid var(--border)' }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>수락을 취소할까요?</h2>
-              <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 24, lineHeight: 1.7 }}>
-                작성 중이던 모든 어노테이션이 삭제됩니다.
-              </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <Btn onClick={() => setCancelModal(false)} disabled={cancelConfirming}>계속 작성하기</Btn>
-                <Btn variant="danger" onClick={handleCancelAccept} disabled={cancelConfirming}>
-                  {cancelConfirming ? '처리 중...' : '수락 취소'}
-                </Btn>
-              </div>
-            </div>
-          </div>
+          <ConfirmModal
+            title="수락을 취소할까요?"
+            desc="작성 중이던 모든 어노테이션이 삭제됩니다."
+            confirmLabel={cancelConfirming ? '처리 중...' : '수락 취소'}
+            cancelLabel="계속 작성하기"
+            danger
+            onConfirm={handleCancelAccept}
+            onCancel={() => setCancelModal(false)}
+          />
         )}
       </div>
     );
