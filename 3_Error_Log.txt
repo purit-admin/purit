@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29 (서브 미션 버그 수정 — 제목 고정·navigate·Step validation)
+최종 업데이트: 2026-04-29 (패널 대시보드·수익이력·진행중 목록 개편)
 ================================================================
 
 ## 핵심 원칙
@@ -685,3 +685,47 @@ D-28. 서브 미션 사이드 테이블 INSERT silent failure 패턴 ✅ 해결 
              missions INSERT 성공만 보장되면 navigate('/company') 항상 실행
      → 주의: 이 패턴 적용 후 사이드 테이블 데이터 누락 가능성 있음
              → 실제 환경에서 RLS 정책 점검 및 서브 테이블 INSERT 권한 확인 권장
+
+2026-04-29  패널 대시보드·수익이력·진행중 목록 개편 (16차)
+            [수정 파일]
+            - panel/ActiveMission.jsx:
+              · 목록 뷰(/panel/active): 메인 미션 / 서브 미션 섹션 분리 표시
+                renderDraftCard 헬퍼 함수로 카드 렌더 통일
+                TYPE_BADGE 상수로 소재 비교/가격 검증/이메일 검증 배지 추가
+              · 브리핑 화면 description 표시 버그 수정:
+                서브 미션에서 raw JSON이 노출되는 문제 → parseSubDesc 파싱 후
+                productDescription(제품/타겟 설명) 표시 / 메인 미션은 기존 브리핑 표시 유지
+            - panel/History.jsx:
+              · 상단 통계 3칸 개편:
+                '총 정산 완료' → 금액 + 건수 (purity_passed=true)
+                '정산 대기 중' → 금액 + 건수 (submitted + purity_passed=false)
+                '평균 점수' 삭제 → '필터 탈락' (rejected 건수, 있으면 빨간색)
+              · '이력' → '현황' 워딩 변경
+              · 탭 4개 추가: 전체 / 검토중 / 정산 완료 / 필터 탈락
+              · Purit Filter 탈락 안내: '정산 완료' 탭에서 숨김 (tab !== 'approved' 조건)
+            - panel/Dashboard.jsx:
+              · 참여 가능 미션 수 불일치 수정:
+                limit(10) 제거 → 전체 active 미션 조회
+                슬롯 꽉 찬 미션(filled_count >= panel_count) 필터링 추가
+                → Missions.jsx와 동일한 집계 로직
+              · 통계 섹션 → '미션 현황' 섹션으로 묶음 (완료 미션 / 참여 가능 / 이번 주 활동)
+              · '참여 가능한 미션 n건' 헤더 및 미션 카드 목록 전체 제거
+              · '수익 현황' 섹션 신규 추가:
+                feedbacks(status≠draft) 별도 조회 → purity_passed/status 기준 집계
+                총 정산 완료(금액+건수) / 정산 대기 중(금액+건수) / 필터 탈락(건수)
+            [빌드]
+            - npm run build 경고 0개 확인
+
+D-29. 패널 대시보드 참여 가능 수 불일치 원인 ✅ 해결 (2026-04-29)
+     → 원인 1: Dashboard가 limit(10) 제한으로 최대 10개만 로드 → 실제 수보다 적게 표시
+     → 원인 2: 슬롯 꽉 찬 미션(filled_count >= panel_count) 미필터 → Missions.jsx보다 많게 표시
+     → 해결: limit 제거 + (m.filled_count || 0) < (m.panel_count || 1) 조건 추가
+     → 이후 두 페이지 모두 동일 로직: status='active' + 슬롯여유 + 미참여(feedbackMap에 없음)
+
+D-30. 수익 현황 집계 패턴 (Dashboard/History 공통)
+     → 상태 분류 기준:
+        - 정산완료(approved): purity_passed = true
+        - 검토중(pending):    status = 'submitted' AND purity_passed = false
+        - 필터탈락(rejected): status = 'rejected' AND purity_passed = false
+     → Dashboard는 feedbacks를 별도 쿼리로 조회 (histFeedbacks state)
+     → History와 동일한 집계 함수 패턴 사용 (reduce로 금액 합산)

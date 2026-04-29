@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (서브 미션 버그 수정 — 제목 고정·navigate·Step validation)
+최종 업데이트: 2026-04-29 (패널 대시보드·수익이력·진행중 목록 개편)
 ================================================================
 
 ## 서비스 개요
@@ -159,11 +159,13 @@
 
 인증 후 /panel 하위 라우트 접근 가능.
 
-1. 대시보드 (/panel) — Dashboard.jsx
-   - 수익 현황, 완료 미션 수 요약
-   - 최신 활성 미션 5개 프리뷰 (missions SELECT + feedbacks(id) join, status='active', limit 5)
-   - 미션 카드 클릭 시 ?id=${m.id} 전달 → 해당 미션 정확히 로드
-   - 잔여 슬롯: feedbacks 실제 건수 기준 표시 (filled_count 대신)
+1. 대시보드 (/panel) — Dashboard.jsx  ★ 개편
+   - 신뢰도 게이지 (trust_score %)
+   - 미션 현황 (3칸 묶음): 완료 미션(총 누적) / 참여 가능(슬롯 여유 있는 active 미션) / 이번 주 활동(7일 내 제출)
+     · 참여 가능 수: status='active' + 슬롯 여유(filled_count < panel_count) + 미참여 미션 전수 조회 (limit 없음)
+   - 수익 현황 (3칸 묶음): 총 정산 완료(금액+건수) / 정산 대기 중(금액+건수) / 필터 탈락(건수)
+     · feedbacks(status≠draft) SELECT → purity_passed/status 기준 집계
+   - 참여 가능한 미션 카드 목록 제거 (→ 미션 탐색 페이지로 유도)
 
 2. 미션 탐색 (/panel/missions) — Missions.jsx
    - 탭 3개: 참여가능 / 진행 중(→/panel/active로 이동) / 완료
@@ -178,12 +180,17 @@
 
 3. 미션 수행 (/panel/active) — ActiveMission.jsx
    ★ 목록 뷰 (id 파라미터 없음, /panel/active):
-     - 이 패널이 수락한(status='draft') 미션 전체를 카드 목록으로 표시
+     - 이 패널이 수락한(status='draft') 미션을 메인 미션 / 서브 미션 섹션으로 분리 표시 ★ 개편
+     - 각 카드에 미션 유형 배지 표시 (소재 비교/가격 검증/이메일 검증)
      - 저장된 진행 없으면 "피드백 시작하기 →", 있으면 "이어하기 →" 버튼
      - 버튼 클릭 시 /panel/active?id=<mission_id>로 이동
    ★ 폼 뷰 (id 파라미터 있음, /panel/active?id=...):
      - 특정 미션 브리핑 화면 → mission.type에 따라 3가지 폼 분기
      - 브리핑에서도 저장 여부에 따라 "이어하기 →" / "피드백 시작하기 →"
+     - 브리핑 description 표시 ★ 개편:
+       · 서브 미션: parseSubDesc 파싱 → productDescription(제품/타겟 설명) 표시
+       · 메인 미션: mission.description 원문 표시
+       · raw JSON이 그대로 노출되는 버그 수정
      ※ 서브 미션 폼 (type='preference'|'pricing'|'email', isSubMission=true):
        - parseSubDesc(desc, type) 헬퍼로 하위 호환 JSON 파싱 (구 포맷 raw text 자동 감지)
        - preference: productDescription 표시, variantAImage/variantBImage 이미지 표시,
@@ -216,8 +223,14 @@
        b. missions.filled_count +1 → RPC increment_mission_filled_count (SECURITY DEFINER)
        c. panels.total_missions +1 → RPC increment_panel_mission_count (SECURITY DEFINER)
 
-4. 수익 이력 (/panel/history) — History.jsx
-   - 완료 피드백 목록 (feedbacks SELECT + missions JOIN → title, reward_amount)
+4. 수익 이력 (/panel/history) — History.jsx  ★ 개편
+   - 상단 통계 3칸:
+     · 총 정산 완료: 금액(₩x만) + 건수 (purity_passed=true)
+     · 정산 대기 중: 금액(₩x만) + 건수 (status='submitted', purity_passed=false)
+     · 필터 탈락: 건수 (status='rejected', purity_passed=false) — 0건이면 기본색, 있으면 빨간색
+   - '이력' → '현황' 워딩 변경
+   - 탭 4개: 전체 / 검토중 / 정산 완료 / 필터 탈락
+   - Purit Filter 탈락 안내 카드: '정산 완료' 탭에서는 숨김
    - draft 상태 피드백 제외 (.neq('status', 'draft'))
 
 5. 프로필 설정 (/panel/profile) — Profile.jsx

@@ -410,6 +410,54 @@ export default function ActiveMission() {
       <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
     );
 
+    const TYPE_BADGE = {
+      preference: <Badge type="blue">소재 비교</Badge>,
+      pricing:    <Badge type="gold">가격 검증</Badge>,
+      email:      <Badge type="green">이메일 검증</Badge>,
+    };
+
+    const renderDraftCard = (fb) => {
+      const m = fb.missions;
+      if (!m) return null;
+      const hasProgress = hasDraftProgress(fb);
+      return (
+        <Card key={fb.id}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+                <Badge type="gold">진행 중</Badge>
+                {TYPE_BADGE[m.type]}
+                {m.image_urls?.length > 0 && <Badge type="blue">이미지 {m.image_urls.length}장</Badge>}
+                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
+                  {m.id.slice(0, 8).toUpperCase()}
+                </span>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{m.title}</div>
+              {m.persona && (
+                <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.6 }}>
+                  🎯 타겟: {m.persona}
+                </div>
+              )}
+            </div>
+            <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+                  ₩{(m.reward_amount || 0).toLocaleString()}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>건당 보상</div>
+              </div>
+              <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>
+                {hasProgress ? '이어하기 →' : '피드백 시작하기 →'}
+              </Btn>
+            </div>
+          </div>
+        </Card>
+      );
+    };
+
+    const mainDrafts = drafts.filter(fb => fb.missions && (!fb.missions.type || fb.missions.type === 'landing_page'));
+    const subDrafts  = drafts.filter(fb => fb.missions && ['preference', 'pricing', 'email'].includes(fb.missions.type));
+
     return (
       <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
         <div style={{ marginBottom: 32 }}>
@@ -426,46 +474,39 @@ export default function ActiveMission() {
             <Btn variant="outline" onClick={() => navigate('/panel/missions')}>미션 탐색 보기 →</Btn>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {drafts.map(fb => {
-              const m = fb.missions;
-              if (!m) return null;
-              const hasProgress = hasDraftProgress(fb);
-              return (
-                <Card key={fb.id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-                        <Badge type="gold">진행 중</Badge>
-                        {m.image_urls?.length > 0 && (
-                          <Badge type="blue">이미지 {m.image_urls.length}장</Badge>
-                        )}
-                        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
-                          {m.id.slice(0, 8).toUpperCase()}
-                        </span>
-                      </div>
-                      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{m.title}</div>
-                      {m.persona && (
-                        <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.6 }}>
-                          🎯 타겟: {m.persona}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
-                          ₩{(m.reward_amount || 0).toLocaleString()}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>건당 보상</div>
-                      </div>
-                      <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>
-                        {hasProgress ? '이어하기 →' : '피드백 시작하기 →'}
-                      </Btn>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {/* 메인 미션 섹션 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 미션</h2>
+                <Badge type="gray">{mainDrafts.length}개</Badge>
+              </div>
+              {mainDrafts.length === 0 ? (
+                <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                  진행 중인 메인 미션이 없습니다.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {mainDrafts.map(renderDraftCard)}
+                </div>
+              )}
+            </div>
+            {/* 서브 미션 섹션 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 미션</h2>
+                <Badge type="blue">{subDrafts.length}개</Badge>
+              </div>
+              {subDrafts.length === 0 ? (
+                <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                  진행 중인 서브 미션이 없습니다.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {subDrafts.map(renderDraftCard)}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -527,11 +568,25 @@ export default function ActiveMission() {
             🎯 <strong>타겟 페르소나:</strong> {mission.persona}
           </div>
         )}
-        {mission.description && (
-          <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
-            <strong style={{ color: 'var(--text)' }}>브리핑:</strong><br />{mission.description}
-          </div>
-        )}
+        {(() => {
+          if (!mission.description) return null;
+          const subTypes = ['preference', 'pricing', 'email'];
+          if (subTypes.includes(mission.type)) {
+            const parsed = parseSubDesc(mission.description, mission.type);
+            const text = parsed.productDescription || '';
+            if (!text) return null;
+            return (
+              <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
+                <strong style={{ color: 'var(--text)' }}>제품/타겟 설명:</strong><br />{text}
+              </div>
+            );
+          }
+          return (
+            <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
+              <strong style={{ color: 'var(--text)' }}>브리핑:</strong><br />{mission.description}
+            </div>
+          );
+        })()}
         {mission.target_url && (
           <a href={mission.target_url} target="_blank" rel="noreferrer"
             style={{ fontSize: 13, color: 'var(--accent)', display: 'inline-block', marginBottom: 16 }}>

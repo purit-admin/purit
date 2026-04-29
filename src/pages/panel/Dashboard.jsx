@@ -18,9 +18,10 @@ const DIFF_META = {
 
 export default function PanelDashboard() {
   const navigate = useNavigate();
-  const [panel, setPanel]     = useState(null);
-  const [missions, setMissions] = useState([]);
-  const [loading, setLoading]  = useState(true);
+  const [panel, setPanel]         = useState(null);
+  const [missions, setMissions]   = useState([]);
+  const [histFeedbacks, setHistFeedbacks] = useState([]);
+  const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -31,14 +32,24 @@ export default function PanelDashboard() {
         .from('panels').select('*').eq('user_id', user.id).single();
       setPanel(p);
 
-      const [{ data: ms }, { data: myFeedbacks }] = await Promise.all([
+      const [{ data: ms }, { data: myFeedbacks }, { data: hFbs }] = await Promise.all([
         supabase.from('missions').select('*, feedbacks(id)').eq('status', 'active')
-          .order('created_at', { ascending: false }).limit(10),
-        supabase.from('feedbacks').select('mission_id').eq('panel_id', p?.id),
+          .order('created_at', { ascending: false }),
+        supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p?.id),
+        supabase.from('feedbacks')
+          .select('status, purity_passed, missions(reward_amount)')
+          .eq('panel_id', p?.id)
+          .neq('status', 'draft'),
       ]);
 
       const myMissionIds = new Set((myFeedbacks || []).map(f => f.mission_id));
-      setMissions((ms || []).filter(m => !myMissionIds.has(m.id)));
+      setMissions(
+        (ms || []).filter(m =>
+          !myMissionIds.has(m.id) &&
+          (m.filled_count || 0) < (m.panel_count || 1)
+        )
+      );
+      setHistFeedbacks(hFbs || []);
 
       // Draft 이어하기 알림: 24h 이상 방치된 draft 미션마다 알림 생성
       if (p?.id && user?.id) {
@@ -98,6 +109,12 @@ export default function PanelDashboard() {
   const trustScore = panel?.trust_score || 0;
   const streakCount = panel?.streak_count || 0;
 
+  const approvedFbs = histFeedbacks.filter(f => f.purity_passed);
+  const pendingFbs  = histFeedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
+  const rejectedFbs = histFeedbacks.filter(f => !f.purity_passed && f.status === 'rejected');
+  const totalPaid    = approvedFbs.reduce((s, f) => s + (f.missions?.reward_amount || 0), 0);
+  const totalPending = pendingFbs.reduce((s, f)  => s + (f.missions?.reward_amount || 0), 0);
+
   return (
     <div style={{ padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
       {/* Header */}
@@ -148,76 +165,51 @@ export default function PanelDashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}>
-        {[
-          { label: '완료 미션', value: String(panel?.total_missions || 0), sub: '총 누적' },
-          { label: '참여 가능', value: String(missions.length), sub: '현재 오픈 미션' },
-          { label: '이번 주 활동', value: String(streakCount), sub: '7일 내 제출', accent: streakCount >= 3 },
-        ].map(s => (
-          <div key={s.label} style={{ background: 'var(--surface)', padding: '24px 28px' }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{s.label}</div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: s.accent ? 'var(--accent)' : 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Available missions */}
-      <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)' }}>
-        참여 가능한 미션{' '}
-        <span style={{ color: 'var(--green)', fontSize: 13 }}>{missions.length}건</span>
-      </h2>
-
-      {missions.length === 0 ? (
-        <div style={{
-          padding: '40px', textAlign: 'center',
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)', color: 'var(--text-3)', fontSize: 14,
-        }}>
-          현재 매칭 가능한 미션이 없습니다.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {missions.map(m => (
-            <Card key={m.id} onClick={() => navigate(`/panel/active?id=${m.id}`)} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                    <Badge type="green">진행 중</Badge>
-                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
-                      {m.id.slice(0, 8).toUpperCase()}
-                    </span>
-                  </div>
-                  <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>{m.title}</div>
-                  {m.persona && (
-                    <div style={{ fontSize: 13, color: 'var(--text-2)' }}>🎯 {m.persona}</div>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
-                    ₩{(m.reward_amount || 0).toLocaleString()}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
-                    잔여 {Math.max(0, (m.panel_count || 0) - (m.feedbacks?.length ?? m.filled_count ?? 0))}/{m.panel_count} 슬롯
-                  </div>
-                  {(m.estimated_minutes || m.difficulty) && (
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
-                      {m.estimated_minutes && (
-                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>⏱ {m.estimated_minutes}분</span>
-                      )}
-                      {m.difficulty && (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: DIFF_META[m.difficulty]?.color || 'var(--text-3)' }}>
-                          {DIFF_META[m.difficulty]?.label || m.difficulty}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Card>
+      {/* 미션 현황 */}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>미션 현황</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          {[
+            { label: '완료 미션',   value: String(panel?.total_missions || 0), sub: '총 누적' },
+            { label: '참여 가능',   value: String(missions.length),            sub: '현재 오픈 미션' },
+            { label: '이번 주 활동', value: String(streakCount),               sub: '7일 내 제출', accent: streakCount >= 3 },
+          ].map(s => (
+            <div key={s.label} style={{ background: 'var(--surface)', padding: '24px 28px' }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: s.accent ? 'var(--accent)' : 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{s.sub}</div>
+            </div>
           ))}
         </div>
-      )}
+      </div>
+
+      {/* 수익 현황 */}
+      <div style={{ marginBottom: 32, marginTop: 24 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>수익 현황</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 정산 완료</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
+              ₩{(totalPaid / 10000).toFixed(0)}만
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{approvedFbs.length}건</div>
+          </div>
+          <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>정산 대기 중</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
+              ₩{(totalPending / 10000).toFixed(0)}만
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{pendingFbs.length}건</div>
+          </div>
+          <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>필터 탈락</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: rejectedFbs.length > 0 ? 'var(--red, #ef4444)' : 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
+              {rejectedFbs.length}건
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>Purit Filter 미통과</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
