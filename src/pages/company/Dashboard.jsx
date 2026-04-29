@@ -52,6 +52,15 @@ function computeSentiment(missions, fbs) {
   });
 }
 
+const NDA_KEY = 'purit_nda_banner_dismissed';
+function isBannerDismissed() {
+  try {
+    const ts = localStorage.getItem(NDA_KEY);
+    if (!ts) return false;
+    return Date.now() - Number(ts) < 24 * 60 * 60 * 1000;
+  } catch { return false; }
+}
+
 const PAGE_SIZE = 10;
 
 function Pagination({ page, total, onPage }) {
@@ -123,6 +132,12 @@ export default function CompanyDashboard() {
   const [missionFilter, setMissionFilter] = useState('all');
   const [mainMissionPage, setMainMissionPage] = useState(1);
   const [subMissionPage, setSubMissionPage]   = useState(1);
+  const [showBanner, setShowBanner] = useState(() => !isBannerDismissed());
+
+  const dismissBanner = () => {
+    localStorage.setItem(NDA_KEY, String(Date.now()));
+    setShowBanner(false);
+  };
 
   useEffect(() => {
     async function load() {
@@ -178,6 +193,22 @@ export default function CompanyDashboard() {
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 1100 }}>
+
+      {/* NDA 배너 */}
+      {showBanner && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#fff7ed', border: '1px solid #fed7aa',
+          borderRadius: 'var(--radius)', padding: '12px 18px', marginBottom: 24,
+          fontSize: 13, color: '#9a3412',
+        }}>
+          <span>🔒 <strong>Purit의 피드백 패널은 기업의 정보를 발설할 수 없습니다.</strong></span>
+          <button onClick={dismissBanner} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#9a3412', fontSize: 18, lineHeight: 1, padding: '0 4px', flexShrink: 0,
+          }}>×</button>
+        </div>
+      )}
 
       {/* Header */}
       <motion.div {...fadeUp(0)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>

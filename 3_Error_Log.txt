@@ -644,3 +644,22 @@ D-26. 서브 미션 폼 제출 후 대시보드 redirect 패턴 ✅ 정착 (2026
         2. missionUuid unique constraint — DB 레벨 최후 방어
      → React setState는 비동기라 빠른 더블클릭이 submitting state 업데이트 전에 두 번째 클릭을 허용함
         → useRef는 동기적으로 즉시 차단되므로 필수 패턴
+
+2026-04-29  UX 세부 수정 (14차)
+            [수정 파일]
+            - company/Dashboard.jsx:
+              · NDA 배너 최상단 추가: "Purit의 피드백 패널은 기업의 정보를 발설할 수 없습니다."
+              · × 클릭 시 localStorage(purit_nda_banner_dismissed)에 타임스탬프 저장 → 24시간 비노출
+              · isBannerDismissed() 헬퍼: Date.now() - ts < 24h 체크
+            - company/NewMission.jsx:
+              · Step 0에서 "예상 소요 시간" 드롭다운 제거
+              · Step 3 검토 화면에서 "예상 소요 시간" 행 제거
+              · DB INSERT는 estimated_minutes 기본값 5 유지 (UI 비노출만)
+            - company/PricingTest.jsx:
+              · Step 0 섹션 타이틀 "가격 페이지 설명" → "가격 페이지" 워딩 변경
+
+D-27. NDA 배너 localStorage 24h 비노출 패턴 (2026-04-29)
+     → 키: 'purit_nda_banner_dismissed', 값: Date.now() 타임스탬프 문자열
+     → isBannerDismissed(): localStorage 값 읽어 24h 이내면 true
+     → useState 초기값에서 !isBannerDismissed() 호출 → 마운트 시 즉시 상태 결정
+     → try/catch 감쌈: 프라이빗 브라우징 등 localStorage 접근 불가 시 false 폴백

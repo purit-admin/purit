@@ -173,12 +173,6 @@ export default function NewMission() {
               <span style={lblTxt}>랜딩페이지 URL</span>
               <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
             </label>
-            <label style={lbl}>
-              <span style={lblTxt}>예상 소요 시간</span>
-              <select value={form.estimatedMinutes} onChange={e => set('estimatedMinutes', Number(e.target.value))} style={{ maxWidth: 200 }}>
-                {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}분</option>)}
-              </select>
-            </label>
           </div>
         )}
 
@@ -338,7 +332,6 @@ export default function NewMission() {
               ['타겟 페르소나', `${form.personaAge}, ${form.personaRole}` || '—'],
               ['패널 수', `${form.panels}명`],
               ['검증 포커스', form.focusAreas.join(', ') || '—'],
-              ['예상 소요 시간', `${form.estimatedMinutes}분`],
               ['예상 비용', `₩ ${total.toLocaleString()}`],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>

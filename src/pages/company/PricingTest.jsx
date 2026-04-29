@@ -206,7 +206,7 @@ export default function PricingTest() {
             {/* Step 0: 가격 페이지 설명 + 이미지 */}
             {createStep === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>가격 페이지 설명</div>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>가격 페이지</div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)' }}>패널에게 보여줄 가격 구성, 플랜 내용, 검증 목적을 입력하세요.</div>
                 <textarea
                   value={pricingDesc}

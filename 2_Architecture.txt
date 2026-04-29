@@ -69,12 +69,15 @@ purit/
 │       │   │                        #   - RadialBarChart: KPI 달성률 게이지
 │       │   │                        #   - BarChart: 미션별 긍/부정 스택 바
 │       │   │                        #   - feedbacks 실데이터 집계: computeRadar / computeSentiment
-│       │   ├── NewMission.jsx       # ★ estimated_minutes 유지, difficulty 제거, 타겟 상세, FOCUS 갱신
+│       │   │                        #   - NDA 배너: 최상단 표시, × 클릭 시 localStorage(purit_nda_banner_dismissed) 24h 비노출
+│       │   ├── NewMission.jsx       # ★ difficulty 제거, 타겟 상세, FOCUS 갱신
+│       │   │                        #   - 예상 소요 시간 UI 제거 (Step 0 · Step 3 검토), DB 기본값 5분 유지
 │       │   ├── Results.jsx          # ★ 패널 세그먼트 필터 + 공유 링크 생성/복사/해제
 │       │   ├── Diagnosis.jsx        # ★ '키워드 분석' + '시계열 추적' 탭 → navigate('/company/timeline')
 │       │   ├── TimelineTracker.jsx  # 5차원 점수 시계열 LineChart (Diagnosis 탭에서 navigate 진입)
 │       │   ├── PreferenceTest.jsx   # ★ step 기반(0-3), 이미지 업로드(va/vb), productDescription, customQuestions
 │       │   ├── PricingTest.jsx      # ★ step 기반(0-2), 이미지 업로드(pricing), productDescription, customQuestions
+│       │   │                        #   - Step 0 타이틀: "가격 페이지 설명" → "가격 페이지"
 │       │   ├── ColdEmailTest.jsx    # ★ step 기반(0-2), productDescription, customQuestions
 │       │   ├── QuestionTemplates.jsx
 │       │   ├── ICPResearch.jsx
