@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (패널 대시보드·수익이력·진행중 목록 개편)
+최종 업데이트: 2026-04-29 (피드백 결과 대공사 계획 수립)
 ================================================================
 
 ## 서비스 개요
@@ -52,15 +52,23 @@
    - Step 3 검토: 난이도 행 없음, '미션 제출 →' 버튼
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
 
-3. 피드백 결과 (/company/results) — Results.jsx
-   - 보유 미션 목록 표시 (missions 테이블 SELECT)
-   - 미션 선택 시 해당 피드백 목록 표시 (feedbacks JOIN panels SELECT)
-   - 5개 축 평균 점수 시각화
+3. 피드백 결과 (/company/results) — Results.jsx  ★ 전면 재설계 예정
+   ※ 현재 구현 (재설계 전):
+   - 미션 선택 UI: 칩 버튼 나열 (미션 많을수록 지저분 → 개선 예정)
+   - 5개 축 평균 점수 시각화 (모든 미션 타입에 동일 적용 → 서브미션 분기 예정)
    - 패널 세그먼트 필터: 산업군·경력 드롭다운으로 feedbacks 필터링 → 실시간 점수 재계산
    - 공유 링크 기능: missions.share_token 생성/복사/해제
      · "링크 공유" 버튼 → crypto.randomUUID() → missions.share_token UPDATE
      · 복사 → navigator.clipboard → /share/{token} URL
      · 해제 → share_token = null
+   ※ 재설계 방향 (TASK_BRIEF_0429.md 참조):
+   - 미션 선택 UI: 좌측 패널로 변경 (메인/서브 섹션 분리, 타입 뱃지)
+   - 이미지 미션: 패널별 카드에 ImageAnnotator(readonly) + dimension별 코멘트 표시
+   - 페이지 하단: 전체 집계 5차원 평균 점수
+   - 서브 미션 지표 분기:
+     · preference → A/B 선택 비율 + message_clarity + purchase_intent
+     · pricing    → would_buy 비율 + price_fairness + value_perception
+     · email      → would_reply 비율 + open_intent + hook_score + clarity_score + curiosity_score
 
 4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
    - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
