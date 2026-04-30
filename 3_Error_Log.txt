@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-29
+최종 업데이트: 2026-04-30
 ================================================================
 
 ## 핵심 원칙
@@ -308,6 +308,23 @@ D-32. panels 조인 RLS 차단으로 feedbacks 쿼리 전체 실패 패턴 ✅ �
      → 해결: panels 조인 제거 + 세그먼트 필터(산업군·경력) 제거
      → 원칙: 기업 유저가 feedbacks를 조회할 때 panels를 직접 join하지 말 것
              (panels SELECT RLS는 본인 or admin 전용)
+
+D-33. 서브 미션 자동저장/이어하기 패턴 ✅ 정착 (2026-04-30)
+     → 문제: 서브 미션(preference/pricing/email)은 react state에만 저장 → 탭 이동 시 초기화,
+             hasDraftProgress가 항상 false → 목록에서 "이어하기" 미표시
+     → 해결: feedbacks.strengths에 {__subType: 'preference'|'pricing'|'email', ...fields} JSON 저장
+             · saveSubProgress(): 1.5초 debounce auto-save
+             · load 시 strengths.__subType 감지 → 각 setState로 복원
+             · hasDraftProgress(): __subType key 존재 시 true 반환
+             · hasSavedProgress: isSubMission이면 각 sub-state 변수 중 하나라도 값 있으면 true
+     → 주의: 제출 시 strengths=null 초기화 이미 구현됨 (기존 handleSubMissionSubmit 유지)
+     → 주의: 텍스트 미션 자동저장 useEffect에 isSubMission 조건 추가 필수 (중복 저장 방지)
+
+D-34. 기업 Results 피드백 상세 접근 제어 패턴 ✅ 정착 (2026-04-30)
+     → 규칙: purity_passed=true인 피드백만 상세 내용(점수/코멘트) 열람 가능
+     → 검토 중(purity_passed=false): 피드백 목록에는 표시, 클릭 시 "검토 중" 안내 카드 표시
+     → 구현: fb.purity_passed ? <Card 상세> : <Card 안내>
+     → 이유: 어드민 승인 전에 기업이 미검증 피드백 내용을 보는 것을 차단 (데이터 신뢰성)
 
 D-31. 미션 카드 반응형 CSS 클래스 패턴 ✅ 정착
      → 문제: inline style만으로는 media query 적용 불가 → 모바일에서 카드 내 좌우 레이아웃이 overflow됨

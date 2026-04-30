@@ -28,7 +28,8 @@ const hasDraftProgress = (fb) => {
   if (!fb.strengths) return false;
   try {
     const saved = JSON.parse(fb.strengths);
-    return Object.values(saved).some(v => v && v.trim());
+    if (saved.__subType) return true;
+    return Object.values(saved).some(v => v && typeof v === 'string' && v.trim());
   } catch { return false; }
 };
 
@@ -73,6 +74,7 @@ export default function ActiveMission() {
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const [activeDimension, setActiveDimension] = useState('clarity');
   const [overallComment, setOverallComment]   = useState('');
+  const [skippedDims, setSkippedDims]         = useState({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
 
   const hasImages = Boolean(mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0);
   const missionType = mission?.type || null;
@@ -105,6 +107,7 @@ export default function ActiveMission() {
     setCurrentImageIdx(0);
     setActiveDimension('clarity');
     setOverallComment('');
+    setSkippedDims({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
 
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -139,7 +142,31 @@ export default function ActiveMission() {
                 trust:           fb.trust_score           || 0,
               });
               if (fb.strengths) {
-                try { setComments(JSON.parse(fb.strengths)); } catch {}
+                try {
+                  const saved = JSON.parse(fb.strengths);
+                  if (saved.__subType) {
+                    if (saved.__subType === 'preference') {
+                      if (saved.prefChoice)  setPrefChoice(saved.prefChoice);
+                      if (saved.prefClarity) setPrefClarity(saved.prefClarity);
+                      if (saved.prefIntent)  setPrefIntent(saved.prefIntent);
+                      if (saved.prefComment) setPrefComment(saved.prefComment);
+                    } else if (saved.__subType === 'pricing') {
+                      if (saved.priceFairness) setPriceFairness(saved.priceFairness);
+                      if (saved.priceValue)    setPriceValue(saved.priceValue);
+                      if (saved.priceWouldBuy !== undefined && saved.priceWouldBuy !== null) setPriceWouldBuy(saved.priceWouldBuy);
+                      if (saved.priceComment)  setPriceComment(saved.priceComment);
+                    } else if (saved.__subType === 'email') {
+                      if (saved.emailOpenIntent) setEmailOpenIntent(saved.emailOpenIntent);
+                      if (saved.emailCuriosity)  setEmailCuriosity(saved.emailCuriosity);
+                      if (saved.emailHook)       setEmailHook(saved.emailHook);
+                      if (saved.emailClarity)    setEmailClarity(saved.emailClarity);
+                      if (saved.emailWouldReply !== undefined && saved.emailWouldReply !== null) setEmailWouldReply(saved.emailWouldReply);
+                      if (saved.emailComment)    setEmailComment(saved.emailComment);
+                    }
+                  } else {
+                    setComments(saved);
+                  }
+                } catch {}
               }
               // 이미지 미션: 기존 어노테이션 로드
               if (ms.image_urls?.length > 0) {
@@ -165,9 +192,9 @@ export default function ActiveMission() {
     load();
   }, [missionId]);
 
-  // 텍스트 모드 자동 저장 (이미지 모드에서는 비활성)
+  // 텍스트 모드 자동 저장 (이미지/서브미션 모드에서는 비활성)
   useEffect(() => {
-    if (!draftId || step < 1 || !missionId || hasImages) return;
+    if (!draftId || step < 1 || !missionId || hasImages || isSubMission) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => saveProgress(), 1500);
     return () => {
@@ -175,6 +202,16 @@ export default function ActiveMission() {
       if (draftId && step >= 1) saveProgress();
     };
   }, [scores, comments]);
+
+  // 서브 미션 자동 저장
+  useEffect(() => {
+    if (!draftId || !missionId || !isSubMission || step < 1) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => saveSubProgress(), 1500);
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [prefChoice, prefClarity, prefIntent, prefComment,
+      priceFairness, priceValue, priceWouldBuy, priceComment,
+      emailOpenIntent, emailCuriosity, emailHook, emailClarity, emailWouldReply, emailComment]);
 
   const saveProgress = () => {
     if (!draftId) return;
@@ -187,6 +224,21 @@ export default function ActiveMission() {
       trust_score:           scores.trust           || null,
       strengths:             JSON.stringify(comments),
     }).eq('id', draftId).then(() => setAutoSaving(false));
+  };
+
+  const saveSubProgress = () => {
+    if (!draftId || !missionType) return;
+    let subState = { __subType: missionType };
+    if (missionType === 'preference') {
+      subState = { ...subState, prefChoice, prefClarity, prefIntent, prefComment };
+    } else if (missionType === 'pricing') {
+      subState = { ...subState, priceFairness, priceValue, priceWouldBuy, priceComment };
+    } else if (missionType === 'email') {
+      subState = { ...subState, emailOpenIntent, emailCuriosity, emailHook, emailClarity, emailWouldReply, emailComment };
+    }
+    setAutoSaving(true);
+    supabase.from('feedbacks').update({ strengths: JSON.stringify(subState) })
+      .eq('id', draftId).then(() => setAutoSaving(false));
   };
 
   const checkPurity = (text) => {
@@ -251,11 +303,13 @@ export default function ActiveMission() {
   const hasSavedProgress = Boolean(draftId) && (
     hasImages
       ? annotations.length > 0
-      : Object.values(scores).some(s => s > 0) || Object.values(comments).some(c => c.trim())
+      : isSubMission
+        ? Boolean(prefChoice || prefClarity || prefIntent || priceFairness || priceValue || priceWouldBuy !== null || emailOpenIntent || emailHook || emailWouldReply !== null)
+        : Object.values(scores).some(s => s > 0) || Object.values(comments).some(c => c.trim())
   );
 
   const handleResume = () => {
-    if (hasImages) { setStep(1); return; }
+    if (hasImages || isSubMission) { setStep(1); return; }
     const keys = ['clarity', 'relevance', 'value', 'differentiation', 'trust'];
     const firstEmpty = keys.findIndex(k => !scores[k]);
     setStep(firstEmpty === -1 ? SECTIONS.length : firstEmpty + 1);
@@ -289,6 +343,17 @@ export default function ActiveMission() {
     clearTimeout(commentUpdateTimers.current[annId]);
     await supabase.from('feedback_annotations').delete().eq('id', annId);
     setAnnotations(prev => prev.filter(a => a.id !== annId));
+  };
+
+  // 차원 건너뛰기 토글 — 스킵 시 해당 차원 어노테이션 일괄 삭제
+  const toggleSkipDim = async (dim) => {
+    const willSkip = !skippedDims[dim];
+    if (willSkip && draftId) {
+      annotations.filter(a => a.dimension === dim).forEach(ann => clearTimeout(commentUpdateTimers.current[ann.id]));
+      await supabase.from('feedback_annotations').delete().eq('feedback_id', draftId).eq('dimension', dim);
+      setAnnotations(prev => prev.filter(a => a.dimension !== dim));
+    }
+    setSkippedDims(prev => ({ ...prev, [dim]: willSkip }));
   };
 
   // 어노테이션 코멘트 업데이트 (debounce 1s)
@@ -367,10 +432,12 @@ export default function ActiveMission() {
           trust_score:           avg('trust'),
           strengths:             null,
           weaknesses:            null,
-          suggestions:           [
-            annotations.map(a => `[${DIM_LABEL[a.dimension]} / ${a.score}점] ${a.comment}`).join('\n'),
-            overallComment ? `\n[총평]\n${overallComment}` : '',
-          ].join('').trim(),
+          suggestions:           (() => {
+            const annLines  = annotations.map(a => `[${DIM_LABEL[a.dimension]} / ${a.score}점] ${a.comment}`).join('\n');
+            const skipLines = Object.entries(skippedDims).filter(([, v]) => v).map(([k]) => `[${DIM_LABEL[k]} - 해당 없음]`).join('\n');
+            const body = [annLines, skipLines].filter(Boolean).join('\n');
+            return [body, overallComment ? `\n[총평]\n${overallComment}` : ''].join('').trim();
+          })(),
           purity_passed: false,
           status:        'submitted',
         };
@@ -790,10 +857,10 @@ export default function ActiveMission() {
     const curAnns   = annotations.filter(a => a.image_index === currentImageIdx);
 
     const dimDone = Object.fromEntries(
-      Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k)])
+      Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k) || skippedDims[k]])
     );
-    const allDimsAnnotated = Object.values(dimDone).every(Boolean);
-    const canSubmitImage   = allDimsAnnotated && overallComment.trim().length > 0;
+    const allDimsDone    = Object.values(dimDone).every(Boolean);
+    const canSubmitImage = allDimsDone && overallComment.trim().length > 0;
 
     return (
       <div style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
@@ -814,10 +881,11 @@ export default function ActiveMission() {
         </div>
 
         {/* 차원 선택 탭 */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           {Object.entries(DIM_META).map(([key, meta]) => {
-            const count   = annotations.filter(a => a.dimension === key).length;
-            const done    = count > 0;
+            const count    = annotations.filter(a => a.dimension === key).length;
+            const done     = count > 0;
+            const skipped  = skippedDims[key];
             const isActive = activeDimension === key;
             return (
               <button
@@ -827,25 +895,50 @@ export default function ActiveMission() {
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '9px 18px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 700,
                   cursor: 'pointer', border: '2px solid',
-                  borderColor: isActive ? meta.color : done ? meta.color : 'var(--border)',
-                  background: isActive ? meta.color : done ? meta.bg : 'var(--surface)',
-                  color: isActive ? '#fff' : done ? meta.color : 'var(--text-2)',
+                  borderColor: isActive ? (skipped ? '#94a3b8' : meta.color) : (done || skipped) ? (skipped ? '#94a3b8' : meta.color) : 'var(--border)',
+                  background: isActive ? (skipped ? '#94a3b8' : meta.color) : skipped ? 'rgba(148,163,184,0.18)' : done ? meta.bg : 'var(--surface)',
+                  color: isActive ? '#fff' : skipped ? '#94a3b8' : done ? meta.color : 'var(--text-2)',
                   transition: 'all 0.12s',
+                  opacity: skipped && !isActive ? 0.75 : 1,
                 }}
               >
-                {done && !isActive && <span>✓</span>}
-                {!done && <span style={{ fontSize: 11, opacity: 0.5 }}>○</span>}
+                {done && !isActive && !skipped && <span>✓</span>}
+                {skipped && !isActive && <span>—</span>}
+                {!done && !skipped && <span style={{ fontSize: 11, opacity: 0.5 }}>○</span>}
                 {meta.label}
-                {count > 0 && (
+                {count > 0 && !skipped && (
                   <span style={{
                     background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--bg)',
                     borderRadius: 10, padding: '1px 7px', fontSize: 11,
                     color: isActive ? '#fff' : meta.color,
                   }}>{count}</span>
                 )}
+                {skipped && (
+                  <span style={{
+                    background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(148,163,184,0.2)',
+                    borderRadius: 10, padding: '1px 7px', fontSize: 10,
+                    color: isActive ? '#fff' : '#94a3b8',
+                  }}>N/A</span>
+                )}
               </button>
             );
           })}
+        </div>
+
+        {/* 현재 활성 차원 — 피드백 없음 체크박스 */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, padding: '8px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text-2)', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={skippedDims[activeDimension]}
+              onChange={() => toggleSkipDim(activeDimension)}
+              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#94a3b8' }}
+            />
+            <span>
+              <strong style={{ color: DIM_META[activeDimension]?.color }}>{DIM_META[activeDimension]?.label}</strong>
+              {' '}차원에는 피드백할 내용이 없습니다
+            </span>
+          </label>
         </div>
 
         {/* 이미지 탭 */}
@@ -884,6 +977,7 @@ export default function ActiveMission() {
             onAdd={handleAddAnnotation}
             onRemove={handleRemoveAnnotation}
             readonly={false}
+            dragDisabled={skippedDims[activeDimension]}
             activeDimension={activeDimension}
           />
         </div>
@@ -934,22 +1028,22 @@ export default function ActiveMission() {
         )}
 
         {/* 차원 완료 현황 안내 */}
-        {!allDimsAnnotated && (
+        {!allDimsDone && (
           <div style={{
             marginBottom: 16, padding: '12px 16px',
             background: 'var(--surface)', border: '1px solid var(--border)',
             borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-2)',
           }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>5개 차원 모두 최소 1개씩 평가해야 제출할 수 있어요</div>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>5개 차원 모두 어노테이션을 남기거나 '피드백할 내용이 없습니다'로 표시해야 제출할 수 있어요</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {Object.entries(dimDone).map(([key, done]) => (
                 <span key={key} style={{
                   fontSize: 11, padding: '3px 10px', borderRadius: 12,
-                  background: done ? DIM_META[key].bg : 'var(--bg)',
-                  color: done ? DIM_META[key].color : 'var(--text-3)',
-                  border: `1px solid ${done ? DIM_META[key].color : 'var(--border)'}`,
+                  background: done ? (skippedDims[key] ? 'rgba(148,163,184,0.18)' : DIM_META[key].bg) : 'var(--bg)',
+                  color: done ? (skippedDims[key] ? '#94a3b8' : DIM_META[key].color) : 'var(--text-3)',
+                  border: `1px solid ${done ? (skippedDims[key] ? '#94a3b8' : DIM_META[key].color) : 'var(--border)'}`,
                 }}>
-                  {done ? '✓' : '○'} {DIM_META[key].label}
+                  {done ? (skippedDims[key] ? '—' : '✓') : '○'} {DIM_META[key].label}
                 </span>
               ))}
             </div>
@@ -957,7 +1051,7 @@ export default function ActiveMission() {
         )}
 
         {/* 총평 — 5개 차원 모두 완료 후 표시 */}
-        {allDimsAnnotated && (
+        {allDimsDone && (
           <div style={{
             marginBottom: 16, padding: '16px 18px',
             background: 'var(--accent-dim)', border: '1.5px solid var(--accent)',

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-30 (이미지 어노테이션 UX 개편 + Results 버그 수정)
+최종 업데이트: 2026-04-30 (금액 천원 단위 표시 + 서브 미션 자동저장 + Results 피드백 상세 접근 제어)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -59,6 +59,8 @@
    - 5개 축 평균 점수 시각화 (feedbacks 집계, .neq('status','draft') 필터 적용)
    - ※ panels 조인 제거 (RLS 제약으로 기업 유저가 panels 읽기 불가 → 쿼리 전체 실패 버그 수정)
      → 패널 세그먼트 필터(산업군·경력 드롭다운) 제거됨
+   - 피드백 상세 접근 제어: purity_passed=true인 피드백만 상세 내용 열람 가능
+     · 검토 중(purity_passed=false)이면 "검토 중인 피드백" 안내 카드 표시 (어드민 승인 후 열람)
    - 공유 링크: missions.share_token 생성(32자 UUID)/복사/해제 → /share/{token}
 
 4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
@@ -164,6 +166,7 @@
      · 참여 가능 수: status='active' + 슬롯 여유(filled_count < panel_count) + 미참여 미션 전수 조회 (limit 없음)
    - 수익 현황 (3칸 묶음): 총 정산 완료(금액+건수) / 정산 대기 중(금액+건수) / 필터 탈락(건수)
      · feedbacks(status≠draft) SELECT → purity_passed/status 기준 집계
+     · 금액 표시: fmtAmt() — 만 단위 + 나머지 천원 단위 (예: ₩1만 5,000)
    - 참여 가능한 미션 카드 목록 제거 (→ 미션 탐색 페이지로 유도)
 
 2. 미션 탐색 (/panel/missions) — Missions.jsx
@@ -191,6 +194,9 @@
        · 메인 미션: mission.description 원문 표시
        · raw JSON이 그대로 노출되는 버그 수정
      ※ 서브 미션 폼 (type='preference'|'pricing'|'email', isSubMission=true):
+       - 자동저장: 입력값 변경 시 1.5초 debounce → feedbacks.strengths에 JSON 저장 ({__subType, ...fields})
+       - 이어하기: 재진입 시 strengths의 __subType 감지 → 각 서브 미션 state 복원
+       - 목록 뷰 hasDraftProgress: strengths에 __subType 있으면 "이어하기 →" 표시
        - parseSubDesc(desc, type) 헬퍼로 하위 호환 JSON 파싱 (구 포맷 raw text 자동 감지)
        - preference: productDescription 표시, variantAImage/variantBImage 이미지 표시,
                      variantA/B 텍스트 → A/B 선택 + message_clarity + purchase_intent + comment

@@ -11,6 +11,15 @@ const DIM = [
 ];
 
 
+function getSkippedLabels(suggestions = '') {
+  const skipped = new Set();
+  (suggestions || '').split('\n').forEach(line => {
+    const m = line.match(/^\[(.+?) - 해당 없음\]$/);
+    if (m) skipped.add(m[1]);
+  });
+  return skipped;
+}
+
 export default function Results() {
   const [missions, setMissions]         = useState([]);
   const [selected, setSelected]         = useState(null);
@@ -104,6 +113,7 @@ export default function Results() {
 
   const mission = missions.find(m => m.id === selected);
   const fb = feedbacks.find(f => f.id === activeFb) || null;
+  const fbSkippedLabels = fb ? getSkippedLabels(fb.suggestions) : new Set();
 
   const avg = (key) => {
     if (!feedbacks.length) return '—';
@@ -231,59 +241,77 @@ export default function Results() {
 
               {/* Feedback detail */}
               {fb && (
-                <Card style={{ padding: '28px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 18 }}>피드백 상세</div>
-                      <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
-                        {new Date(fb.created_at).toLocaleString('ko-KR')}
-                      </div>
-                    </div>
-                    <Badge type={fb.purity_passed ? 'green' : 'gray'}>
-                      {fb.purity_passed ? 'Purit 통과' : '검토 중'}
-                    </Badge>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {DIM.map(({ key, label }) => {
-                      const score = fb[key] || 0;
-                      const color = score >= 4 ? 'var(--green)' : score >= 3 ? 'var(--accent)' : 'var(--red)';
-                      return (
-                        <div key={key} style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                            <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                              {label}
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 20, fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{score}</span>
-                              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>/5</span>
-                            </div>
-                          </div>
-                          <ScoreBar score={score} color={color} />
+                fb.purity_passed ? (
+                  <Card style={{ padding: '28px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 18 }}>피드백 상세</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
+                          {new Date(fb.created_at).toLocaleString('ko-KR')}
                         </div>
-                      );
-                    })}
+                      </div>
+                      <Badge type="green">Purit 통과</Badge>
+                    </div>
 
-                    {fb.strengths && (
-                      <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>강점</div>
-                        <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{fb.strengths}</p>
-                      </div>
-                    )}
-                    {fb.weaknesses && (
-                      <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>약점</div>
-                        <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{fb.weaknesses}</p>
-                      </div>
-                    )}
-                    {fb.suggestions && (
-                      <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>개선 제안</div>
-                        <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{fb.suggestions}</p>
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {DIM.map(({ key, label }) => {
+                        const score = fb[key] || 0;
+                        const isSkipped = !score && fbSkippedLabels.has(label);
+                        const color = score >= 4 ? 'var(--green)' : score >= 3 ? 'var(--accent)' : 'var(--red)';
+                        return (
+                          <div key={key} style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isSkipped ? 0 : 10 }}>
+                              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                {label}
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {isSkipped ? (
+                                  <span style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>해당 없음</span>
+                                ) : (
+                                  <>
+                                    <span style={{ fontSize: 20, fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{score}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>/5</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {!isSkipped && <ScoreBar score={score} color={color} />}
+                          </div>
+                        );
+                      })}
+
+                      {fb.strengths && (
+                        <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>강점</div>
+                          <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{fb.strengths}</p>
+                        </div>
+                      )}
+                      {fb.weaknesses && (
+                        <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>약점</div>
+                          <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{fb.weaknesses}</p>
+                        </div>
+                      )}
+                      {fb.suggestions && (
+                        <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>개선 제안</div>
+                          <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{fb.suggestions}</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ) : (
+                  <Card style={{ padding: '48px 28px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 40, marginBottom: 16 }}>🔍</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 10 }}>검토 중인 피드백입니다</div>
+                    <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7, maxWidth: 320, margin: '0 auto' }}>
+                      어드민의 Purity Filter 승인 후<br />피드백 상세 내용을 확인할 수 있습니다.
+                    </p>
+                    <div style={{ marginTop: 20, fontSize: 12, color: 'var(--text-3)' }}>
+                      {new Date(fb.created_at).toLocaleString('ko-KR')}
+                    </div>
+                  </Card>
+                )
               )}
             </div>
           )}

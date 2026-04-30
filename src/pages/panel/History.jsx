@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react';
 import { Card, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
+const fmtAmt = (n) => {
+  if (!n) return '₩0';
+  const man  = Math.floor(n / 10000);
+  const rest = n % 10000;
+  if (!man)  return `₩${rest.toLocaleString()}`;
+  if (!rest) return `₩${man}만`;
+  return `₩${man}만 ${rest.toLocaleString()}`;
+};
+
 const STATUS_LABEL = { submitted: '검토 중', approved: '정산완료', rejected: '필터탈락' };
 const STATUS_TYPE  = { submitted: 'gold', approved: 'green', rejected: 'red' };
 
@@ -74,7 +83,7 @@ export default function History() {
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 정산 완료</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
-            ₩{(totalPaid / 10000).toFixed(0)}만
+            {fmtAmt(totalPaid)}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{approved.length}건</div>
         </div>
@@ -82,7 +91,7 @@ export default function History() {
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>정산 대기 중</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
-            ₩{(totalPending / 10000).toFixed(0)}만
+            {fmtAmt(totalPending)}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{pending.length}건</div>
         </div>
