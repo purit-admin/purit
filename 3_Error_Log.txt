@@ -310,7 +310,17 @@ D-30. 이미지 어노테이션 코멘트 debounce 미flush로 제출 시 코멘
      → 교훈: debounce로 저장하는 중간 데이터가 있을 때, 최종 제출 시 반드시 pending 타이머를 flush해야 함
              (D-12의 "코멘트 UPDATE debounce 패턴"과 연계 — 저장만 설계해서는 안 되고 flush 로직도 필수)
 
-D-31. missions.description JSON 필드 구조 변경 시 하위 호환 폴백 패턴 ✅ 정착
+D-31. template_questions DB 데이터 미존재 시 로컬 폴백 패턴 ✅ 정착 (2026-05-01)
+     → 증상: QuestionTemplates.jsx 미리보기 클릭 시 질문 목록이 빈 상태로 표시됨
+     → 원인: Supabase question_templates 테이블에 template_questions JOIN 데이터가 없음
+             (마이그레이션은 실행됐으나 시드 데이터가 없는 상태)
+     → 해결: DB questions 배열이 비어있으면 TEMPLATE_BY_NAME[template.name]?.questions 로컬 폴백
+             렌더링 시 DB 포맷(question_text/question_type)과 로컬 포맷(text/type) 모두 지원:
+             qText = q.question_text ?? q.text, qType = q.question_type ?? q.type
+     → 원칙: Supabase에서 JOIN 데이터를 가져오는 구조 + 동일 데이터가 로컬 상수에도 있을 때
+             항상 DB 우선, 로컬 폴백 패턴을 적용해 데이터 누락 시에도 UI가 정상 동작하게 할 것
+
+D-32. missions.description JSON 필드 구조 변경 시 하위 호환 폴백 패턴 ✅ 정착
      → 증상: 기존 저장된 미션(templateQuestions + customQuestions 구조)과 신규 미션(selectedQuestions 구조)이
              동일 파싱 로직을 공유해야 하는데, 단순 교체 시 레거시 데이터가 빈 질문 배열로 표시됨
      → 해결: 읽기 경로(ActiveMission, Results)에서 신규 필드 우선, 없으면 구 포맷 폴백

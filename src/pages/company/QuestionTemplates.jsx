@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { TEMPLATE_BY_NAME } from '../../lib/templates';
 
 const TABS = [
   { key: 'preference', label: '소재 비교 A/B', category: '광고소재', badge: 'blue',  icon: '🎨', path: '/company/preference',    desc: '두 소재 중 어떤 것이 더 전환율 높은지 실 패널로 검증' },
@@ -101,7 +102,8 @@ export default function QuestionTemplates() {
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{currentTab?.desc}</div>
           </div>
         </div>
-        <Btn size="sm" variant="secondary" onClick={() => navigate(currentTab?.path)}>
+        <Btn size="sm" onClick={() => navigate(currentTab?.path)}
+          style={{ background: '#111', color: '#fff', border: 'none' }}>
           바로 의뢰 등록 →
         </Btn>
       </div>
@@ -122,8 +124,7 @@ export default function QuestionTemplates() {
             {filtered.map(t => (
               <Card
                 key={t.id}
-                style={{ cursor: 'pointer', transition: 'all 0.15s', borderColor: selected === t.id ? 'var(--accent)' : undefined }}
-                onClick={() => setSelected(selected === t.id ? null : t.id)}
+                style={{ transition: 'all 0.15s', borderColor: selected === t.id ? 'var(--accent)' : undefined }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -145,7 +146,7 @@ export default function QuestionTemplates() {
                   <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
                     {t.template_questions?.length || 0}개 문항 · {t.use_count || 0}회 사용
                   </span>
-                  <Btn size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); setSelected(t.id); }}>
+                  <Btn size="sm" variant="secondary" onClick={() => setSelected(t.id)}>
                     미리보기
                   </Btn>
                 </div>
@@ -161,7 +162,9 @@ export default function QuestionTemplates() {
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{selectedTemplate.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      {selectedTemplate.template_questions?.length || 0}개 문항
+                      {(selectedTemplate.template_questions?.length || 0) > 0
+                        ? selectedTemplate.template_questions.length
+                        : (TEMPLATE_BY_NAME[selectedTemplate.name]?.questions?.length || 0)}개 문항
                     </div>
                   </div>
                   <button
@@ -174,36 +177,38 @@ export default function QuestionTemplates() {
                   {selectedTemplate.description}
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                  {(selectedTemplate.template_questions || []).map((q, i) => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(() => {
+                    const dbQs = selectedTemplate.template_questions || [];
+                    const localQs = TEMPLATE_BY_NAME[selectedTemplate.name]?.questions || [];
+                    const questions = dbQs.length > 0 ? dbQs : localQs;
                     const TYPE_LABEL = { radio: '라디오', scale: '척도', text: '서술' };
                     const TYPE_COLOR = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
                     const TYPE_BG = { radio: 'rgba(59,130,246,0.13)', scale: 'rgba(99,102,241,0.13)', text: 'rgba(52,199,89,0.13)' };
-                    const qType = q.question_type || 'text';
-                    return (
-                      <div
-                        key={q.id}
-                        style={{
-                          display: 'flex', gap: 10, padding: '10px 12px',
-                          background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13,
-                          alignItems: 'flex-start',
-                        }}
-                      >
-                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, flexShrink: 0, paddingTop: 1 }}>
-                          Q{i + 1}
-                        </span>
-                        <span style={{ color: 'var(--text-2)', lineHeight: 1.6, flex: 1 }}>{q.question_text}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: TYPE_BG[qType], color: TYPE_COLOR[qType], border: `1px solid ${TYPE_COLOR[qType]}44` }}>
-                          {TYPE_LABEL[qType] || '서술'}
-                        </span>
-                      </div>
-                    );
-                  })}
+                    return questions.map((q, i) => {
+                      const qType = (q.question_type ?? q.type) || 'text';
+                      const qText = q.question_text ?? q.text;
+                      return (
+                        <div
+                          key={q.id || i}
+                          style={{
+                            display: 'flex', gap: 10, padding: '10px 12px',
+                            background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13,
+                            alignItems: 'flex-start',
+                          }}
+                        >
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, flexShrink: 0, paddingTop: 1 }}>
+                            Q{i + 1}
+                          </span>
+                          <span style={{ color: 'var(--text-2)', lineHeight: 1.6, flex: 1 }}>{qText}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: TYPE_BG[qType], color: TYPE_COLOR[qType], border: `1px solid ${TYPE_COLOR[qType]}44` }}>
+                            {TYPE_LABEL[qType] || '서술'}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
-
-                <Btn style={{ width: '100%' }} onClick={() => handleUse(selectedTemplate)}>
-                  이 템플릿으로 의뢰하기 →
-                </Btn>
               </Card>
             </div>
           )}
