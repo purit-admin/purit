@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, ScoreBar, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
@@ -448,6 +449,7 @@ function TextMissionResults({ feedbacks }) {
    메인 컴포넌트
 ══════════════════════════════════════════ */
 export default function Results() {
+  const [searchParams] = useSearchParams();
   const [missions, setMissions]           = useState([]);
   const [selected, setSelected]           = useState(null);
   const [feedbacks, setFeedbacks]         = useState([]);
@@ -471,8 +473,11 @@ export default function Results() {
       const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
       setMissions(ms || []);
       if (ms?.length > 0) {
-        setSelected(ms[0].id);
-        setShareToken(ms[0].share_token || null);
+        const paramId = searchParams.get('id');
+        const initialMission = paramId ? ms.find(m => m.id === paramId) : null;
+        const target = initialMission || ms[0];
+        setSelected(target.id);
+        setShareToken(target.share_token || null);
       }
       setLoading(false);
     }

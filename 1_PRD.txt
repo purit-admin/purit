@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-30 (Results 전면 재설계 + 미션 수정 기능 + 이미지 피드백 UX 개선)
+최종 업데이트: 2026-04-30 (Results 전면 재설계 + 미션 수정 기능 + 이미지 피드백 UX 개선 + 대시보드 의뢰 카드 결과 직접 연결)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -33,6 +33,7 @@
      · 탭 4개: 전체 / 진행 / 완료 / 취소 (어드민 미션관리와 동일 구조)
      · 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리
      · 각 섹션 10개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
+     · CompanyMissionCard: 카드 클릭 시 navigate('/company/results?id=<missionId>') → Results.jsx가 해당 의뢰 즉시 선택
      · CompanyMissionCard: status='active' && filled_count=0 조건 시 "수정" 버튼 표시
        클릭 시 navigate('/company/new', { state: { editMode: true, missionId } }) 이동
    - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren

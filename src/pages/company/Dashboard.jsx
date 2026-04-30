@@ -90,7 +90,7 @@ function CompanyMissionCard({ m, navigate }) {
   const filled = m.filled_count ?? 0;
   const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
   return (
-    <Card onClick={() => navigate('/company/results')}>
+    <Card onClick={() => navigate(`/company/results?id=${m.id}`)}>
       <div className="mc-row">
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
