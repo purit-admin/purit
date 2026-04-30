@@ -18,7 +18,8 @@
       "Bash(npx vercel *)",
       "Bash(npm install *)",
       "Bash(git pull *)",
-      "Bash(node scripts/create-panel-accounts.mjs)"
+      "Bash(node scripts/create-panel-accounts.mjs)",
+      "Bash(grep -E \"\\\\.\\(txt|md\\)$\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\gnb_system\\Desktop\\purit-mvp\\supabase\\migrations"
