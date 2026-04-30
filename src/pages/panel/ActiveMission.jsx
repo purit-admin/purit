@@ -993,10 +993,13 @@ export default function ActiveMission() {
             <Card>
               <ScoreRow label="메시지 명확성 (선택한 소재)" value={prefClarity} setter={setPrefClarity} />
               <ScoreRow label="구매 전환 의향 (선택한 소재)" value={prefIntent} setter={setPrefIntent} />
+            </Card>
+            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
+            <Card>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>선택 이유 및 개선 의견</div>
               <textarea value={prefComment} onChange={e => setPrefComment(e.target.value)} rows={4} placeholder="어떤 이유로 해당 소재를 선택했는지, 개선할 점은 무엇인지 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
             </Card>
-            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
           </div>
         )}
 
@@ -1029,10 +1032,13 @@ export default function ActiveMission() {
                   </button>
                 ))}
               </div>
+            </Card>
+            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
+            <Card>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>가격 피드백 (구매 장벽, 개선점)</div>
               <textarea value={priceComment} onChange={e => setPriceComment(e.target.value)} rows={4} placeholder="가격에서 망설여지는 부분, 더 합리적이라고 느끼기 위해 필요한 것 등을 구체적으로 적어주세요." style={{ resize: 'vertical' }} />
             </Card>
-            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
           </div>
         )}
 
@@ -1062,10 +1068,13 @@ export default function ActiveMission() {
                   </button>
                 ))}
               </div>
+            </Card>
+            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
+            <Card>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일 피드백</div>
               <textarea value={emailComment} onChange={e => setEmailComment(e.target.value)} rows={4} placeholder="가장 인상적인 부분과 개선이 필요한 부분을 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
             </Card>
-            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
           </div>
         )}
 

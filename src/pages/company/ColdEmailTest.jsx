@@ -126,7 +126,7 @@ export default function ColdEmailTest() {
         email_text: emailText.trim(),
         status: 'active',
         mission_id: missionUuid,
-        template_id: selectedTemplateId || null,
+        template_id: initTemplateId || null,
       });
       if (tErr) console.warn('[ColdEmailTest] 서브테이블 등록 실패:', tErr.message);
 

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-01 (질문 타입 뱃지 라벨 변경 — 옵션형/점수형/서술형)
+최종 업데이트: 2026-05-01 (CustomQuestionsSection 아코디언 UI, 패널 코멘트 최하단 배치, 타입 뱃지 통일)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -62,7 +62,7 @@
    - Step 3 검토: 난이도 행 없음, '의뢰 제출 →' 버튼
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
 
-3. 피드백 결과 (/company/results) — Results.jsx  ★ 전면 재설계 완료 (2026-04-30)
+3. 피드백 결과 (/company/results) — Results.jsx  ★ 전면 재설계 완료 (2026-04-30) + UX 개선 (2026-05-01)
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
    - 좌측 패널: 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시
    - 우측 콘텐츠: mission.type 및 image_urls 유무에 따라 3가지 분기
@@ -73,14 +73,18 @@
           - 총평 파싱: extractOverallComment() → feedbacks.suggestions의 [총평]\n 이후 텍스트
         · feedback_annotations: eq('mission_id') 전체 로드 → 클라이언트에서 dimension 필터
      B. 서브 미션 (type: preference/pricing/email):
-        · preference: A/B 선택 비율 바 + message_clarity/purchase_intent 평균 카드 + 코멘트
-        · pricing: would_buy 비율 바 + price_fairness/value_perception 평균 카드 + 코멘트
-        · email: would_reply 비율 바 + open_intent/hook_score/clarity_score/curiosity_score 카드 + 코멘트
-        · 각 타입 공통: CustomQuestionsSection 추가 (코멘트 목록 아래)  ★ 신규
+        · preference: A/B 선택 비율 바 + message_clarity/purchase_intent 평균 카드
+        · pricing: would_buy 비율 바 + price_fairness/value_perception 평균 카드
+        · email: would_reply 비율 바 + open_intent/hook_score/clarity_score/curiosity_score 카드
+        · 각 타입 공통: CustomQuestionsSection → 하단에 배치 (점수 카드 아래, 패널 코멘트 위)  ★ 아코디언 개편
+          - 질문 헤더 행 (항상 표시): 타입 뱃지(옵션형/점수형/서술형) + 번호. 질문 텍스트 + 응답 수 + ▼ 토글
+          - 기본 접힘 → 클릭 시 펼쳐짐: 옵션형=비율 바, 점수형=평균 점수 카드, 서술형=답변 목록
           - parsedDesc.templateQuestions + 정규화된 customQuestions → 질문별 응답 집계
-          - radio: 옵션별 응답 수 + 비율 바, scale: 평균 점수 카드, text: 답변 목록
           - custom_answers가 없는 레거시 응답은 자동 제외 (데이터 있는 경우만 렌더)
+        · 패널 코멘트(총 평가) 섹션: CustomQuestionsSection 아래 최하단 배치  ★ 개편
+          - 섹션 라벨: "총 평가 — 패널 코멘트" (구분선 + 헤더)
         · 각 타입 응답 테이블 쿼리: select('*') → custom_answers JSONB 자동 포함
+        · 질문 타입 뱃지 통일: 옵션형(radio) / 점수형(scale) / 서술형(text)
      C. 텍스트 미션 (image_urls 없음 && !isSubMission): 기존 패널 목록+상세 뷰 유지
    - 공유 링크: 우측 미션 헤더 영역 배치 (missions.share_token 생성/복사/해제)
    - 패널 직군/경력 뱃지: 각 피드백 항목 옆에 패널의 직군(blue)·경력(gray) 뱃지 표시
@@ -244,17 +248,20 @@
        - 목록 뷰 hasDraftProgress: strengths에 __subType 있으면 "이어하기 →" 표시
        - parseSubDesc(desc, type) 헬퍼로 하위 호환 JSON 파싱 (구 포맷 raw text 자동 감지)
        - preference: productDescription 표시, variantAImage/variantBImage 이미지 표시,
-                     variantA/B 텍스트 → A/B 선택 + message_clarity + purchase_intent + comment
+                     variantA/B 텍스트 → A/B 선택 + message_clarity + purchase_intent
        - pricing: parsedDesc.image 이미지 표시, parsedDesc.content 설명 표시,
-                  productDescription 섹션, price_fairness + value_perception + would_buy + comment
+                  productDescription 섹션, price_fairness + value_perception + would_buy
        - email: parsedDesc.content 원문 표시, productDescription 섹션,
-                open_intent + hook_score + clarity_score + curiosity_score + would_reply + comment
+                open_intent + hook_score + clarity_score + curiosity_score + would_reply
        - 타입 질문 동적 렌더링 (TypedQuestionsBlock 컴포넌트):  ★ 신규
          · parsedDesc.templateQuestions + 정규화된 parsedDesc.customQuestions → allTypedQs 배열
          · 레거시 string customQuestions → {id, text, type:'text', options:[]} 자동 정규화
-         · radio: 옵션 버튼 (선택 시 강조), scale: 1-5 점수 버튼, text: textarea (10자 이상 필수)
+         · radio(옵션형): 옵션 버튼 (선택 시 강조), scale(점수형): 1-5 점수 버튼, text(서술형): textarea (10자 이상 필수)
          · 모든 타입 질문 미응답 시 제출 불가 (canSubmit 유효성 검사 포함)
          · 응답은 customAnswers state: [{questionId, questionText, type, answer}]
+       - 총 평가(comment) 섹션: TypedQuestionsBlock 아래 최하단 배치  ★ 개편 (2026-05-01)
+         · "총 평가" 레이블이 붙은 별도 Card로 분리
+         · preference: "선택 이유 및 개선 의견", pricing: "가격 피드백 (구매 장벽, 개선점)", email: "이메일 피드백"
        - 제출: preference_responses/pricing_responses/email_responses INSERT + feedbacks UPDATE(submitted) + RPC 2개
                custom_answers: customAnswers 컬럼 포함
      ※ 이미지 미션 (image_urls 있음, isSubMission=false):
