@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-29 (미션 카드 UI 소형화 + 반응형 적용)
+최종 업데이트: 2026-04-30 (이미지 어노테이션 UX 개편 + Results 버그 수정)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -55,9 +55,10 @@
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
 
 3. 피드백 결과 (/company/results) — Results.jsx  ★ 재설계 예정 (4_Backlog.txt 참조)
-   - 미션 선택 UI: 칩 버튼 나열
+   - 미션 선택 UI: 칩 버튼 나열 (10개 이상 시 UI 지저분 → 좌측 패널 구조로 재설계 예정)
    - 5개 축 평균 점수 시각화 (feedbacks 집계, .neq('status','draft') 필터 적용)
-   - 패널 세그먼트 필터: 산업군·경력 드롭다운 → 실시간 점수 재계산
+   - ※ panels 조인 제거 (RLS 제약으로 기업 유저가 panels 읽기 불가 → 쿼리 전체 실패 버그 수정)
+     → 패널 세그먼트 필터(산업군·경력 드롭다운) 제거됨
    - 공유 링크: missions.share_token 생성(32자 UUID)/복사/해제 → /share/{token}
 
 4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
@@ -200,11 +201,14 @@
        - 제출: preference_responses/pricing_responses/email_responses INSERT + feedbacks UPDATE(submitted) + RPC 2개
      ※ 이미지 미션 (image_urls 있음, isSubMission=false):
        - ImageAnnotator 컴포넌트로 이미지 위에 드래그 영역 지정
-       - 어노테이션 추가: 팝업에서 dimension(5종) + score(1-5) 선택 → 확인
-       - 같은 dimension을 여러 번 드래그 가능 → 명1, 명2, 명3 / 가1, 가2 등 번호 자동 부여
+       - 상단 5개 차원 탭 (명확성/관련성/가치/차별화/신뢰) 중 하나 클릭 → 해당 차원 활성화
+       - 활성 차원 상태에서 이미지 드래그 → 점수만 선택하는 팝업 (dimension은 자동 고정)
+       - 같은 차원 여러 번 드래그 가능 → 명1, 명2 등 번호 자동 부여
          (short 코드: 명확성=명, 관련성=관, 가치=가, 차별화=차, 신뢰=신)
-       - 이미지 아래 dimension별 번호 코멘트 박스 표시 → 각 박스에 textarea로 코멘트 입력
+       - 이미지 아래 어노테이션별 코멘트 박스 표시 → textarea로 코멘트 입력
        - 코멘트는 1초 debounce → feedback_annotations.comment 컬럼 실시간 UPDATE
+       - 제출 조건: 5개 차원 각각 최소 1개 이상 어노테이션 필수 (미충족 시 제출 버튼 비활성화)
+       - 5개 차원 모두 완료 시 총평 textarea 표시 (필수) → suggestions 맨 아래 [총평] 섹션으로 저장
        - feedback_annotations 테이블에 실시간 저장/삭제
        - 제출 시 dimension별 평균점수 → clarity_score 등 컬럼에 반영
          suggestions = 어노테이션 요약 텍스트 통합

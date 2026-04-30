@@ -16,7 +16,7 @@ function getDimSeq(annotations, ann) {
   return sameDim.findIndex(a => a.id === ann.id) + 1;
 }
 
-export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations = [], onAdd, onRemove, readonly = false }) {
+export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations = [], onAdd, onRemove, readonly = false, activeDimension = 'clarity' }) {
   const containerRef = useRef(null);
   const [dragging, setDragging]       = useState(false);
   const [dragStart, setDragStart]     = useState({ x: 0, y: 0 });
@@ -69,7 +69,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
       setDragRect(null);
       if (rect.w > 2 && rect.h > 2) {
         setPopup(rect);
-        setPopupForm({ dimension: 'clarity', score: 3 });
+        setPopupForm({ dimension: activeDimension, score: 3 });
       }
     };
 
@@ -79,7 +79,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [dragging, dragStart, getRelativePct]);
+  }, [dragging, dragStart, getRelativePct, activeDimension]);
 
   const handleConfirm = () => {
     onAdd({
@@ -238,26 +238,19 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
           >
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>영역 설정</div>
 
-            {/* Dimension 선택 */}
+            {/* 선택된 차원 고정 표시 */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>평가 항목</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {DIMENSIONS.map(d => (
-                  <button
-                    key={d.key}
-                    onClick={() => setPopupForm(f => ({ ...f, dimension: d.key }))}
-                    style={{
-                      padding: '5px 12px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
-                      cursor: 'pointer', border: '1.5px solid',
-                      borderColor: popupForm.dimension === d.key ? d.color : 'var(--border)',
-                      background: popupForm.dimension === d.key ? d.bg : 'var(--surface)',
-                      color: popupForm.dimension === d.key ? d.color : 'var(--text-2)',
-                      transition: 'all 0.12s',
-                    }}
-                  >
-                    {d.label}
-                  </button>
-                ))}
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '7px 16px', borderRadius: 'var(--radius)',
+                background: dimMeta[popupForm.dimension]?.bg,
+                border: `2px solid ${dimMeta[popupForm.dimension]?.color}`,
+                color: dimMeta[popupForm.dimension]?.color,
+                fontWeight: 700, fontSize: 14,
+              }}>
+                {dimMeta[popupForm.dimension]?.label}
+                <span style={{ fontSize: 11, opacity: 0.65, fontWeight: 400 }}>선택됨</span>
               </div>
             </div>
 

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-29 (미션 카드 소형화 + 반응형 CSS 클래스 추가)
+최종 업데이트: 2026-04-30 (이미지 어노테이션 UX 개편 + Results 버그 수정)
 ================================================================
 
 ## 기술 스택
@@ -31,7 +31,7 @@ purit/
 │   ├── components/
 │   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
-│   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원)
+│   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원, activeDimension prop으로 차원 고정)
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)

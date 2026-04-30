@@ -87,7 +87,7 @@ function Pagination({ page, total, onPage }) {
 }
 
 function CompanyMissionCard({ m, navigate }) {
-  const filled = m.feedbacks?.length ?? m.filled_count ?? 0;
+  const filled = m.filled_count ?? 0;
   const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
   return (
     <Card onClick={() => navigate('/company/results')}>
@@ -154,7 +154,7 @@ export default function CompanyDashboard() {
       if (co) {
         const { data: ms } = await supabase
           .from('missions')
-          .select('*, feedbacks(id)')
+          .select('*')
           .eq('company_id', co.id)
           .order('created_at', { ascending: false });
         setMissions(ms || []);

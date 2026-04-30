@@ -276,15 +276,16 @@ D-26. 수익 현황 집계 패턴 (Dashboard/History 공통)
      → Dashboard는 feedbacks를 별도 쿼리로 조회 (histFeedbacks state)
      → History와 동일한 집계 함수 패턴 사용 (reduce로 금액 합산)
 
-D-31. Results.jsx 미션 선택 칩 UI 문제 ⚠️ 미해결 (2026-04-29)
+D-27. Results.jsx 미션 선택 칩 UI 문제 ⚠️ 미해결 (2026-04-29)
      → 미션이 10개 이상이면 상단에 칩 버튼이 여러 줄로 펼쳐져 지저분
      → 해결 방향: 좌측 패널 구조로 변경 (메인/서브 섹션 분리)
      → 파일: src/pages/company/Results.jsx (미션 selector 섹션)
 
-D-28. 패널 이미지 피드백 제출 조건 미검증 ⚠️ 미해결
-     → src/pages/panel/ActiveMission.jsx 이미지 모드 제출 핸들러
-     → 현재: annotations.length > 0이면 제출 가능 (1개로도 통과)
-     → 수정 필요: 5개 dimension(clarity/relevance/value/differentiation/trust) 각각 최소 1개 이상
+D-28. 패널 이미지 피드백 제출 조건 강화 ✅ 해결 (2026-04-30)
+     → src/pages/panel/ActiveMission.jsx 이미지 모드 완전 개편
+     → 5개 차원 탭 선택 후 드래그 → 해당 차원으로 자동 등록 (팝업에서 dimension 선택 제거)
+     → 제출 조건: 5개 차원 각각 최소 1개 이상 어노테이션 + 총평 작성 모두 충족 시만 제출 가능
+     → ImageAnnotator에 activeDimension prop 추가 — 드래그 완료 시 activeDimension을 팝업 초기값으로 고정
 
 D-29. 서브 미션 피드백 결과 지표 오분기 ⚠️ 미해결
      → src/pages/company/Results.jsx: mission.type 무관하게 DIM(5축) 동일 표시
@@ -298,6 +299,15 @@ D-30. 기업 포털 UI 워딩 규칙 ✅ 정착
      → 패널·어드민 포털 표시 텍스트: "미션" 유지
      → 코드 내부(변수명·함수명·DB컬럼·RPC·라우트): "mission/missions" 유지 (변경 없음)
      → 이유: 기업 사용자 관점에서 "미션"보다 "의뢰"가 비즈니스 맥락에 자연스러움
+
+D-32. panels 조인 RLS 차단으로 feedbacks 쿼리 전체 실패 패턴 ✅ 해결 (2026-04-30)
+     → 증상: Results.jsx에서 피드백이 전혀 표시 안 됨 (대시보드 수치는 정상)
+     → 원인: feedbacks 쿼리에서 panels(industry, experience, name) 조인 시
+             RLS가 기업 유저의 panels 접근을 차단 → 쿼리 전체 실패 → data=null → feedbacks=[]
+     → Dashboard는 panels 조인 없이 feedbacks만 단독 조회하므로 정상 작동
+     → 해결: panels 조인 제거 + 세그먼트 필터(산업군·경력) 제거
+     → 원칙: 기업 유저가 feedbacks를 조회할 때 panels를 직접 join하지 말 것
+             (panels SELECT RLS는 본인 or admin 전용)
 
 D-31. 미션 카드 반응형 CSS 클래스 패턴 ✅ 정착
      → 문제: inline style만으로는 media query 적용 불가 → 모바일에서 카드 내 좌우 레이아웃이 overflow됨

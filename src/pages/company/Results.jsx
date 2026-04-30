@@ -10,14 +10,6 @@ const DIM = [
   { key: 'trust_score',           label: '신뢰' },
 ];
 
-// 피드백 목록에서 패널 속성 기준 필터링
-function applySegmentFilter(feedbacks, industryFilter, expFilter) {
-  return feedbacks.filter(f => {
-    if (industryFilter && f.panel_industry !== industryFilter) return false;
-    if (expFilter      && f.panel_experience !== expFilter)    return false;
-    return true;
-  });
-}
 
 export default function Results() {
   const [missions, setMissions]         = useState([]);
@@ -27,9 +19,6 @@ export default function Results() {
   const [loading, setLoading]           = useState(true);
   const [fbLoading, setFbLoading]       = useState(false);
 
-  // 세그먼트 필터
-  const [industryFilter, setIndustryFilter] = useState('');
-  const [expFilter, setExpFilter]           = useState('');
 
   // 공유 링크
   const [shareToken, setShareToken]   = useState(null);
@@ -63,27 +52,18 @@ export default function Results() {
   useEffect(() => {
     if (!selected) return;
     setFbLoading(true);
-    setIndustryFilter('');
-    setExpFilter('');
     const m = missions.find(m => m.id === selected);
     setShareToken(m?.share_token || null);
 
-    // feedbacks + panels 조인으로 패널 속성 함께 로드
     supabase
       .from('feedbacks')
-      .select('*, panels(industry, experience, name)')
+      .select('*')
       .eq('mission_id', selected)
       .neq('status', 'draft')
       .order('created_at', { ascending: false })
       .then(({ data }) => {
-        const enriched = (data || []).map(f => ({
-          ...f,
-          panel_industry:   f.panels?.industry   || '',
-          panel_experience: f.panels?.experience || '',
-          panel_name:       f.panels?.name       || '',
-        }));
-        setFeedbacks(enriched);
-        setActiveFb(enriched.length > 0 ? enriched[0].id : null);
+        setFeedbacks(data || []);
+        setActiveFb(data?.length > 0 ? data[0].id : null);
         setFbLoading(false);
       });
   }, [selected]);
@@ -123,21 +103,14 @@ export default function Results() {
   );
 
   const mission = missions.find(m => m.id === selected);
-
-  // 세그먼트 필터 적용
-  const filteredFeedbacks = applySegmentFilter(feedbacks, industryFilter, expFilter);
-  const fb = filteredFeedbacks.find(f => f.id === activeFb) || null;
+  const fb = feedbacks.find(f => f.id === activeFb) || null;
 
   const avg = (key) => {
-    if (!filteredFeedbacks.length) return '—';
-    const valid = filteredFeedbacks.filter(f => f[key] > 0);
+    if (!feedbacks.length) return '—';
+    const valid = feedbacks.filter(f => f[key] > 0);
     if (!valid.length) return '—';
     return (valid.reduce((a, f) => a + (f[key] || 0), 0) / valid.length).toFixed(1);
   };
-
-  // 세그먼트 드롭다운 옵션 구성 (feedbacks에서 unique 값)
-  const industries  = [...new Set(feedbacks.map(f => f.panel_industry).filter(Boolean))];
-  const experiences = [...new Set(feedbacks.map(f => f.panel_experience).filter(Boolean))];
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 1200, animation: 'fadeUp 0.5s ease both' }}>
@@ -198,41 +171,6 @@ export default function Results() {
             </div>
           )}
 
-          {/* 패널 세그먼트 필터 */}
-          {feedbacks.length > 0 && (industries.length > 0 || experiences.length > 0) && (
-            <div style={{
-              display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20,
-              padding: '12px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)', flexWrap: 'wrap',
-            }}>
-              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
-                패널 필터
-              </span>
-              {industries.length > 0 && (
-                <select value={industryFilter} onChange={e => { setIndustryFilter(e.target.value); setActiveFb(null); }}
-                  style={{ fontSize: 13, padding: '4px 10px' }}>
-                  <option value="">전체 직군</option>
-                  {industries.map(i => <option key={i} value={i}>{i}</option>)}
-                </select>
-              )}
-              {experiences.length > 0 && (
-                <select value={expFilter} onChange={e => { setExpFilter(e.target.value); setActiveFb(null); }}
-                  style={{ fontSize: 13, padding: '4px 10px' }}>
-                  <option value="">전체 경력</option>
-                  {experiences.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-              )}
-              {(industryFilter || expFilter) && (
-                <button onClick={() => { setIndustryFilter(''); setExpFilter(''); }}
-                  style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}>
-                  필터 초기화 ✕
-                </button>
-              )}
-              <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 'auto' }}>
-                {filteredFeedbacks.length} / {feedbacks.length} 피드백
-              </span>
-            </div>
-          )}
 
           {/* 5차원 평균 점수 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 32 }}>
@@ -257,18 +195,18 @@ export default function Results() {
 
           {fbLoading ? (
             <div style={{ color: 'var(--text-3)', fontSize: 14 }}>피드백 불러오는 중...</div>
-          ) : filteredFeedbacks.length === 0 ? (
+          ) : feedbacks.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-              {feedbacks.length === 0 ? '아직 제출된 피드백이 없습니다.' : '선택한 세그먼트에 해당하는 피드백이 없습니다.'}
+              아직 제출된 피드백이 없습니다.
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20 }}>
               {/* Feedback list */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                  패널 피드백 ({filteredFeedbacks.length})
+                  패널 피드백 ({feedbacks.length})
                 </div>
-                {filteredFeedbacks.map((f, i) => {
+                {feedbacks.map((f, i) => {
                   const overallAvg = DIM.reduce((sum, { key }) => sum + (f[key] || 0), 0) / DIM.length;
                   return (
                     <div key={f.id} onClick={() => setActiveFb(f.id)} style={{
@@ -282,11 +220,6 @@ export default function Results() {
                           {f.purity_passed ? '통과' : '검토 중'}
                         </Badge>
                       </div>
-                      {f.panel_industry && (
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
-                          {f.panel_industry}{f.panel_experience ? ` · ${f.panel_experience}` : ''}
-                        </div>
-                      )}
                       <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>
                         {new Date(f.created_at).toLocaleDateString('ko-KR')}
                       </div>
@@ -304,11 +237,6 @@ export default function Results() {
                       <div style={{ fontWeight: 700, fontSize: 18 }}>피드백 상세</div>
                       <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
                         {new Date(fb.created_at).toLocaleString('ko-KR')}
-                        {fb.panel_industry && (
-                          <span style={{ marginLeft: 10, padding: '2px 8px', background: 'var(--surface-2)', borderRadius: 4, fontSize: 11 }}>
-                            {fb.panel_industry}{fb.panel_experience ? ` · ${fb.panel_experience}` : ''}
-                          </span>
-                        )}
                       </div>
                     </div>
                     <Badge type={fb.purity_passed ? 'green' : 'gray'}>

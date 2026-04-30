@@ -16,11 +16,11 @@ const SECTIONS = [
 const DIM_LABEL = { clarity: '명확성', relevance: '관련성', value: '가치', differentiation: '차별화', trust: '신뢰' };
 
 const DIM_META = {
-  clarity:         { label: '명확성', short: '명', color: '#34C759' },
-  relevance:       { label: '관련성', short: '관', color: '#f59e0b' },
-  value:           { label: '가치',   short: '가', color: '#6366f1' },
-  differentiation: { label: '차별화', short: '차', color: '#ef4444' },
-  trust:           { label: '신뢰',   short: '신', color: '#94a3b8' },
+  clarity:         { label: '명확성', short: '명', color: '#34C759', bg: 'rgba(52,199,89,0.12)'   },
+  relevance:       { label: '관련성', short: '관', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
+  value:           { label: '가치',   short: '가', color: '#6366f1', bg: 'rgba(99,102,241,0.12)'  },
+  differentiation: { label: '차별화', short: '차', color: '#ef4444', bg: 'rgba(239,68,68,0.12)'   },
+  trust:           { label: '신뢰',   short: '신', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
 };
 
 const hasDraftProgress = (fb) => {
@@ -71,6 +71,8 @@ export default function ActiveMission() {
   // ── IMAGE ANNOTATION ──
   const [annotations, setAnnotations]         = useState([]);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [activeDimension, setActiveDimension] = useState('clarity');
+  const [overallComment, setOverallComment]   = useState('');
 
   const hasImages = Boolean(mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0);
   const missionType = mission?.type || null;
@@ -101,6 +103,8 @@ export default function ActiveMission() {
     setDraftId(null);
     setAnnotations([]);
     setCurrentImageIdx(0);
+    setActiveDimension('clarity');
+    setOverallComment('');
 
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -363,9 +367,10 @@ export default function ActiveMission() {
           trust_score:           avg('trust'),
           strengths:             null,
           weaknesses:            null,
-          suggestions:           annotations
-            .map(a => `[${DIM_LABEL[a.dimension]} / ${a.score}점] ${a.comment}`)
-            .join('\n'),
+          suggestions:           [
+            annotations.map(a => `[${DIM_LABEL[a.dimension]} / ${a.score}점] ${a.comment}`).join('\n'),
+            overallComment ? `\n[총평]\n${overallComment}` : '',
+          ].join('').trim(),
           purity_passed: false,
           status:        'submitted',
         };
@@ -784,14 +789,20 @@ export default function ActiveMission() {
     const imageUrls = mission.image_urls;
     const curAnns   = annotations.filter(a => a.image_index === currentImageIdx);
 
+    const dimDone = Object.fromEntries(
+      Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k)])
+    );
+    const allDimsAnnotated = Object.values(dimDone).every(Boolean);
+    const canSubmitImage   = allDimsAnnotated && overallComment.trim().length > 0;
+
     return (
       <div style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>이미지 어노테이션</h1>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-              드래그해서 영역 지정 → 항목 선택 → 점수 & 코멘트 입력
+              차원을 선택하고, 해당 영역을 드래그해 점수를 남겨주세요
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -800,6 +811,41 @@ export default function ActiveMission() {
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)' }}>누적 어노테이션</div>
           </div>
+        </div>
+
+        {/* 차원 선택 탭 */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {Object.entries(DIM_META).map(([key, meta]) => {
+            const count   = annotations.filter(a => a.dimension === key).length;
+            const done    = count > 0;
+            const isActive = activeDimension === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveDimension(key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '9px 18px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', border: '2px solid',
+                  borderColor: isActive ? meta.color : done ? meta.color : 'var(--border)',
+                  background: isActive ? meta.color : done ? meta.bg : 'var(--surface)',
+                  color: isActive ? '#fff' : done ? meta.color : 'var(--text-2)',
+                  transition: 'all 0.12s',
+                }}
+              >
+                {done && !isActive && <span>✓</span>}
+                {!done && <span style={{ fontSize: 11, opacity: 0.5 }}>○</span>}
+                {meta.label}
+                {count > 0 && (
+                  <span style={{
+                    background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--bg)',
+                    borderRadius: 10, padding: '1px 7px', fontSize: 11,
+                    color: isActive ? '#fff' : meta.color,
+                  }}>{count}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* 이미지 탭 */}
@@ -838,6 +884,7 @@ export default function ActiveMission() {
             onAdd={handleAddAnnotation}
             onRemove={handleRemoveAnnotation}
             readonly={false}
+            activeDimension={activeDimension}
           />
         </div>
 
@@ -886,6 +933,55 @@ export default function ActiveMission() {
           </div>
         )}
 
+        {/* 차원 완료 현황 안내 */}
+        {!allDimsAnnotated && (
+          <div style={{
+            marginBottom: 16, padding: '12px 16px',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-2)',
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>5개 차원 모두 최소 1개씩 평가해야 제출할 수 있어요</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {Object.entries(dimDone).map(([key, done]) => (
+                <span key={key} style={{
+                  fontSize: 11, padding: '3px 10px', borderRadius: 12,
+                  background: done ? DIM_META[key].bg : 'var(--bg)',
+                  color: done ? DIM_META[key].color : 'var(--text-3)',
+                  border: `1px solid ${done ? DIM_META[key].color : 'var(--border)'}`,
+                }}>
+                  {done ? '✓' : '○'} {DIM_META[key].label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 총평 — 5개 차원 모두 완료 후 표시 */}
+        {allDimsAnnotated && (
+          <div style={{
+            marginBottom: 16, padding: '16px 18px',
+            background: 'var(--accent-dim)', border: '1.5px solid var(--accent)',
+            borderRadius: 'var(--radius)',
+          }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
+              ✓ 모든 차원 평가 완료 — 총평 작성 (필수)
+            </div>
+            <textarea
+              value={overallComment}
+              onChange={e => setOverallComment(e.target.value)}
+              placeholder="전반적인 인상, 가장 개선이 필요한 부분, 특히 좋았던 점을 자유롭게 작성해주세요."
+              rows={4}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '10px 12px', borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)', background: 'var(--bg)',
+                color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
+                resize: 'vertical', fontFamily: 'inherit',
+              }}
+            />
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
@@ -894,10 +990,10 @@ export default function ActiveMission() {
             )}
           </div>
           <Btn
-            disabled={annotations.length === 0 || submitting}
+            disabled={!canSubmitImage || submitting}
             onClick={handleSubmit}
           >
-            {submitting ? '제출 중...' : `제출하기 (${annotations.length}개) →`}
+            {submitting ? '제출 중...' : '제출하기 →'}
           </Btn>
         </div>
 

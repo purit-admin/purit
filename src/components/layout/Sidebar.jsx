@@ -22,7 +22,7 @@ const NAV = {
     {
       group: '메인 미션',
       items: [
-        { path: '/company/new', label: '미션 등록', icon: Plus },
+        { path: '/company/new', label: '의뢰 등록', icon: Plus },
         { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
         { path: '/company/diagnosis', label: '5차원 진단', icon: Layers },
       ],
