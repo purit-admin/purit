@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-30 (D-29 반려 피드백 재제출 패턴 추가)
+최종 업데이트: 2026-04-30 (D-30 어노테이션 코멘트 미저장 버그 추가)
 ================================================================
 
 ## 핵심 원칙
@@ -299,3 +299,13 @@ D-29. 반려 피드백 재제출 시 서브 응답 테이블 중복 INSERT 함�
      → 추가 주의: 재제출 시 increment_mission_filled_count / increment_panel_mission_count RPC를
                   절대 호출하지 말 것 — 최초 제출 때 이미 카운트가 증가되어 있음. 재호출 시 중복 집계 발생
      → isResubmit 플래그 판별: URL ?resubmit=<feedbackId> + DB에서 fb.status === 'rejected' 교차 검증
+
+D-30. 이미지 어노테이션 코멘트 debounce 미flush로 제출 시 코멘트 유실 ✅ 해결 (2026-04-30)
+     → 증상: 패널이 어노테이션 코멘트를 입력 후 1초 이내에 제출 → 기업 Results에서 "코멘트 없음" 표시
+     → 원인: handleUpdateAnnotationComment의 1s debounce 타이머가 handleSubmit 호출보다 늦게 실행됨
+             → feedback_annotations.comment가 빈 문자열('')로 남아 기업 화면에서 누락
+     → 해결: handleSubmit(이미지 모드) 진입 시 commentUpdateTimers 전체 clear 후,
+             annotations 로컬 상태 기준으로 전체 어노테이션 코멘트를 DB에 일괄 동기화 후 submit 진행
+     → 적용 위치: ActiveMission.jsx handleSubmit → hasImages 분기 최상단
+     → 교훈: debounce로 저장하는 중간 데이터가 있을 때, 최종 제출 시 반드시 pending 타이머를 flush해야 함
+             (D-12의 "코멘트 UPDATE debounce 패턴"과 연계 — 저장만 설계해서는 안 되고 flush 로직도 필수)
