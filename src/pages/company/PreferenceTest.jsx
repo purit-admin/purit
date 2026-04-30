@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const ASSET_TYPES = [
   { key: 'headline',   label: '헤드라인 카피', icon: '◎', desc: '두 헤드라인 중 구매 욕구를 더 자극하는 쪽' },
@@ -41,6 +42,7 @@ export default function PreferenceTest() {
   const [panelSize, setPanelSize] = useState(10);
   const [selectedTemplateId, setSelectedTemplateId] = useState(initTemplateId);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateQuestions, setTemplateQuestions] = useState([]);
   const [customQuestions, setCustomQuestions] = useState([]);
 
   const [tests, setTests] = useState([]);
@@ -63,8 +65,11 @@ export default function PreferenceTest() {
     if (selectedTemplateId) {
       const t = templates.find(x => x.id === selectedTemplateId);
       setSelectedTemplate(t || null);
+      const typed = TEMPLATE_BY_NAME[t?.name];
+      setTemplateQuestions(typed ? typed.questions : []);
     } else {
       setSelectedTemplate(null);
+      setTemplateQuestions([]);
     }
   }, [selectedTemplateId, templates]);
 
@@ -129,6 +134,7 @@ export default function PreferenceTest() {
           variantAImage: variantAImage || null,
           variantBImage: variantBImage || null,
           productDescription: productDescription.trim(),
+          templateQuestions,
           customQuestions: customQuestions.filter(q => q.trim()),
         }),
         panel_count: panelSize,
@@ -348,16 +354,24 @@ export default function PreferenceTest() {
                     ))}
                   </div>
 
-                  {selectedTemplate && (
+                  {templateQuestions.length > 0 && (
                     <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {selectedTemplate.template_questions.map((q, i) => (
+                      {templateQuestions.map((q, i) => (
                         <div key={q.id} style={{
                           padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)',
                           border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)',
                           display: 'flex', gap: 10, alignItems: 'flex-start',
                         }}>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
-                          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{q.question_text}</span>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{q.text}</span>
+                            <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type], fontWeight: 600 }}>
+                              {TYPE_LABEL[q.type]}
+                            </span>
+                            {q.type === 'radio' && q.options.length > 0 && (
+                              <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 6 }}>[{q.options.join(' / ')}]</span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-04-30
+최종 업데이트: 2026-04-30 (012_typed_template_questions — template_questions 타입 컬럼 + 응답 테이블 custom_answers + 신규 3개 템플릿)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -185,10 +185,13 @@
   created_at  TIMESTAMPTZ
 
 ### [template_questions] — 템플릿 세부 문항
-  id            UUID  PK
-  template_id   UUID  FK → question_templates.id  ON DELETE CASCADE
-  question_text TEXT
+  id             UUID  PK
+  template_id    UUID  FK → question_templates.id  ON DELETE CASCADE
+  question_text  TEXT
   question_order INT
+  question_type  TEXT  NOT NULL DEFAULT 'text'  ← 012 추가 (radio|scale|text)
+  options        JSONB NOT NULL DEFAULT '[]'     ← 012 추가 (radio 선택지 배열)
+  ※ 012 실행 후 9종 템플릿 전체에 question_type/options 값 반영됨
 
 ---
 
@@ -206,6 +209,7 @@
     status      TEXT  DEFAULT 'submitted'  ← 007 추가
     message_clarity  INT CHECK (1-5)      ← 007 추가
     purchase_intent  INT CHECK (1-5)      ← 007 추가
+    custom_answers   JSONB DEFAULT '[]'   ← 012 추가 [{questionId, questionText, type, answer}]
     created_at  TIMESTAMPTZ
   ※ RLS: panel_insert_pref(INSERT), auth_select_pref(SELECT), auth_update_pref(UPDATE)
 
@@ -222,10 +226,11 @@
   pricing_responses:
     id, test_id FK→pricing_tests.id, panel_id FK→panels.id
     tier, would_buy, key_comment, barriers JSONB
-    mission_id     UUID  FK → missions.id  ← 007 추가
-    status         TEXT  DEFAULT 'submitted'  ← 007 추가
-    price_fairness INT CHECK (1-5)           ← 007 추가
-    value_perception INT CHECK (1-5)         ← 007 추가
+    mission_id       UUID  FK → missions.id  ← 007 추가
+    status           TEXT  DEFAULT 'submitted'  ← 007 추가
+    price_fairness   INT CHECK (1-5)           ← 007 추가
+    value_perception INT CHECK (1-5)           ← 007 추가
+    custom_answers   JSONB DEFAULT '[]'        ← 012 추가 [{questionId, questionText, type, answer}]
     created_at  TIMESTAMPTZ
   ※ RLS: panel_insert_pricing(INSERT), auth_select_pricing(SELECT), auth_update_pricing(UPDATE)
 
@@ -240,10 +245,11 @@
   email_responses:
     id, test_id FK→cold_email_tests.id, panel_id FK→panels.id
     would_reply, hook_score, clarity_score, comment
-    mission_id     UUID  FK → missions.id  ← 007 추가
-    status         TEXT  DEFAULT 'submitted'  ← 007 추가
-    open_intent    INT CHECK (1-5)            ← 007 추가
-    curiosity_score INT CHECK (1-5)           ← 007 추가
+    mission_id      UUID  FK → missions.id  ← 007 추가
+    status          TEXT  DEFAULT 'submitted'  ← 007 추가
+    open_intent     INT CHECK (1-5)            ← 007 추가
+    curiosity_score INT CHECK (1-5)            ← 007 추가
+    custom_answers  JSONB DEFAULT '[]'         ← 012 추가 [{questionId, questionText, type, answer}]
     created_at  TIMESTAMPTZ
   ※ RLS: panel_insert_email(INSERT), auth_select_email(SELECT), auth_update_email(UPDATE)
 

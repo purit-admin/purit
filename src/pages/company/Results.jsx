@@ -147,12 +147,83 @@ function CommentList({ items }) {
   );
 }
 
+/* ─── 커스텀 질문 결과 섹션 ─── */
+function CustomQuestionsSection({ questions, responses }) {
+  if (!questions?.length) return null;
+  const allAnswers = (responses || []).flatMap(r => r.custom_answers || []);
+  if (!allAnswers.length) return null;
+
+  return (
+    <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>추가 질문 응답</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {questions.map((q, qi) => {
+          const answers = allAnswers.filter(a => a.questionId === q.id).map(a => a.answer);
+          if (!answers.length) return null;
+          const typeLabelMap = { radio: '라디오', scale: '척도', text: '서술' };
+          const typeColorMap = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
+          const typeBg = { radio: 'rgba(59,130,246,0.15)', scale: 'rgba(99,102,241,0.15)', text: 'rgba(52,199,89,0.15)' };
+          return (
+            <div key={q.id || qi}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 10, lineHeight: 1.5 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, marginRight: 6, background: typeBg[q.type] || typeBg.text, color: typeColorMap[q.type] || typeColorMap.text }}>
+                  {typeLabelMap[q.type] || '서술'}
+                </span>
+                {qi + 1}. {q.text}
+              </div>
+              {q.type === 'radio' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {(q.options || []).map(opt => {
+                    const cnt = answers.filter(a => a === opt).length;
+                    const pct = answers.length ? Math.round((cnt / answers.length) * 100) : 0;
+                    return (
+                      <div key={opt}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                          <span style={{ color: 'var(--text-2)' }}>{opt}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{pct}% <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>({cnt}명)</span></span>
+                        </div>
+                        <div style={{ height: 7, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {q.type === 'scale' && (() => {
+                const valid = answers.map(Number).filter(n => !isNaN(n) && n > 0);
+                const avg = valid.length ? (valid.reduce((s, v) => s + v, 0) / valid.length).toFixed(1) : null;
+                return <ScoreCardRow items={[{ label: '척도 평균 점수', value: avg }]} />;
+              })()}
+              {q.type !== 'radio' && q.type !== 'scale' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {answers.map((a, i) => (
+                    <div key={i} style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
+                      {a || <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>내용 없음</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── 서브미션 결과: preference ─── */
 function PreferenceResults({ responses, mission, panelProfiles }) {
   if (!responses?.length) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>응답 데이터가 없습니다.</div>;
   const aCount = responses.filter(r => r.preference === 'A').length;
   const bCount = responses.filter(r => r.preference === 'B').length;
   const parsedDesc = parseSubDesc(mission?.description, 'preference');
+  const allTypedQs = [
+    ...(parsedDesc.templateQuestions || []),
+    ...(parsedDesc.customQuestions || []).filter(Boolean).map(q =>
+      typeof q === 'string' ? { id: q, text: q, type: 'text', options: [] } : q
+    ),
+  ];
 
   return (
     <div>
@@ -170,6 +241,7 @@ function PreferenceResults({ responses, mission, panelProfiles }) {
       ]} />
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>패널 코멘트</div>
       <CommentList items={responses.map((r, i) => ({ label: <span>패널 #{i + 1} · 소재 {r.preference}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>, text: r.comment }))} />
+      <CustomQuestionsSection questions={allTypedQs} responses={responses} />
     </div>
   );
 }
@@ -180,6 +252,12 @@ function PricingResults({ responses, mission, panelProfiles }) {
   const buyYes = responses.filter(r => r.would_buy === true).length;
   const buyNo  = responses.filter(r => r.would_buy === false).length;
   const parsedDesc = parseSubDesc(mission?.description, 'pricing');
+  const allTypedQs = [
+    ...(parsedDesc.templateQuestions || []),
+    ...(parsedDesc.customQuestions || []).filter(Boolean).map(q =>
+      typeof q === 'string' ? { id: q, text: q, type: 'text', options: [] } : q
+    ),
+  ];
 
   return (
     <div>
@@ -198,6 +276,7 @@ function PricingResults({ responses, mission, panelProfiles }) {
       ]} />
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>패널 코멘트</div>
       <CommentList items={responses.map((r, i) => ({ label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>, text: r.key_comment }))} />
+      <CustomQuestionsSection questions={allTypedQs} responses={responses} />
     </div>
   );
 }
@@ -208,6 +287,12 @@ function EmailResults({ responses, mission, panelProfiles }) {
   const replyYes = responses.filter(r => r.would_reply === true).length;
   const replyNo  = responses.filter(r => r.would_reply === false).length;
   const parsedDesc = parseSubDesc(mission?.description, 'email');
+  const allTypedQs = [
+    ...(parsedDesc.templateQuestions || []),
+    ...(parsedDesc.customQuestions || []).filter(Boolean).map(q =>
+      typeof q === 'string' ? { id: q, text: q, type: 'text', options: [] } : q
+    ),
+  ];
 
   return (
     <div>
@@ -227,6 +312,7 @@ function EmailResults({ responses, mission, panelProfiles }) {
       ]} />
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>패널 코멘트</div>
       <CommentList items={responses.map((r, i) => ({ label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>, text: r.comment }))} />
+      <CustomQuestionsSection questions={allTypedQs} responses={responses} />
     </div>
   );
 }

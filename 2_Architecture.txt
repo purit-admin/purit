@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-30 (사이드바 메인/서브 의뢰 워딩 통일 + 서브 의뢰 빈 상태 버튼 UX 정리)
+최종 업데이트: 2026-04-30 (질문 템플릿 전체 연동 — src/lib/templates.js 신규, 012 마이그레이션)
 ================================================================
 
 ## 기술 스택
@@ -26,7 +26,7 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼)
+│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (9개 템플릿 타입 상수: QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
 │   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지)
@@ -44,7 +44,7 @@ purit/
 ├── supabase/
 │   ├── migrations/  001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
 │   │                006(annotations) 007(subtest) 008(templates) 009(gamification)
-│   │                010(sharing) 011(notification_triggers)
+│   │                010(sharing) 011(notification_triggers) 012(typed_template_questions)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 

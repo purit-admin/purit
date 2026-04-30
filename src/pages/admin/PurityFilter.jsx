@@ -449,6 +449,22 @@ export default function PurityFilter() {
                             </p>
                           </div>
                         )}
+                        {/* 추가 질문 응답 (custom_answers) */}
+                        {Array.isArray(subResponse?.custom_answers) && subResponse.custom_answers.length > 0 && (
+                          <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>추가 질문 응답</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {subResponse.custom_answers.map((a, i) => (
+                                <div key={a.questionId || i}>
+                                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 3, lineHeight: 1.4 }}>{i + 1}. {a.questionText || a.questionId}</div>
+                                  <div style={{ fontSize: 13, color: 'var(--text-2)', padding: '6px 10px', background: 'var(--surface)', borderRadius: 6, border: '1px solid var(--border)', lineHeight: 1.6 }}>
+                                    {a.answer !== undefined && a.answer !== null && String(a.answer) !== '' ? String(a.answer) : <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>응답 없음</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

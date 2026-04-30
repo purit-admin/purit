@@ -30,7 +30,7 @@ export default function QuestionTemplates() {
 
     const baseQuery = supabase
       .from('question_templates')
-      .select('*, template_questions(id, question_text, question_order)')
+      .select('*, template_questions(id, question_text, question_order, question_type)')
       .order('use_count', { ascending: false });
 
     const { data, error } = await (co
@@ -175,20 +175,30 @@ export default function QuestionTemplates() {
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                  {(selectedTemplate.template_questions || []).map((q, i) => (
-                    <div
-                      key={q.id}
-                      style={{
-                        display: 'flex', gap: 12, padding: '10px 12px',
-                        background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13,
-                      }}
-                    >
-                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>
-                        Q{i + 1}
-                      </span>
-                      <span style={{ color: 'var(--text-2)', lineHeight: 1.6 }}>{q.question_text}</span>
-                    </div>
-                  ))}
+                  {(selectedTemplate.template_questions || []).map((q, i) => {
+                    const TYPE_LABEL = { radio: '라디오', scale: '척도', text: '서술' };
+                    const TYPE_COLOR = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
+                    const TYPE_BG = { radio: 'rgba(59,130,246,0.13)', scale: 'rgba(99,102,241,0.13)', text: 'rgba(52,199,89,0.13)' };
+                    const qType = q.question_type || 'text';
+                    return (
+                      <div
+                        key={q.id}
+                        style={{
+                          display: 'flex', gap: 10, padding: '10px 12px',
+                          background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13,
+                          alignItems: 'flex-start',
+                        }}
+                      >
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, flexShrink: 0, paddingTop: 1 }}>
+                          Q{i + 1}
+                        </span>
+                        <span style={{ color: 'var(--text-2)', lineHeight: 1.6, flex: 1 }}>{q.question_text}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: TYPE_BG[qType], color: TYPE_COLOR[qType], border: `1px solid ${TYPE_COLOR[qType]}44` }}>
+                          {TYPE_LABEL[qType] || '서술'}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <Btn style={{ width: '100%' }} onClick={() => handleUse(selectedTemplate)}>

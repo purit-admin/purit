@@ -57,6 +57,79 @@ function parseSubDesc(desc, type) {
   }
 }
 
+function TypedQuestionsBlock({ qs, get, set }) {
+  const TYPE_COLOR_LOCAL = { radio: 'var(--blue)', scale: 'var(--accent)', text: 'var(--green)' };
+  const TYPE_LABEL_LOCAL = { radio: '라디오', scale: '척도', text: '서술' };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 4 }}>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        추가 질문 ({qs.length}개)
+      </div>
+      {qs.map((q, idx) => {
+        const ans = get(q.id);
+        return (
+          <div key={q.id} style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${TYPE_COLOR_LOCAL[q.type] || 'var(--accent)'}` }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>Q{idx + 1}</span>
+              <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, flex: 1 }}>{q.text}</span>
+              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: (TYPE_COLOR_LOCAL[q.type] || 'var(--accent)') + '22', color: TYPE_COLOR_LOCAL[q.type] || 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
+                {TYPE_LABEL_LOCAL[q.type] || q.type}
+              </span>
+            </div>
+            {q.type === 'radio' && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {q.options.map(opt => (
+                  <button key={opt} onClick={() => set(q.id, q.text, q.type, opt)} style={{
+                    padding: '8px 14px', borderRadius: 'var(--radius)',
+                    border: `1.5px solid ${ans === opt ? 'var(--blue)' : 'var(--border)'}`,
+                    background: ans === opt ? 'rgba(0,122,255,0.1)' : 'var(--surface)',
+                    color: ans === opt ? 'var(--blue)' : 'var(--text-2)',
+                    fontWeight: ans === opt ? 700 : 400, fontSize: 13, cursor: 'pointer', transition: 'all 0.12s',
+                  }}>{opt}</button>
+                ))}
+              </div>
+            )}
+            {q.type === 'scale' && (
+              <div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => set(q.id, q.text, q.type, n)} style={{
+                      flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
+                      background: ans === n ? 'var(--accent)' : ans > n ? 'var(--accent-dim)' : 'var(--surface-2)',
+                      color: ans === n ? '#FFF' : 'var(--text-2)',
+                      border: `1px solid ${ans >= n ? 'rgba(232,213,163,0.4)' : 'var(--border)'}`,
+                      fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'all 0.15s',
+                    }}>{n}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>
+                  <span>매우 낮음</span><span>매우 높음</span>
+                </div>
+              </div>
+            )}
+            {q.type === 'text' && (
+              <div>
+                <textarea
+                  value={ans || ''}
+                  onChange={e => set(q.id, q.text, q.type, e.target.value)}
+                  rows={3}
+                  placeholder="최소 20자 이상 구체적으로 작성해주세요."
+                  style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13, width: '100%' }}
+                />
+                {ans && ans.length < 20 && (
+                  <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>
+                    최소 20자 이상 입력해야 합니다 ({ans.length}/20)
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ActiveMission() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -109,6 +182,7 @@ export default function ActiveMission() {
   const [emailClarity, setEmailClarity]       = useState(0);
   const [emailWouldReply, setEmailWouldReply] = useState(null); // true | false
   const [emailComment, setEmailComment]       = useState('');
+  const [customAnswers, setCustomAnswers]     = useState([]); // [{questionId, questionText, type, answer}]
 
   useEffect(() => {
     setMission(null);
@@ -118,6 +192,7 @@ export default function ActiveMission() {
     setAlreadySubmitted(false);
     setDraftId(null);
     setAnnotations([]);
+    setCustomAnswers([]);
     setCurrentImageIdx(0);
     setActiveDimension('clarity');
     setOverallComment('');
@@ -194,6 +269,7 @@ export default function ActiveMission() {
                     if (subResp.would_reply !== null && subResp.would_reply !== undefined) setEmailWouldReply(subResp.would_reply);
                     if (subResp.comment)         setEmailComment(subResp.comment);
                   }
+                  if (Array.isArray(subResp?.custom_answers)) setCustomAnswers(subResp.custom_answers);
                 }
               } else {
                 if (fb.suggestions) setComments(parseCommentsFromSuggestions(fb.suggestions));
@@ -231,6 +307,7 @@ export default function ActiveMission() {
                       if (saved.emailWouldReply !== undefined && saved.emailWouldReply !== null) setEmailWouldReply(saved.emailWouldReply);
                       if (saved.emailComment)    setEmailComment(saved.emailComment);
                     }
+                    if (Array.isArray(saved.customAnswers)) setCustomAnswers(saved.customAnswers);
                   } else {
                     setComments(saved);
                   }
@@ -279,7 +356,8 @@ export default function ActiveMission() {
     return () => clearTimeout(autoSaveTimer.current);
   }, [prefChoice, prefClarity, prefIntent, prefComment,
       priceFairness, priceValue, priceWouldBuy, priceComment,
-      emailOpenIntent, emailCuriosity, emailHook, emailClarity, emailWouldReply, emailComment]);
+      emailOpenIntent, emailCuriosity, emailHook, emailClarity, emailWouldReply, emailComment,
+      customAnswers]);
 
   const saveProgress = () => {
     if (!draftId) return;
@@ -304,6 +382,7 @@ export default function ActiveMission() {
     } else if (missionType === 'email') {
       subState = { ...subState, emailOpenIntent, emailCuriosity, emailHook, emailClarity, emailWouldReply, emailComment };
     }
+    subState = { ...subState, customAnswers };
     setAutoSaving(true);
     supabase.from('feedbacks').update({ strengths: JSON.stringify(subState) })
       .eq('id', draftId).then(() => setAutoSaving(false));
@@ -445,28 +524,28 @@ export default function ActiveMission() {
       if (isResubmit) {
         // 재제출: 기존 응답 행 UPDATE
         if (missionType === 'preference') {
-          await supabase.from('preference_responses').update({ preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null }).eq('mission_id', mission.id).eq('panel_id', panel.id);
+          await supabase.from('preference_responses').update({ preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null, custom_answers: customAnswers }).eq('mission_id', mission.id).eq('panel_id', panel.id);
           suggestionText = `[선호 소재] ${prefChoice}\n[메시지 명확성] ${prefClarity}/5\n[구매 전환 의향] ${prefIntent}/5\n[코멘트] ${prefComment}`;
         } else if (missionType === 'pricing') {
-          await supabase.from('pricing_responses').update({ would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null }).eq('mission_id', mission.id).eq('panel_id', panel.id);
+          await supabase.from('pricing_responses').update({ would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null, custom_answers: customAnswers }).eq('mission_id', mission.id).eq('panel_id', panel.id);
           suggestionText = `[구매 의향] ${priceWouldBuy ? '있음' : '없음'}\n[가격 적절성] ${priceFairness}/5\n[가치 인식] ${priceValue}/5\n[코멘트] ${priceComment}`;
         } else if (missionType === 'email') {
-          await supabase.from('email_responses').update({ would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment }).eq('mission_id', mission.id).eq('panel_id', panel.id);
+          await supabase.from('email_responses').update({ would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, custom_answers: customAnswers }).eq('mission_id', mission.id).eq('panel_id', panel.id);
           suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
         }
       } else {
         // 최초 제출: INSERT
         if (missionType === 'preference') {
           const { data: prefTest } = await supabase.from('preference_tests').select('id').eq('mission_id', mission.id).single();
-          await supabase.from('preference_responses').insert({ test_id: prefTest?.id, panel_id: panel.id, mission_id: mission.id, preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null, status: 'submitted' });
+          await supabase.from('preference_responses').insert({ test_id: prefTest?.id, panel_id: panel.id, mission_id: mission.id, preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null, custom_answers: customAnswers, status: 'submitted' });
           suggestionText = `[선호 소재] ${prefChoice}\n[메시지 명확성] ${prefClarity}/5\n[구매 전환 의향] ${prefIntent}/5\n[코멘트] ${prefComment}`;
         } else if (missionType === 'pricing') {
           const { data: pricingTest } = await supabase.from('pricing_tests').select('id').eq('mission_id', mission.id).single();
-          await supabase.from('pricing_responses').insert({ test_id: pricingTest?.id, panel_id: panel.id, mission_id: mission.id, would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null, status: 'submitted' });
+          await supabase.from('pricing_responses').insert({ test_id: pricingTest?.id, panel_id: panel.id, mission_id: mission.id, would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null, custom_answers: customAnswers, status: 'submitted' });
           suggestionText = `[구매 의향] ${priceWouldBuy ? '있음' : '없음'}\n[가격 적절성] ${priceFairness}/5\n[가치 인식] ${priceValue}/5\n[코멘트] ${priceComment}`;
         } else if (missionType === 'email') {
           const { data: emailTest } = await supabase.from('cold_email_tests').select('id').eq('mission_id', mission.id).single();
-          await supabase.from('email_responses').insert({ test_id: emailTest?.id, panel_id: panel.id, mission_id: mission.id, would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, status: 'submitted' });
+          await supabase.from('email_responses').insert({ test_id: emailTest?.id, panel_id: panel.id, mission_id: mission.id, would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, custom_answers: customAnswers, status: 'submitted' });
           suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
         }
       }
@@ -819,6 +898,35 @@ export default function ActiveMission() {
   if (isSubMission && step >= 1) {
     const parsedDesc = parseSubDesc(mission.description, missionType);
 
+    // 템플릿 질문 + 커스텀 질문을 타입 객체로 정규화
+    const allTypedQs = [
+      ...(parsedDesc.templateQuestions || []),
+      ...(parsedDesc.customQuestions || [])
+        .filter(Boolean)
+        .map(q => typeof q === 'string'
+          ? { id: q, text: q, type: 'text', options: [] }
+          : q
+        ),
+    ];
+
+    const setCustomAnswer = (questionId, questionText, type, answer) => {
+      setCustomAnswers(prev => {
+        const idx = prev.findIndex(a => a.questionId === questionId);
+        const entry = { questionId, questionText, type, answer };
+        return idx >= 0 ? prev.map((a, i) => i === idx ? entry : a) : [...prev, entry];
+      });
+    };
+
+    const getCustomAnswer = (questionId) =>
+      customAnswers.find(a => a.questionId === questionId)?.answer;
+
+    const allTypedQsAnswered = () => allTypedQs.every(q => {
+      const ans = getCustomAnswer(q.id);
+      if (ans === undefined || ans === null || ans === '') return false;
+      if (q.type === 'text') return String(ans).trim().length >= 20;
+      return true;
+    });
+
     const ScoreRow = ({ label, value, setter }) => (
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
@@ -840,10 +948,13 @@ export default function ActiveMission() {
     );
 
     const canSubmit = () => {
-      if (missionType === 'preference') return prefChoice && prefClarity && prefIntent && prefComment.trim();
-      if (missionType === 'pricing') return priceWouldBuy !== null && priceFairness && priceValue;
-      if (missionType === 'email') return emailWouldReply !== null && emailHook && emailClarity && emailOpenIntent;
-      return false;
+      const baseOk = (() => {
+        if (missionType === 'preference') return prefChoice && prefClarity && prefIntent && prefComment.trim();
+        if (missionType === 'pricing') return priceWouldBuy !== null && priceFairness && priceValue;
+        if (missionType === 'email') return emailWouldReply !== null && emailHook && emailClarity && emailOpenIntent;
+        return false;
+      })();
+      return baseOk && (allTypedQs.length === 0 || allTypedQsAnswered());
     };
 
     return (
@@ -883,6 +994,7 @@ export default function ActiveMission() {
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>선택 이유 및 개선 의견</div>
               <textarea value={prefComment} onChange={e => setPrefComment(e.target.value)} rows={4} placeholder="어떤 이유로 해당 소재를 선택했는지, 개선할 점은 무엇인지 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
             </Card>
+            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
           </div>
         )}
 
@@ -918,6 +1030,7 @@ export default function ActiveMission() {
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>가격 피드백 (구매 장벽, 개선점)</div>
               <textarea value={priceComment} onChange={e => setPriceComment(e.target.value)} rows={4} placeholder="가격에서 망설여지는 부분, 더 합리적이라고 느끼기 위해 필요한 것 등을 구체적으로 적어주세요." style={{ resize: 'vertical' }} />
             </Card>
+            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
           </div>
         )}
 
@@ -950,6 +1063,7 @@ export default function ActiveMission() {
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일 피드백</div>
               <textarea value={emailComment} onChange={e => setEmailComment(e.target.value)} rows={4} placeholder="가장 인상적인 부분과 개선이 필요한 부분을 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
             </Card>
+            {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
           </div>
         )}
 
