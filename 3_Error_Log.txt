@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-30 (D-28 이후 기준 미달 항목 정리)
+최종 업데이트: 2026-04-30 (D-29 반려 피드백 재제출 패턴 추가)
 ================================================================
 
 ## 핵심 원칙
@@ -289,3 +289,13 @@ D-28. panels 조인 RLS 차단으로 feedbacks 쿼리 전체 실패 패턴 ✅ �
      → 해결: panels 조인 제거
      → 원칙: 기업 유저가 feedbacks를 조회할 때 panels를 직접 join하지 말 것
              (panels SELECT RLS는 본인 or admin 전용)
+
+D-29. 반려 피드백 재제출 시 서브 응답 테이블 중복 INSERT 함정 ✅ 해결 (2026-04-30)
+     → 증상: 재제출 시 preference_responses / pricing_responses / email_responses에 INSERT 시도 →
+             unique constraint(mission_id + panel_id) 위반으로 에러 발생
+     → 원인: 최초 제출 때 이미 해당 테이블에 행이 존재 — 재제출은 신규 행이 아니라 수정임
+     → 해결: isResubmit 플래그로 분기 → 재제출 시 INSERT 대신 UPDATE 사용
+             (.eq('mission_id', mission.id).eq('panel_id', panel.id) 조건으로 기존 행 UPDATE)
+     → 추가 주의: 재제출 시 increment_mission_filled_count / increment_panel_mission_count RPC를
+                  절대 호출하지 말 것 — 최초 제출 때 이미 카운트가 증가되어 있음. 재호출 시 중복 집계 발생
+     → isResubmit 플래그 판별: URL ?resubmit=<feedbackId> + DB에서 fb.status === 'rejected' 교차 검증

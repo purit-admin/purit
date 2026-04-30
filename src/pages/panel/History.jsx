@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Badge } from '../../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const fmtAmt = (n) => {
@@ -22,6 +23,7 @@ const TABS = [
 ];
 
 export default function History() {
+  const navigate = useNavigate();
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [tab, setTab]             = useState('all');
@@ -133,8 +135,8 @@ export default function History() {
             return (
               <div key={f.id} style={{
                 display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
-                background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)',
-                opacity: isRejected ? 0.55 : 1,
+                background: 'var(--surface)', borderRadius: 'var(--radius)',
+                border: `1px solid ${isRejected ? 'rgba(239,68,68,0.25)' : 'var(--border)'}`,
               }}>
                 <Badge type={STATUS_TYPE[statusKey]}>
                   {STATUS_LABEL[statusKey]}
@@ -144,6 +146,11 @@ export default function History() {
                   <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                     {new Date(f.created_at).toLocaleDateString('ko-KR')}
                   </div>
+                  {isRejected && (
+                    <div style={{ fontSize: 11, color: 'rgba(239,68,68,0.7)', marginTop: 2 }}>
+                      Purit Filter 미통과 — 수정 후 재제출 가능
+                    </div>
+                  )}
                 </div>
                 <div style={{
                   fontWeight: 700, fontFamily: 'var(--font-mono)',
@@ -151,6 +158,11 @@ export default function History() {
                 }}>
                   {isRejected ? '—' : `₩${reward.toLocaleString()}`}
                 </div>
+                {isRejected && (
+                  <Btn size="sm" variant="outline" onClick={() => navigate(`/panel/active?id=${f.mission_id}&resubmit=${f.id}`)}>
+                    재작성
+                  </Btn>
+                )}
               </div>
             );
           })}

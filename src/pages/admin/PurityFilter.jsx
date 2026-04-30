@@ -141,7 +141,7 @@ export default function PurityFilter() {
     const panelUserId = fb?.panels?.user_id;
     const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
-    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. 성의 있는 재참여 부탁드립니다.`, actionUrl: '/panel/missions' });
+    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. 수익 현황에서 수정 후 재제출할 수 있습니다.`, actionUrl: '/panel/history' });
     if (companyUserId) sendNotification(companyUserId, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${missionTitle}] 품질 기준 미달 피드백이 반려 처리되었습니다.`, actionUrl: '/company/results' });
 
     setSelected(null);

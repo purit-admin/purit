@@ -33,6 +33,18 @@ const hasDraftProgress = (fb) => {
   } catch { return false; }
 };
 
+function parseCommentsFromSuggestions(suggestions) {
+  const result = { clarity: '', relevance: '', value: '', differentiation: '', trust: '' };
+  const labelMap = { '명확성': 'clarity', '관련성': 'relevance', '가치': 'value', '차별화': 'differentiation', '신뢰': 'trust' };
+  const sections = (suggestions || '').split('\n\n');
+  for (const section of sections) {
+    const lines = section.split('\n');
+    const m = lines[0]?.match(/^\[(.+)\]$/);
+    if (m && labelMap[m[1]]) result[labelMap[m[1]]] = lines.slice(1).join('\n');
+  }
+  return result;
+}
+
 function parseSubDesc(desc, type) {
   if (!desc) return {};
   try {
@@ -48,7 +60,8 @@ function parseSubDesc(desc, type) {
 export default function ActiveMission() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const missionId = searchParams.get('id');
+  const missionId  = searchParams.get('id');
+  const resubmitId = searchParams.get('resubmit');
 
   // ── LIST VIEW ──
   const [panel, setPanel]   = useState(null);
@@ -66,6 +79,7 @@ export default function ActiveMission() {
   const [autoSaving, setAutoSaving]       = useState(false);
   const autoSaveTimer = useRef(null);
   const commentUpdateTimers = useRef({});
+  const [isResubmit, setIsResubmit]           = useState(false);
   const [cancelModal, setCancelModal]         = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
 
@@ -130,7 +144,61 @@ export default function ActiveMission() {
 
           if (existing && existing.length > 0) {
             const fb = existing[0];
-            if (['submitted', 'approved', 'rejected'].includes(fb.status)) {
+            const willResubmit = Boolean(resubmitId && fb.id === resubmitId && fb.status === 'rejected');
+
+            if (willResubmit) {
+              // 반려된 피드백을 draft로 되돌려 재작성 모드 진입
+              await supabase.from('feedbacks').update({ status: 'draft' }).eq('id', fb.id);
+              setDraftId(fb.id);
+              setIsResubmit(true);
+              setScores({
+                clarity:         fb.clarity_score         || 0,
+                relevance:       fb.relevance_score       || 0,
+                value:           fb.value_score           || 0,
+                differentiation: fb.differentiation_score || 0,
+                trust:           fb.trust_score           || 0,
+              });
+              if (ms.image_urls?.length > 0) {
+                const { data: anns } = await supabase.from('feedback_annotations').select('*').eq('feedback_id', fb.id).order('created_at');
+                setAnnotations(anns || []);
+                if (fb.suggestions) {
+                  const overallMatch = fb.suggestions.match(/\[총평\]\n([\s\S]*)$/);
+                  if (overallMatch) setOverallComment(overallMatch[1].trim());
+                  const dimMap = { '명확성': 'clarity', '관련성': 'relevance', '가치': 'value', '차별화': 'differentiation', '신뢰': 'trust' };
+                  const newSkipped = { clarity: false, relevance: false, value: false, differentiation: false, trust: false };
+                  fb.suggestions.split('\n').forEach(line => {
+                    const m = line.match(/^\[(.+?) - 해당 없음\]$/);
+                    if (m && dimMap[m[1]]) newSkipped[dimMap[m[1]]] = true;
+                  });
+                  setSkippedDims(newSkipped);
+                }
+              } else if (['preference', 'pricing', 'email'].includes(ms.type)) {
+                const tbl = ms.type === 'preference' ? 'preference_responses' : ms.type === 'pricing' ? 'pricing_responses' : 'email_responses';
+                const { data: subResp } = await supabase.from(tbl).select('*').eq('mission_id', ms.id).eq('panel_id', p.id).single();
+                if (subResp) {
+                  if (ms.type === 'preference') {
+                    if (subResp.preference)      setPrefChoice(subResp.preference);
+                    if (subResp.message_clarity) setPrefClarity(subResp.message_clarity);
+                    if (subResp.purchase_intent) setPrefIntent(subResp.purchase_intent);
+                    if (subResp.comment)         setPrefComment(subResp.comment);
+                  } else if (ms.type === 'pricing') {
+                    if (subResp.price_fairness)  setPriceFairness(subResp.price_fairness);
+                    if (subResp.value_perception) setPriceValue(subResp.value_perception);
+                    if (subResp.would_buy !== null && subResp.would_buy !== undefined) setPriceWouldBuy(subResp.would_buy);
+                    if (subResp.key_comment)     setPriceComment(subResp.key_comment);
+                  } else if (ms.type === 'email') {
+                    if (subResp.open_intent)     setEmailOpenIntent(subResp.open_intent);
+                    if (subResp.curiosity_score) setEmailCuriosity(subResp.curiosity_score);
+                    if (subResp.hook_score)      setEmailHook(subResp.hook_score);
+                    if (subResp.clarity_score)   setEmailClarity(subResp.clarity_score);
+                    if (subResp.would_reply !== null && subResp.would_reply !== undefined) setEmailWouldReply(subResp.would_reply);
+                    if (subResp.comment)         setEmailComment(subResp.comment);
+                  }
+                }
+              } else {
+                if (fb.suggestions) setComments(parseCommentsFromSuggestions(fb.suggestions));
+              }
+            } else if (['submitted', 'approved', 'rejected'].includes(fb.status)) {
               setAlreadySubmitted(true);
             } else {
               setDraftId(fb.id);
@@ -252,10 +320,11 @@ export default function ActiveMission() {
   };
 
   // 제출 후 공통 후처리: 게이미피케이션 RPC + 기업 알림
-  const postSubmitActions = async () => {
+  const postSubmitActions = async (resubmitMode = false) => {
     if (!panel?.id) return;
-    await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
-
+    if (!resubmitMode) {
+      await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
+    }
     if (mission?.company_id) {
       const { data: company } = await supabase
         .from('companies').select('user_id').eq('id', mission.company_id).single();
@@ -263,8 +332,10 @@ export default function ActiveMission() {
         sendNotification(company.user_id, {
           type: 'success',
           icon: '📊',
-          title: '새 피드백 도착',
-          body: `[${mission.title}] 패널이 피드백을 제출했습니다.`,
+          title: resubmitMode ? '피드백 재제출' : '새 피드백 도착',
+          body: resubmitMode
+            ? `[${mission.title}] 패널이 피드백을 수정하여 재제출했습니다.`
+            : `[${mission.title}] 패널이 피드백을 제출했습니다.`,
           actionUrl: '/company/results',
         });
       }
@@ -369,27 +440,35 @@ export default function ActiveMission() {
     if (!mission || !panel || !draftId) return;
     setSubmitting(true);
     try {
-      let insertPayload = {};
       let suggestionText = '';
 
-      if (missionType === 'preference') {
-        const { data: prefTest } = await supabase.from('preference_tests').select('id').eq('mission_id', mission.id).single();
-        const testId = prefTest?.id;
-        insertPayload = { test_id: testId, panel_id: panel.id, mission_id: mission.id, preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null, status: 'submitted' };
-        await supabase.from('preference_responses').insert(insertPayload);
-        suggestionText = `[선호 소재] ${prefChoice}\n[메시지 명확성] ${prefClarity}/5\n[구매 전환 의향] ${prefIntent}/5\n[코멘트] ${prefComment}`;
-      } else if (missionType === 'pricing') {
-        const { data: pricingTest } = await supabase.from('pricing_tests').select('id').eq('mission_id', mission.id).single();
-        const testId = pricingTest?.id;
-        insertPayload = { test_id: testId, panel_id: panel.id, mission_id: mission.id, would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null, status: 'submitted' };
-        await supabase.from('pricing_responses').insert(insertPayload);
-        suggestionText = `[구매 의향] ${priceWouldBuy ? '있음' : '없음'}\n[가격 적절성] ${priceFairness}/5\n[가치 인식] ${priceValue}/5\n[코멘트] ${priceComment}`;
-      } else if (missionType === 'email') {
-        const { data: emailTest } = await supabase.from('cold_email_tests').select('id').eq('mission_id', mission.id).single();
-        const testId = emailTest?.id;
-        insertPayload = { test_id: testId, panel_id: panel.id, mission_id: mission.id, would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, status: 'submitted' };
-        await supabase.from('email_responses').insert(insertPayload);
-        suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
+      if (isResubmit) {
+        // 재제출: 기존 응답 행 UPDATE
+        if (missionType === 'preference') {
+          await supabase.from('preference_responses').update({ preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null }).eq('mission_id', mission.id).eq('panel_id', panel.id);
+          suggestionText = `[선호 소재] ${prefChoice}\n[메시지 명확성] ${prefClarity}/5\n[구매 전환 의향] ${prefIntent}/5\n[코멘트] ${prefComment}`;
+        } else if (missionType === 'pricing') {
+          await supabase.from('pricing_responses').update({ would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null }).eq('mission_id', mission.id).eq('panel_id', panel.id);
+          suggestionText = `[구매 의향] ${priceWouldBuy ? '있음' : '없음'}\n[가격 적절성] ${priceFairness}/5\n[가치 인식] ${priceValue}/5\n[코멘트] ${priceComment}`;
+        } else if (missionType === 'email') {
+          await supabase.from('email_responses').update({ would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment }).eq('mission_id', mission.id).eq('panel_id', panel.id);
+          suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
+        }
+      } else {
+        // 최초 제출: INSERT
+        if (missionType === 'preference') {
+          const { data: prefTest } = await supabase.from('preference_tests').select('id').eq('mission_id', mission.id).single();
+          await supabase.from('preference_responses').insert({ test_id: prefTest?.id, panel_id: panel.id, mission_id: mission.id, preference: prefChoice, comment: prefComment, message_clarity: prefClarity || null, purchase_intent: prefIntent || null, status: 'submitted' });
+          suggestionText = `[선호 소재] ${prefChoice}\n[메시지 명확성] ${prefClarity}/5\n[구매 전환 의향] ${prefIntent}/5\n[코멘트] ${prefComment}`;
+        } else if (missionType === 'pricing') {
+          const { data: pricingTest } = await supabase.from('pricing_tests').select('id').eq('mission_id', mission.id).single();
+          await supabase.from('pricing_responses').insert({ test_id: pricingTest?.id, panel_id: panel.id, mission_id: mission.id, would_buy: priceWouldBuy, key_comment: priceComment, price_fairness: priceFairness || null, value_perception: priceValue || null, status: 'submitted' });
+          suggestionText = `[구매 의향] ${priceWouldBuy ? '있음' : '없음'}\n[가격 적절성] ${priceFairness}/5\n[가치 인식] ${priceValue}/5\n[코멘트] ${priceComment}`;
+        } else if (missionType === 'email') {
+          const { data: emailTest } = await supabase.from('cold_email_tests').select('id').eq('mission_id', mission.id).single();
+          await supabase.from('email_responses').insert({ test_id: emailTest?.id, panel_id: panel.id, mission_id: mission.id, would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, status: 'submitted' });
+          suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
+        }
       }
 
       const { error: fbError } = await supabase.from('feedbacks').update({
@@ -399,9 +478,11 @@ export default function ActiveMission() {
       }).eq('id', draftId);
       if (fbError) throw fbError;
 
-      await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
-      await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
-      await postSubmitActions();
+      if (!isResubmit) {
+        await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
+        await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
+      }
+      await postSubmitActions(isResubmit);
 
       setStep(SECTIONS.length + 1);
     } catch (err) {
@@ -462,9 +543,11 @@ export default function ActiveMission() {
       const { error: fbError } = await supabase.from('feedbacks').update(updatePayload).eq('id', draftId);
       if (fbError) throw fbError;
 
-      await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
-      await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
-      await postSubmitActions();
+      if (!isResubmit) {
+        await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
+        await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
+      }
+      await postSubmitActions(isResubmit);
 
       setStep(SECTIONS.length + 1);
     } catch (err) {
@@ -629,9 +712,18 @@ export default function ActiveMission() {
 
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 24 }}>미션 브리핑</h1>
+      {isResubmit && (
+        <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16 }}>✏️</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--red, #ef4444)' }}>재작성 모드</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>반려된 피드백을 수정하여 재제출합니다. 이전 내용이 복원되었습니다.</div>
+          </div>
+        </div>
+      )}
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <Badge type="gold">진행 중</Badge>
+          <Badge type="gold">{isResubmit ? '재작성 중' : '진행 중'}</Badge>
           {hasImages && <Badge type="blue">이미지 어노테이션</Badge>}
         </div>
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>{mission.title}</h2>
@@ -694,10 +786,15 @@ export default function ActiveMission() {
   /* ─── 완료 화면 ─── */
   if (step > SECTIONS.length) return (
     <div style={{ padding: '40px 48px', maxWidth: 600, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
-      <div style={{ fontSize: 64, marginBottom: 20 }}>✅</div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>피드백 제출 완료!</h1>
+      <div style={{ fontSize: 64, marginBottom: 20 }}>{isResubmit ? '🔄' : '✅'}</div>
+      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
+        {isResubmit ? '피드백 재제출 완료!' : '피드백 제출 완료!'}
+      </h1>
       <p style={{ color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 32 }}>
-        Purit Filter 검증 중입니다. 통과 시{' '}
+        {isResubmit
+          ? '수정된 피드백이 어드민 검토 대기 중으로 이동했습니다. '
+          : 'Purit Filter 검증 중입니다. '}
+        통과 시{' '}
         <strong style={{ color: 'var(--green)' }}>₩{(mission.reward_amount || 0).toLocaleString()}</strong>이 적립됩니다.
       </p>
       <Btn onClick={() => navigate('/panel')}>대시보드로 →</Btn>
