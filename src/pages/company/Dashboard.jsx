@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Stat, Btn, Badge } from '../../components/ui';
+import { Card, Stat, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import {
@@ -86,15 +86,30 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function CompanyMissionCard({ m, navigate }) {
+function CompanyMissionCard({ m, navigate, onTerminate }) {
   const filled = m.filled_count ?? 0;
+  const isLive = m.status === 'active' && filled >= 1;
   const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
+
+  // active 상태는 피드백 수 기준으로 두 가지로 분기
+  const statusBadgeType = m.status === 'active'
+    ? (filled === 0 ? 'blue' : 'green')
+    : (STATUS_COLOR[m.status] || 'gray');
+  const statusBadgeLabel = m.status === 'active'
+    ? (filled === 0 ? '매칭 대기' : '진행 중')
+    : (STATUS_LABEL[m.status] || m.status);
+
   return (
     <Card onClick={() => navigate(`/company/results?id=${m.id}`)}>
       <div className="mc-row">
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
-            <Badge type={STATUS_COLOR[m.status] || 'gray'}>{STATUS_LABEL[m.status] || m.status}</Badge>
+            <Badge type={statusBadgeType}>{statusBadgeLabel}</Badge>
+            {isLive && (
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>
+                🔒 수정 잠금
+              </span>
+            )}
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
             {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
@@ -112,11 +127,12 @@ function CompanyMissionCard({ m, navigate }) {
             {filled}<span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count}</span>
           </div>
           <div style={{ width: 80, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s' }} />
+            <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : 'var(--accent)', borderRadius: 2, transition: 'width 0.4s' }} />
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
             {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
           </div>
+          {/* filled_count=0: 수정 가능 */}
           {m.status === 'active' && filled === 0 && (
             <button
               onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
@@ -128,6 +144,20 @@ function CompanyMissionCard({ m, navigate }) {
               }}
             >
               수정
+            </button>
+          )}
+          {/* filled_count>=1: 수정 불가, 조기 종료만 허용 */}
+          {m.status === 'active' && filled >= 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); onTerminate(m); }}
+              style={{
+                marginTop: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                borderRadius: 'var(--radius)', border: '1px solid rgba(239,68,68,0.4)',
+                background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                transition: 'all 0.12s',
+              }}
+            >
+              의뢰 조기 종료
             </button>
           )}
         </div>
@@ -146,10 +176,23 @@ export default function CompanyDashboard() {
   const [mainMissionPage, setMainMissionPage] = useState(1);
   const [subMissionPage, setSubMissionPage]   = useState(1);
   const [showBanner, setShowBanner] = useState(() => !isBannerDismissed());
+  const [terminateTarget, setTerminateTarget] = useState(null);
 
   const dismissBanner = () => {
     localStorage.setItem(NDA_KEY, String(Date.now()));
     setShowBanner(false);
+  };
+
+  const handleTerminate = async () => {
+    if (!terminateTarget) return;
+    const { error } = await supabase
+      .from('missions')
+      .update({ status: 'cancelled' })
+      .eq('id', terminateTarget.id);
+    if (!error) {
+      setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+    }
+    setTerminateTarget(null);
   };
 
   useEffect(() => {
@@ -205,6 +248,7 @@ export default function CompanyDashboard() {
   );
 
   return (
+    <>
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1100 }}>
 
       {/* NDA 배너 */}
@@ -402,7 +446,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} />)}
+                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} />)}
                   </div>
                   <Pagination page={mainMissionPage} total={mainMissions.length} onPage={setMainMissionPage} />
                 </>
@@ -422,7 +466,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} />)}
+                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} />)}
                   </div>
                   <Pagination page={subMissionPage} total={subMissions.length} onPage={setSubMissionPage} />
                 </>
@@ -433,5 +477,18 @@ export default function CompanyDashboard() {
       </motion.div>
 
     </div>
+
+    {terminateTarget && (
+      <ConfirmModal
+        title="의뢰를 조기 종료할까요?"
+        desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 중단되고 취소 상태로 변경됩니다.\n이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="조기 종료"
+        cancelLabel="유지"
+        danger
+        onConfirm={handleTerminate}
+        onCancel={() => setTerminateTarget(null)}
+      />
+    )}
+    </>
   );
 }

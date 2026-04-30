@@ -499,6 +499,20 @@ export default function ActiveMission() {
       let updatePayload;
 
       if (hasImages) {
+        // 코멘트 debounce 타이머 플러시 — 미저장 코멘트를 제출 전 즉시 동기화
+        const pendingIds = Object.keys(commentUpdateTimers.current);
+        if (pendingIds.length > 0) {
+          pendingIds.forEach(id => clearTimeout(commentUpdateTimers.current[id]));
+          commentUpdateTimers.current = {};
+        }
+        if (annotations.length > 0) {
+          await Promise.all(
+            annotations.map(ann =>
+              supabase.from('feedback_annotations').update({ comment: ann.comment || '' }).eq('id', ann.id)
+            )
+          );
+        }
+
         // 어노테이션 → dimension별 평균 점수 계산
         const avg = (dim) => {
           const hits = annotations.filter(a => a.dimension === dim);

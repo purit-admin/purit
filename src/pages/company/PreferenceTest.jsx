@@ -193,7 +193,6 @@ export default function PreferenceTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>소재 비교 A/B</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>두 소재를 패널에게 제시하고, 어느 쪽이 더 전환에 기여하는지 측정합니다.</p>
           </div>
-          {view === 'list' && <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>}
           {view === 'create' && <Btn variant="ghost" onClick={() => setView('list')}>취소</Btn>}
         </div>
       </div>
@@ -421,7 +420,7 @@ export default function PreferenceTest() {
             <div style={{ fontSize: 40, marginBottom: 16 }}>◎</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 테스트가 없습니다</div>
             <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>두 소재를 비교해 더 효과적인 카피를 찾아보세요.</div>
-            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 첫 테스트 시작</Btn>
+            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>

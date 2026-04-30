@@ -177,7 +177,6 @@ export default function PricingTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>가격 페이지 검증</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>가격 구조의 명확성·지각 가치·행동 장벽·경쟁 포지셔닝을 4축으로 진단합니다.</p>
           </div>
-          {view === 'list' && <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>}
           {(view === 'create' || view === 'result') && <Btn variant="ghost" onClick={() => { setView('list'); setSelectedTest(null); }}>← 목록</Btn>}
         </div>
       </div>
@@ -368,7 +367,7 @@ export default function PricingTest() {
             <div style={{ fontSize: 40, marginBottom: 16 }}>₩</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 테스트가 없습니다</div>
             <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>가격 페이지의 전환 장벽을 패널로 진단해보세요.</div>
-            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 첫 테스트 시작</Btn>
+            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>

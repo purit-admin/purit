@@ -391,8 +391,19 @@ export default function NewMission() {
             <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
               ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
             </div>
-            <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 'var(--radius)', fontSize: 13, color: '#ef4444' }}>
-              ⚠️ 제출 후 첫 피드백이 수신되면 수정이 불가합니다.
+            <div style={{ marginTop: 10, padding: '14px 16px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', lineHeight: 1.75 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', marginBottom: 8 }}>⚠️ 수정 가능 시점 안내 (제출 전 반드시 확인)</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                <span style={{ display: 'block', marginBottom: 4 }}>
+                  ✅ <strong>제출 직후 ~ 첫 피드백 수신 전</strong>: 대시보드 의뢰 카드에서 수정 가능
+                </span>
+                <span style={{ display: 'block', color: '#ef4444', fontWeight: 600 }}>
+                  🔒 <strong>첫 피드백 수신 즉시</strong>: 수정 영구 잠금 — 의뢰 조기 종료만 가능
+                </span>
+              </div>
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(239,68,68,0.2)', fontSize: 11, color: 'var(--text-3)' }}>
+                패널이 응답을 시작한 후 이미지·질문 등 조건을 변경하면 수집된 데이터 전체가 오염됩니다.
+              </div>
             </div>
           </div>
         )}

@@ -20,7 +20,7 @@ const NAV = {
       ],
     },
     {
-      group: '메인 미션',
+      group: '메인 의뢰',
       items: [
         { path: '/company/new', label: '의뢰 등록', icon: Plus },
         { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
@@ -28,7 +28,7 @@ const NAV = {
       ],
     },
     {
-      group: '서브 미션',
+      group: '서브 의뢰',
       items: [
         { path: '/company/preference', label: '소재 비교 A/B', icon: Columns2 },
         { path: '/company/pricing-test', label: '가격 페이지', icon: Tag },

@@ -151,7 +151,6 @@ export default function ColdEmailTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>이메일 검증</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>대량 발송 전 타겟 패널에게 먼저 검증받아 개봉률과 답장율을 높이세요.</p>
           </div>
-          {view === 'list' && <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>}
           {view !== 'list' && <Btn variant="ghost" onClick={() => { setView('list'); setSelectedTest(null); }}>← 목록</Btn>}
         </div>
       </div>
@@ -327,7 +326,7 @@ export default function ColdEmailTest() {
             <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 이메일 테스트가 없습니다</div>
             <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>발송 전 패널 검증으로 개봉률과 답장율을 높여보세요.</div>
-            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 첫 테스트 시작</Btn>
+            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>
