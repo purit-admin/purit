@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-30 (D-30 어노테이션 코멘트 미저장 버그 추가)
+최종 업데이트: 2026-04-30 (D-31 질문 데이터 구조 마이그레이션 하위 호환 패턴 추가)
 ================================================================
 
 ## 핵심 원칙
@@ -309,3 +309,12 @@ D-30. 이미지 어노테이션 코멘트 debounce 미flush로 제출 시 코멘
      → 적용 위치: ActiveMission.jsx handleSubmit → hasImages 분기 최상단
      → 교훈: debounce로 저장하는 중간 데이터가 있을 때, 최종 제출 시 반드시 pending 타이머를 flush해야 함
              (D-12의 "코멘트 UPDATE debounce 패턴"과 연계 — 저장만 설계해서는 안 되고 flush 로직도 필수)
+
+D-31. missions.description JSON 필드 구조 변경 시 하위 호환 폴백 패턴 ✅ 정착
+     → 증상: 기존 저장된 미션(templateQuestions + customQuestions 구조)과 신규 미션(selectedQuestions 구조)이
+             동일 파싱 로직을 공유해야 하는데, 단순 교체 시 레거시 데이터가 빈 질문 배열로 표시됨
+     → 해결: 읽기 경로(ActiveMission, Results)에서 신규 필드 우선, 없으면 구 포맷 폴백
+             const allTypedQs = parsedDesc.selectedQuestions || [...templateQuestions, ...normalizedCustomQs];
+     → 원칙: missions.description처럼 TEXT에 JSON을 넣는 컬럼을 구조 변경할 때
+             쓰기 경로는 신규 포맷만 저장, 읽기 경로는 반드시 양쪽 감지 후 폴백 처리해야 함
+             DB 마이그레이션(UPDATE 기존 행)은 모든 레거시 행이 신규 포맷으로 전환된 후에야 폴백 제거 가능

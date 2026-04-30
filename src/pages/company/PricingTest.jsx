@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
-import { TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
+import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const AXES = [
   { key: 'clarity',     label: '가격 명확성',   icon: '◎', color: 'var(--blue)',   desc: '플랜 간 차이가 즉시 이해되는가?' },
@@ -33,10 +33,9 @@ export default function PricingTest() {
   const [productDescription, setProductDescription] = useState('');
   // Step 2
   const [panelSize, setPanelSize] = useState(10);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(initTemplateId);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [templateQuestions, setTemplateQuestions] = useState([]);
-  const [customQuestions, setCustomQuestions] = useState([]);
+  const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [expandedTmpl, setExpandedTmpl] = useState({});
+  const [customQTexts, setCustomQTexts] = useState([]);
 
   const [tests, setTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
@@ -45,26 +44,25 @@ export default function PricingTest() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState(null);
-  const [templates, setTemplates] = useState([]);
 
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    load();
-    if (initTemplateId) { setView('create'); setCreateStep(2); }
-  }, []);
+  const initTemplateName = location.state?.templateName || null;
 
   useEffect(() => {
-    if (selectedTemplateId) {
-      const t = templates.find(x => x.id === selectedTemplateId);
-      setSelectedTemplate(t || null);
-      const typed = TEMPLATE_BY_NAME[t?.name];
-      setTemplateQuestions(typed ? typed.questions : []);
-    } else {
-      setSelectedTemplate(null);
-      setTemplateQuestions([]);
+    load();
+    if (initTemplateId) {
+      setView('create');
+      setCreateStep(2);
+      if (initTemplateName) {
+        const target = QUESTION_TEMPLATES.pricing.find(t => t.name === initTemplateName);
+        if (target) {
+          setSelectedQuestions(target.questions.slice(0, 5));
+          setExpandedTmpl({ [target.id]: true });
+        }
+      }
     }
-  }, [selectedTemplateId, templates]);
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -73,22 +71,28 @@ export default function PricingTest() {
     const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
     setCompanyId(co?.id);
     if (co) {
-      const [{ data: testsData }, { data: tmplData }] = await Promise.all([
-        supabase.from('pricing_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false }),
-        supabase.from('question_templates')
-          .select('*, template_questions(id, question_text, question_order)')
-          .eq('category', '가격').eq('is_default', true),
-      ]);
+      const { data: testsData } = await supabase
+        .from('pricing_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
       setTests(testsData || []);
-      const sorted = (tmplData || []).map(t => ({
-        ...t,
-        template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),
-      }));
-      setTemplates(sorted);
-      if (initTemplateId) setSelectedTemplate(sorted.find(t => t.id === initTemplateId) || null);
     }
     setLoading(false);
   }
+
+  const validCustomCount = customQTexts.filter(t => t.trim()).length;
+  const totalSelected = selectedQuestions.length + validCustomCount;
+
+  const toggleQuestion = (q) => {
+    const isSelected = selectedQuestions.some(s => s.id === q.id);
+    if (isSelected) {
+      setSelectedQuestions(prev => prev.filter(s => s.id !== q.id));
+    } else if (selectedQuestions.length + customQTexts.filter(t => t.trim()).length < 5) {
+      setSelectedQuestions(prev => [...prev, q]);
+    }
+  };
+
+  const addCustomQ = () => setCustomQTexts(prev => [...prev, '']);
+  const updateCustomQ = (i, text) => setCustomQTexts(prev => prev.map((t, j) => j === i ? text : t));
+  const removeCustomQ = (i) => setCustomQTexts(prev => prev.filter((_, j) => j !== i));
 
   async function handleImageUpload(file) {
     if (!file || !companyId) return;
@@ -122,13 +126,20 @@ export default function PricingTest() {
           content: pricingDesc.trim() || '가격 페이지 4축 진단',
           image: pricingImage || null,
           productDescription: productDescription.trim(),
-          templateQuestions,
-          customQuestions: customQuestions.filter(q => q.trim()),
+          selectedQuestions: [
+            ...selectedQuestions,
+            ...customQTexts.filter(t => t.trim()).map((text, i) => ({
+              id: `custom-${i}`,
+              text: text.trim(),
+              type: 'text',
+              options: [],
+            })),
+          ],
         }),
         panel_count: panelSize,
         reward_amount: (PRICE_PER[panelSize] || 90) * 1000,
         status: 'active',
-        assets: selectedTemplate ? [selectedTemplate.name] : [],
+        assets: [],
       });
       if (mErr) throw mErr;
 
@@ -136,7 +147,7 @@ export default function PricingTest() {
         company_id: companyId,
         status: 'active',
         mission_id: missionUuid,
-        template_id: selectedTemplateId || null,
+        template_id: null,
       }).select().single();
       if (tErr) console.warn('[PricingTest] 서브테이블 등록 실패:', tErr.message);
 
@@ -262,7 +273,7 @@ export default function PricingTest() {
 
             {/* Step 2: 패널 수 & 질문 설정 */}
             {createStep === 2 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>패널 수</div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -285,76 +296,113 @@ export default function PricingTest() {
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>질문 설정</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div onClick={() => setSelectedTemplateId(null)} style={{
-                      padding: '12px 14px', borderRadius: 'var(--radius)',
-                      border: `1px solid ${!selectedTemplateId ? 'var(--accent)' : 'var(--border)'}`,
-                      background: !selectedTemplateId ? 'var(--accent-dim)' : 'var(--surface)',
-                      cursor: 'pointer', fontSize: 13, color: 'var(--text-2)', transition: 'all 0.15s',
-                    }}>기본 가격 평가 질문만 사용</div>
-                    {templates.map(t => (
-                      <div key={t.id} onClick={() => setSelectedTemplateId(t.id)} style={{
-                        padding: '12px 14px', borderRadius: 'var(--radius)',
-                        border: `1px solid ${selectedTemplateId === t.id ? 'var(--accent)' : 'var(--border)'}`,
-                        background: selectedTemplateId === t.id ? 'var(--accent-dim)' : 'var(--surface)',
-                        cursor: 'pointer', transition: 'all 0.15s',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                          <span style={{ fontWeight: 600, fontSize: 13 }}>{t.icon} {t.name}</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{t.template_questions?.length}개 문항</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>질문 설정</div>
+                    <div style={{
+                      fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                      padding: '3px 10px', borderRadius: 20,
+                      background: totalSelected >= 5 ? 'var(--accent)' : 'var(--surface)',
+                      color: totalSelected >= 5 ? '#fff' : 'var(--text-2)',
+                      border: '1px solid var(--border)',
+                    }}>{totalSelected}/5 선택됨</div>
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
+                    아래 15개 질문 중 최대 5개를 골라 패널에게 발송하세요. 그룹 헤더를 클릭하면 질문 목록이 펼쳐집니다.
+                  </p>
+
+                  {QUESTION_TEMPLATES.pricing.map(tmpl => {
+                    const isOpen = expandedTmpl[tmpl.id];
+                    const groupCount = selectedQuestions.filter(q => tmpl.questions.some(tq => tq.id === q.id)).length;
+                    return (
+                      <div key={tmpl.id} style={{ marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                        <div
+                          onClick={() => setExpandedTmpl(prev => ({ ...prev, [tmpl.id]: !isOpen }))}
+                          style={{
+                            display: 'flex', alignItems: 'center', padding: '11px 14px',
+                            background: groupCount > 0 ? 'var(--accent-dim)' : 'var(--surface)',
+                            cursor: 'pointer', userSelect: 'none', gap: 10,
+                          }}
+                        >
+                          <span style={{ fontSize: 15 }}>{tmpl.icon}</span>
+                          <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{tmpl.name}</span>
+                          {groupCount > 0 && (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>{groupCount}개 선택</span>
+                          )}
+                          <span style={{ color: 'var(--text-3)', fontSize: 12, transition: 'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t.description}</div>
+                        {isOpen && (
+                          <div style={{ borderTop: '1px solid var(--border)' }}>
+                            {tmpl.questions.map((q, qi) => {
+                              const isChecked = selectedQuestions.some(s => s.id === q.id);
+                              const disabled = !isChecked && totalSelected >= 5;
+                              return (
+                                <div
+                                  key={q.id}
+                                  onClick={() => !disabled && toggleQuestion(q)}
+                                  style={{
+                                    display: 'flex', gap: 10, alignItems: 'flex-start',
+                                    padding: '10px 14px',
+                                    background: isChecked ? 'rgba(232,213,163,0.07)' : 'var(--bg)',
+                                    cursor: disabled ? 'not-allowed' : 'pointer',
+                                    opacity: disabled ? 0.4 : 1,
+                                    borderBottom: qi < tmpl.questions.length - 1 ? '1px solid var(--border)' : 'none',
+                                    transition: 'background 0.1s',
+                                  }}
+                                >
+                                  <div style={{
+                                    width: 17, height: 17, borderRadius: 4, flexShrink: 0, marginTop: 2,
+                                    border: `2px solid ${isChecked ? 'var(--accent)' : 'var(--border)'}`,
+                                    background: isChecked ? 'var(--accent)' : 'transparent',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    transition: 'all 0.12s',
+                                  }}>
+                                    {isChecked && <span style={{ color: '#fff', fontSize: 10, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.text}</span>
+                                    <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, fontWeight: 600, background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type] }}>
+                                        {TYPE_LABEL[q.type]}
+                                      </span>
+                                      {q.type === 'radio' && q.options.length > 0 && (
+                                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>[{q.options.join(' / ')}]</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>커스텀 질문 추가 (서술형)</div>
+                    {customQTexts.map((q, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
+                        <textarea
+                          value={q}
+                          onChange={e => updateCustomQ(i, e.target.value)}
+                          rows={2}
+                          placeholder={`커스텀 질문 ${i + 1}`}
+                          style={{ flex: 1, resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+                        />
+                        <button onClick={() => removeCustomQ(i)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 18, padding: '4px', flexShrink: 0, marginTop: 4 }}>×</button>
                       </div>
                     ))}
+                    {customQTexts.length < 3 && totalSelected < 5 && (
+                      <button onClick={addCustomQ}
+                        style={{ background: 'none', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', padding: '8px 14px', fontSize: 13, color: 'var(--text-3)', cursor: 'pointer', width: '100%' }}>
+                        + 커스텀 질문 추가
+                      </button>
+                    )}
+                    {totalSelected >= 5 && (
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6, textAlign: 'center' }}>최대 5개 선택 완료</div>
+                    )}
                   </div>
-
-                  {templateQuestions.length > 0 && (
-                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {templateQuestions.map((q, i) => (
-                        <div key={q.id} style={{
-                          padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)',
-                          border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)',
-                          display: 'flex', gap: 10, alignItems: 'flex-start',
-                        }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
-                          <div style={{ flex: 1 }}>
-                            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{q.text}</span>
-                            <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type], fontWeight: 600 }}>
-                              {TYPE_LABEL[q.type]}
-                            </span>
-                            {q.type === 'radio' && q.options.length > 0 && (
-                              <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 6 }}>[{q.options.join(' / ')}]</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {customQuestions.length > 0 && (
-                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {customQuestions.map((q, i) => (
-                        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                          <textarea
-                            value={q}
-                            onChange={e => setCustomQuestions(qs => qs.map((v, j) => j === i ? e.target.value : v))}
-                            rows={2}
-                            placeholder={`커스텀 질문 ${i + 1}`}
-                            style={{ flex: 1, resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
-                          />
-                          <button onClick={() => setCustomQuestions(qs => qs.filter((_, j) => j !== i))}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 18, padding: '4px', flexShrink: 0 }}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {customQuestions.length < 3 && (
-                    <button onClick={() => setCustomQuestions(qs => [...qs, ''])}
-                      style={{ marginTop: 10, background: 'none', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', padding: '8px 14px', fontSize: 13, color: 'var(--text-3)', cursor: 'pointer', width: '100%' }}>
-                      + 커스텀 질문 추가
-                    </button>
-                  )}
                 </div>
               </div>
             )}

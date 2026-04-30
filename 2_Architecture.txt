@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-30 (질문 템플릿 전체 연동 — src/lib/templates.js 신규, 012 마이그레이션)
+최종 업데이트: 2026-04-30 (질문 선택 UI 개편 — 아코디언 체크박스, selectedQuestions 데이터 구조)
 ================================================================
 
 ## 기술 스택
@@ -26,7 +26,7 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (9개 템플릿 타입 상수: QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR)
+│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (9개 템플릿 상수: QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR — TEMPLATE_BY_NAME은 미사용)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
 │   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지)

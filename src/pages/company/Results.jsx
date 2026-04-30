@@ -218,7 +218,7 @@ function PreferenceResults({ responses, mission, panelProfiles }) {
   const aCount = responses.filter(r => r.preference === 'A').length;
   const bCount = responses.filter(r => r.preference === 'B').length;
   const parsedDesc = parseSubDesc(mission?.description, 'preference');
-  const allTypedQs = [
+  const allTypedQs = parsedDesc.selectedQuestions || [
     ...(parsedDesc.templateQuestions || []),
     ...(parsedDesc.customQuestions || []).filter(Boolean).map(q =>
       typeof q === 'string' ? { id: q, text: q, type: 'text', options: [] } : q
@@ -252,7 +252,7 @@ function PricingResults({ responses, mission, panelProfiles }) {
   const buyYes = responses.filter(r => r.would_buy === true).length;
   const buyNo  = responses.filter(r => r.would_buy === false).length;
   const parsedDesc = parseSubDesc(mission?.description, 'pricing');
-  const allTypedQs = [
+  const allTypedQs = parsedDesc.selectedQuestions || [
     ...(parsedDesc.templateQuestions || []),
     ...(parsedDesc.customQuestions || []).filter(Boolean).map(q =>
       typeof q === 'string' ? { id: q, text: q, type: 'text', options: [] } : q
@@ -287,7 +287,7 @@ function EmailResults({ responses, mission, panelProfiles }) {
   const replyYes = responses.filter(r => r.would_reply === true).length;
   const replyNo  = responses.filter(r => r.would_reply === false).length;
   const parsedDesc = parseSubDesc(mission?.description, 'email');
-  const allTypedQs = [
+  const allTypedQs = parsedDesc.selectedQuestions || [
     ...(parsedDesc.templateQuestions || []),
     ...(parsedDesc.customQuestions || []).filter(Boolean).map(q =>
       typeof q === 'string' ? { id: q, text: q, type: 'text', options: [] } : q

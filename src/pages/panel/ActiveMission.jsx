@@ -113,12 +113,12 @@ function TypedQuestionsBlock({ qs, get, set }) {
                   value={ans || ''}
                   onChange={e => set(q.id, q.text, q.type, e.target.value)}
                   rows={3}
-                  placeholder="최소 20자 이상 구체적으로 작성해주세요."
+                  placeholder="자유롭게 작성해주세요."
                   style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13, width: '100%' }}
                 />
-                {ans && ans.length < 20 && (
+                {ans && ans.length < 10 && (
                   <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>
-                    최소 20자 이상 입력해야 합니다 ({ans.length}/20)
+                    최소 10자 이상 입력해주세요 ({ans.length}/10)
                   </div>
                 )}
               </div>
@@ -898,16 +898,18 @@ export default function ActiveMission() {
   if (isSubMission && step >= 1) {
     const parsedDesc = parseSubDesc(mission.description, missionType);
 
-    // 템플릿 질문 + 커스텀 질문을 타입 객체로 정규화
-    const allTypedQs = [
-      ...(parsedDesc.templateQuestions || []),
-      ...(parsedDesc.customQuestions || [])
-        .filter(Boolean)
-        .map(q => typeof q === 'string'
-          ? { id: q, text: q, type: 'text', options: [] }
-          : q
-        ),
-    ];
+    // selectedQuestions 우선, 없으면 구 포맷(templateQuestions + customQuestions) 폴백
+    const allTypedQs = parsedDesc.selectedQuestions
+      ? parsedDesc.selectedQuestions
+      : [
+          ...(parsedDesc.templateQuestions || []),
+          ...(parsedDesc.customQuestions || [])
+            .filter(Boolean)
+            .map(q => typeof q === 'string'
+              ? { id: q, text: q, type: 'text', options: [] }
+              : q
+            ),
+        ];
 
     const setCustomAnswer = (questionId, questionText, type, answer) => {
       setCustomAnswers(prev => {
@@ -923,7 +925,7 @@ export default function ActiveMission() {
     const allTypedQsAnswered = () => allTypedQs.every(q => {
       const ans = getCustomAnswer(q.id);
       if (ans === undefined || ans === null || ans === '') return false;
-      if (q.type === 'text') return String(ans).trim().length >= 20;
+      if (q.type === 'text') return String(ans).trim().length >= 10;
       return true;
     });
 

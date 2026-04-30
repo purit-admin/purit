@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-30 (질문 템플릿 전체 연동 — 타입 질문 동적 렌더링 + customAnswers 저장/결과 시각화)
+최종 업데이트: 2026-04-30 (질문 선택 UI 전면 개편 — 아코디언 체크박스 방식, selectedQuestions 데이터 구조)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -104,7 +104,7 @@
    - Recharts LineChart: 5차원 점수 시계열 변화
    - 하단 요약 테이블 (점수 색상 코딩)
 
-5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 전면 재설계
+5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 질문 선택 UI 개편
    - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 소재 유형 선택 (이미지/텍스트/랜딩페이지)
    - Step 1: 소재 A/B 입력 + 이미지 업로드 (선택, 각 1장)
@@ -114,34 +114,37 @@
      · 미리보기 썸네일 + 삭제 지원
    - Step 2: 제품/타겟 설명 입력 (패널에게 표시됨, productDescription)
    - Step 3: 패널 수 & 예상 비용 + 질문 설정  ★ 개편
-     · DB 템플릿 카드 선택 → src/lib/templates.js TEMPLATE_BY_NAME으로 타입 질문 즉시 로드
-     · 선택된 템플릿 질문 목록: [라디오]/[척도]/[서술] 타입 뱃지 + 옵션 표시 (읽기전용)
-     · 커스텀 질문 추가 (최대 3개, × 삭제 버튼) — string[] 유지
+     · 카테고리별 템플릿 3개 × 5문항 = 15개 질문을 아코디언 UI로 표시
+       (QUESTION_TEMPLATES.preference에서 직접 로드 — DB 쿼리 없음)
+     · 각 템플릿 헤더 클릭 시 해당 그룹 질문 목록 인라인 펼침/접힘
+     · 질문 클릭 → 체크박스 선택/해제, 최대 5개 한도 (초과 시 나머지 회색 처리)
+     · 우상단 "N/5 선택됨" 배지 실시간 표시
+     · 커스텀 질문 추가 최대 3개 (서술형 고정, 5개 한도 내)
    - 등록 시: missions INSERT(type='preference', description=JSON.stringify({
        variantA, variantB, variantAImage, variantBImage,
-       productDescription, templateQuestions, customQuestions})) + preference_tests INSERT
-     ※ templateQuestions: [{id, text, type, options}] 타입 질문 스냅샷 (DB에 저장된 읽기전용 사본)
-     ※ customQuestions: string[] (기존 수동 추가, 최대 3개)
+       productDescription, selectedQuestions})) + preference_tests INSERT
+     ※ selectedQuestions: [{id, text, type, options}] — 선택된 질문 스냅샷 (템플릿+커스텀 통합)
+     ※ 구 포맷(templateQuestions + customQuestions) 레거시 미션은 패널/결과 화면에서 자동 폴백 처리
    - 제출 후 missionUuid 리셋 (중복 제출 방지)
    - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 + CustomQuestionsSection
 
-6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 전면 재설계
+6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 질문 선택 UI 개편
    - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 가격 페이지 입력 + 이미지 업로드 (선택, 1장)
      · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
    - Step 1: 제품/타겟 설명 입력 (productDescription)
-   - Step 2: 패널 수 + 질문 설정 (템플릿 타입 질문 + 커스텀 질문)
+   - Step 2: 패널 수 + 질문 설정 (QUESTION_TEMPLATES.pricing 아코디언 + 커스텀 최대 3개, 합산 5개)
    - 등록 시: missions INSERT(type='pricing', description=JSON.stringify({
-       content: pricingDesc, image, productDescription, templateQuestions, customQuestions})) + pricing_tests INSERT
+       content: pricingDesc, image, productDescription, selectedQuestions})) + pricing_tests INSERT
    - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + CustomQuestionsSection
 
-7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 전면 재설계
+7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 질문 선택 UI 개편
    - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 이메일 원문 설명 입력
    - Step 1: 제품/타겟 설명 입력 (productDescription)
-   - Step 2: 패널 수 + 질문 설정 (템플릿 타입 질문 + 커스텀 질문)
+   - Step 2: 패널 수 + 질문 설정 (QUESTION_TEMPLATES.email 아코디언 + 커스텀 최대 3개, 합산 5개)
    - 등록 시: missions INSERT(type='email', title='이메일 검증'(고정), description=JSON.stringify({
-       content: emailText, productDescription, templateQuestions, customQuestions})) + cold_email_tests INSERT
+       content: emailText, productDescription, selectedQuestions})) + cold_email_tests INSERT
    - 결과 화면: 답장 의향 비율 + open_intent / curiosity_score / hook_score / clarity_score 평균 + CustomQuestionsSection
 
 8. 질문 템플릿 관리 (/company/templates) — QuestionTemplates.jsx
@@ -247,7 +250,7 @@
        - 타입 질문 동적 렌더링 (TypedQuestionsBlock 컴포넌트):  ★ 신규
          · parsedDesc.templateQuestions + 정규화된 parsedDesc.customQuestions → allTypedQs 배열
          · 레거시 string customQuestions → {id, text, type:'text', options:[]} 자동 정규화
-         · radio: 옵션 버튼 (선택 시 강조), scale: 1-5 점수 버튼, text: textarea (20자 이상 필수)
+         · radio: 옵션 버튼 (선택 시 강조), scale: 1-5 점수 버튼, text: textarea (10자 이상 필수)
          · 모든 타입 질문 미응답 시 제출 불가 (canSubmit 유효성 검사 포함)
          · 응답은 customAnswers state: [{questionId, questionText, type, answer}]
        - 제출: preference_responses/pricing_responses/email_responses INSERT + feedbacks UPDATE(submitted) + RPC 2개
