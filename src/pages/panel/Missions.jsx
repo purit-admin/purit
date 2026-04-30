@@ -12,6 +12,18 @@ const DIFF_META = {
 
 const PAGE_SIZE = 10;
 
+const TABS = [
+  { key: 'new',          label: '새로운 미션' },
+  { key: 'inProgress',   label: '진행 중' },
+  { key: 'needsRevision', label: '수정 필요' },
+];
+
+const EMPTY_MSG = {
+  new:           { icon: '🔍', title: '새로운 미션이 없어요',    desc: '현재 참여 가능한 미션이 없습니다. 잠시 후 다시 확인해보세요.' },
+  inProgress:    { icon: '📋', title: '진행 중인 미션이 없어요', desc: '새로운 미션 탭에서 미션을 수락하면 여기에 표시됩니다.' },
+  needsRevision: { icon: '✅', title: '수정 필요한 미션이 없어요', desc: '반려된 피드백이 없습니다.' },
+};
+
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
@@ -35,24 +47,19 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
-  const slots = m.panel_count || 0;
+function MissionCard({ m, mode, feedbackId, navigate, setModal }) {
+  const [reasonOpen, setReasonOpen] = useState(false);
+  const slots  = m.panel_count  || 0;
   const filled = m.filled_count || 0;
-  const myStatus = feedbackMap[m.id];
-  const isDone = ['submitted', 'approved', 'rejected'].includes(myStatus);
-  const isInProgress = myStatus === 'draft';
+
   return (
-    <Card style={{ opacity: isDone ? 0.75 : 1 }}>
+    <Card>
       <div className="mc-row">
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
-            {isDone ? (
-              <Badge type="gray">완료</Badge>
-            ) : isInProgress ? (
-              <Badge type="gold">진행 중</Badge>
-            ) : (
-              <Badge type="green">참여가능</Badge>
-            )}
+            {mode === 'new'          && <Badge type="green">참여가능</Badge>}
+            {mode === 'inProgress'   && <Badge type="gold">진행 중</Badge>}
+            {mode === 'needsRevision' && <Badge type="red">반려됨</Badge>}
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
             {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
@@ -69,6 +76,19 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
           {m.target_url && (
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
           )}
+          {mode === 'needsRevision' && (
+            <button
+              onClick={() => setReasonOpen(r => !r)}
+              style={{ marginTop: 6, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+            >
+              {reasonOpen ? '탈락 사유 닫기 ▲' : '탈락 사유 보기 ▼'}
+            </button>
+          )}
+          {mode === 'needsRevision' && reasonOpen && (
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface)', borderRadius: 6, padding: '8px 12px', lineHeight: 1.6 }}>
+              Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함하여 재작성해주세요.
+            </div>
+          )}
         </div>
         <div className="mc-right">
           <div>
@@ -77,7 +97,7 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>건당 보상</div>
           </div>
-          {!isDone && (
+          {mode === 'new' && (
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
               잔여 <strong style={{ color: 'var(--text)' }}>{Math.max(0, slots - filled)}</strong>/{slots} 슬롯
             </div>
@@ -97,16 +117,20 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
           <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
             {new Date(m.created_at).toLocaleDateString('ko-KR')}
           </div>
-          {isDone ? (
-            <Btn size="sm" variant="ghost" disabled>완료됨</Btn>
-          ) : isInProgress ? (
+          {mode === 'new' && (
+            <Btn size="sm" onClick={() => setModal({ type: 'accept', mission: m })}>수락하기</Btn>
+          )}
+          {mode === 'inProgress' && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>이어하기 →</Btn>
               <Btn size="sm" variant="ghost" onClick={() => setModal({ type: 'cancel', mission: m })}
                 style={{ fontSize: 11, color: 'var(--text-3)' }}>수락 취소</Btn>
             </div>
-          ) : (
-            <Btn size="sm" onClick={() => setModal({ type: 'accept', mission: m })}>수락하기</Btn>
+          )}
+          {mode === 'needsRevision' && (
+            <Btn size="sm" variant="outline" onClick={() => navigate(`/panel/active?id=${m.id}&resubmit=${feedbackId}`)}>
+              재작성 →
+            </Btn>
           )}
         </div>
       </div>
@@ -117,12 +141,13 @@ function PanelMissionCard({ m, feedbackMap, navigate, setModal }) {
 export default function MissionList() {
   const navigate = useNavigate();
   const [missions, setMissions]       = useState([]);
+  // feedbackMap: { [missionId]: { status, id, suggestions } }
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]         = useState(null);
   const [panelTier, setPanelTier]     = useState('ROOKIE');
   const [loading, setLoading]         = useState(true);
-  const [filter, setFilter]           = useState('available');
-  const [modal, setModal]             = useState(null); // { type: 'accept'|'cancel', mission }
+  const [filter, setFilter]           = useState('new');
+  const [modal, setModal]             = useState(null);
   const [confirming, setConfirming]   = useState(false);
   const [mainPage, setMainPage]       = useState(1);
   const [subPage, setSubPage]         = useState(1);
@@ -139,12 +164,14 @@ export default function MissionList() {
       setPanelTier(p.tier || 'ROOKIE');
 
       const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
-        supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p.id),
+        supabase.from('feedbacks').select('mission_id, status, id, suggestions').eq('panel_id', p.id),
         supabase.from('missions').select('*').order('created_at', { ascending: false }),
       ]);
 
       const map = {};
-      (myFeedbacks || []).forEach(f => { map[f.mission_id] = f.status; });
+      (myFeedbacks || []).forEach(f => {
+        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions };
+      });
       setFeedbackMap(map);
       setMissions(ms || []);
       setLoading(false);
@@ -156,7 +183,6 @@ export default function MissionList() {
     if (!modal) return;
     setConfirming(true);
 
-    // state의 panelId가 없으면 직접 재조회
     let pid = panelId;
     if (!pid) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -173,7 +199,7 @@ export default function MissionList() {
       return;
     }
 
-    const { error } = await supabase.from('feedbacks').insert({
+    const { data: newFb, error } = await supabase.from('feedbacks').insert({
       mission_id:            modal.mission.id,
       panel_id:              pid,
       clarity_score:         null,
@@ -186,13 +212,13 @@ export default function MissionList() {
       suggestions:           null,
       purity_passed:         false,
       status:                'draft',
-    });
+    }).select('id').single();
     setConfirming(false);
     if (error) {
       alert('수락 중 오류: ' + error.message);
       return;
     }
-    setFeedbackMap(prev => ({ ...prev, [modal.mission.id]: 'draft' }));
+    setFeedbackMap(prev => ({ ...prev, [modal.mission.id]: { status: 'draft', id: newFb?.id || null, suggestions: null } }));
     const target = modal.mission.id;
     setModal(null);
     navigate(`/panel/active?id=${target}`);
@@ -216,17 +242,16 @@ export default function MissionList() {
   const isHighTier = panelTier === 'EXPERT' || panelTier === 'ELITE';
 
   const filtered = (() => {
-    let list;
-    if (filter === 'available') {
-      list = missions.filter(m => !feedbackMap[m.id] && m.status === 'active' && (m.filled_count || 0) < (m.panel_count || 0));
-      // EXPERT/ELITE 패널은 고보상 미션 우선 노출
+    if (filter === 'new') {
+      let list = missions.filter(m =>
+        !feedbackMap[m.id] && m.status === 'active' && (m.filled_count || 0) < (m.panel_count || 0)
+      );
       if (isHighTier) list = [...list].sort((a, b) => (b.reward_amount || 0) - (a.reward_amount || 0));
-    } else if (filter === 'inProgress') {
-      list = missions.filter(m => feedbackMap[m.id] === 'draft');
-    } else {
-      list = missions.filter(m => ['submitted', 'approved', 'rejected'].includes(feedbackMap[m.id]));
+      return list;
     }
-    return list;
+    if (filter === 'inProgress')    return missions.filter(m => feedbackMap[m.id]?.status === 'draft');
+    if (filter === 'needsRevision') return missions.filter(m => feedbackMap[m.id]?.status === 'rejected');
+    return [];
   })();
 
   const mainFiltered = filtered.filter(m => !m.type || m.type === 'landing_page');
@@ -237,6 +262,8 @@ export default function MissionList() {
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
   );
+
+  const changeTab = (key) => { setFilter(key); setMainPage(1); setSubPage(1); };
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
@@ -287,43 +314,37 @@ export default function MissionList() {
       {/* ── 헤더 ── */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>MISSION BOARD</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 탐색</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 관리</h1>
       </div>
 
       {/* ── 탭 ── */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-        {[['available', '참여가능'], ['inProgress', '진행 중'], ['done', '완료']].map(([v, l]) => (
-          <button key={v} onClick={() => { if (v === 'inProgress') { navigate('/panel/active'); } else { setFilter(v); setMainPage(1); setSubPage(1); } }} style={{
+        {TABS.map(({ key, label }) => (
+          <button key={key} onClick={() => changeTab(key)} style={{
             padding: '6px 16px', borderRadius: 4, fontSize: 13, fontWeight: 500,
-            background: filter === v ? 'var(--bg)' : 'transparent',
-            color: filter === v ? 'var(--text)' : 'var(--text-3)',
+            background: filter === key ? 'var(--bg)' : 'transparent',
+            color: filter === key ? 'var(--text)' : 'var(--text-3)',
             border: 'none', transition: 'all 0.15s', cursor: 'pointer',
-          }}>{l}</button>
+          }}>{label}</button>
         ))}
       </div>
 
-      {/* ── 진행 중 빈 상태 ── */}
-      {filter === 'inProgress' && filtered.length === 0 && (
-        <div style={{
-          padding: '48px 40px', textAlign: 'center',
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-        }}>
-          <div style={{ fontSize: 36, marginBottom: 16 }}>📋</div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>아직 진행 중인 미션이 없어요</div>
-          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24 }}>
-            미션 탐색에서 마음에 드는 미션을 수락하면 여기에 표시됩니다.
+      {/* ── 빈 상태 ── */}
+      {filtered.length === 0 && (() => {
+        const e = EMPTY_MSG[filter];
+        return (
+          <div style={{ padding: '48px 40px', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ fontSize: 36, marginBottom: 16 }}>{e.icon}</div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>{e.title}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: filter === 'inProgress' ? 24 : 0 }}>
+              {e.desc}
+            </div>
+            {filter === 'inProgress' && (
+              <Btn variant="outline" onClick={() => changeTab('new')}>새로운 미션 보기 →</Btn>
+            )}
           </div>
-          <Btn variant="outline" onClick={() => setFilter('available')}>미션 탐색 보기 →</Btn>
-        </div>
-      )}
-
-      {/* ── 참여가능·완료 빈 상태 ── */}
-      {filter !== 'inProgress' && filtered.length === 0 && (
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-          해당 조건의 미션이 없습니다.
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── 메인/서브 분리 목록 ── */}
       {filtered.length > 0 && (
@@ -341,7 +362,16 @@ export default function MissionList() {
             ) : (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {mainPaged.map(m => <PanelMissionCard key={m.id} m={m} feedbackMap={feedbackMap} navigate={navigate} setModal={setModal} />)}
+                  {mainPaged.map(m => (
+                    <MissionCard
+                      key={m.id}
+                      m={m}
+                      mode={filter}
+                      feedbackId={feedbackMap[m.id]?.id}
+                      navigate={navigate}
+                      setModal={setModal}
+                    />
+                  ))}
                 </div>
                 <Pagination page={mainPage} total={mainFiltered.length} onPage={setMainPage} />
               </>
@@ -361,7 +391,16 @@ export default function MissionList() {
             ) : (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {subPaged.map(m => <PanelMissionCard key={m.id} m={m} feedbackMap={feedbackMap} navigate={navigate} setModal={setModal} />)}
+                  {subPaged.map(m => (
+                    <MissionCard
+                      key={m.id}
+                      m={m}
+                      mode={filter}
+                      feedbackId={feedbackMap[m.id]?.id}
+                      navigate={navigate}
+                      setModal={setModal}
+                    />
+                  ))}
                 </div>
                 <Pagination page={subPage} total={subFiltered.length} onPage={setSubPage} />
               </>

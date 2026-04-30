@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-30 (이미지 어노테이션 UX 개편 + Results 버그 수정)
+최종 업데이트: 2026-04-30 (패널 미션 관리 탭 통합 + 정산 내역 사이드바 정리)
 ================================================================
 
 ## 기술 스택
@@ -77,9 +77,9 @@ purit/
 [Panel 포털] — RoleRoute role="panel"
   /panel                     → Dashboard.jsx
   /panel/notifications       → NotificationCenter.jsx
-  /panel/missions            → Missions.jsx
-  /panel/active              → ActiveMission.jsx
-  /panel/history             → History.jsx
+  /panel/missions            → Missions.jsx          (미션 관리: 새로운 미션·진행 중·수정 필요 탭 통합)
+  /panel/active              → ActiveMission.jsx     (목록 뷰는 Missions.jsx로 통합, 폼 뷰만 단독 사용)
+  /panel/history             → History.jsx           (정산 내역: 정산 대기·정산 완료·지급 거절 탭)
   /panel/profile             → Profile.jsx
 
 [Admin 포털] — RoleRoute role="admin"

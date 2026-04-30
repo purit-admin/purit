@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const fmtAmt = (n) => {
@@ -12,21 +11,20 @@ const fmtAmt = (n) => {
   return `₩${man}만 ${rest.toLocaleString()}`;
 };
 
-const STATUS_LABEL = { submitted: '검토 중', approved: '정산완료', rejected: '필터탈락' };
-const STATUS_TYPE  = { submitted: 'gold', approved: 'green', rejected: 'red' };
+const STATUS_LABEL = { submitted: '정산 대기', approved: '정산완료', rejected: '지급 거절' };
+const STATUS_TYPE  = { submitted: 'gold',      approved: 'green',    rejected: 'red' };
 
 const TABS = [
-  { key: 'all',      label: '전체' },
-  { key: 'submitted', label: '검토중' },
-  { key: 'approved',  label: '정산 완료' },
-  { key: 'rejected',  label: '필터 탈락' },
+  { key: 'pending',  label: '정산 대기' },
+  { key: 'approved', label: '정산 완료' },
+  { key: 'rejected', label: '지급 거절' },
 ];
 
 export default function History() {
-  const navigate = useNavigate();
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [tab, setTab]             = useState('all');
+  const [feedbacks, setFeedbacks]     = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [tab, setTab]                 = useState('pending');
+  const [openReasonId, setOpenReasonId] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -67,21 +65,19 @@ export default function History() {
   const totalPaid    = approved.reduce((s, f) => s + (f.missions?.reward_amount || 0), 0);
   const totalPending = pending.reduce((s, f)  => s + (f.missions?.reward_amount || 0), 0);
 
-  const filtered = tab === 'all'       ? feedbacks
-    : tab === 'submitted' ? pending
-    : tab === 'approved'  ? approved
+  const filtered = tab === 'pending'  ? pending
+    : tab === 'approved' ? approved
     : rejected;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>EARNINGS</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>내 수익</h1>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>LEDGER</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>정산 내역</h1>
       </div>
 
       {/* 통계 카드 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}>
-        {/* 총 정산 완료 */}
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 정산 완료</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
@@ -89,7 +85,6 @@ export default function History() {
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{approved.length}건</div>
         </div>
-        {/* 정산 대기 중 */}
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>정산 대기 중</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
@@ -97,9 +92,8 @@ export default function History() {
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{pending.length}건</div>
         </div>
-        {/* 필터 탈락 */}
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
-          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>필터 탈락</div>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>지급 거절</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: rejected.length > 0 ? 'var(--red, #ef4444)' : 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
             {rejected.length}건
           </div>
@@ -107,12 +101,12 @@ export default function History() {
         </div>
       </div>
 
-      {/* 현황 헤더 + 탭 */}
+      {/* 탭 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)' }}>현황</h2>
         <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4 }}>
           {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
+            <button key={t.key} onClick={() => { setTab(t.key); setOpenReasonId(null); }} style={{
               padding: '5px 14px', borderRadius: 4, fontSize: 12, fontWeight: 500,
               background: tab === t.key ? 'var(--bg)' : 'transparent',
               color: tab === t.key ? 'var(--text)' : 'var(--text-3)',
@@ -129,39 +123,56 @@ export default function History() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map((f) => {
-            const statusKey  = getStatusKey(f);
-            const isRejected = statusKey === 'rejected';
-            const reward     = f.missions?.reward_amount || 0;
+            const statusKey    = getStatusKey(f);
+            const isRejected   = statusKey === 'rejected';
+            const reward       = f.missions?.reward_amount || 0;
+            const isReasonOpen = openReasonId === f.id;
             return (
               <div key={f.id} style={{
-                display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
+                display: 'flex', flexDirection: 'column',
                 background: 'var(--surface)', borderRadius: 'var(--radius)',
                 border: `1px solid ${isRejected ? 'rgba(239,68,68,0.25)' : 'var(--border)'}`,
+                overflow: 'hidden',
               }}>
-                <Badge type={STATUS_TYPE[statusKey]}>
-                  {STATUS_LABEL[statusKey]}
-                </Badge>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{f.missions?.title || '미션'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                    {new Date(f.created_at).toLocaleDateString('ko-KR')}
+                {/* 메인 행 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px' }}>
+                  <Badge type={STATUS_TYPE[statusKey]}>
+                    {STATUS_LABEL[statusKey]}
+                  </Badge>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{f.missions?.title || '미션'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                      {new Date(f.created_at).toLocaleDateString('ko-KR')}
+                    </div>
+                  </div>
+                  <div style={{
+                    fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    color: statusKey === 'approved' ? 'var(--green)' : isRejected ? 'var(--text-3)' : 'var(--accent)',
+                  }}>
+                    {isRejected ? '—' : `₩${reward.toLocaleString()}`}
                   </div>
                   {isRejected && (
-                    <div style={{ fontSize: 11, color: 'rgba(239,68,68,0.7)', marginTop: 2 }}>
-                      Purit Filter 미통과 — 수정 후 재제출 가능
-                    </div>
+                    <button
+                      onClick={() => setOpenReasonId(isReasonOpen ? null : f.id)}
+                      style={{ fontSize: 12, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'underline' }}
+                    >
+                      탈락 사유 보기
+                    </button>
                   )}
                 </div>
-                <div style={{
-                  fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  color: statusKey === 'approved' ? 'var(--green)' : isRejected ? 'var(--text-3)' : 'var(--accent)',
-                }}>
-                  {isRejected ? '—' : `₩${reward.toLocaleString()}`}
-                </div>
-                {isRejected && (
-                  <Btn size="sm" variant="outline" onClick={() => navigate(`/panel/active?id=${f.mission_id}&resubmit=${f.id}`)}>
-                    재작성
-                  </Btn>
+                {/* 탈락 사유 펼침 영역 */}
+                {isRejected && isReasonOpen && (
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '12px 20px', background: 'rgba(239,68,68,0.04)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--red, #ef4444)', fontWeight: 600, marginBottom: 4 }}>반려 사유</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>
+                      Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함한 피드백이 필요합니다.
+                    </div>
+                    {f.suggestions && (
+                      <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--surface)', borderRadius: 6, fontSize: 11, color: 'var(--text-3)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono)', lineHeight: 1.6 }}>
+                        {f.suggestions}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -169,7 +180,7 @@ export default function History() {
         </div>
       )}
 
-      {rejected.length > 0 && tab !== 'approved' && (
+      {tab !== 'approved' && rejected.length > 0 && (
         <Card style={{ marginTop: 20, borderColor: 'rgba(224,112,112,0.2)', background: 'var(--red-dim)' }}>
           <div style={{ fontSize: 13, color: 'var(--red)', fontWeight: 600, marginBottom: 6 }}>Purit Filter 탈락 안내</div>
           <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>

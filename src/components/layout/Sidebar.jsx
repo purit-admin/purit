@@ -65,14 +65,13 @@ const NAV = {
     {
       group: '미션',
       items: [
-        { path: '/panel/missions', label: '미션 탐색', icon: Search },
-        { path: '/panel/active', label: '진행 중', icon: PlayCircle },
+        { path: '/panel/missions', label: '미션 관리', icon: ClipboardList },
       ],
     },
     {
       group: '내 계정',
       items: [
-        { path: '/panel/history', label: '수익 이력', icon: Wallet },
+        { path: '/panel/history', label: '정산 내역', icon: Wallet },
         { path: '/panel/profile', label: '프로필 설정', icon: UserCog },
       ],
     },
