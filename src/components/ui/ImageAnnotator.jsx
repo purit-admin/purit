@@ -16,7 +16,7 @@ function getDimSeq(annotations, ann) {
   return sameDim.findIndex(a => a.id === ann.id) + 1;
 }
 
-export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations = [], onAdd, onRemove, readonly = false, activeDimension = 'clarity' }) {
+export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations = [], onAdd, onRemove, readonly = false, activeDimension = 'clarity', dragDisabled = false }) {
   const containerRef = useRef(null);
   const [dragging, setDragging]       = useState(false);
   const [dragStart, setDragStart]     = useState({ x: 0, y: 0 });
@@ -34,7 +34,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
   }, []);
 
   const handleMouseDown = useCallback((e) => {
-    if (readonly) return;
+    if (readonly || dragDisabled) return;
     if (e.button !== 0) return;
     e.preventDefault();
     const pct = getRelativePct(e.clientX, e.clientY);
@@ -105,7 +105,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
           position: 'relative',
           display: 'block',
           width: '100%',
-          cursor: readonly ? 'default' : 'crosshair',
+          cursor: (readonly || dragDisabled) ? 'default' : 'crosshair',
           userSelect: 'none',
         }}
       >
@@ -206,7 +206,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
       </div>
 
       {/* 안내 문구 */}
-      {!readonly && annotations.length === 0 && (
+      {!readonly && !dragDisabled && annotations.length === 0 && (
         <div style={{
           position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(0,0,0,0.55)', color: '#fff',

@@ -276,10 +276,10 @@ D-26. 수익 현황 집계 패턴 (Dashboard/History 공통)
      → Dashboard는 feedbacks를 별도 쿼리로 조회 (histFeedbacks state)
      → History와 동일한 집계 함수 패턴 사용 (reduce로 금액 합산)
 
-D-27. Results.jsx 미션 선택 칩 UI 문제 ⚠️ 미해결 (2026-04-29)
+D-27. Results.jsx 미션 선택 칩 UI 문제 ✅ 해결 (2026-04-30)
      → 미션이 10개 이상이면 상단에 칩 버튼이 여러 줄로 펼쳐져 지저분
-     → 해결 방향: 좌측 패널 구조로 변경 (메인/서브 섹션 분리)
-     → 파일: src/pages/company/Results.jsx (미션 selector 섹션)
+     → 해결: 좌측 230px 고정 패널 구조로 전면 재설계 (메인 의뢰 / 서브 의뢰 섹션 분리)
+     → Results.jsx 전체 재작성: 레이아웃 grid(230px 1fr), sticky 좌측 패널, 6탭 우측 콘텐츠
 
 D-28. 패널 이미지 피드백 제출 조건 강화 ✅ 해결 (2026-04-30)
      → src/pages/panel/ActiveMission.jsx 이미지 모드 완전 개편
@@ -287,12 +287,12 @@ D-28. 패널 이미지 피드백 제출 조건 강화 ✅ 해결 (2026-04-30)
      → 제출 조건: 5개 차원 각각 최소 1개 이상 어노테이션 + 총평 작성 모두 충족 시만 제출 가능
      → ImageAnnotator에 activeDimension prop 추가 — 드래그 완료 시 activeDimension을 팝업 초기값으로 고정
 
-D-29. 서브 미션 피드백 결과 지표 오분기 ⚠️ 미해결
-     → src/pages/company/Results.jsx: mission.type 무관하게 DIM(5축) 동일 표시
-     → 수정 필요: mission.type별 응답 테이블 조회 + 해당 지표 표시
-        - preference → preference_responses WHERE mission_id=selected
-        - pricing    → pricing_responses WHERE mission_id=selected
-        - email      → email_responses WHERE mission_id=selected
+D-29. 서브 미션 피드백 결과 지표 오분기 ✅ 해결 (2026-04-30)
+     → Results.jsx 재설계로 mission.type별 응답 테이블 분기 로드 + 타입별 결과 컴포넌트 분리
+        - preference → preference_responses → A/B 비율 + message_clarity/purchase_intent 평균
+        - pricing    → pricing_responses → would_buy 비율 + price_fairness/value_perception 평균
+        - email      → email_responses → would_reply 비율 + open_intent/hook/clarity/curiosity 평균
+     → 서브 미션 선택 시 5축 DIM 탭 표시 안 됨 (타입별 전용 컴포넌트로 대체)
 
 D-30. 기업 포털 UI 워딩 규칙 ✅ 정착
      → 기업(Company) 포털 화면에 표시되는 한글 텍스트: "의뢰" 사용
@@ -332,3 +332,24 @@ D-31. 미션 카드 반응형 CSS 클래스 패턴 ✅ 정착
      → 패턴: inline style로 색상/폰트 등 시각적 속성 관리, CSS 클래스로 반응형 구조 관리
      → 640px 이하에서 .mc-row는 flex-direction:column, .mc-right는 align-items:flex-start로 전환
      → 신규 미션 카드 추가 시 className="mc-row" / "mc-right" 먼저 적용할 것
+
+D-35. Results.jsx 차원 탭 + 전체 패널 어노테이션 집계 뷰 패턴 ✅ 정착 (2026-04-30)
+     → 이미지 미션 선택 시 6개 탭: 명확성/관련성/가치/차별화/신뢰/종합
+     → 차원 탭: ImageAnnotator(readonly) + annotations={allAnnotations.filter(a => a.dimension===dim && a.image_index===imgIdx)}
+        → 전체 패널의 어노테이션을 한 이미지 위에 오버레이로 집계 시각화
+     → 종합 탭: 5차원 평균 ScoreCard + RadarChart + extractOverallComment(fb.suggestions) 총평 목록
+     → DIM_META 상수: { key(DB컬럼), label(한글), short(단축코드), color, bg } 로 차원 메타 중앙 관리
+     → calcAvg(arr, key): null/0 제외 후 평균 계산 (valid 배열 기준)
+     → extractOverallComment(suggestions): /\[총평\]\n([\s\S]*?)$/ 정규식으로 총평 섹션 추출
+
+D-36. 미션 수정 editMode 패턴 ✅ 정착 (2026-04-30)
+     → Dashboard: 수정 버튼 조건 = m.status==='active' && m.filled_count===0
+        클릭 시 navigate('/company/new', { state: { editMode: true, missionId: m.id } })
+        버튼이 카드 클릭 이벤트 내부에 있으므로 e.stopPropagation() 필수
+     → NewMission: useLocation()으로 state 감지
+        const [missionUuid] = useState(() => editMissionId || crypto.randomUUID())
+        → Storage 경로와 DB id 동기화 (editMode에서는 기존 id 재사용)
+     → useEffect: editMode 마운트 시 missions 쿼리 → 각 Step 필드 pre-fill
+        기존 image_urls 유지 (재업로드 없으면 그대로 사용)
+     → handleSubmit 분기: editMode → missions UPDATE eq('id', editMissionId), 아니면 INSERT
+     → Step 3 경고 문구: "⚠️ 제출 후 첫 피드백이 수신되면 수정이 불가합니다."

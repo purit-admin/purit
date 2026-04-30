@@ -117,6 +117,19 @@ function CompanyMissionCard({ m, navigate }) {
           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
             {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
           </div>
+          {m.status === 'active' && filled === 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+              style={{
+                marginTop: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                borderRadius: 'var(--radius)', border: '1px solid var(--border)',
+                background: 'var(--surface-2)', color: 'var(--text-2)', cursor: 'pointer',
+                transition: 'all 0.12s',
+              }}
+            >
+              수정
+            </button>
+          )}
         </div>
       </div>
     </Card>

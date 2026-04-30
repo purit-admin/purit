@@ -57,6 +57,15 @@ function parseSubDesc(desc, type) {
   }
 }
 
+function getSkippedLabels(suggestions = '') {
+  const skipped = new Set();
+  (suggestions || '').split('\n').forEach(line => {
+    const m = line.match(/^\[(.+?) - 해당 없음\]$/);
+    if (m) skipped.add(m[1]);
+  });
+  return skipped;
+}
+
 export default function PurityFilter() {
   const [feedbacks, setFeedbacks]     = useState([]);
   const [selected, setSelected]       = useState(null);
@@ -154,6 +163,7 @@ export default function PurityFilter() {
     : feedbacks.filter(f => f.status === 'rejected');
 
   const fb = filtered.find(f => f.id === selected);
+  const fbSkippedLabels = fb ? getSkippedLabels(fb.suggestions) : new Set();
   const missionType = fb?.missions?.type;
   const isSubMission = ['preference', 'pricing', 'email'].includes(missionType);
   const score = fb ? (isSubMission ? calcSubPurityScore(subResponse, missionType) : calcPurityScore(fb)) : 0;
@@ -492,10 +502,15 @@ export default function PurityFilter() {
                     <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                       {DIM.map(({ key, label }) => {
                         const val = fb[key] || 0;
+                        const isSkipped = !val && fbSkippedLabels.has(label);
                         return (
                           <div key={key} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
                             <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-                            <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--accent)' : 'var(--red)' }}>{val}</div>
+                            {isSkipped ? (
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', padding: '3px 0' }}>해당 없음</div>
+                            ) : (
+                              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--accent)' : 'var(--red)' }}>{val}</div>
+                            )}
                           </div>
                         );
                       })}

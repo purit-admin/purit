@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Btn, Card } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -13,10 +13,14 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function NewMission() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isEditMode   = Boolean(location.state?.editMode);
+  const editMissionId = location.state?.missionId || null;
+
   const fileInputRef = useRef(null);
   const [step, setStep] = useState(0);
-  // mission UUID 사전 생성 — Storage 업로드 경로와 INSERT id를 일치시키기 위함
-  const [missionUuid] = useState(() => crypto.randomUUID());
+  // 편집 모드면 기존 미션 ID 사용, 신규면 UUID 생성 (Storage 경로와 일치)
+  const [missionUuid] = useState(() => editMissionId || crypto.randomUUID());
   const [form, setForm] = useState({
     company: '', product: '', industry: '', lpUrl: '',
     personaAge: '', personaIncome: '', personaRole: '', personaContext: '',
@@ -28,6 +32,26 @@ export default function NewMission() {
   const [uploadError, setUploadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  // 편집 모드: 기존 미션 데이터 pre-fill
+  useEffect(() => {
+    if (!isEditMode || !editMissionId) return;
+    async function load() {
+      const { data: ms } = await supabase.from('missions').select('*').eq('id', editMissionId).single();
+      if (!ms) return;
+      setForm(f => ({
+        ...f,
+        product:       ms.title || '',
+        lpUrl:         ms.target_url || '',
+        briefText:     ms.description || '',
+        panels:        ms.panel_count || 8,
+        focusAreas:    ms.assets || [],
+        imageUrls:     ms.image_urls || [],
+        personaContext: ms.persona || '',
+      }));
+    }
+    load();
+  }, []);
 
   const FOCUS = ['첫인상 / 가독성', 'CTA 전환율', '가격 및 가치 전달', '신뢰 요소', '모바일 최적화', '핵심 메시지 명확성', '비주얼 완성도', '타겟 일치도'];
 
@@ -99,22 +123,36 @@ export default function NewMission() {
         form.personaContext && form.personaContext,
       ].filter(Boolean).join(' / ');
 
-      const { error } = await supabase.from('missions').insert({
-        id:                missionUuid,
-        company_id:        company.id,
-        title:             form.product || '의뢰',
-        type:              'landing_page',
-        target_url:        form.lpUrl,
-        description:       form.briefText,
-        persona,
-        panel_count:       form.panels,
-        reward_amount:     (PRICE_PER[form.panels] || 90) * 1000,
-        status:            'active',
-        assets:            form.focusAreas,
-        image_urls:        form.imageUrls,
-        estimated_minutes: form.estimatedMinutes,
-      });
-      if (error) throw error;
+      if (isEditMode && editMissionId) {
+        const { error } = await supabase.from('missions').update({
+          title:         form.product || '의뢰',
+          target_url:    form.lpUrl,
+          description:   form.briefText,
+          persona,
+          panel_count:   form.panels,
+          reward_amount: (PRICE_PER[form.panels] || 90) * 1000,
+          assets:        form.focusAreas,
+          image_urls:    form.imageUrls,
+        }).eq('id', editMissionId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('missions').insert({
+          id:                missionUuid,
+          company_id:        company.id,
+          title:             form.product || '의뢰',
+          type:              'landing_page',
+          target_url:        form.lpUrl,
+          description:       form.briefText,
+          persona,
+          panel_count:       form.panels,
+          reward_amount:     (PRICE_PER[form.panels] || 90) * 1000,
+          status:            'active',
+          assets:            form.focusAreas,
+          image_urls:        form.imageUrls,
+          estimated_minutes: form.estimatedMinutes,
+        });
+        if (error) throw error;
+      }
       navigate('/company');
     } catch (err) {
       setSubmitError(err.message);
@@ -126,8 +164,8 @@ export default function NewMission() {
   return (
     <div style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 36 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>NEW MISSION</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>의뢰 등록</h1>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>{isEditMode ? 'EDIT MISSION' : 'NEW MISSION'}</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>{isEditMode ? '의뢰 수정' : '의뢰 등록'}</h1>
       </div>
 
       {/* Step indicator */}
@@ -353,6 +391,9 @@ export default function NewMission() {
             <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
               ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
             </div>
+            <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 'var(--radius)', fontSize: 13, color: '#ef4444' }}>
+              ⚠️ 제출 후 첫 피드백이 수신되면 수정이 불가합니다.
+            </div>
           </div>
         )}
       </Card>
@@ -368,7 +409,7 @@ export default function NewMission() {
           </div>
         )}
         <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()} size="md" disabled={submitting || uploading}>
-          {step === STEPS.length - 1 ? (submitting ? '제출 중...' : '의뢰 제출 →') : '다음 →'}
+          {step === STEPS.length - 1 ? (submitting ? '처리 중...' : isEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
         </Btn>
       </div>
     </div>

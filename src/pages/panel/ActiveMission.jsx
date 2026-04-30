@@ -869,14 +869,14 @@ export default function ActiveMission() {
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>이미지 어노테이션</h1>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-              차원을 선택하고, 해당 영역을 드래그해 점수를 남겨주세요
+              차원 탭을 클릭하고 해당 영역을 드래그하세요 · 5개 차원 모두 완료 후 총평 작성
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
-              {annotations.length}개
+            <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: Object.values(dimDone).filter(Boolean).length === 5 ? 'var(--green)' : 'var(--accent)' }}>
+              {Object.values(dimDone).filter(Boolean).length}/5
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>누적 어노테이션</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>차원 완료</div>
           </div>
         </div>
 
