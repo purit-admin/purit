@@ -48,6 +48,12 @@ export default function PanelProfile() {
   const [bankName, setBankName]   = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankHolder, setBankHolder]   = useState('');
+  const [phone, setPhone]             = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [otpSent, setOtpSent]         = useState(false);
+  const [otp, setOtp]                 = useState('');
+  const [otpLoading, setOtpLoading]   = useState(false);
+  const [otpError, setOtpError]       = useState('');
 
   useEffect(() => {
     async function load() {
@@ -67,6 +73,8 @@ export default function PanelProfile() {
         setBankName(p.bank_name || '');
         setBankAccount(p.bank_account || '');
         setBankHolder(p.bank_holder || '');
+        setPhone(p.phone || '');
+        setPhoneVerified(p.phone_verified || false);
       }
       setLoading(false);
     }
@@ -108,6 +116,26 @@ export default function PanelProfile() {
     setCurPw(''); setNewPw(''); setConfirmPw('');
     setTimeout(() => setPwMsg(''), 3000);
   }
+
+  const handleSendOtp = async () => {
+    if (!phone || phone.replace(/\D/g, '').length < 10) { setOtpError('올바른 번호를 입력해주세요.'); return; }
+    setOtpLoading(true);
+    setOtpError('');
+    await new Promise(r => setTimeout(r, 800));
+    setOtpSent(true);
+    setOtpLoading(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) { setOtpError('인증번호 6자리를 입력해주세요.'); return; }
+    setOtpLoading(true);
+    setOtpError('');
+    await new Promise(r => setTimeout(r, 600));
+    const { error } = await supabase.from('panels').update({ phone, phone_verified: true }).eq('id', panel.id);
+    if (error) { setOtpError('저장 중 오류가 발생했습니다.'); }
+    else { setPhoneVerified(true); setOtpSent(false); setOtp(''); }
+    setOtpLoading(false);
+  };
 
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
@@ -186,6 +214,9 @@ export default function PanelProfile() {
       {tab === 'profile' && (
         <Card>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ padding: '10px 14px', background: 'var(--accent-dim)', border: '1px solid rgba(251,189,35,0.3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
+              📌 기업에게는 이름과 핸드폰 번호는 공개되지 않습니다. 직군과 경력만 공개됩니다.
+            </div>
             <label style={lbl}>
               <span style={lblTxt}>이름</span>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="홍길동" />
@@ -207,6 +238,49 @@ export default function PanelProfile() {
                 placeholder="전문 분야와 경험을 간략히 소개해주세요."
                 rows={3} style={{ resize: 'vertical' }} />
             </label>
+            <div style={lbl}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={lblTxt}>핸드폰 번호</span>
+                {phoneVerified && <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 700 }}>✓ 인증 완료</span>}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={phone}
+                  onChange={e => { setPhone(e.target.value); setOtpSent(false); setOtpError(''); }}
+                  placeholder="010-0000-0000"
+                  disabled={phoneVerified}
+                  style={{ flex: 1 }}
+                />
+                {!phoneVerified && !otpSent && (
+                  <Btn size="sm" onClick={handleSendOtp} disabled={otpLoading} style={{ flexShrink: 0 }}>
+                    {otpLoading ? '발송 중...' : '인증번호 발송'}
+                  </Btn>
+                )}
+              </div>
+              {otpSent && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={otp}
+                    onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="인증번호 6자리"
+                    maxLength={6}
+                    style={{ flex: 1 }}
+                  />
+                  <Btn size="sm" onClick={handleVerifyOtp} disabled={otpLoading} style={{ flexShrink: 0 }}>
+                    {otpLoading ? '확인 중...' : '확인'}
+                  </Btn>
+                </div>
+              )}
+              {phoneVerified && (
+                <button
+                  onClick={() => { setPhoneVerified(false); setOtpSent(false); setOtp(''); setOtpError(''); }}
+                  style={{ alignSelf: 'flex-start', fontSize: 12, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                >
+                  번호 변경
+                </button>
+              )}
+              {otpError && <div style={{ fontSize: 12, color: 'var(--red)' }}>{otpError}</div>}
+            </div>
             <Btn
               style={{ alignSelf: 'flex-start' }}
               disabled={saving}

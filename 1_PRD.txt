@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-04-30 (패널 미션 관리 탭 통합 + 정산 내역 UX 개선)
+최종 업데이트: 2026-04-30 (패널 전화번호 인증 + 기업 Results 직군/경력 뱃지)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -79,7 +79,11 @@
         · 각 타입 응답 테이블 쿼리: eq('mission_id', selected)
      C. 텍스트 미션 (image_urls 없음 && !isSubMission): 기존 패널 목록+상세 뷰 유지
    - 공유 링크: 우측 미션 헤더 영역 배치 (missions.share_token 생성/복사/해제)
-   - ※ panels 조인 없음 (RLS 차단 원칙 D-32 준수)
+   - 패널 직군/경력 뱃지: 각 피드백 항목 옆에 패널의 직군(blue)·경력(gray) 뱃지 표시
+     · 이름·전화번호 비공개 — get_panel_public_profiles RPC(SECURITY DEFINER) 경유
+     · 표시 위치: 종합 탭 총평, 차원 탭 어노테이션, 텍스트 미션 패널 목록,
+                  소재비교·가격검증·이메일검증 코멘트 항목
+   - ※ panels 조인 없음 (RLS 차단 원칙 D-28 준수)
 
 4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
    - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
@@ -284,6 +288,11 @@
 
 5. 프로필 설정 (/panel/profile) — Profile.jsx
    - 탭 기본 정보: 이름·직군·경력·자기소개 → panels UPDATE
+     · 개인정보 안내 박스: "기업에게는 이름과 핸드폰 번호는 공개되지 않습니다. 직군과 경력만 공개됩니다."
+     · 핸드폰 번호 Mock OTP 인증 섹션 (자기소개 아래):
+       - 번호 입력 → "인증번호 발송" (800ms delay mock) → OTP 6자리 입력 → "확인" (600ms delay)
+       - 6자리 아무 숫자 허용 (Mock 환경) → 성공 시 phone·phone_verified=true DB UPDATE
+       - 인증 완료 시 "✓ 인증 완료" 뱃지 표시, "번호 변경" 링크로 재인증 가능
    - 탭 전문 분야: expertise 배열 토글 → panels UPDATE
    - 탭 정산 계좌: bank_name·bank_account·bank_holder → panels UPDATE
    - 탭 비밀번호: signInWithPassword 검증 → supabase.auth.updateUser({ password })  ★ 신규

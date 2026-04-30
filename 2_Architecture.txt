@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-04-30 (패널 미션 관리 탭 통합 + 정산 내역 사이드바 정리)
+최종 업데이트: 2026-04-30 (패널 전화번호 인증 + 기업 Results 직군/경력 뱃지)
 ================================================================
 
 ## 기술 스택
@@ -129,7 +129,10 @@ purit/
   streak_count      INT   DEFAULT 0  (최근 7일 내 submitted 건수)
   last_mission_date TIMESTAMPTZ
   badges            TEXT[]  DEFAULT '{}'
+  phone             TEXT    (핸드폰 번호, 기업에게 비공개)
+  phone_verified    BOOLEAN DEFAULT false
   ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
+  ※ 012_panel_phone_public_profiles.sql 에서 phone / phone_verified 컬럼 추가
 
 ---
 
@@ -401,6 +404,12 @@ purit/
     → trust_score / tier / streak_count / last_mission_date / badges 자동 계산·갱신
     → 피드백 제출 성공 후 ActiveMission.jsx에서 호출
     → 파일: supabase/migrations/009_gamification.sql
+
+  get_panel_public_profiles(p_mission_id UUID) RETURNS TABLE(panel_id UUID, industry TEXT, experience TEXT)
+    → 해당 미션의 feedbacks(status≠draft)를 제출한 패널의 공개 정보만 반환
+    → 기업 Results.jsx에서 직군/경력 뱃지 표시에 사용 (이름·연락처·계좌 제외)
+    → panels RLS가 기업의 직접 JOIN을 차단(D-28)하므로 SECURITY DEFINER RPC로 우회
+    → 파일: supabase/migrations/012_panel_phone_public_profiles.sql
 
   get_shared_mission(p_token TEXT) RETURNS jsonb
     → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 반환
