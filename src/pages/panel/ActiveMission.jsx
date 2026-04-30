@@ -59,7 +59,7 @@ function parseSubDesc(desc, type) {
 
 function TypedQuestionsBlock({ qs, get, set }) {
   const TYPE_COLOR_LOCAL = { radio: 'var(--blue)', scale: 'var(--accent)', text: 'var(--green)' };
-  const TYPE_LABEL_LOCAL = { radio: '라디오', scale: '척도', text: '서술' };
+  const TYPE_LABEL_LOCAL = { radio: '옵션형', scale: '점수형', text: '서술형' };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 4 }}>
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>

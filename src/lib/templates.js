@@ -139,5 +139,5 @@ export const TEMPLATE_BY_NAME = Object.fromEntries(
   Object.values(QUESTION_TEMPLATES).flat().map(t => [t.name, t])
 );
 
-export const TYPE_LABEL = { radio: '라디오', scale: '척도', text: '서술' };
+export const TYPE_LABEL = { radio: '옵션형', scale: '점수형', text: '서술형' };
 export const TYPE_COLOR = { radio: 'var(--blue)', scale: 'var(--accent)', text: 'var(--green)' };

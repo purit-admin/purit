@@ -182,7 +182,7 @@ export default function QuestionTemplates() {
                     const dbQs = selectedTemplate.template_questions || [];
                     const localQs = TEMPLATE_BY_NAME[selectedTemplate.name]?.questions || [];
                     const questions = dbQs.length > 0 ? dbQs : localQs;
-                    const TYPE_LABEL = { radio: '라디오', scale: '척도', text: '서술' };
+                    const TYPE_LABEL = { radio: '옵션형', scale: '점수형', text: '서술형' };
                     const TYPE_COLOR = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
                     const TYPE_BG = { radio: 'rgba(59,130,246,0.13)', scale: 'rgba(99,102,241,0.13)', text: 'rgba(52,199,89,0.13)' };
                     return questions.map((q, i) => {
@@ -202,7 +202,7 @@ export default function QuestionTemplates() {
                           </span>
                           <span style={{ color: 'var(--text-2)', lineHeight: 1.6, flex: 1 }}>{qText}</span>
                           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: TYPE_BG[qType], color: TYPE_COLOR[qType], border: `1px solid ${TYPE_COLOR[qType]}44` }}>
-                            {TYPE_LABEL[qType] || '서술'}
+                            {TYPE_LABEL[qType] || '서술형'}
                           </span>
                         </div>
                       );
