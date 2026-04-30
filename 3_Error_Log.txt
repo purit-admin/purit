@@ -276,7 +276,7 @@ D-26. 수익 현황 집계 패턴 (Dashboard/History 공통)
      → Dashboard는 feedbacks를 별도 쿼리로 조회 (histFeedbacks state)
      → History와 동일한 집계 함수 패턴 사용 (reduce로 금액 합산)
 
-D-27. Results.jsx 미션 선택 칩 UI 문제 ⚠️ 미해결
+D-31. Results.jsx 미션 선택 칩 UI 문제 ⚠️ 미해결 (2026-04-29)
      → 미션이 10개 이상이면 상단에 칩 버튼이 여러 줄로 펼쳐져 지저분
      → 해결 방향: 좌측 패널 구조로 변경 (메인/서브 섹션 분리)
      → 파일: src/pages/company/Results.jsx (미션 selector 섹션)
