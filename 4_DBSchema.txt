@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-04-30 (012_typed_template_questions — template_questions 타입 컬럼 + 응답 테이블 custom_answers + 신규 3개 템플릿)
+최종 업데이트: 2026-05-01 (013_custom_question_rls — question_templates / template_questions RLS 활성화)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -184,6 +184,8 @@
   is_default  BOOL  DEFAULT false
   created_at  TIMESTAMPTZ
 
+  ※ RLS (013): SELECT(is_default=true OR 본인 company), INSERT/UPDATE/DELETE(본인 company)
+
 ### [template_questions] — 템플릿 세부 문항
   id             UUID  PK
   template_id    UUID  FK → question_templates.id  ON DELETE CASCADE
@@ -192,6 +194,7 @@
   question_type  TEXT  NOT NULL DEFAULT 'text'  ← 012 추가 (radio|scale|text)
   options        JSONB NOT NULL DEFAULT '[]'     ← 012 추가 (radio 선택지 배열)
   ※ 012 실행 후 9종 템플릿 전체에 question_type/options 값 반영됨
+  ※ RLS (013): SELECT(연결된 template이 is_default=true OR 본인 company), INSERT/DELETE(본인 company template)
 
 ---
 

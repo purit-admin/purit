@@ -507,7 +507,7 @@ export default function PricingTest() {
                   {/* 질문 만들기 */}
                   <div style={{ marginTop: 14, border: `1px solid ${localCustomQs.length > 0 ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '14px 14px 10px', transition: 'border-color 0.2s' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span>질문 만들기 <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 400 }}>(이 의뢰에만 사용)</span></span>
+                      <span>질문 만들기</span>
                       {localCustomQs.length > 0 && (
                         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '2px 8px', borderRadius: 10 }}>+{localCustomQs.length}개 추가됨</span>
                       )}
