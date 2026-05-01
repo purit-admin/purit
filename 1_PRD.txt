@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-01 (CustomQuestionsSection 아코디언 UI, 패널 코멘트 최하단 배치, 타입 뱃지 통일)
+최종 업데이트: 2026-05-01 (서브 의뢰 목록 missions 테이블 기반으로 통일, 패널 서브미션 노출 버그 수정)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -108,8 +108,11 @@
    - Recharts LineChart: 5차원 점수 시계열 변화
    - 하단 요약 테이블 (점수 색상 코딩)
 
-5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 커스텀 질문 빌더 개편 (2026-05-01)
-   - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
+5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 목록 missions 테이블 기반으로 개편 (2026-05-01)
+   - 목록: missions 테이블에서 type='preference' 필터로 로드 (preference_tests 테이블 의존 제거)
+     · 목록 카드 클릭 → navigate('/company/results?id=…') — 별도 결과 뷰 없음
+     · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
+   - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 소재 유형 선택 (이미지/텍스트/랜딩페이지)
    - Step 1: 소재 A/B 입력 + 이미지 업로드 (선택, 각 1장)
      · variantA / variantB 텍스트 필수 — 둘 중 하나라도 비어있으면 다음 단계 불가
@@ -137,8 +140,11 @@
    - 제출 후 missionUuid 리셋 (중복 제출 방지)
    - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 + CustomQuestionsSection
 
-6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 커스텀 질문 빌더 개편 (2026-05-01)
-   - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
+6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 목록 missions 테이블 기반으로 개편 (2026-05-01)
+   - 목록: missions 테이블에서 type='pricing' 필터로 로드 (pricing_tests 테이블 의존 제거)
+     · 목록 카드 클릭 → navigate('/company/results?id=…') — 별도 결과 뷰 없음
+     · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
+   - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 가격 페이지 입력 + 이미지 업로드 (선택, 1장)
      · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
    - Step 1: 제품/타겟 설명 입력 (productDescription)
@@ -148,8 +154,11 @@
        selectedQuestions: [...selectedQuestions, ...localCustomQs]})) + pricing_tests INSERT
    - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + CustomQuestionsSection
 
-7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 커스텀 질문 빌더 개편 (2026-05-01)
-   - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
+7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 목록 missions 테이블 기반으로 개편 (2026-05-01)
+   - 목록: missions 테이블에서 type='email' 필터로 로드 (cold_email_tests 테이블 의존 제거)
+     · 목록 카드 클릭 → navigate('/company/results?id=…') — 별도 결과 뷰 없음
+     · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
+   - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 이메일 원문 설명 입력
    - Step 1: 제품/타겟 설명 입력 (productDescription)
    - Step 2: 패널 수 + 질문 설정 (5항목과 동일 구조, category='이메일')

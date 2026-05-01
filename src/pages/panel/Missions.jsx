@@ -244,7 +244,7 @@ export default function MissionList() {
   const filtered = (() => {
     if (filter === 'new') {
       let list = missions.filter(m =>
-        !feedbackMap[m.id] && m.status === 'active' && (m.filled_count || 0) < (m.panel_count || 0)
+        !feedbackMap[m.id] && m.status === 'active' && (m.filled_count || 0) < (m.panel_count || 1)
       );
       if (isHighTier) list = [...list].sort((a, b) => (b.reward_amount || 0) - (a.reward_amount || 0));
       return list;

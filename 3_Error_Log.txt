@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-04-30 (D-31 질문 데이터 구조 마이그레이션 하위 호환 패턴 추가)
+최종 업데이트: 2026-05-01 (D-24 서브 미션 목록 missions 테이블 기반 원칙 추가)
 ================================================================
 
 ## 핵심 원칙
@@ -257,10 +257,13 @@ D-24. 서브 미션 사이드 테이블 INSERT silent failure 패턴 ✅ 해결
      → 문제: missions INSERT 성공 후 preference_tests/pricing_tests/cold_email_tests INSERT가
              RLS 또는 스키마 제약으로 실패하면 catch로 빠져 navigate('/company')가 실행 안 됨
      → 증상: 미션 제출 버튼 클릭 후 화면이 전환되지 않고 멈춤 (missions는 DB에 저장됨)
-     → 해결: 사이드 테이블 INSERT 에러를 `if (tErr) throw tErr` → `if (tErr) console.warn(...)` 으로 변경
+     → 해결 1 (등록): 사이드 테이블 INSERT 에러를 `if (tErr) throw tErr` → `if (tErr) console.warn(...)` 으로 변경
              missions INSERT 성공만 보장되면 navigate('/company') 항상 실행
-     → 주의: 이 패턴 적용 후 사이드 테이블 데이터 누락 가능성 있음
-             → 실제 환경에서 RLS 정책 점검 및 서브 테이블 INSERT 권한 확인 권장
+     → 해결 2 (목록): PreferenceTest/PricingTest/ColdEmailTest 목록 뷰를 사이드 테이블이 아닌
+             missions 테이블(type 필터)에서 로드 — 사이드 테이블 누락 시에도 목록 정상 표시
+             목록 카드 클릭 시 navigate('/company/results?id=…') → Results.jsx가 mission_id로 집계
+     → 원칙: missions 테이블이 서브 미션의 유일한 목록 진실 원천 — 사이드 테이블은 응답 집계 보조용
+             결과 조회는 response 테이블의 mission_id 컬럼 기준으로 처리 (test_id 의존 금지)
 
 D-25. 패널 대시보드 참여 가능 수 불일치 원인 ✅ 해결
      → 원인 1: Dashboard가 limit(10) 제한으로 최대 10개만 로드 → 실제 수보다 적게 표시

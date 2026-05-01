@@ -52,9 +52,7 @@ export default function PreferenceTest() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [savingToTemplate, setSavingToTemplate] = useState(false);
 
-  const [tests, setTests] = useState([]);
-  const [selectedTest, setSelectedTest] = useState(null);
-  const [results, setResults] = useState(null);
+  const [missions, setMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState(null);
@@ -86,9 +84,11 @@ export default function PreferenceTest() {
     const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
     setCompanyId(co?.id);
     if (co) {
-      const { data: testsData } = await supabase
-        .from('preference_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
-      setTests(testsData || []);
+      const { data: missionsData } = await supabase
+        .from('missions').select('id, title, status, panel_count, filled_count, created_at')
+        .eq('company_id', co.id).eq('type', 'preference').neq('status', 'cancelled')
+        .order('created_at', { ascending: false });
+      setMissions(missionsData || []);
       const { data: ctData } = await supabase
         .from('question_templates')
         .select('template_questions(id, question_text, question_type, options, question_order)')
@@ -240,28 +240,6 @@ export default function PreferenceTest() {
     }
   }
 
-  async function loadResults(test) {
-    setSelectedTest(test);
-    const { data: responses } = await supabase
-      .from('preference_responses')
-      .select('preference, comment, message_clarity, purchase_intent')
-      .eq('test_id', test.id);
-    if (responses) {
-      const total = responses.length;
-      const aCount = responses.filter(r => r.preference === 'A').length;
-      const clarityVals = responses.filter(r => r.message_clarity);
-      const intentVals = responses.filter(r => r.purchase_intent);
-      setResults({
-        total, aPercent: total ? Math.round((aCount / total) * 100) : 0,
-        bPercent: total ? Math.round(((total - aCount) / total) * 100) : 0,
-        aComments: responses.filter(r => r.preference === 'A' && r.comment).map(r => r.comment),
-        bComments: responses.filter(r => r.preference === 'B' && r.comment).map(r => r.comment),
-        avgClarity: clarityVals.length ? (clarityVals.reduce((s, r) => s + r.message_clarity, 0) / clarityVals.length).toFixed(1) : null,
-        avgIntent: intentVals.length ? (intentVals.reduce((s, r) => s + r.purchase_intent, 0) / intentVals.length).toFixed(1) : null,
-      });
-    }
-  }
-
   if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>로딩 중…</div>;
 
   return (
@@ -273,7 +251,7 @@ export default function PreferenceTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>소재 비교 A/B</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>두 소재를 패널에게 제시하고, 어느 쪽이 더 전환에 기여하는지 측정합니다.</p>
           </div>
-          {view === 'create' && <Btn variant="ghost" onClick={() => setView('list')}>취소</Btn>}
+          {view !== 'list' && <Btn variant="ghost" onClick={() => setView('list')}>← 목록</Btn>}
         </div>
       </div>
 
@@ -679,7 +657,7 @@ export default function PreferenceTest() {
 
       {/* ── 목록 ── */}
       {view === 'list' && (
-        tests.length === 0 ? (
+        missions.length === 0 ? (
           <Card style={{ padding: '60px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>◎</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 테스트가 없습니다</div>
@@ -688,29 +666,22 @@ export default function PreferenceTest() {
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>
-            {tests.map(test => (
-              <Card key={test.id} style={{ cursor: 'pointer' }} onClick={() => { loadResults(test); setView('result'); }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <Btn size="sm" onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
+            </div>
+            {missions.map(m => (
+              <Card key={m.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/company/results?id=${m.id}`)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <Badge type={test.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
-                      {test.status === 'completed' ? '완료' : '진행중'}
+                    <Badge type={m.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
+                      {m.status === 'completed' ? '완료' : '진행중'}
                     </Badge>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
-                      {ASSET_TYPES.find(a => a.key === test.asset_type)?.label || test.asset_type}
-                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '소재 비교 A/B'}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      패널 {test.panel_size}명 · {new Date(test.created_at).toLocaleDateString('ko-KR')}
+                      {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
                     </div>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--accent)' }}>결과 보기 →</div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
-                  {[['A', test.variant_a, 'var(--blue)'], ['B', test.variant_b, 'var(--accent)']].map(([label, text, color]) => (
-                    <div key={label} style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', borderLeft: `3px solid ${color}` }}>
-                      <span style={{ fontWeight: 700, color, marginRight: 6 }}>{label}</span>
-                      {text.slice(0, 60)}{text.length > 60 ? '…' : ''}
-                    </div>
-                  ))}
                 </div>
               </Card>
             ))}
@@ -728,59 +699,6 @@ export default function PreferenceTest() {
         />
       )}
 
-      {/* ── 결과 ── */}
-      {view === 'result' && selectedTest && (
-        <div>
-          <button onClick={() => { setView('list'); setSelectedTest(null); setResults(null); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 13, marginBottom: 20 }}>
-            ← 목록으로
-          </button>
-          {!results || results.total === 0 ? (
-            <Card style={{ padding: '40px', textAlign: 'center' }}>
-              <div style={{ color: 'var(--text-3)', fontSize: 13 }}>아직 응답이 없습니다. 패널 수집 후 다시 확인하세요.</div>
-            </Card>
-          ) : (
-            <div style={{ display: 'grid', gap: 16 }}>
-              <Card>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>선호도 결과 ({results.total}명 응답)</div>
-                {[['A', results.aPercent, 'var(--blue)'], ['B', results.bPercent, 'var(--accent)']].map(([label, pct, color]) => (
-                  <div key={label} style={{ marginBottom: 14 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                      <span style={{ fontWeight: 700, color }}>소재 {label}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color }}>{pct}%</span>
-                    </div>
-                    <div style={{ height: 12, background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 6, transition: 'width 0.8s ease' }} />
-                    </div>
-                  </div>
-                ))}
-                {results.avgClarity && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                    {[['메시지 명확성', results.avgClarity], ['구매 전환 의향', results.avgIntent]].map(([lbl, val]) => (
-                      <div key={lbl} style={{ padding: '12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{val}<span style={{ fontSize: 14 }}>/5</span></div>
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{lbl}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-              {[['A', results.aComments, 'var(--blue)'], ['B', results.bComments, 'var(--accent)']].map(([label, comments, color]) =>
-                comments.length > 0 && (
-                  <div key={label}>
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color }}>소재 {label} 코멘트</div>
-                    {comments.map((c, i) => (
-                      <div key={i} style={{ padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', marginBottom: 6, borderLeft: `3px solid ${color}` }}>
-                        "{c}"
-                      </div>
-                    ))}
-                  </div>
-                )
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

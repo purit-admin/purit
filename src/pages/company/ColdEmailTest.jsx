@@ -4,12 +4,6 @@ import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
-const METRIC_META = {
-  hook:      { label: '훅 강도',    color: 'var(--accent)', desc: '첫 문장이 계속 읽게 만드는가?' },
-  clarity:   { label: '제안 명확성', color: 'var(--blue)',   desc: '무엇을 원하는지 즉시 이해되는가?' },
-  curiosity: { label: '호기심 유발', color: '#C084FC',       desc: '답장하고 싶은 욕구를 만드는가?' },
-  relevance: { label: '관련성',     color: 'var(--green)',  desc: '나와 관련있는 내용이라고 느끼는가?' },
-};
 
 const PANEL_COUNTS = [10, 15, 20, 30];
 const PRICE_PER = { 10: 90, 15: 130, 20: 170, 30: 250 };
@@ -43,10 +37,7 @@ export default function ColdEmailTest() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [savingToTemplate, setSavingToTemplate] = useState(false);
 
-  const [tests, setTests] = useState([]);
-  const [selectedTest, setSelectedTest] = useState(null);
-  const [metrics, setMetrics] = useState([]);
-  const [responses, setResponses] = useState([]);
+  const [missions, setMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState(null);
@@ -75,9 +66,11 @@ export default function ColdEmailTest() {
     const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
     setCompanyId(co?.id);
     if (co) {
-      const { data: testsData } = await supabase
-        .from('cold_email_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
-      setTests(testsData || []);
+      const { data: missionsData } = await supabase
+        .from('missions').select('id, title, status, panel_count, filled_count, created_at')
+        .eq('company_id', co.id).eq('type', 'email').neq('status', 'cancelled')
+        .order('created_at', { ascending: false });
+      setMissions(missionsData || []);
       const { data: ctData } = await supabase
         .from('question_templates')
         .select('template_questions(id, question_text, question_type, options, question_order)')
@@ -200,25 +193,7 @@ export default function ColdEmailTest() {
     }
   }
 
-  async function loadResults(test) {
-    setSelectedTest(test);
-    const [mRes, rRes] = await Promise.all([
-      supabase.from('email_metrics').select('*').eq('test_id', test.id),
-      supabase.from('email_responses').select('*').eq('test_id', test.id),
-    ]);
-    setMetrics(mRes.data || []);
-    setResponses(rRes.data || []);
-    setView('result');
-  }
-
   if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>로딩 중…</div>;
-
-  const replyCount = responses.filter(r => r.would_reply).length;
-  const replyRate = responses.length ? Math.round((replyCount / responses.length) * 100) : 0;
-  const openVals = responses.filter(r => r.open_intent);
-  const curiosityVals = responses.filter(r => r.curiosity_score);
-  const avgOpenIntent = openVals.length ? openVals.reduce((s, r) => s + r.open_intent, 0) / openVals.length : 0;
-  const avgCuriosity = curiosityVals.length ? curiosityVals.reduce((s, r) => s + r.curiosity_score, 0) / curiosityVals.length : 0;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
@@ -229,7 +204,7 @@ export default function ColdEmailTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>이메일 검증</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>대량 발송 전 타겟 패널에게 먼저 검증받아 개봉률과 답장율을 높이세요.</p>
           </div>
-          {view !== 'list' && <Btn variant="ghost" onClick={() => { setView('list'); setSelectedTest(null); }}>← 목록</Btn>}
+          {view !== 'list' && <Btn variant="ghost" onClick={() => setView('list')}>← 목록</Btn>}
         </div>
       </div>
 
@@ -584,7 +559,7 @@ export default function ColdEmailTest() {
 
       {/* ── 목록 ── */}
       {view === 'list' && (
-        tests.length === 0 ? (
+        missions.length === 0 ? (
           <Card style={{ padding: '60px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 이메일 테스트가 없습니다</div>
@@ -593,24 +568,25 @@ export default function ColdEmailTest() {
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>
-            {tests.map(test => (
-              <Card key={test.id} style={{ cursor: 'pointer' }} onClick={() => loadResults(test)}>
+            {missions.map(m => (
+              <Card key={m.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/company/results?id=${m.id}`)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
-                    <Badge type={test.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
-                      {test.status === 'completed' ? '완료' : '진행중'}
+                    <Badge type={(m.filled_count || 0) >= m.panel_count ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
+                      {(m.filled_count || 0) >= m.panel_count ? '완료' : '진행중'}
                     </Badge>
-                    <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, maxWidth: 600 }}>
-                      {test.email_text.slice(0, 100)}{test.email_text.length > 100 ? '…' : ''}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
-                      {new Date(test.created_at).toLocaleDateString('ko-KR')}
+                    <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{m.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
+                      패널 {m.filled_count || 0}/{m.panel_count}명 · {new Date(m.created_at).toLocaleDateString('ko-KR')}
                     </div>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--accent)', flexShrink: 0, marginLeft: 16 }}>결과 보기 →</div>
                 </div>
               </Card>
             ))}
+            <div style={{ textAlign: 'center', marginTop: 4 }}>
+              <Btn variant="secondary" onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
+            </div>
           </div>
         )
       )}
@@ -625,75 +601,6 @@ export default function ColdEmailTest() {
         />
       )}
 
-      {/* ── 결과 ── */}
-      {view === 'result' && selectedTest && (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {metrics.length === 0 && responses.length === 0 ? (
-            <Card style={{ padding: '40px', textAlign: 'center' }}>
-              <div style={{ color: 'var(--text-3)', fontSize: 13 }}>아직 패널 응답이 없습니다. 수집 후 다시 확인하세요.</div>
-            </Card>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                {[
-                  { label: '예상 답장율', value: `${replyRate}%`, color: replyRate >= 20 ? 'var(--green)' : replyRate >= 10 ? 'var(--accent)' : 'var(--red)' },
-                  { label: '개봉 의향', value: openVals.length ? `${avgOpenIntent.toFixed(1)}/5` : '—', color: 'var(--blue)' },
-                  { label: '호기심 유발', value: curiosityVals.length ? `${avgCuriosity.toFixed(1)}/5` : '—', color: '#C084FC' },
-                ].map(s => (
-                  <div key={s.label} style={{ padding: '16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: s.color, fontFamily: 'var(--font-mono)' }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              {metrics.length > 0 && (
-                <Card>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>4축 진단 점수</div>
-                  {Object.entries(METRIC_META).map(([key, meta]) => {
-                    const m = metrics.find(x => x.metric_key === key);
-                    const score = m ? Number(m.score) : 0;
-                    return (
-                      <div key={key} style={{ marginBottom: 14 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                          <div>
-                            <span style={{ fontWeight: 600 }}>{meta.label}</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>{meta.desc}</span>
-                          </div>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: meta.color }}>{score.toFixed(1)}/5</span>
-                        </div>
-                        <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: meta.color, borderRadius: 4, transition: 'width 0.8s ease' }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </Card>
-              )}
-              <Card>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>검증된 이메일 원문</div>
-                <pre style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: 'var(--bg-3)', padding: '14px', borderRadius: 'var(--radius)', margin: 0 }}>
-                  {selectedTest.email_text}
-                </pre>
-              </Card>
-              {responses.length > 0 && (
-                <Card>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>패널 피드백 ({responses.length}명)</div>
-                  {responses.map((r, i) => (
-                    <div key={r.id} style={{ padding: '14px 0', borderBottom: i < responses.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: r.comment ? 8 : 0 }}>
-                        <Badge type={r.would_reply ? 'green' : 'red'}>{r.would_reply ? '답장하겠음' : '답장 안 함'}</Badge>
-                        {r.hook_score && <span style={{ fontSize: 12, color: 'var(--text-3)' }}>훅 {r.hook_score}/5</span>}
-                        {r.clarity_score && <span style={{ fontSize: 12, color: 'var(--text-3)' }}>명확성 {r.clarity_score}/5</span>}
-                      </div>
-                      {r.comment && <div style={{ fontSize: 13, color: 'var(--text-2)', paddingLeft: 10, borderLeft: '2px solid var(--border)' }}>"{r.comment}"</div>}
-                    </div>
-                  ))}
-                </Card>
-              )}
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }

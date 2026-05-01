@@ -45,10 +45,7 @@ export default function PricingTest() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [savingToTemplate, setSavingToTemplate] = useState(false);
 
-  const [tests, setTests] = useState([]);
-  const [selectedTest, setSelectedTest] = useState(null);
-  const [axes, setAxes] = useState([]);
-  const [responses, setResponses] = useState([]);
+  const [missions, setMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState(null);
@@ -79,9 +76,11 @@ export default function PricingTest() {
     const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
     setCompanyId(co?.id);
     if (co) {
-      const { data: testsData } = await supabase
-        .from('pricing_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
-      setTests(testsData || []);
+      const { data: missionsData } = await supabase
+        .from('missions').select('id, title, status, panel_count, filled_count, created_at')
+        .eq('company_id', co.id).eq('type', 'pricing').neq('status', 'cancelled')
+        .order('created_at', { ascending: false });
+      setMissions(missionsData || []);
       const { data: ctData } = await supabase
         .from('question_templates')
         .select('template_questions(id, question_text, question_type, options, question_order)')
@@ -226,25 +225,7 @@ export default function PricingTest() {
     }
   }
 
-  async function loadResults(test) {
-    setSelectedTest(test);
-    const [axesRes, respRes] = await Promise.all([
-      supabase.from('pricing_axes').select('*').eq('test_id', test.id),
-      supabase.from('pricing_responses').select('*').eq('test_id', test.id),
-    ]);
-    setAxes(axesRes.data || []);
-    setResponses(respRes.data || []);
-    setView('result');
-  }
-
   if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>로딩 중…</div>;
-
-  const buyCount = responses.filter(r => r.would_buy).length;
-  const buyRate = responses.length ? Math.round((buyCount / responses.length) * 100) : 0;
-  const fairnessVals = responses.filter(r => r.price_fairness);
-  const valueVals = responses.filter(r => r.value_perception);
-  const avgFairness = fairnessVals.length ? fairnessVals.reduce((s, r) => s + r.price_fairness, 0) / fairnessVals.length : 0;
-  const avgValue = valueVals.length ? valueVals.reduce((s, r) => s + r.value_perception, 0) / valueVals.length : 0;
 
   return (
     <div style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
@@ -255,7 +236,7 @@ export default function PricingTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>가격 페이지 검증</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>가격 구조의 명확성·지각 가치·행동 장벽·경쟁 포지셔닝을 4축으로 진단합니다.</p>
           </div>
-          {(view === 'create' || view === 'result') && <Btn variant="ghost" onClick={() => { setView('list'); setSelectedTest(null); }}>← 목록</Btn>}
+          {view !== 'list' && <Btn variant="ghost" onClick={() => setView('list')}>← 목록</Btn>}
         </div>
       </div>
 
@@ -625,7 +606,7 @@ export default function PricingTest() {
 
       {/* ── 목록 ── */}
       {view === 'list' && (
-        tests.length === 0 ? (
+        missions.length === 0 ? (
           <Card style={{ padding: '60px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>₩</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 테스트가 없습니다</div>
@@ -634,16 +615,19 @@ export default function PricingTest() {
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>
-            {tests.map(test => (
-              <Card key={test.id} style={{ cursor: 'pointer' }} onClick={() => loadResults(test)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <Btn size="sm" onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
+            </div>
+            {missions.map(m => (
+              <Card key={m.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/company/results?id=${m.id}`)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <Badge type={test.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
-                      {test.status === 'completed' ? '완료' : '진행중'}
+                    <Badge type={m.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
+                      {m.status === 'completed' ? '완료' : '진행중'}
                     </Badge>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>가격 페이지 4축 진단</div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{m.title || '가격 페이지 검증'}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
-                      {new Date(test.created_at).toLocaleDateString('ko-KR')}
+                      {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
                     </div>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--accent)' }}>결과 보기 →</div>
@@ -664,72 +648,6 @@ export default function PricingTest() {
         />
       )}
 
-      {/* ── 결과 ── */}
-      {view === 'result' && selectedTest && (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {axes.length === 0 && responses.length === 0 ? (
-            <Card style={{ padding: '40px', textAlign: 'center' }}>
-              <div style={{ color: 'var(--text-3)', fontSize: 13 }}>아직 패널 응답이 없습니다. 수집 후 다시 확인하세요.</div>
-            </Card>
-          ) : (
-            <>
-              {responses.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                  {[
-                    { label: '구매 의향', value: `${buyRate}%`, color: buyRate >= 60 ? 'var(--green)' : buyRate >= 40 ? 'var(--accent)' : 'var(--red)' },
-                    { label: '가격 적절성', value: fairnessVals.length ? `${avgFairness.toFixed(1)}/5` : '—', color: 'var(--blue)' },
-                    { label: '가치 인식', value: valueVals.length ? `${avgValue.toFixed(1)}/5` : '—', color: 'var(--accent)' },
-                  ].map(s => (
-                    <div key={s.label} style={{ padding: '16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                      <div style={{ fontSize: 24, fontWeight: 800, color: s.color, fontFamily: 'var(--font-mono)' }}>{s.value}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-                {AXES.map(a => {
-                  const axisData = axes.find(x => x.axis_key === a.key);
-                  const score = axisData ? Number(axisData.score) : 0;
-                  return (
-                    <Card key={a.key} style={{ padding: '18px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                        <span style={{ fontSize: 20, color: a.color }}>{a.icon}</span>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 14 }}>{a.label}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{a.desc}</div>
-                        </div>
-                        <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 22, color: a.color }}>{score.toFixed(1)}</span>
-                      </div>
-                      <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: a.color, borderRadius: 3, transition: 'width 0.8s ease' }} />
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-              {responses.length > 0 && (
-                <Card>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>패널 응답 ({responses.length}명)</div>
-                  {responses.map((r, i) => (
-                    <div key={r.id} style={{ padding: '14px 0', borderBottom: i < responses.length - 1 ? '1px solid var(--border)' : 'none', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                      <Badge type={r.would_buy ? 'green' : 'red'}>{r.would_buy ? '구매 의향 있음' : '구매 의향 없음'}</Badge>
-                      <div style={{ flex: 1 }}>
-                        {r.key_comment && <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 6 }}>"{r.key_comment}"</div>}
-                        {r.barriers?.length > 0 && (
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {r.barriers.map((b, j) => <Badge key={j} type="gray">{b}</Badge>)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </Card>
-              )}
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
