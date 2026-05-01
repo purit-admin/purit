@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Card, Btn, Badge } from '../../components/ui';
+import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
@@ -42,7 +42,15 @@ export default function PreferenceTest() {
   const [panelSize, setPanelSize] = useState(10);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [expandedTmpl, setExpandedTmpl] = useState({});
-  const [customQTexts, setCustomQTexts] = useState([]);
+  const [customTemplateQs, setCustomTemplateQs] = useState([]);
+  const [localCustomQs, setLocalCustomQs] = useState([]);
+  const [newQText, setNewQText] = useState('');
+  const [newQType, setNewQType] = useState('text');
+  const [newQOptions, setNewQOptions] = useState(['', '']);
+  const [newQScaleMin, setNewQScaleMin] = useState('');
+  const [newQScaleMax, setNewQScaleMax] = useState('');
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [savingToTemplate, setSavingToTemplate] = useState(false);
 
   const [tests, setTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
@@ -81,25 +89,88 @@ export default function PreferenceTest() {
       const { data: testsData } = await supabase
         .from('preference_tests').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
       setTests(testsData || []);
+      const { data: ctData } = await supabase
+        .from('question_templates')
+        .select('template_questions(id, question_text, question_type, options, question_order)')
+        .eq('company_id', co.id).eq('category', '광고소재').eq('is_default', false);
+      const flatQs = (ctData || []).flatMap(t =>
+        (t.template_questions || []).sort((a, b) => a.question_order - b.question_order)
+      );
+      setCustomTemplateQs(flatQs.map(q => ({
+        id: q.id, text: q.question_text, type: q.question_type || 'text',
+        options: Array.isArray(q.options) ? q.options : (() => { try { return JSON.parse(q.options || '[]'); } catch { return []; } })(),
+      })));
     }
     setLoading(false);
   }
 
-  const validCustomCount = customQTexts.filter(t => t.trim()).length;
-  const totalSelected = selectedQuestions.length + validCustomCount;
+  function parseOptions(opts) {
+    if (Array.isArray(opts)) return opts;
+    try { return JSON.parse(opts || '[]'); } catch { return []; }
+  }
+
+  const allSelected = [...selectedQuestions, ...localCustomQs];
+  const totalSelected = allSelected.length;
+  const textSelected = allSelected.filter(q => q.type === 'text').length;
+  const canAddQ = (q) => totalSelected < 5 && !(q.type === 'text' && textSelected >= 2);
 
   const toggleQuestion = (q) => {
     const isSelected = selectedQuestions.some(s => s.id === q.id);
     if (isSelected) {
       setSelectedQuestions(prev => prev.filter(s => s.id !== q.id));
-    } else if (selectedQuestions.length + customQTexts.filter(t => t.trim()).length < 5) {
+    } else if (canAddQ(q)) {
       setSelectedQuestions(prev => [...prev, q]);
     }
   };
 
-  const addCustomQ = () => setCustomQTexts(prev => [...prev, '']);
-  const updateCustomQ = (i, text) => setCustomQTexts(prev => prev.map((t, j) => j === i ? text : t));
-  const removeCustomQ = (i) => setCustomQTexts(prev => prev.filter((_, j) => j !== i));
+  function handleAddLocalQ() {
+    if (!newQText.trim()) return;
+    if (!canAddQ({ type: newQType })) return;
+    const options =
+      newQType === 'radio' ? newQOptions.filter(o => o.trim()) :
+      newQType === 'scale' ? [newQScaleMin.trim(), newQScaleMax.trim()] : [];
+    setLocalCustomQs(prev => [...prev, { id: `local-${Date.now()}`, text: newQText.trim(), type: newQType, options }]);
+    setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
+  }
+
+  async function handleSaveTmpl() {
+    if (!newQText.trim() || !companyId) return;
+    setSavingToTemplate(true);
+    const options =
+      newQType === 'radio' ? newQOptions.filter(o => o.trim()) :
+      newQType === 'scale' ? [newQScaleMin.trim(), newQScaleMax.trim()] : [];
+    try {
+      let { data: tmpl } = await supabase
+        .from('question_templates').select('id')
+        .eq('company_id', companyId).eq('category', '광고소재').eq('is_default', false)
+        .maybeSingle();
+      if (!tmpl) {
+        const { data: newT, error: tErr } = await supabase
+          .from('question_templates')
+          .insert({ company_id: companyId, name: '내 커스텀 질문', category: '광고소재', icon: '✏️', description: '직접 만든 질문 모음', is_default: false })
+          .select().single();
+        if (tErr) throw tErr;
+        tmpl = newT;
+      }
+      const { data: newQ, error: qErr } = await supabase.from('template_questions').insert({
+        template_id: tmpl.id,
+        question_text: newQText.trim(),
+        question_type: newQType,
+        options,
+        question_order: customTemplateQs.length + 1,
+      }).select().single();
+      if (qErr) throw qErr;
+      const saved = { id: newQ.id, text: newQ.question_text, type: newQ.question_type, options: parseOptions(newQ.options) };
+      setCustomTemplateQs(prev => [...prev, saved]);
+      setLocalCustomQs(prev => [...prev, { ...saved, id: `local-${Date.now()}` }]);
+      setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
+      setShowSaveModal(false);
+    } catch (e) {
+      console.error('[PreferenceTest] 템플릿 저장 실패:', e.message);
+    } finally {
+      setSavingToTemplate(false);
+    }
+  }
 
   async function handleImageUpload(variant, file) {
     if (!file || !companyId) return;
@@ -138,15 +209,7 @@ export default function PreferenceTest() {
           variantAImage: variantAImage || null,
           variantBImage: variantBImage || null,
           productDescription: productDescription.trim(),
-          selectedQuestions: [
-            ...selectedQuestions,
-            ...customQTexts.filter(t => t.trim()).map((text, i) => ({
-              id: `custom-${i}`,
-              text: text.trim(),
-              type: 'text',
-              options: [],
-            })),
-          ],
+          selectedQuestions: [...selectedQuestions, ...localCustomQs],
         }),
         panel_count: panelSize,
         reward_amount: (PRICE_PER[panelSize] || 90) * 1000,
@@ -355,6 +418,57 @@ export default function PreferenceTest() {
                     아래 15개 질문 중 최대 5개를 골라 패널에게 발송하세요. 그룹 헤더를 클릭하면 질문 목록이 펼쳐집니다.
                   </p>
 
+                  {/* 내 커스텀 질문 그룹 */}
+                  {customTemplateQs.length > 0 && (() => {
+                    const custSelected = customTemplateQs.filter(q => selectedQuestions.some(s => s.id === q.id));
+                    const isOpen = expandedTmpl['__custom__'];
+                    return (
+                      <div style={{ marginBottom: 8, border: '2px solid var(--accent)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                        <div onClick={() => setExpandedTmpl(prev => ({ ...prev, '__custom__': !isOpen }))}
+                          style={{ display: 'flex', alignItems: 'center', padding: '11px 14px', background: 'var(--surface)', cursor: 'pointer', userSelect: 'none', gap: 10 }}>
+                          <span style={{ fontSize: 15 }}>✏️</span>
+                          <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>내 커스텀 질문</span>
+                          {custSelected.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>{custSelected.length}개 선택</span>}
+                          <span style={{ color: 'var(--text-3)', fontSize: 12, transition: 'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
+                        </div>
+                        {isOpen && (
+                          <div style={{ borderTop: '1px solid var(--border)' }}>
+                            {customTemplateQs.map((q, qi) => {
+                              const isChecked = selectedQuestions.some(s => s.id === q.id);
+                              const disabled = !isChecked && !canAddQ(q);
+                              return (
+                                <div key={q.id} onClick={() => !disabled && toggleQuestion(q)} style={{
+                                  display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px',
+                                  background: isChecked ? 'rgba(232,213,163,0.07)' : 'var(--bg)',
+                                  cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1,
+                                  borderBottom: qi < customTemplateQs.length - 1 ? '1px solid var(--border)' : 'none',
+                                }}>
+                                  <div style={{ width: 17, height: 17, borderRadius: 4, flexShrink: 0, marginTop: 2, border: `2px solid ${isChecked ? 'var(--accent)' : 'var(--border)'}`, background: isChecked ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {isChecked && <span style={{ color: '#fff', fontSize: 10, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.text}</span>
+                                    <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, fontWeight: 600, background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type] }}>{TYPE_LABEL[q.type]}</span>
+                                      {q.type === 'radio' && q.options.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>[{q.options.join(' / ')}]</span>}
+                                      {q.type === 'scale' && (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                          <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{q.options?.[0] || '매우 아니다'}</span>
+                                          {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{n}</span>)}
+                                          <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{q.options?.[1] || '매우 그렇다'}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {QUESTION_TEMPLATES.preference.map(tmpl => {
                     const isOpen = expandedTmpl[tmpl.id];
                     const groupCount = selectedQuestions.filter(q => tmpl.questions.some(tq => tq.id === q.id)).length;
@@ -379,7 +493,7 @@ export default function PreferenceTest() {
                           <div style={{ borderTop: '1px solid var(--border)' }}>
                             {tmpl.questions.map((q, qi) => {
                               const isChecked = selectedQuestions.some(s => s.id === q.id);
-                              const disabled = !isChecked && totalSelected >= 5;
+                              const disabled = !isChecked && !canAddQ(q);
                               return (
                                 <div
                                   key={q.id}
@@ -412,6 +526,21 @@ export default function PreferenceTest() {
                                       {q.type === 'radio' && q.options.length > 0 && (
                                         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>[{q.options.join(' / ')}]</span>
                                       )}
+                                      {q.type === 'scale' && (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                          <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{q.options?.[0] || '매우 아니다'}</span>
+                                          {[1,2,3,4,5].map(n => (
+                                            <span key={n} style={{
+                                              width: 16, height: 16, borderRadius: '50%',
+                                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                              fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                                              border: '1px solid var(--accent)',
+                                              color: 'var(--accent)',
+                                            }}>{n}</span>
+                                          ))}
+                                          <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{q.options?.[1] || '매우 그렇다'}</span>
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -423,30 +552,103 @@ export default function PreferenceTest() {
                     );
                   })}
 
-                  {/* 커스텀 질문 (서술형) */}
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>커스텀 질문 추가 (서술형)</div>
-                    {customQTexts.map((q, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
-                        <textarea
-                          value={q}
-                          onChange={e => updateCustomQ(i, e.target.value)}
-                          rows={2}
-                          placeholder={`커스텀 질문 ${i + 1}`}
-                          style={{ flex: 1, resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
-                        />
-                        <button onClick={() => removeCustomQ(i)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 18, padding: '4px', flexShrink: 0, marginTop: 4 }}>×</button>
+                  {/* 질문 만들기 */}
+                  <div style={{ marginTop: 14, border: `1px solid ${localCustomQs.length > 0 ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '14px 14px 10px', transition: 'border-color 0.2s' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>질문 만들기 <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 400 }}>(이 의뢰에만 사용)</span></span>
+                      {localCustomQs.length > 0 && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '2px 8px', borderRadius: 10 }}>+{localCustomQs.length}개 추가됨</span>
+                      )}
+                    </div>
+                    <textarea value={newQText} onChange={e => setNewQText(e.target.value)} rows={2}
+                      placeholder="질문을 입력하세요"
+                      style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, marginBottom: 8 }} />
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                      {[['radio', '옵션형'], ['scale', '점수형'], ['text', '서술형']].map(([t, label]) => (
+                        <button key={t} onClick={() => setNewQType(t)} style={{
+                          padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                          border: `1px solid ${newQType === t ? 'var(--accent)' : 'var(--border)'}`,
+                          background: newQType === t ? 'var(--accent)' : 'var(--surface)',
+                          color: newQType === t ? '#fff' : 'var(--text-2)',
+                        }}>{label}</button>
+                      ))}
+                    </div>
+                    {newQType === 'radio' && (
+                      <div style={{ marginBottom: 8 }}>
+                        {newQOptions.map((opt, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                            <input value={opt} onChange={e => setNewQOptions(prev => prev.map((o, j) => j === i ? e.target.value : o))}
+                              placeholder={`옵션 ${i + 1}`}
+                              style={{ flex: 1, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
+                            {newQOptions.length > 2 && (
+                              <button onClick={() => setNewQOptions(prev => prev.filter((_, j) => j !== i))}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16 }}>×</button>
+                            )}
+                          </div>
+                        ))}
+                        {newQOptions.length < 6 && (
+                          <button onClick={() => setNewQOptions(prev => [...prev, ''])}
+                            style={{ background: 'none', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', padding: '5px 12px', fontSize: 12, color: 'var(--text-3)', cursor: 'pointer' }}>
+                            + 옵션 추가
+                          </button>
+                        )}
                       </div>
-                    ))}
-                    {customQTexts.length < 3 && totalSelected < 5 && (
-                      <button onClick={addCustomQ}
-                        style={{ background: 'none', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', padding: '8px 14px', fontSize: 13, color: 'var(--text-3)', cursor: 'pointer', width: '100%' }}>
-                        + 커스텀 질문 추가
-                      </button>
                     )}
-                    {totalSelected >= 5 && (
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6, textAlign: 'center' }}>최대 5개 선택 완료</div>
+                    {newQType === 'scale' && (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                        <input value={newQScaleMin} onChange={e => setNewQScaleMin(e.target.value)}
+                          placeholder="1점 라벨 (예: 매우 아니다)"
+                          style={{ flex: 1, minWidth: 140, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                          {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, border: '1px solid var(--accent)', color: 'var(--accent)' }}>{n}</span>)}
+                        </span>
+                        <input value={newQScaleMax} onChange={e => setNewQScaleMax(e.target.value)}
+                          placeholder="5점 라벨 (예: 매우 그렇다)"
+                          style={{ flex: 1, minWidth: 140, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
+                      </div>
+                    )}
+                    {newQType === 'text' && textSelected >= 2 && (
+                      <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>서술형 질문은 최대 2개까지만 추가할 수 있습니다.</div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <Btn size="sm" onClick={handleAddLocalQ}
+                        disabled={!newQText.trim() || totalSelected >= 5 || (newQType === 'text' && textSelected >= 2)}>추가</Btn>
+                      <Btn size="sm" variant="secondary" onClick={() => setShowSaveModal(true)} disabled={!newQText.trim()}>템플릿에 저장 →</Btn>
+                    </div>
+                    {localCustomQs.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 800, flexShrink: 0 }}>✓</span>
+                          추가된 질문 목록
+                        </div>
+                        {localCustomQs.map((q, i) => (
+                          <div key={q.id} style={{
+                            display: 'flex', gap: 10, alignItems: 'flex-start',
+                            padding: '10px 12px',
+                            background: 'var(--accent-dim)',
+                            borderRadius: 'var(--radius)',
+                            border: '1px solid var(--accent)',
+                            borderLeft: '3px solid var(--accent)',
+                            marginBottom: 6,
+                          }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, color: '#fff', background: 'var(--accent)', borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.text}</span>
+                              <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, fontWeight: 600, background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type] }}>{TYPE_LABEL[q.type]}</span>
+                                {q.type === 'radio' && q.options?.length > 0 && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>[{q.options.join(' / ')}]</span>
+                                )}
+                                {q.type === 'scale' && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{q.options?.[0] || '매우 아니다'} · 1~5 · {q.options?.[1] || '매우 그렇다'}</span>
+                                )}
+                              </div>
+                            </div>
+                            <button onClick={() => setLocalCustomQs(prev => prev.filter(lq => lq.id !== q.id))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16, flexShrink: 0, marginTop: 1 }}>×</button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -514,6 +716,16 @@ export default function PreferenceTest() {
             ))}
           </div>
         )
+      )}
+
+      {showSaveModal && (
+        <ConfirmModal
+          title="질문 템플릿에 저장"
+          desc={"이 질문을 템플릿에 추가하겠습니까?\n저장된 질문은 이후 의뢰 등록 시 자동으로 표시됩니다."}
+          confirmLabel={savingToTemplate ? '저장 중…' : '저장'}
+          onConfirm={handleSaveTmpl}
+          onCancel={() => setShowSaveModal(false)}
+        />
       )}
 
       {/* ── 결과 ── */}

@@ -108,7 +108,7 @@
    - Recharts LineChart: 5차원 점수 시계열 변화
    - 하단 요약 테이블 (점수 색상 코딩)
 
-5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 질문 선택 UI 개편
+5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 커스텀 질문 빌더 개편 (2026-05-01)
    - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 소재 유형 선택 (이미지/텍스트/랜딩페이지)
    - Step 1: 소재 A/B 입력 + 이미지 업로드 (선택, 각 1장)
@@ -117,53 +117,68 @@
      · 업로드 경로: {companyId}/{missionUuid}/va.{ext} / vb.{ext}
      · 미리보기 썸네일 + 삭제 지원
    - Step 2: 제품/타겟 설명 입력 (패널에게 표시됨, productDescription)
-   - Step 3: 패널 수 & 예상 비용 + 질문 설정  ★ 개편
-     · 카테고리별 템플릿 3개 × 5문항 = 15개 질문을 아코디언 UI로 표시
-       (QUESTION_TEMPLATES.preference에서 직접 로드 — DB 쿼리 없음)
-     · 각 템플릿 헤더 클릭 시 해당 그룹 질문 목록 인라인 펼침/접힘
-     · 질문 클릭 → 체크박스 선택/해제, 최대 5개 한도 (초과 시 나머지 회색 처리)
+   - Step 3: 패널 수 & 예상 비용 + 질문 설정
+     · 아코디언 그룹 1 — "내 커스텀 질문": DB에서 category='광고소재', is_default=false 로드
+       (customTemplateQs state, 없으면 그룹 숨김)
+     · 아코디언 그룹 2~4 — QUESTION_TEMPLATES.preference 3개 템플릿 × 5문항
+     · 질문 클릭 → 체크박스 선택/해제, 전체 최대 5개 한도 / 서술형 합산 최대 2개 한도
      · 우상단 "N/5 선택됨" 배지 실시간 표시
-     · 커스텀 질문 추가 최대 3개 (서술형 고정, 5개 한도 내)
+     · 하단 "질문 만들기" 섹션:
+       - textarea + 타입 버튼(옵션형/점수형/서술형) + 타입별 옵션 UI
+       - "추가" 버튼 → localCustomQs에 push (이 의뢰에만 적용, DB 저장 없음)
+       - "템플릿에 저장 →" → ConfirmModal 확인 후 DB INSERT + localCustomQs에도 추가
+       - 추가된 질문 카드: accent 3px 왼쪽 테두리 + accent-dim 배경 + Qn 뱃지 + 타입·옵션 미리보기
+       - 추가된 질문이 있으면 섹션 테두리 accent 색으로 전환, 헤더에 "+N개 추가됨" 뱃지
    - 등록 시: missions INSERT(type='preference', description=JSON.stringify({
        variantA, variantB, variantAImage, variantBImage,
-       productDescription, selectedQuestions})) + preference_tests INSERT
+       productDescription, selectedQuestions: [...selectedQuestions, ...localCustomQs]})) + preference_tests INSERT
      ※ selectedQuestions: [{id, text, type, options}] — 선택된 질문 스냅샷 (템플릿+커스텀 통합)
      ※ 구 포맷(templateQuestions + customQuestions) 레거시 미션은 패널/결과 화면에서 자동 폴백 처리
    - 제출 후 missionUuid 리셋 (중복 제출 방지)
    - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 + CustomQuestionsSection
 
-6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 질문 선택 UI 개편
+6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 커스텀 질문 빌더 개편 (2026-05-01)
    - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 가격 페이지 입력 + 이미지 업로드 (선택, 1장)
      · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
    - Step 1: 제품/타겟 설명 입력 (productDescription)
-   - Step 2: 패널 수 + 질문 설정 (QUESTION_TEMPLATES.pricing 아코디언 + 커스텀 최대 3개, 합산 5개)
+   - Step 2: 패널 수 + 질문 설정 (5항목과 동일 구조, category='가격')
    - 등록 시: missions INSERT(type='pricing', description=JSON.stringify({
-       content: pricingDesc, image, productDescription, selectedQuestions})) + pricing_tests INSERT
+       content: pricingDesc, image, productDescription,
+       selectedQuestions: [...selectedQuestions, ...localCustomQs]})) + pricing_tests INSERT
    - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + CustomQuestionsSection
 
-7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 질문 선택 UI 개편
+7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 커스텀 질문 빌더 개편 (2026-05-01)
    - 목록 빈 상태: 우측 상단 "+ 새 테스트" 버튼 없음 / 중앙 "+ 새 테스트" 버튼 하나만 표시
    - Step 0: 이메일 원문 설명 입력
    - Step 1: 제품/타겟 설명 입력 (productDescription)
-   - Step 2: 패널 수 + 질문 설정 (QUESTION_TEMPLATES.email 아코디언 + 커스텀 최대 3개, 합산 5개)
+   - Step 2: 패널 수 + 질문 설정 (5항목과 동일 구조, category='이메일')
    - 등록 시: missions INSERT(type='email', title='이메일 검증'(고정), description=JSON.stringify({
-       content: emailText, productDescription, selectedQuestions})) + cold_email_tests INSERT
+       content: emailText, productDescription,
+       selectedQuestions: [...selectedQuestions, ...localCustomQs]})) + cold_email_tests INSERT
    - 결과 화면: 답장 의향 비율 + open_intent / curiosity_score / hook_score / clarity_score 평균 + CustomQuestionsSection
 
-8. 질문 템플릿 관리 (/company/templates) — QuestionTemplates.jsx  ★ UX 개선 (2026-05-01)
-   - 탭 3개: 소재 비교 A/B | 가격 페이지 | 이메일 검증
-   - 탭별 category 매핑: preference→'광고소재', pricing→'가격', email→'이메일'
-   - 템플릿 카드: 클릭 비활성 — "미리보기" 버튼 클릭 시에만 우측 사이드패널 열림
+8. 질문 템플릿 관리 (/company/templates) — QuestionTemplates.jsx  ★ "질문 만들기" 탭 신설 (2026-05-01)
+   - 탭 4개: 소재 비교 A/B | 가격 페이지 | 이메일 검증 | 질문 만들기(✏️)
+   - 탭 1~3 (기존 템플릿 탭):
+     · 탭별 category 매핑: preference→'광고소재', pricing→'가격', email→'이메일'
+     · 템플릿 카드: 클릭 비활성 — "미리보기" 버튼 클릭 시에만 우측 사이드패널 열림
      · DB query: template_questions(id, question_text, question_order, question_type) 로드
      · DB 데이터 없으면 src/lib/templates.js 로컬 TEMPLATE_BY_NAME 자동 폴백
-     · 각 질문에 [옵션형]/[점수형]/[서술형] 타입 뱃지 표시 (question_type: radio/scale/text → 기업 친화적 라벨)
-   - 사이드패널: "이 템플릿으로 의뢰하기" 버튼 없음
-   - 탭 설명 영역 우측: "바로 의뢰 등록 →" 버튼 (검정 배경 흰 글씨) → 해당 서브 의뢰 페이지 navigate
+     · 각 질문에 [옵션형]/[점수형]/[서술형] 타입 뱃지 표시
+     · 탭 설명 영역 우측: "바로 의뢰 등록 →" 버튼 → 해당 서브 의뢰 페이지 navigate
+   - 탭 4 "질문 만들기":
+     · 카테고리 선택 버튼 3개 (소재 비교 A/B / 가격 페이지 / 이메일 검증)
+     · 저장된 커스텀 질문 목록: DB에서 is_default=false, 선택 category로 로드
+     · 질문 빌더 Card: textarea + 타입 선택(옵션형/점수형/서술형) + 타입별 옵션 UI
+     · "질문 추가 →" 버튼: DB INSERT → 저장된 커스텀 질문 목록 갱신
+       - companyId 미로드 시 버튼 disabled (비동기 가드)
+       - 저장 실패 시 버튼 아래 에러 메시지 표시 (saveError state)
+     · RLS 필요: 013_custom_question_rls.sql Supabase SQL Editor에서 수동 실행 필요
    - Sidebar: 서브 미션 그룹 최 하단에 위치
-   ※ 전체 템플릿 9종: 광고소재(광고 소재 A/B·첫인상&전환력·메시지 공명 분석),
-                       가격(가격 페이지 검증·가격 감지 테스트·플랜 비교 명확성),
-                       이메일(콜드메일 효과 측정·개봉률 최적화·콜드 리치아웃 효과)
+   ※ 전체 기본 템플릿 9종: 광고소재(광고 소재 A/B·첫인상&전환력·메시지 공명 분석),
+                             가격(가격 페이지 검증·가격 감지 테스트·플랜 비교 명확성),
+                             이메일(콜드메일 효과 측정·개봉률 최적화·콜드 리치아웃 효과)
 
 ### [인텔리전스]
 9.  ICP 리서치 (/company/icp) — ICPResearch.jsx
