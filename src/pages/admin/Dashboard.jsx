@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -142,9 +143,15 @@ export default function AdminDashboard() {
                     {p.trust_score || 0}
                   </td>
                   <td style={{ padding: '14px 20px' }}>
-                    <Badge type={p.tier === 'EXPERT' || p.tier === 'ELITE' ? 'gold' : p.tier === 'PRO' ? 'blue' : 'gray'}>
-                      {p.tier || 'ROOKIE'}
-                    </Badge>
+                    {(() => {
+                      const hl = getHonorLevel(p.honor_points ?? 0);
+                      const cm = HONOR_COLOR_META[hl.colorTier];
+                      return (
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, color: cm.color, background: cm.bg, border: `1px solid ${cm.color}` }}>
+                          Lv.{hl.level}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{p.total_missions || 0}</td>
                   <td style={{ padding: '14px 20px' }}>

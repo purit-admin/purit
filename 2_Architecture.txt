@@ -40,8 +40,9 @@ purit/
 │       ├── panel/    (5개 — 라우트 목록 참조)
 │       └── admin/    (6개 — 라우트 목록 참조)
 ├── scripts/   (개발·테스트 전용 Node.js 유틸리티 — 배포 대상 아님)
-│   ├── create-panel-accounts.mjs   (Supabase Admin API로 테스트 패널 계정 일괄 생성)
-│   └── submit-greencart-feedbacks.mjs  (서비스롤 키로 미션 피드백·어노테이션 자동 제출)
+│   ├── create-panel-accounts.mjs      (Supabase Admin API로 테스트 패널 계정 일괄 생성)
+│   ├── submit-greencart-feedbacks.mjs (서비스롤 키로 미션 피드백·어노테이션 자동 제출)
+│   └── update-panel-profiles.mjs      (panel1~10 직군·경력 업데이트 — .env.local 필요)
 ├── supabase/
 │   ├── migrations/  001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
 │   │                006(annotations) 007(subtest) 008(templates) 009(gamification)

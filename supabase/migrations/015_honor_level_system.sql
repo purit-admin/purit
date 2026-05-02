@@ -188,3 +188,15 @@ $$;
 GRANT EXECUTE ON FUNCTION add_panel_honor_points(UUID, INT)                                     TO authenticated;
 GRANT EXECUTE ON FUNCTION rate_panel_feedback_helpfulness(UUID, UUID, TEXT, UUID, BOOLEAN)      TO authenticated;
 GRANT EXECUTE ON FUNCTION apply_honor_decay(UUID)                                               TO authenticated;
+
+-- ── 기존 ROOKIE 데이터 초기화 (명예 레벨 시스템으로 대체) ───────────────────────
+-- honor_points DEFAULT 0 → 모든 패널 레벨 1로 시작 (ADD COLUMN이 기존 행에 자동 적용)
+-- 구 badges 배열에서 '루키' 항목 제거
+UPDATE panels
+   SET badges = ARRAY_REMOVE(badges, '루키')
+ WHERE '루키' = ANY(badges);
+
+-- tier 컬럼은 유지하되 'ROOKIE' → 'lv1'으로 초기화 (명예 레벨 시스템에서 미사용)
+UPDATE panels
+   SET tier = 'lv1'
+ WHERE tier = 'ROOKIE';
