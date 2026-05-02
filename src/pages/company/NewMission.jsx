@@ -2,24 +2,24 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Btn, Card } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
-const STEPS = ['기본 정보', '페르소나 설정', '소재 업로드', '검토 & 제출'];
+const STEPS = ['기본 정보', '페르소나 설정', '소재 업로드', '질문 설정', '검토 & 제출'];
 
 const INDUSTRIES = ['패션/커머스', '뷰티/코스메틱', '헬스/보충제', '금융/핀테크', 'B2B SaaS', '교육/에듀테크', '부동산/인테리어', '식품/F&B', '기타'];
 const PANEL_COUNTS = [5, 8, 10, 15, 20];
 const PRICE_PER = { 5: 50, 8: 75, 10: 90, 15: 130, 20: 170 };
 const MAX_IMAGES = 5;
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export default function NewMission() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isEditMode   = Boolean(location.state?.editMode);
+  const isEditMode    = Boolean(location.state?.editMode);
   const editMissionId = location.state?.missionId || null;
 
   const fileInputRef = useRef(null);
   const [step, setStep] = useState(0);
-  // 편집 모드면 기존 미션 ID 사용, 신규면 UUID 생성 (Storage 경로와 일치)
   const [missionUuid] = useState(() => editMissionId || crypto.randomUUID());
   const [form, setForm] = useState({
     company: '', product: '', industry: '', lpUrl: '',
@@ -28,10 +28,15 @@ export default function NewMission() {
     imageUrls: [],
     estimatedMinutes: 5,
   });
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [uploading, setUploading]         = useState(false);
+  const [uploadError, setUploadError]     = useState('');
+  const [submitting, setSubmitting]       = useState(false);
+  const [submitError, setSubmitError]     = useState('');
+
+  // 질문 설정 state
+  const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [localCustomQs,     setLocalCustomQs]     = useState([]);
+  const [expandedTmpl,      setExpandedTmpl]      = useState({});
 
   // 편집 모드: 기존 미션 데이터 pre-fill
   useEffect(() => {
@@ -39,16 +44,26 @@ export default function NewMission() {
     async function load() {
       const { data: ms } = await supabase.from('missions').select('*').eq('id', editMissionId).single();
       if (!ms) return;
+      const briefText = (() => {
+        try {
+          const p = JSON.parse(ms.description || '');
+          return (p && p.briefText) ? p.briefText : (ms.description || '');
+        } catch { return ms.description || ''; }
+      })();
       setForm(f => ({
         ...f,
-        product:       ms.title || '',
-        lpUrl:         ms.target_url || '',
-        briefText:     ms.description || '',
-        panels:        ms.panel_count || 8,
-        focusAreas:    ms.assets || [],
-        imageUrls:     ms.image_urls || [],
+        product:        ms.title || '',
+        lpUrl:          ms.target_url || '',
+        briefText,
+        panels:         ms.panel_count || 8,
+        focusAreas:     ms.assets || [],
+        imageUrls:      ms.image_urls || [],
         personaContext: ms.persona || '',
       }));
+      try {
+        const p = JSON.parse(ms.description || '{}');
+        if (Array.isArray(p.selectedQuestions)) setSelectedQuestions(p.selectedQuestions);
+      } catch {}
     }
     load();
   }, []);
@@ -61,6 +76,18 @@ export default function NewMission() {
     focusAreas: prev.focusAreas.includes(f) ? prev.focusAreas.filter(x => x !== f) : [...prev.focusAreas, f],
   }));
 
+  // 질문 설정 헬퍼
+  const lpTemplates      = QUESTION_TEMPLATES.lp || [];
+  const allLPSelected    = [...selectedQuestions, ...localCustomQs];
+  const totalLPSelected  = allLPSelected.length;
+  const textLPSelected   = allLPSelected.filter(q => q.type === 'text').length;
+  const canAddLPQ        = (q) => totalLPSelected < 5 && !(q.type === 'text' && textLPSelected >= 2);
+  const toggleLPQuestion = (q) => {
+    const sel = selectedQuestions.some(s => s.id === q.id);
+    if (sel) setSelectedQuestions(prev => prev.filter(s => s.id !== q.id));
+    else if (canAddLPQ(q)) setSelectedQuestions(prev => [...prev, q]);
+  };
+
   const total = (PRICE_PER[form.panels] || 90) * 10000;
 
   const handleImageUpload = async (e) => {
@@ -70,7 +97,6 @@ export default function NewMission() {
     const remaining = MAX_IMAGES - form.imageUrls.length;
     const toUpload = files.slice(0, remaining);
 
-    // 크기 검증
     for (const file of toUpload) {
       if (file.size > MAX_FILE_SIZE) {
         setUploadError(`${file.name}이 5MB를 초과합니다.`);
@@ -107,6 +133,13 @@ export default function NewMission() {
     set('imageUrls', form.imageUrls.filter(u => u !== url));
   };
 
+  const buildDescription = () => {
+    if (allLPSelected.length > 0) {
+      return JSON.stringify({ briefText: form.briefText, selectedQuestions: allLPSelected });
+    }
+    return form.briefText;
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitError('');
@@ -123,11 +156,13 @@ export default function NewMission() {
         form.personaContext && form.personaContext,
       ].filter(Boolean).join(' / ');
 
+      const description = buildDescription();
+
       if (isEditMode && editMissionId) {
         const { error } = await supabase.from('missions').update({
           title:         form.product || '의뢰',
           target_url:    form.lpUrl,
-          description:   form.briefText,
+          description,
           persona,
           panel_count:   form.panels,
           reward_amount: (PRICE_PER[form.panels] || 90) * 1000,
@@ -142,7 +177,7 @@ export default function NewMission() {
           title:             form.product || '의뢰',
           type:              'landing_page',
           target_url:        form.lpUrl,
-          description:       form.briefText,
+          description,
           persona,
           panel_count:       form.panels,
           reward_amount:     (PRICE_PER[form.panels] || 90) * 1000,
@@ -186,6 +221,7 @@ export default function NewMission() {
       </div>
 
       <Card>
+        {/* Step 0: 기본 정보 */}
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>기본 정보</h2>
@@ -214,6 +250,7 @@ export default function NewMission() {
           </div>
         )}
 
+        {/* Step 1: 페르소나 설정 */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>타겟 페르소나 설정</h2>
@@ -241,6 +278,7 @@ export default function NewMission() {
           </div>
         )}
 
+        {/* Step 2: 소재 업로드 */}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>소재 & 검증 범위</h2>
@@ -325,7 +363,6 @@ export default function NewMission() {
                 )}
               </div>
 
-              {/* 썸네일 미리보기 */}
               {form.imageUrls.length > 0 && (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                   {form.imageUrls.map((url, i) => (
@@ -360,7 +397,155 @@ export default function NewMission() {
           </div>
         )}
 
+        {/* Step 3: 질문 설정 (신규) */}
         {step === 3 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>질문 설정 (선택)</h2>
+                <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                  패널에게 추가로 물을 질문을 최대 5개 선택하세요. 선택하지 않으면 기본 5차원 피드백만 수집됩니다.
+                </p>
+              </div>
+              <div style={{
+                flexShrink: 0,
+                fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                padding: '4px 12px', borderRadius: 20,
+                background: totalLPSelected >= 5 ? 'var(--accent)' : 'var(--surface)',
+                color: totalLPSelected >= 5 ? '#fff' : 'var(--text-2)',
+                border: '1px solid var(--border)',
+                whiteSpace: 'nowrap',
+              }}>
+                {totalLPSelected}/5 선택됨
+              </div>
+            </div>
+
+            {/* 서술형 한도 안내 */}
+            {textLPSelected >= 2 && (
+              <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--red)' }}>
+                서술형 질문은 최대 2개까지 선택할 수 있습니다.
+              </div>
+            )}
+
+            {/* 템플릿 아코디언 */}
+            {lpTemplates.map(tmpl => {
+              const isOpen = !!expandedTmpl[tmpl.id];
+              const selectedInTmpl = tmpl.questions.filter(q => selectedQuestions.some(s => s.id === q.id));
+              return (
+                <div key={tmpl.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                  <div
+                    onClick={() => setExpandedTmpl(prev => ({ ...prev, [tmpl.id]: !isOpen }))}
+                    style={{
+                      display: 'flex', alignItems: 'center', padding: '12px 16px',
+                      background: selectedInTmpl.length > 0 ? 'var(--accent-dim)' : 'var(--surface)',
+                      cursor: 'pointer', userSelect: 'none', gap: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{tmpl.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{tmpl.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{tmpl.description}</div>
+                    </div>
+                    {selectedInTmpl.length > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', marginRight: 4 }}>
+                        {selectedInTmpl.length}개 선택
+                      </span>
+                    )}
+                    <span style={{
+                      color: 'var(--text-3)', fontSize: 11,
+                      transition: 'transform 0.2s',
+                      display: 'inline-block',
+                      transform: isOpen ? 'rotate(90deg)' : 'none',
+                    }}>▶</span>
+                  </div>
+
+                  {isOpen && (
+                    <div style={{ borderTop: '1px solid var(--border)' }}>
+                      {tmpl.questions.map((q, qi) => {
+                        const isChecked = selectedQuestions.some(s => s.id === q.id);
+                        const disabled  = !isChecked && !canAddLPQ(q);
+                        return (
+                          <div
+                            key={q.id}
+                            onClick={() => !disabled && toggleLPQuestion(q)}
+                            style={{
+                              display: 'flex', gap: 12, alignItems: 'flex-start',
+                              padding: '11px 16px',
+                              background: isChecked ? 'rgba(232,213,163,0.07)' : 'var(--bg)',
+                              cursor: disabled ? 'not-allowed' : 'pointer',
+                              opacity: disabled ? 0.4 : 1,
+                              borderBottom: qi < tmpl.questions.length - 1 ? '1px solid var(--border)' : 'none',
+                              transition: 'background 0.1s',
+                            }}
+                          >
+                            {/* 체크박스 */}
+                            <div style={{
+                              width: 17, height: 17, borderRadius: 4, flexShrink: 0, marginTop: 2,
+                              border: `2px solid ${isChecked ? 'var(--accent)' : 'var(--border)'}`,
+                              background: isChecked ? 'var(--accent)' : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              {isChecked && <span style={{ color: '#fff', fontSize: 10, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>{q.text}</div>
+                              <div style={{ marginTop: 5, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <span style={{
+                                  fontSize: 10, padding: '1px 7px', borderRadius: 4, fontWeight: 600,
+                                  background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type],
+                                }}>
+                                  {TYPE_LABEL[q.type]}
+                                </span>
+                                {q.type === 'radio' && q.options.length > 0 && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                                    {q.options.join(' / ')}
+                                  </span>
+                                )}
+                                {q.type === 'scale' && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>1 — 5점</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* 선택된 질문 미리보기 */}
+            {allLPSelected.length > 0 && (
+              <div style={{ padding: '14px 16px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', border: '1px solid var(--accent)' }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 10, letterSpacing: '0.05em' }}>선택된 질문 ({allLPSelected.length}개)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {allLPSelected.map((q, i) => (
+                    <div key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, flex: 1 }}>{q.text}</span>
+                      <span style={{
+                        fontSize: 10, padding: '1px 6px', borderRadius: 4, fontWeight: 600, flexShrink: 0,
+                        background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type],
+                      }}>
+                        {TYPE_LABEL[q.type]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {allLPSelected.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-3)', fontSize: 13 }}>
+                위 템플릿에서 질문을 선택하거나, 건너뛰기하면 기본 5차원 피드백만 수집됩니다.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: 검토 & 제출 */}
+        {step === 4 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>최종 검토</h2>
             {[
@@ -371,6 +556,7 @@ export default function NewMission() {
               ['패널 수', `${form.panels}명`],
               ['검증 포커스', form.focusAreas.join(', ') || '—'],
               ['예상 비용', `₩ ${total.toLocaleString()}`],
+              ...(allLPSelected.length > 0 ? [['추가 질문', `${allLPSelected.length}개 선택`]] : []),
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ width: 140, color: 'var(--text-3)', fontSize: 13, flexShrink: 0 }}>{k}</span>

@@ -57,6 +57,16 @@ function parseSubDesc(desc, type) {
   }
 }
 
+function parseLPDesc(desc) {
+  if (!desc) return { briefText: '', selectedQuestions: [] };
+  try {
+    const p = JSON.parse(desc);
+    if (p && typeof p === 'object' && 'briefText' in p)
+      return { briefText: p.briefText || '', selectedQuestions: p.selectedQuestions || [] };
+    return { briefText: desc, selectedQuestions: [] };
+  } catch { return { briefText: desc, selectedQuestions: [] }; }
+}
+
 function getSkippedLabels(suggestions = '') {
   const skipped = new Set();
   (suggestions || '').split('\n').forEach(line => {
@@ -473,6 +483,17 @@ export default function PurityFilter() {
                 {/* ── 기존 랜딩페이지 피드백 ── */}
                 {!isSubMission && (
                   <>
+                    {/* LP 브리핑 */}
+                    {(() => {
+                      const { briefText } = parseLPDesc(fb.missions?.description);
+                      if (!briefText) return null;
+                      return (
+                        <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>브리핑</div>
+                          {briefText}
+                        </div>
+                      );
+                    })()}
                     {/* 이미지 + 어노테이션 오버레이 */}
                     {fb.missions?.image_urls?.length > 0 && (
                       <div style={{ marginBottom: 20 }}>
@@ -543,6 +564,27 @@ export default function PurityFilter() {
                         <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{content}</p>
                       </div>
                     ))}
+
+                    {/* LP 추가 질문 응답 */}
+                    {Array.isArray(fb.custom_answers) && fb.custom_answers.length > 0 && (() => {
+                      const { selectedQuestions: lpQs } = parseLPDesc(fb.missions?.description);
+                      return (
+                        <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>추가 질문 응답</div>
+                          {fb.custom_answers.map((a, i) => {
+                            const qDef = lpQs.find(q => q.id === a.questionId);
+                            return (
+                              <div key={a.questionId || i} style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>{i + 1}. {a.questionText || qDef?.text}</div>
+                                <div style={{ fontSize: 13, padding: '6px 10px', background: 'var(--surface)', borderRadius: 'var(--radius)', color: 'var(--text-2)', lineHeight: 1.6 }}>
+                                  {a.answer !== undefined && a.answer !== '' ? String(a.answer) : <em>응답 없음</em>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
 

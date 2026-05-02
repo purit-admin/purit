@@ -133,6 +133,51 @@ export const QUESTION_TEMPLATES = {
       ],
     },
   ],
+
+  lp: [
+    {
+      id: 't-lp-4a',
+      name: '첫인상 & 전환 신호',
+      category: '랜딩페이지',
+      description: '첫 화면의 즉각적인 이해도와 CTA 클릭 충동을 검증합니다.',
+      icon: '◎',
+      questions: [
+        { id: 'lp4a-q1', text: '이 랜딩페이지의 핵심 가치가 5초 안에 명확하게 이해됩니까?', type: 'scale', options: [] },
+        { id: 'lp4a-q2', text: '첫 화면을 보고 난 후 가장 먼저 드는 감정은 무엇입니까?', type: 'radio', options: ['신뢰감', '궁금함', '무관심', '혼란스러움'] },
+        { id: 'lp4a-q3', text: '메인 CTA 버튼을 클릭하고 싶은 충동이 생겼습니까?', type: 'scale', options: [] },
+        { id: 'lp4a-q4', text: '이 페이지에서 가장 시선을 끄는 요소는 무엇입니까?', type: 'radio', options: ['헤드라인 카피', '비주얼/이미지', 'CTA 버튼', '혜택 목록'] },
+        { id: 'lp4a-q5', text: '첫인상에서 가장 거슬리거나 신뢰를 깎아먹는 요소가 있다면 무엇입니까?', type: 'text', options: [] },
+      ],
+    },
+    {
+      id: 't-lp-4b',
+      name: '메시지 명확성 & 공감도',
+      category: '랜딩페이지',
+      description: '핵심 카피가 타겟의 고민을 정확히 짚는지 측정합니다.',
+      icon: '◆',
+      questions: [
+        { id: 'lp4b-q1', text: '헤드라인 카피가 귀하의 현재 상황이나 고민을 얼마나 정확히 묘사합니까?', type: 'scale', options: [] },
+        { id: 'lp4b-q2', text: '이 서비스가 해결해준다고 주장하는 문제가 귀하에게 실제로 해당됩니까?', type: 'radio', options: ['매우 해당됨', '약간 해당됨', '거의 해당 안 됨', '전혀 아님'] },
+        { id: 'lp4b-q3', text: '페이지를 읽고 난 후 이 제품/서비스의 핵심 차별점이 분명히 느껴집니까?', type: 'scale', options: [] },
+        { id: 'lp4b-q4', text: '페이지에서 가장 공감되었던 카피나 섹션은 무엇이었습니까?', type: 'text', options: [] },
+        { id: 'lp4b-q5', text: '과장되거나 신뢰를 잃게 만드는 표현이 있었습니까?', type: 'radio', options: ['예, 분명히 느껴짐', '약간 그런 부분 있음', '아니오, 전혀 없음'] },
+      ],
+    },
+    {
+      id: 't-lp-4c',
+      name: '신뢰 & 전환 저해 요인',
+      category: '랜딩페이지',
+      description: '소셜 프루프, 보증, 이탈 포인트를 분석합니다.',
+      icon: '◈',
+      questions: [
+        { id: 'lp4c-q1', text: '후기, 수치, 로고 등 신뢰 요소가 구매 결정에 충분합니까?', type: 'scale', options: [] },
+        { id: 'lp4c-q2', text: '가격, 환불 정책 등 결제 전 반드시 알아야 할 정보가 명확히 제시되어 있습니까?', type: 'radio', options: ['명확하다', '애매하다', '찾기 어렵다', '아예 없다'] },
+        { id: 'lp4c-q3', text: '스크롤을 멈추고 이탈하고 싶어지게 만든 섹션이 있었습니까?', type: 'radio', options: ['예, 상단', '예, 중간', '예, 하단', '없었음'] },
+        { id: 'lp4c-q4', text: '최종적으로 이 페이지에서 전환(가입/구매/문의)할 의향은 어느 정도입니까?', type: 'scale', options: [] },
+        { id: 'lp4c-q5', text: '전환을 가로막는 가장 결정적인 장애 요소를 한 문장으로 적어주세요.', type: 'text', options: [] },
+      ],
+    },
+  ],
 };
 
 export const TEMPLATE_BY_NAME = Object.fromEntries(

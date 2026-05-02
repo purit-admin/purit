@@ -28,7 +28,7 @@ const hasDraftProgress = (fb) => {
   if (!fb.strengths) return false;
   try {
     const saved = JSON.parse(fb.strengths);
-    if (saved.__subType) return true;
+    if (saved.__subType || saved.__comments || saved.customAnswers?.length) return true;
     return Object.values(saved).some(v => v && typeof v === 'string' && v.trim());
   } catch { return false; }
 };
@@ -55,6 +55,16 @@ function parseSubDesc(desc, type) {
   } catch {
     return { content: desc || '', productDescription: '', customQuestions: [] };
   }
+}
+
+function parseLPDesc(desc) {
+  if (!desc) return { briefText: '', selectedQuestions: [] };
+  try {
+    const p = JSON.parse(desc);
+    if (p && typeof p === 'object' && 'briefText' in p)
+      return { briefText: p.briefText || '', selectedQuestions: p.selectedQuestions || [] };
+    return { briefText: desc, selectedQuestions: [] };
+  } catch { return { briefText: desc, selectedQuestions: [] }; }
 }
 
 function TypedQuestionsBlock({ qs, get, set }) {
@@ -166,6 +176,9 @@ export default function ActiveMission() {
   const hasImages = Boolean(mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0);
   const missionType = mission?.type || null;
   const isSubMission = ['preference', 'pricing', 'email'].includes(missionType);
+  const isMainMission = !isSubMission;
+  const lpParsed  = (mission && isMainMission) ? parseLPDesc(mission.description) : null;
+  const lpTypedQs = lpParsed?.selectedQuestions || [];
 
   // ── SUB-MISSION STATE ──
   const [prefChoice, setPrefChoice]           = useState('');     // 'A' | 'B'
@@ -309,11 +322,16 @@ export default function ActiveMission() {
                     }
                     if (Array.isArray(saved.customAnswers)) setCustomAnswers(saved.customAnswers);
                   } else {
-                    setComments(saved);
+                    if (saved.__comments) {
+                      setComments(saved.__comments);
+                      if (Array.isArray(saved.customAnswers)) setCustomAnswers(saved.customAnswers);
+                    } else {
+                      setComments(saved);
+                    }
                   }
                 } catch {}
               }
-              // 이미지 미션: 기존 어노테이션 로드
+              // 이미지 미션: 기존 어노테이션 로드 + LP 질문 응답 복원
               if (ms.image_urls?.length > 0) {
                 const { data: anns } = await supabase
                   .from('feedback_annotations')
@@ -321,6 +339,12 @@ export default function ActiveMission() {
                   .eq('feedback_id', fb.id)
                   .order('created_at');
                 setAnnotations(anns || []);
+                if (fb.strengths) {
+                  try {
+                    const s = JSON.parse(fb.strengths);
+                    if (Array.isArray(s.customAnswers)) setCustomAnswers(s.customAnswers);
+                  } catch {}
+                }
               }
             }
           }
@@ -346,7 +370,19 @@ export default function ActiveMission() {
       clearTimeout(autoSaveTimer.current);
       if (draftId && step >= 1) saveProgress();
     };
-  }, [scores, comments]);
+  }, [scores, comments, customAnswers]);
+
+  // 이미지 미션 LP 질문 자동 저장
+  useEffect(() => {
+    if (!draftId || !hasImages || isSubMission || step < 1 || !customAnswers.length) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      supabase.from('feedbacks')
+        .update({ strengths: JSON.stringify({ customAnswers }) })
+        .eq('id', draftId);
+    }, 1500);
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [customAnswers]);
 
   // 서브 미션 자동 저장
   useEffect(() => {
@@ -368,7 +404,11 @@ export default function ActiveMission() {
       value_score:           scores.value           || null,
       differentiation_score: scores.differentiation || null,
       trust_score:           scores.trust           || null,
-      strengths:             JSON.stringify(comments),
+      strengths:             JSON.stringify(
+        customAnswers.length > 0
+          ? { __comments: comments, customAnswers }
+          : comments
+      ),
     }).eq('id', draftId).then(() => setAutoSaving(false));
   };
 
@@ -452,10 +492,10 @@ export default function ActiveMission() {
 
   const hasSavedProgress = Boolean(draftId) && (
     hasImages
-      ? annotations.length > 0
+      ? annotations.length > 0 || customAnswers.length > 0
       : isSubMission
         ? Boolean(prefChoice || prefClarity || prefIntent || priceFairness || priceValue || priceWouldBuy !== null || emailOpenIntent || emailHook || emailWouldReply !== null)
-        : Object.values(scores).some(s => s > 0) || Object.values(comments).some(c => c.trim())
+        : Object.values(scores).some(s => s > 0) || Object.values(comments).some(c => c.trim()) || customAnswers.length > 0
   );
 
   const handleResume = () => {
@@ -612,6 +652,7 @@ export default function ActiveMission() {
             const body = [annLines, skipLines].filter(Boolean).join('\n');
             return [body, overallComment ? `\n[총평]\n${overallComment}` : ''].join('').trim();
           })(),
+          custom_answers: customAnswers.length > 0 ? customAnswers : null,
           purity_passed: false,
           status:        'submitted',
         };
@@ -628,6 +669,7 @@ export default function ActiveMission() {
             .map(s => comments[s.key] ? `[${s.label}]\n${comments[s.key]}` : null)
             .filter(Boolean)
             .join('\n\n'),
+          custom_answers: customAnswers.length > 0 ? customAnswers : null,
           purity_passed: false,
           status:        'submitted',
         };
@@ -840,7 +882,7 @@ export default function ActiveMission() {
           }
           return (
             <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
-              <strong style={{ color: 'var(--text)' }}>브리핑:</strong><br />{mission.description}
+              <strong style={{ color: 'var(--text)' }}>브리핑:</strong><br />{lpParsed ? lpParsed.briefText : mission.description}
             </div>
           );
         })()}
@@ -1096,7 +1138,13 @@ export default function ActiveMission() {
       Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k) || skippedDims[k]])
     );
     const allDimsDone    = Object.values(dimDone).every(Boolean);
-    const canSubmitImage = allDimsDone && overallComment.trim().length > 0;
+    const lpQsAnswered = lpTypedQs.length === 0 || lpTypedQs.every(q => {
+      const a = customAnswers.find(x => x.questionId === q.id)?.answer;
+      if (a === undefined || a === null || a === '') return false;
+      if (q.type === 'text') return String(a).trim().length >= 10;
+      return true;
+    });
+    const canSubmitImage = allDimsDone && overallComment.trim().length > 0 && lpQsAnswered;
 
     return (
       <div style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
@@ -1312,6 +1360,21 @@ export default function ActiveMission() {
           </div>
         )}
 
+        {allDimsDone && lpTypedQs.length > 0 && (
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>추가 질문</div>
+            <TypedQuestionsBlock
+              qs={lpTypedQs}
+              get={id => customAnswers.find(a => a.questionId === id)?.answer}
+              set={(qId, qText, type, ans) => setCustomAnswers(prev => {
+                const idx = prev.findIndex(a => a.questionId === qId);
+                const entry = { questionId: qId, questionText: qText, type, answer: ans };
+                return idx >= 0 ? prev.map((a, i) => i === idx ? entry : a) : [...prev, entry];
+              })}
+            />
+          </Card>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
@@ -1400,10 +1463,30 @@ export default function ActiveMission() {
         </div>
       </Card>
 
+      {isLast && lpTypedQs.length > 0 && (
+        <Card style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>추가 질문</div>
+          <TypedQuestionsBlock
+            qs={lpTypedQs}
+            get={id => customAnswers.find(a => a.questionId === id)?.answer}
+            set={(qId, qText, type, ans) => setCustomAnswers(prev => {
+              const idx = prev.findIndex(a => a.questionId === qId);
+              const entry = { questionId: qId, questionText: qText, type, answer: ans };
+              return idx >= 0 ? prev.map((a, i) => i === idx ? entry : a) : [...prev, entry];
+            })}
+          />
+        </Card>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <Btn variant="secondary" onClick={() => setStep(s => s - 1)}>이전</Btn>
         <Btn
-          disabled={!scores[sec.key] || !comments[sec.key].trim() || submitting}
+          disabled={!scores[sec.key] || !comments[sec.key].trim() || submitting || (isLast && !(lpTypedQs.length === 0 || lpTypedQs.every(q => {
+            const a = customAnswers.find(x => x.questionId === q.id)?.answer;
+            if (a === undefined || a === null || a === '') return false;
+            if (q.type === 'text') return String(a).trim().length >= 10;
+            return true;
+          })))}
           onClick={() => isLast ? handleSubmit() : setStep(s => s + 1)}
         >
           {isLast ? (submitting ? '제출 중...' : '제출하기 →') : '다음 →'}
