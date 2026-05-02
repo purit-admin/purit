@@ -6,64 +6,74 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    tagline: '처음 시작하는 팀을 위한',
-    price: { monthly: 79, annual: 63 },
+    tagline: '검증을 처음 시작하는 팀',
+    price: { monthly: 82, annual: 68 },
     unit: '만 원/월',
-    annualNote: '연간 결제 시 20% 할인',
-    tests: '연 6회',
-    panels: '최대 8명',
+    annualNote: '연간 결제 시 월 14만 원 절감',
+    credits: { monthly: 38, extraPrice: 25000 },
+    panelMin: 10,
+    panelMax: 15,
+    targeting: '주니어·미들급 (1~7년차) + 명예 Lv 1~3',
     features: [
+      '추가 크레딧 구매 가능',
       '랜딩페이지 전환 검증',
+      '소재 A/B 비교 테스트',
+      '가격 페이지 검증',
+      '콜드 이메일 검증',
       '5차원 진단 리포트',
       'Purit Filter 자동 적용',
       '피드백 결과 대시보드',
       '이메일 지원',
     ],
-    notIncluded: ['소재 비교 테스트', 'ICP Pulse 구독', 'AI 인사이트 리포트', '가격 페이지 검증'],
+    notIncluded: ['시니어·C레벨 패널 매칭', '핀셋 타겟 필터링', '전담 CSM'],
     highlight: false,
-    cta: '무료 체험 시작',
+    cta: '스타터 시작',
   },
   {
     id: 'pro',
     name: 'Pro',
-    tagline: '성장 중인 마케팅 팀을 위한',
-    price: { monthly: 198, annual: 158 },
+    tagline: '성장 중인 마케팅·GTM 팀',
+    price: { monthly: 238, annual: 198 },
     unit: '만 원/월',
-    annualNote: '연간 결제 시 20% 할인',
-    tests: '연 20회',
-    panels: '최대 15명',
+    annualNote: '연간 결제 시 월 40만 원 절감',
+    credits: { monthly: 110, extraPrice: 21600 },
+    panelMin: 10,
+    panelMax: 30,
+    targeting: '시니어·C레벨 + 명예 Lv 4~5 매칭 오픈',
     features: [
+      '추가 크레딧 구매 시 14% 할인',
       'Starter 모든 기능',
-      '소재 비교 테스트 (A/B)',
-      '콜드 이메일 검증',
-      '가격 페이지 전용 검증',
+      '시니어·의사결정권자 패널 매칭',
+      '엘리트 패널 (명예 Lv 4~5) 우선 배정',
       'AI 인사이트 리포트',
       'ICP 리서치',
       '브랜드 추적 (분기)',
       '전담 온보딩 지원',
     ],
-    notIncluded: ['ICP Pulse 구독 (추가 옵션)'],
+    notIncluded: ['특정 회사·산업군 핀셋 필터링', '전담 CSM', 'SLA 보장'],
     highlight: true,
-    cta: '데모 신청',
+    cta: '프로 시작',
   },
   {
     id: 'enterprise',
     name: 'Enterprise',
-    tagline: '대규모 광고 집행 팀을 위한',
-    price: null,
-    unit: '별도 협의',
-    annualNote: null,
-    tests: '무제한',
-    panels: '최대 30명',
+    tagline: '대규모·다빈도 테스트 조직',
+    price: { monthly: 450, annual: 450 },
+    unit: '만 원/월부터',
+    annualNote: '연간 계약 전용 (협의)',
+    credits: { monthly: 250, extraPrice: null },
+    panelMin: 10,
+    panelMax: null,
+    targeting: '특정 회사·산업군 핀셋 필터링 + 전담 CSM',
     features: [
       'Pro 모든 기능',
-      'ICP Pulse 분기 구독 포함',
+      '특정 회사·산업군 핀셋 필터링',
+      '전담 CS 매니저 배정',
+      '크레딧 커스텀 협의',
       '팀 멤버 무제한',
       'Slack 연동 결과 알림',
-      '전담 CS 매니저',
       '커스텀 질문 템플릿 제작',
-      'SLA 보장',
-      '데이터 리포트 백필 제공',
+      'SLA 보장 + 백필 리포트',
     ],
     notIncluded: [],
     highlight: false,
@@ -72,9 +82,9 @@ const PLANS = [
 ];
 
 const ADD_ONS = [
+  { name: '추가 크레딧 충전 (Pro)', desc: 'Pro 플랜 한정 — 소진 후 자유롭게 추가 충전 가능', price: '1크레딧 = 21,600원' },
+  { name: '추가 크레딧 충전 (Starter)', desc: 'Starter 플랜은 소진 시 할증 요금 적용', price: '1크레딧 = 25,000원' },
   { name: 'ICP Pulse 분기 구독', desc: '분기마다 ICP 고통점·트리거·채널 변화 자동 수집 (30명 패널)', price: '월 89만 원' },
-  { name: '건당 단발 의뢰', desc: '구독 없이 1회만 검증. 패널 8-20명 선택 가능', price: '50~200만 원/건' },
-  { name: 'AI 리포트 업그레이드', desc: '기본 자동 리포트 → CRO 전문가 검토 추가', price: '건당 +30만 원' },
 ];
 
 export default function PricingPage() {
@@ -152,11 +162,11 @@ export default function PricingPage() {
       <div style={{ marginBottom: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>PRICING</div>
         <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 10 }}>광고비 낭비 전에 투자하세요</h1>
-        <p style={{ color: 'var(--text-2)', fontSize: 15, maxWidth: 480, margin: '0 auto 24px' }}>
-          1,000만 원짜리 광고 집행 전, 100만 원으로 전환 결함을 먼저 잡는 팀이 이깁니다.
+        <p style={{ color: 'var(--text-2)', fontSize: 15, maxWidth: 520, margin: '0 auto 24px' }}>
+          크레딧 기반 구독 — 필요한 만큼 테스트하고, 패널 등급과 규모로 인사이트 깊이를 조절하세요.
         </p>
         <div style={{ display: 'inline-flex', background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, gap: 4 }}>
-          {[['annual', '연간 결제 (20% 할인)'], ['monthly', '월간 결제']].map(([v, l]) => (
+          {[['annual', '연간 결제 (절감)'], ['monthly', '월간 결제 (무약정)']].map(([v, l]) => (
             <button key={v} onClick={() => setBilling(v)} style={{
               padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
               background: billing === v ? 'var(--bg)' : 'transparent',
@@ -189,33 +199,41 @@ export default function PricingPage() {
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{plan.tagline}</div>
               <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>{plan.name}</div>
-              {plan.price ? (
-                <div>
-                  <span style={{ fontSize: 40, fontWeight: 800, fontFamily: 'var(--font-mono)', color: plan.highlight ? 'var(--accent)' : 'var(--text)' }}>
-                    {billing === 'annual' ? plan.price.annual : plan.price.monthly}
-                  </span>
-                  <span style={{ fontSize: 14, color: 'var(--text-3)', marginLeft: 4 }}>{plan.unit}</span>
-                  {billing === 'annual' && plan.annualNote && (
-                    <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>{plan.annualNote}</div>
-                  )}
-                </div>
+              <div>
+                <span style={{ fontSize: 40, fontWeight: 800, fontFamily: 'var(--font-mono)', color: plan.highlight ? 'var(--accent)' : 'var(--text)' }}>
+                  {billing === 'annual' ? plan.price.annual : plan.price.monthly}
+                </span>
+                <span style={{ fontSize: 14, color: 'var(--text-3)', marginLeft: 4 }}>{plan.unit}</span>
+              </div>
+              {plan.id === 'enterprise' ? (
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>연간 계약 전용 · 협의 가능</div>
+              ) : billing === 'annual' ? (
+                <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>{plan.annualNote}</div>
               ) : (
-                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-3)' }}>별도 협의</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>무약정 · 언제든 해지 가능</div>
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 12, marginBottom: 24, padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>검증 횟수</div>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{plan.tests}</div>
+            {/* 핵심 스펙 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+              <div style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>월 크레딧</div>
+                <div style={{ fontWeight: 800, fontSize: 18, color: plan.highlight ? 'var(--accent)' : 'var(--text)' }}>
+                  {plan.credits.monthly >= 250 ? '250+' : plan.credits.monthly}
+                </div>
               </div>
-              <div style={{ width: 1, background: 'var(--border)' }} />
-              <div style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>패널 규모</div>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{plan.panels}</div>
+              <div style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>회당 패널</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>
+                  {plan.panelMin}~{plan.panelMax ? plan.panelMax : '∞'}명
+                </div>
               </div>
             </div>
-
+            {/* 타겟팅 등급 */}
+            <div style={{ marginBottom: 16, padding: '9px 12px', background: plan.highlight ? 'rgba(126,200,160,0.08)' : 'var(--bg-3)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${plan.highlight ? 'var(--accent)' : plan.id === 'enterprise' ? 'var(--text-3)' : 'var(--border)'}` }}>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>타겟팅 권한</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: plan.highlight ? 'var(--accent)' : 'var(--text-2)', lineHeight: 1.4 }}>{plan.targeting}</div>
+            </div>
             <div style={{ marginBottom: 24 }}>
               {plan.features.map((f, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', fontSize: 13, color: 'var(--text-2)', borderBottom: i < plan.features.length - 1 ? '1px solid var(--border)' : 'none' }}>
@@ -299,10 +317,10 @@ export default function PricingPage() {
       <div style={{ marginTop: 48, padding: '28px', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>자주 묻는 질문</div>
         {[
-          ['첫 의뢰 결과가 기대에 못 미치면?', '결과 불만족 시 재검증 1회를 무료로 제공합니다. 패널 매칭 오류가 있었을 경우 환불 처리됩니다.'],
-          ['팀 계정을 공유할 수 있나요?', 'Pro 이상에서 팀 멤버 최대 5명까지 동일 대시보드를 공유할 수 있습니다.'],
-          ['패널은 어떻게 검증되나요?', '직군·경력·구매 경험 기반의 서류 심사와 Purit Filter 통과 기록으로 관리됩니다. Trust Score 60 이하 패널은 자동 제외됩니다.'],
-          ['결과는 얼마 만에 나오나요?', '패널 매칭 후 평균 24-48시간 내에 피드백이 취합됩니다.'],
+          ['크레딧이란 무엇인가요?', '1 크레딧 = 패널 1명의 피드백 1건입니다. 패널 15명에게 검증 요청하면 15크레딧이 차감됩니다. 월간 크레딧은 다음 달로 이월되지 않습니다.'],
+          ['Starter에서 크레딧이 부족하면?', 'Starter 플랜은 크레딧 소진 후 추가 충전 시 1크레딧당 25,000원의 할증 요금이 적용됩니다. Pro 플랜 전환 시 즉시 정가(21,600원)가 적용됩니다.'],
+          ['패널 등급(명예 Lv)은 무엇인가요?', '패널의 피드백 품질·성실도·신뢰도를 기반으로 Purit이 부여하는 등급입니다. Lv 4~5는 현업 시니어·의사결정권자급으로 구성되며 Pro 이상에서만 매칭됩니다.'],
+          ['결과는 얼마 만에 나오나요?', '패널 매칭 후 평균 24~48시간 내에 피드백이 취합됩니다. Enterprise는 전담 CSM이 일정을 조율합니다.'],
         ].map(([q, a], i) => (
           <div key={i} style={{ padding: '14px 0', borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{q}</div>

@@ -78,7 +78,7 @@
         · email: would_reply 비율 바 + open_intent/hook_score/clarity_score/curiosity_score 카드
         · 각 타입 공통: CustomQuestionsSection → 하단에 배치 (점수 카드 아래, 패널 코멘트 위)  ★ 아코디언 개편
           - 질문 헤더 행 (항상 표시): 타입 뱃지(옵션형/점수형/서술형) + 번호. 질문 텍스트 + 응답 수 + ▼ 토글
-          - 기본 접힘 → 클릭 시 펼쳐짐: 옵션형=비율 바, 점수형=평균 점수 카드, 서술형=답변 목록
+          - 기본 접힘 → 클릭 시 펼쳐짐: 옵션형=비율 바(% 표시, 명수 비노출), 점수형=평균 점수 카드, 서술형=답변 목록
           - parsedDesc.templateQuestions + 정규화된 customQuestions → 질문별 응답 집계
           - custom_answers가 없는 레거시 응답은 자동 제외 (데이터 있는 경우만 렌더)
         · 패널 코멘트(총 평가) 섹션: CustomQuestionsSection 아래 최하단 배치  ★ 개편
@@ -212,7 +212,7 @@
     - 탭 알림 설정: 토글 상태 localStorage 저장 (키: purit_notif_prefs), 재방문 복원
     ※ 기업 프로필 탭 제거 → Account.jsx로 이전
 
-15. 플랜 & 가격 (/company/plans) — Pricing.jsx
+15. 플랜 & 가격 (/company/plans) — Pricing.jsx  ★ 가격 정책 전면 개편 (2026-05-02)
     - companies.plan Supabase 로드 → 현재 플랜 카드에 "현재 플랜" 배지 + 테두리 강조
     - CTA 버튼 클릭 → companies.plan UPDATE (starter/pro)
     - 현재 사용 중 플랜 버튼 "사용 중" 표시·비활성화
@@ -221,6 +221,16 @@
       · 이메일 연락처(enterprise@purit.io) + 자유 문의 textarea
       · 제출 시 notifications 테이블에 접수 기록 INSERT
       · 완료 후 2.5초 뒤 모달 자동 닫힘
+    - 크레딧 기반 구독 모델 (B2B):
+      · Starter: 월 82만(무약정) / 68만(연간), 월 38크레딧, 패널 10~15명, 주니어·미들급(1~7년차)+명예Lv1~3
+        - 추가 크레딧 구매 가능 (1크레딧 = 25,000원 할증)
+      · Pro:     월 238만(무약정) / 198만(연간), 월 110크레딧, 패널 10~30명, 시니어·C레벨+명예Lv4~5
+        - 추가 크레딧 구매 시 14% 할인 (1크레딧 = 21,600원 정가)
+      · Enterprise: 월 450만~(연간 전용·협의), 월 250+크레딧, 패널 무제한 커스텀
+        - 특정 회사·산업군 핀셋 필터링, 전담 CSM 배정
+    - 플랜 카드 UI: 월 크레딧 수 + 회당 패널 규모 스펙 그리드 + 타겟팅 권한 배지 표시
+    - 연간/월간 결제 토글: 연간 선택 시 절감액(Starter 14만, Pro 40만) 표시
+    - 추가 옵션 섹션: 추가 크레딧 충전(Pro/Starter 단가 비교), ICP Pulse 분기 구독
 
 ================================================================
 ## 역할 2: Panel (패널/응답자)

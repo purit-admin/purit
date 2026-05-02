@@ -41,6 +41,16 @@ function parseSubDesc(desc, type) {
   }
 }
 
+function parseLPDesc(desc) {
+  if (!desc) return { briefText: '', selectedQuestions: [] };
+  try {
+    const p = JSON.parse(desc);
+    if (p && typeof p === 'object' && 'briefText' in p)
+      return { briefText: p.briefText || '', selectedQuestions: p.selectedQuestions || [] };
+    return { briefText: desc, selectedQuestions: [] };
+  } catch { return { briefText: desc, selectedQuestions: [] }; }
+}
+
 function PanelBadges({ panelId, profiles }) {
   const p = profiles?.[panelId];
   if (!p) return null;
@@ -198,7 +208,7 @@ function CustomQuestionsSection({ questions, responses }) {
                           <div key={opt}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
                               <span style={{ color: 'var(--text-2)' }}>{opt}</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{pct}% <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>({cnt}명)</span></span>
+                              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{pct}%</span>
                             </div>
                             <div style={{ height: 7, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
                               <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
@@ -420,7 +430,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
 }
 
 /* ─── 이미지 미션: 종합 탭 ─── */
-function SummaryTabView({ feedbacks, panelProfiles }) {
+function SummaryTabView({ feedbacks, panelProfiles, mission }) {
   const radarData = DIMS.map(dim => {
     const key = DIM_META[dim].key;
     const val = calcAvg(feedbacks, key);
@@ -491,16 +501,33 @@ function SummaryTabView({ feedbacks, panelProfiles }) {
           ))}
         </div>
       )}
+
+      {/* LP 추가 질문 집계 */}
+      {(() => {
+        const { selectedQuestions: lpQs } = parseLPDesc(mission?.description);
+        if (!lpQs.length) return null;
+        return (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 16px' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            </div>
+            <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
+          </>
+        );
+      })()}
     </div>
   );
 }
 
 /* ─── 텍스트 미션 결과 (이미지 없는 구형 미션) ─── */
-function TextMissionResults({ feedbacks, panelProfiles }) {
+function TextMissionResults({ feedbacks, panelProfiles, mission }) {
   const [activeFb, setActiveFb] = useState(feedbacks[0]?.id || null);
   const fb = feedbacks.find(f => f.id === activeFb) || null;
 
   return (
+    <div>
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
       {/* 패널 목록 */}
       <div>
@@ -570,6 +597,22 @@ function TextMissionResults({ feedbacks, panelProfiles }) {
         )
       )}
     </div>
+    {/* LP 추가 질문 집계 */}
+    {(() => {
+      const { selectedQuestions: lpQs } = parseLPDesc(mission?.description);
+      if (!lpQs.length) return null;
+      return (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+          <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
+        </div>
+      );
+    })()}
+  </div>
   );
 }
 
@@ -821,7 +864,7 @@ export default function Results() {
 
                     {/* 탭 콘텐츠 */}
                     {activeDimTab === 'summary' ? (
-                      <SummaryTabView feedbacks={feedbacks} panelProfiles={panelProfiles} />
+                      <SummaryTabView feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} />
                     ) : (
                       <DimTabView
                         dim={activeDimTab}
@@ -837,7 +880,7 @@ export default function Results() {
 
                 {/* 텍스트 미션 (이미지 없는 구형) */}
                 {!isSubMission && !hasImages && feedbacks.length > 0 && (
-                  <TextMissionResults feedbacks={feedbacks} panelProfiles={panelProfiles} />
+                  <TextMissionResults feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} />
                 )}
               </>
             )}
