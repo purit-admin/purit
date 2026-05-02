@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-02 (LP 질문 템플릿 파이프라인 — templates.js lp 카테고리, feedbacks.custom_answers)
+최종 업데이트: 2026-05-02 (10단계 명예 레벨 시스템 — honorLevels.js 신규, 015 마이그레이션)
 ================================================================
 
 ## 기술 스택
@@ -27,6 +27,7 @@ purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
 │   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 3종, TYPE_LABEL, TYPE_COLOR)
+│   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getPanelReward·fmtWon 헬퍼)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
 │   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지)
@@ -46,6 +47,7 @@ purit/
 │   │                006(annotations) 007(subtest) 008(templates) 009(gamification)
 │   │                010(sharing) 011(notification_triggers) 012(typed_template_questions)
 │   │                013(custom_question_rls) 014(feedbacks_custom_answers)
+│   │                015(honor_level_system: panels.honor_points·honor_decay_applied_at, feedback_helpfulness_ratings, RPC 3개)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 

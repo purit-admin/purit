@@ -443,6 +443,7 @@ export default function ActiveMission() {
     if (!panel?.id) return;
     if (!resubmitMode) {
       await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
+      await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 });
     }
     if (mission?.company_id) {
       const { data: company } = await supabase

@@ -62,6 +62,44 @@ function PanelBadges({ panelId, profiles }) {
   );
 }
 
+/* ─── 도움 됨/안 됨 평가 버튼 ─── */
+function HelpfulnessButtons({ refType, refId, panelId, companyId, helpRatings, onRated }) {
+  if (!companyId || !refId || !panelId) return null;
+  const key     = `${refType}:${refId}`;
+  const current = helpRatings[key] ?? null;
+
+  return (
+    <span style={{ display: 'inline-flex', gap: 4, marginLeft: 8, verticalAlign: 'middle' }}>
+      {[
+        { label: '👍 도움 됨',    value: 'helpful'   },
+        { label: '👎 도움 안 됨', value: 'unhelpful' },
+      ].map(({ label, value }) => {
+        const isActive   = current === value;
+        const activeColor = value === 'helpful' ? 'var(--green)' : 'var(--red, #ef4444)';
+        return (
+          <button
+            key={value}
+            onClick={e => { e.stopPropagation(); onRated(refType, refId, panelId, value); }}
+            title={current === null ? '평가하기 (선택)' : '평가 변경/취소'}
+            style={{
+              fontSize: 10, padding: '2px 7px', borderRadius: 10, lineHeight: 1,
+              border: `1px solid ${isActive ? activeColor : 'var(--border)'}`,
+              background: isActive
+                ? (value === 'helpful' ? 'rgba(52,199,89,0.12)' : 'rgba(239,68,68,0.08)')
+                : 'transparent',
+              color: isActive ? activeColor : 'var(--text-3)',
+              cursor: 'pointer', transition: 'all 0.15s',
+              opacity: current === null ? 0.55 : 1,
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
 function calcAvg(arr, key) {
   const valid = arr.filter(r => r[key] != null && r[key] > 0);
   if (!valid.length) return null;
@@ -243,7 +281,7 @@ function CustomQuestionsSection({ questions, responses }) {
 }
 
 /* ─── 서브미션 결과: preference ─── */
-function PreferenceResults({ responses, mission, panelProfiles }) {
+function PreferenceResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
   if (!responses?.length) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>응답 데이터가 없습니다.</div>;
   const aCount = responses.filter(r => r.preference === 'A').length;
   const bCount = responses.filter(r => r.preference === 'B').length;
@@ -272,14 +310,17 @@ function PreferenceResults({ responses, mission, panelProfiles }) {
       <CustomQuestionsSection questions={allTypedQs} responses={responses} />
       <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
-        <CommentList items={responses.map((r, i) => ({ label: <span>패널 #{i + 1} · 소재 {r.preference}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>, text: r.comment }))} />
+        <CommentList items={responses.map((r, i) => ({
+          label: <span>패널 #{i + 1} · 소재 {r.preference}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /><HelpfulnessButtons refType="preference" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} /></span>,
+          text: r.comment,
+        }))} />
       </div>
     </div>
   );
 }
 
 /* ─── 서브미션 결과: pricing ─── */
-function PricingResults({ responses, mission, panelProfiles }) {
+function PricingResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
   if (!responses?.length) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>응답 데이터가 없습니다.</div>;
   const buyYes = responses.filter(r => r.would_buy === true).length;
   const buyNo  = responses.filter(r => r.would_buy === false).length;
@@ -309,14 +350,17 @@ function PricingResults({ responses, mission, panelProfiles }) {
       <CustomQuestionsSection questions={allTypedQs} responses={responses} />
       <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
-        <CommentList items={responses.map((r, i) => ({ label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>, text: r.key_comment }))} />
+        <CommentList items={responses.map((r, i) => ({
+          label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /><HelpfulnessButtons refType="pricing" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} /></span>,
+          text: r.key_comment,
+        }))} />
       </div>
     </div>
   );
 }
 
 /* ─── 서브미션 결과: email ─── */
-function EmailResults({ responses, mission, panelProfiles }) {
+function EmailResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
   if (!responses?.length) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>응답 데이터가 없습니다.</div>;
   const replyYes = responses.filter(r => r.would_reply === true).length;
   const replyNo  = responses.filter(r => r.would_reply === false).length;
@@ -347,7 +391,10 @@ function EmailResults({ responses, mission, panelProfiles }) {
       <CustomQuestionsSection questions={allTypedQs} responses={responses} />
       <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
-        <CommentList items={responses.map((r, i) => ({ label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>, text: r.comment }))} />
+        <CommentList items={responses.map((r, i) => ({
+          label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /><HelpfulnessButtons refType="email" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} /></span>,
+          text: r.comment,
+        }))} />
       </div>
     </div>
   );
@@ -430,7 +477,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
 }
 
 /* ─── 이미지 미션: 종합 탭 ─── */
-function SummaryTabView({ feedbacks, panelProfiles, mission }) {
+function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
   const radarData = DIMS.map(dim => {
     const key = DIM_META[dim].key;
     const val = calcAvg(feedbacks, key);
@@ -438,7 +485,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission }) {
   });
 
   const overallComments = feedbacks
-    .map((fb, i) => ({ panel: i + 1, panelId: fb.panel_id, text: extractOverallComment(fb.suggestions), passed: fb.purity_passed }))
+    .map((fb, i) => ({ panel: i + 1, panelId: fb.panel_id, fbId: fb.id, text: extractOverallComment(fb.suggestions), passed: fb.purity_passed }))
     .filter(c => c.text);
 
   return (
@@ -489,12 +536,13 @@ function SummaryTabView({ feedbacks, panelProfiles, mission }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {overallComments.map(({ panel, panelId, text, passed }) => (
+          {overallComments.map(({ panel, panelId, fbId, text, passed }) => (
             <div key={panel} style={{ padding: '14px 16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
                 <PanelBadges panelId={panelId} profiles={panelProfiles} />
                 {passed && <Badge type="green">Purit 통과</Badge>}
+                <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{text}</div>
             </div>
@@ -522,7 +570,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission }) {
 }
 
 /* ─── 텍스트 미션 결과 (이미지 없는 구형 미션) ─── */
-function TextMissionResults({ feedbacks, panelProfiles, mission }) {
+function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
   const [activeFb, setActiveFb] = useState(feedbacks[0]?.id || null);
   const fb = feedbacks.find(f => f.id === activeFb) || null;
 
@@ -580,7 +628,10 @@ function TextMissionResults({ feedbacks, panelProfiles, mission }) {
               })}
               {fb.suggestions && (
                 <div style={{ padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: 8 }}>개선 제안</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase' }}>개선 제안</div>
+                    <HelpfulnessButtons refType="feedback" refId={fb.id} panelId={fb.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
+                  </div>
                   <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{fb.suggestions}</p>
                 </div>
               )}
@@ -634,6 +685,9 @@ export default function Results() {
   const [shareLoading, setShareLoading]   = useState(false);
   const [shareCopied, setShareCopied]     = useState(false);
   const [panelProfiles, setPanelProfiles] = useState({});
+  const [companyId, setCompanyId]         = useState(null);
+  const [helpRatings, setHelpRatings]     = useState({});
+  const [ratingInFlight, setRatingInFlight] = useState(new Set());
 
   // 미션 목록 로드
   useEffect(() => {
@@ -642,6 +696,7 @@ export default function Results() {
       if (!user) return;
       const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
       if (!co) { setLoading(false); return; }
+      setCompanyId(co.id);
       const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
       setMissions(ms || []);
       if (ms?.length > 0) {
@@ -663,6 +718,7 @@ export default function Results() {
     setAllAnnotations([]);
     setSubResponses(null);
     setPanelProfiles({});
+    setHelpRatings({});
     setActiveDimTab('clarity');
     setCurrentImageIdx(0);
 
@@ -696,21 +752,82 @@ export default function Results() {
         setAllAnnotations(anns || []);
       }
 
+      let subData = null;
       if (mType === 'preference') {
         const { data } = await supabase.from('preference_responses').select('*').eq('mission_id', selected);
-        setSubResponses(data || []);
+        subData = data || [];
+        setSubResponses(subData);
       } else if (mType === 'pricing') {
         const { data } = await supabase.from('pricing_responses').select('*').eq('mission_id', selected);
-        setSubResponses(data || []);
+        subData = data || [];
+        setSubResponses(subData);
       } else if (mType === 'email') {
         const { data } = await supabase.from('email_responses').select('*').eq('mission_id', selected);
-        setSubResponses(data || []);
+        subData = data || [];
+        setSubResponses(subData);
+      }
+
+      // helpfulness ratings 배치 로드
+      const currentCompanyId = companyId;
+      if (currentCompanyId) {
+        const annsData = hasImgs && !['preference', 'pricing', 'email'].includes(mType)
+          ? (await supabase.from('feedback_annotations').select('id').eq('mission_id', selected)).data || []
+          : [];
+        const allRefIds = [
+          ...(fbs || []).map(f => f.id),
+          ...annsData.map(a => a.id),
+          ...(subData || []).map(r => r.id),
+        ].filter(Boolean);
+
+        if (allRefIds.length > 0) {
+          const { data: existingRatings } = await supabase
+            .from('feedback_helpfulness_ratings')
+            .select('ref_type, ref_id, is_helpful')
+            .eq('company_id', currentCompanyId)
+            .in('ref_id', allRefIds);
+
+          const rMap = {};
+          (existingRatings || []).forEach(r => {
+            rMap[`${r.ref_type}:${r.ref_id}`] = r.is_helpful ? 'helpful' : 'unhelpful';
+          });
+          setHelpRatings(rMap);
+        }
       }
 
       setFbLoading(false);
     }
     loadFeedback();
-  }, [selected]);
+  }, [selected, companyId]);
+
+  // 도움 됨/안 됨 평가 핸들러
+  const handleRate = async (refType, refId, panelId, value) => {
+    if (!companyId || !refId) return;
+    const key = `${refType}:${refId}`;
+    if (ratingInFlight.has(key)) return;
+
+    const prevRatings = helpRatings;
+    const isHelpful  = value === 'helpful';
+    const wasValue   = helpRatings[key];
+    const newValue   = wasValue === value ? null : value;
+
+    setHelpRatings(r => ({ ...r, [key]: newValue }));
+    setRatingInFlight(s => new Set([...s, key]));
+
+    const { error } = await supabase.rpc('rate_panel_feedback_helpfulness', {
+      p_company_id: companyId,
+      p_panel_id:   panelId,
+      p_ref_type:   refType,
+      p_ref_id:     refId,
+      p_is_helpful: isHelpful,
+    });
+
+    if (error) {
+      setHelpRatings(prevRatings);
+      console.error('[rate_panel_feedback_helpfulness]', error.message);
+    }
+
+    setRatingInFlight(s => { const n = new Set(s); n.delete(key); return n; });
+  };
 
   // 공유 링크 핸들러
   const handleGenerateShare = async () => {
@@ -826,9 +943,9 @@ export default function Results() {
                 {/* 서브 미션 */}
                 {isSubMission && (
                   <Card style={{ padding: '24px' }}>
-                    {mission.type === 'preference' && <PreferenceResults responses={subResponses} mission={mission} panelProfiles={panelProfiles} />}
-                    {mission.type === 'pricing'    && <PricingResults    responses={subResponses} mission={mission} panelProfiles={panelProfiles} />}
-                    {mission.type === 'email'      && <EmailResults      responses={subResponses} mission={mission} panelProfiles={panelProfiles} />}
+                    {mission.type === 'preference' && <PreferenceResults responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
+                    {mission.type === 'pricing'    && <PricingResults    responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
+                    {mission.type === 'email'      && <EmailResults      responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
                     {!subResponses && <div style={{ color: 'var(--text-3)', fontSize: 14 }}>응답 데이터 로드 중...</div>}
                   </Card>
                 )}
@@ -864,7 +981,7 @@ export default function Results() {
 
                     {/* 탭 콘텐츠 */}
                     {activeDimTab === 'summary' ? (
-                      <SummaryTabView feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} />
+                      <SummaryTabView feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
                     ) : (
                       <DimTabView
                         dim={activeDimTab}
@@ -880,7 +997,7 @@ export default function Results() {
 
                 {/* 텍스트 미션 (이미지 없는 구형) */}
                 {!isSubMission && !hasImages && feedbacks.length > 0 && (
-                  <TextMissionResults feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} />
+                  <TextMissionResults feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
                 )}
               </>
             )}

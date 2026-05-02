@@ -2,22 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
-
-const fmtAmt = (n) => {
-  if (!n) return '₩0';
-  const man  = Math.floor(n / 10000);
-  const rest = n % 10000;
-  if (!man)  return `₩${rest.toLocaleString()}`;
-  if (!rest) return `₩${man}만`;
-  return `₩${man}만 ${rest.toLocaleString()}`;
-};
-
-const TIER_META = {
-  ROOKIE:  { label: 'ROOKIE',  color: 'var(--text-3)',   bg: 'var(--surface-2)' },
-  PRO:     { label: 'PRO',     color: 'var(--blue, #3b82f6)', bg: '#eff6ff' },
-  EXPERT:  { label: 'EXPERT',  color: 'var(--accent)',   bg: '#fffbeb' },
-  ELITE:   { label: 'ELITE',   color: 'var(--green)',    bg: '#f0fdf4' },
-};
+import {
+  getHonorLevel, getNextLevel, getProgressPct, getPanelReward,
+  HONOR_COLOR_META, fmtWon,
+} from '../../lib/honorLevels';
 
 const DIFF_META = {
   easy:   { label: '쉬움',   color: 'var(--green)' },
@@ -37,9 +25,19 @@ export default function PanelDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: p } = await supabase
+      let { data: p } = await supabase
         .from('panels').select('*').eq('user_id', user.id).single();
+      if (!p) { setLoading(false); return; }
       setPanel(p);
+
+      // 잠수 페널티(감가상각) 지연 적용
+      const { data: decayRes } = await supabase.rpc('apply_honor_decay', { p_panel_id: p.id });
+      if (decayRes?.applied) {
+        const { data: fresh } = await supabase
+          .from('panels').select('*').eq('user_id', user.id).single();
+        p = fresh;
+        setPanel(fresh);
+      }
 
       const [{ data: ms }, { data: myFeedbacks }, { data: hFbs }] = await Promise.all([
         supabase.from('missions').select('*, feedbacks(id)').eq('status', 'active')
@@ -112,11 +110,18 @@ export default function PanelDashboard() {
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
   );
 
-  const name = panel?.name || '패널';
-  const tier = panel?.tier || 'ROOKIE';
-  const tierMeta = TIER_META[tier] || TIER_META.ROOKIE;
-  const trustScore = panel?.trust_score || 0;
+  const name        = panel?.name || '패널';
+  const trustScore  = panel?.trust_score || 0;
   const streakCount = panel?.streak_count || 0;
+
+  // 명예 레벨 파생 값
+  const honorPoints = panel?.honor_points ?? 0;
+  const honorLevel  = getHonorLevel(honorPoints);
+  const nextLevel   = getNextLevel(honorPoints);
+  const progressPct = getProgressPct(honorPoints);
+  const colorMeta   = HONOR_COLOR_META[honorLevel.colorTier];
+  const nextReward  = nextLevel ? getPanelReward(nextLevel.minPoints, panel?.experience) : null;
+  const curReward   = getPanelReward(honorPoints, panel?.experience);
 
   const approvedFbs = histFeedbacks.filter(f => f.purity_passed);
   const pendingFbs  = histFeedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
@@ -135,9 +140,14 @@ export default function PanelDashboard() {
             <span style={{
               fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
               padding: '3px 10px', borderRadius: 20,
-              color: tierMeta.color, background: tierMeta.bg,
-              border: `1px solid ${tierMeta.color}`,
-            }}>{tier}</span>
+              color: colorMeta.color, background: colorMeta.bg,
+              border: `1px solid ${colorMeta.color}`,
+            }}>
+              Lv.{honorLevel.level} · {colorMeta.label}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+              {honorPoints.toLocaleString()}pts
+            </span>
             {streakCount >= 2 && (
               <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
                 🔥 {streakCount}회 연속
@@ -150,7 +160,78 @@ export default function PanelDashboard() {
         </Btn>
       </div>
 
-      {/* 신뢰도 + Stats */}
+      {/* 명예 레벨 카드 */}
+      <div style={{
+        background: 'var(--surface)', border: `1px solid ${colorMeta.color}`,
+        borderRadius: 'var(--radius-lg)', padding: '20px 28px', marginBottom: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            명예 레벨
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} className="honor-info-wrap">
+              <span style={{
+                width: 15, height: 15, borderRadius: '50%', background: 'var(--border)',
+                color: 'var(--text-3)', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'default',
+                userSelect: 'none',
+              }}>i</span>
+              <span className="honor-tooltip" style={{
+                position: 'absolute', left: '50%', top: '100%', transform: 'translateX(-50%)',
+                marginTop: 6, zIndex: 10, pointerEvents: 'none',
+                background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                padding: '10px 14px', minWidth: 210,
+                fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7,
+                display: 'none',
+              }}>
+                <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 6, fontSize: 12 }}>HP 획득/차감 규칙</div>
+                {[
+                  ['미션 제출 완료', '+5 pts'],
+                  ['기업 도움 됨 평가', '+15 pts'],
+                  ['기업 도움 안 됨 평가', '−20 pts'],
+                  ['30일 비활동 후 매주', '−200 pts'],
+                ].map(([desc, val]) => (
+                  <div key={desc} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+                    <span style={{ color: 'var(--text-3)' }}>{desc}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: val.startsWith('+') ? 'var(--green)' : 'var(--red, #ef4444)', whiteSpace: 'nowrap' }}>{val}</span>
+                  </div>
+                ))}
+              </span>
+            </span>
+          </span>
+          <span style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: colorMeta.color }}>
+            Lv.{honorLevel.level}
+          </span>
+        </div>
+
+        {/* 진행률 바 */}
+        <div style={{ height: 8, borderRadius: 99, background: 'var(--border)', overflow: 'hidden', marginBottom: 8 }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            width: `${progressPct}%`,
+            background: colorMeta.color,
+            transition: 'width 0.6s ease',
+          }} />
+        </div>
+
+        {/* 다음 레벨 안내 */}
+        {nextLevel ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              다음 레벨까지 <strong style={{ color: 'var(--text-2)' }}>{(nextLevel.minPoints - honorPoints).toLocaleString()}점</strong>
+            </span>
+            <span style={{ fontSize: 12, color: colorMeta.color, fontWeight: 700 }}>
+              다음 레벨 달성 시 1회당 {fmtWon(nextReward)}을 받습니다!
+            </span>
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: colorMeta.color, fontWeight: 700 }}>
+            🏆 최고 레벨 달성! 현재 1회당 {fmtWon(curReward)}
+          </div>
+        )}
+      </div>
+
+      {/* 신뢰도 */}
       <div style={{
         background: 'var(--surface)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-lg)', padding: '20px 28px', marginBottom: 24,
@@ -199,14 +280,14 @@ export default function PanelDashboard() {
           <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
             <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 정산 완료</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
-              {fmtAmt(totalPaid)}
+              {fmtWon(totalPaid)}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{approvedFbs.length}건</div>
           </div>
           <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
             <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>정산 대기 중</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
-              {fmtAmt(totalPending)}
+              {fmtWon(totalPending)}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{pendingFbs.length}건</div>
           </div>

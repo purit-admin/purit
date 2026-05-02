@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-02 (014_feedbacks_custom_answers — feedbacks.custom_answers JSONB 컬럼 추가)
+최종 업데이트: 2026-05-02 (015_honor_level_system — panels HP 컬럼, feedback_helpfulness_ratings 테이블, RPC 3개)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -34,15 +34,19 @@
   bank_account      TEXT
   bank_holder       TEXT
   total_missions    INT   DEFAULT 0
-  tier              TEXT  DEFAULT 'ROOKIE'  (ROOKIE/PRO/EXPERT/ELITE — update_panel_gamification RPC 자동 계산)
+  tier              TEXT  DEFAULT 'ROOKIE'  (ROOKIE/PRO/EXPERT/ELITE — update_panel_gamification RPC 자동 계산, 레거시 호환용)
   trust_score       INT   DEFAULT 0  (purity_passed 건수 / 전체 submitted × 100)
   streak_count      INT   DEFAULT 0  (최근 7일 내 submitted 건수)
   last_mission_date TIMESTAMPTZ
   badges            TEXT[]  DEFAULT '{}'
   phone             TEXT    (핸드폰 번호, 기업에게 비공개)
   phone_verified    BOOLEAN DEFAULT false
+  honor_points           INT         NOT NULL DEFAULT 0   ← 015 추가 (10단계 레벨 기반 HP)
+  honor_decay_applied_at TIMESTAMPTZ                      ← 015 추가 (decay RPC 적용 커서)
   ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
   ※ 012_panel_phone_public_profiles.sql 에서 phone / phone_verified 컬럼 추가
+  ※ 015_honor_level_system.sql 에서 honor_points / honor_decay_applied_at 컬럼 추가
+  INDEX: panels_honor_points_idx (honor_points)
 
 ---
 
@@ -111,6 +115,21 @@
 
   ※ RLS: panel_own_annotations(ALL), company_read_annotations(SELECT), admin_read_annotations(SELECT)
   INDEX: fa_feedback_idx, fa_mission_idx, fa_panel_idx
+
+---
+
+### [feedback_helpfulness_ratings] — 기업의 패널 답변 도움 됨/안 됨 평가 (015_honor_level_system.sql)
+  id          UUID        PK
+  company_id  UUID        FK → companies.id   ON DELETE CASCADE
+  panel_id    UUID        FK → panels.id      ON DELETE CASCADE
+  ref_type    TEXT        NOT NULL  ('feedback'|'annotation'|'preference'|'pricing'|'email')
+  ref_id      UUID        NOT NULL  (해당 행의 PK)
+  is_helpful  BOOLEAN     NOT NULL
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  CONSTRAINT fhr_unique UNIQUE (company_id, ref_type, ref_id)
+
+  ※ RLS: 기업(본인 평가만 읽기/쓰기), 패널(본인 댓글 평가 읽기), 어드민(전체)
+  INDEX: fhr_company_idx, fhr_panel_idx, fhr_ref_idx
 
 ---
 
@@ -328,3 +347,22 @@
     → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 반환
     → 인증 불필요 (SECURITY DEFINER), /share/:token 공개 페이지에서 사용
     → 파일: supabase/migrations/010_sharing.sql
+
+  add_panel_honor_points(p_panel_id UUID, p_delta INT)
+    → panels.honor_points = GREATEST(0, honor_points + p_delta) 원자 업데이트
+    → 미션 제출 완료 시 +5 호출 (ActiveMission.jsx)
+    → 파일: supabase/migrations/015_honor_level_system.sql
+
+  rate_panel_feedback_helpfulness(p_company_id UUID, p_panel_id UUID, p_ref_type TEXT, p_ref_id UUID, p_is_helpful BOOLEAN) RETURNS jsonb
+    → 최초 평가 → INSERT + HP ±(+15/-20)
+    → 같은 버튼 재클릭 → DELETE + HP 역산 (토글 오프)
+    → 반대 버튼 클릭 → UPDATE + HP 차이 ±35
+    → Returns: {action: 'inserted'|'updated_changed'|'deleted', hp_delta: N}
+    → 기업 Results.jsx handleRate()에서 호출
+    → 파일: supabase/migrations/015_honor_level_system.sql
+
+  apply_honor_decay(p_panel_id UUID) RETURNS jsonb
+    → 30일 비활동 후 매주 -200 HP 지연 적용 (honor_decay_applied_at 커서로 이중 적용 방지)
+    → 패널 대시보드 마운트 시 호출, decayRes.applied=true 이면 패널 데이터 재로드
+    → Returns: {applied: bool, weeks_decayed: N, points_removed: N}
+    → 파일: supabase/migrations/015_honor_level_system.sql

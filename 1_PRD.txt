@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-02 (의뢰 등록 Step 0 제거 + NDA 배너, 플랜 명예Lv 제거 + 크레딧 정가/할인 표기 정정)
+최종 업데이트: 2026-05-02 (10단계 명예 레벨 시스템 전면 도입 — 패널 대시보드, 기업 Results 도움 됨/안 됨, 어드민 패널 관리)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -64,16 +64,28 @@
    - Step 3 검토: "추가 질문 N개" 행 포함(선택 시), '의뢰 제출 →' 버튼
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
 
-3. 피드백 결과 (/company/results) — Results.jsx  ★ LP 질문 집계 추가 (2026-05-02)
+3. 피드백 결과 (/company/results) — Results.jsx  ★ 도움 됨/안 됨 평가 버튼 추가 (2026-05-02)
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
    - 좌측 패널: 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시
+   - 도움 됨/안 됨 평가 버튼 (HelpfulnessButtons): 총평 섹션에만 표시 ★ 신규
+     · 기업이 패널의 총평 코멘트에 👍도움 됨 / 👎도움 안 됨 평가 (선택사항)
+     · 낙관적 UI: 클릭 즉시 반영 + rate_panel_feedback_helpfulness RPC 호출 + 에러 시 롤백
+     · 같은 버튼 재클릭 → 평가 취소(토글 오프) / 반대 버튼 클릭 → 평가 변경
+     · helpRatings 맵(`${refType}:${refId}` → 'helpful'|'unhelpful'|null)으로 선택 상태 관리
+     · ratingInFlight Set으로 동시 클릭 방지
+     · 미션 변경(selected) 시 helpRatings 초기화 후 배치 재로드 (feedback_helpfulness_ratings 조회)
+     · 표시 위치 (총평 전용):
+       - 이미지 미션 종합 탭: 패널 총평 목록(SummaryTabView) — refType="feedback"
+       - 서브미션 총 평가 코멘트: preference/pricing/email 각 총 평가 섹션 — refType=미션타입
+       - 텍스트 미션: 패널 피드백 요약(TextMissionResults) — refType="feedback"
+       ※ 차원 탭 어노테이션 항목에는 표시 안 함 (총평 아님)
    - 우측 콘텐츠: mission.type 및 image_urls 유무에 따라 3가지 분기
      A. 이미지 미션 (image_urls 존재 && !isSubMission):
         · 6개 탭: [명확성][관련성][가치][차별화][신뢰][종합]
         · 차원 탭: ImageAnnotator(readonly)로 전체 패널 어노테이션 오버레이 + 코멘트 목록
-        · 종합 탭: 5차원 평균 점수 카드 + RadarChart + 패널 총평 목록
+        · 종합 탭: 5차원 평균 점수 카드 + RadarChart + 패널 총평 목록 + 도움됨 버튼
           - 총평 파싱: extractOverallComment() → feedbacks.suggestions의 [총평]\n 이후 텍스트
-          - LP 추가 질문 있으면 하단에 CustomQuestionsSection 집계 표시 ★ 신규
+          - LP 추가 질문 있으면 하단에 CustomQuestionsSection 집계 표시
         · feedback_annotations: eq('mission_id') 전체 로드 → 클라이언트에서 dimension 필터
      B. 서브 미션 (type: preference/pricing/email):
         · preference: A/B 선택 비율 바 + message_clarity/purchase_intent 평균 카드
@@ -83,10 +95,10 @@
           - 질문 헤더 행 (항상 표시): 타입 뱃지(옵션형/점수형/서술형) + 번호. 질문 텍스트 + 응답 수 + ▼ 토글
           - 기본 접힘 → 클릭 시 펼쳐짐: 옵션형=비율 바, 점수형=평균 점수 카드, 서술형=답변 목록
           - custom_answers가 없는 레거시 응답은 자동 제외
-        · 패널 코멘트(총 평가) 섹션: CustomQuestionsSection 아래 최하단 배치
+        · 패널 코멘트(총 평가) 섹션: CustomQuestionsSection 아래 최하단 배치 + 도움됨 버튼
         · 질문 타입 뱃지 통일: 옵션형(radio) / 점수형(scale) / 서술형(text)
      C. 텍스트 미션 (image_urls 없음 && !isSubMission):
-        · 패널 목록 + 상세 뷰 + 하단 CustomQuestionsSection 집계 (LP 추가 질문 있을 때) ★ 신규
+        · 패널 목록 + 상세 뷰 + 하단 CustomQuestionsSection 집계 (LP 추가 질문 있을 때) + 도움됨 버튼
    - 공유 링크: 우측 미션 헤더 영역 배치 (missions.share_token 생성/복사/해제)
    - 패널 직군/경력 뱃지: 각 피드백 항목 옆에 패널의 직군(blue)·경력(gray) 뱃지 표시
      · 이름·전화번호 비공개 — get_panel_public_profiles RPC(SECURITY DEFINER) 경유
@@ -239,13 +251,20 @@
 
 인증 후 /panel 하위 라우트 접근 가능.
 
-1. 대시보드 (/panel) — Dashboard.jsx  ★ 개편
+1. 대시보드 (/panel) — Dashboard.jsx  ★ 명예 레벨 시스템 추가 (2026-05-02)
+   - 명예 레벨 카드 (최상단): 10단계 HP 기반 레벨 표시
+     · Lv.X 헤더 + 진행률 바(colorMeta.color) + "다음 레벨까지 XXX점" + "다음 레벨 달성 시 1회당 ₩XXX을 받습니다!" 동기 문구
+     · 최고 레벨(Lv.10) 달성 시: "🏆 최고 레벨 달성! 현재 1회당 ₩XXX"
+     · 레벨 라벨 옆 ⓘ 배지: 마우스 호버 시 HP 규칙 툴팁 표시
+       (미션 제출 완료 +5pts / 기업 도움 됨 +15pts / 기업 도움 안 됨 −20pts / 30일 비활동 후 매주 −200pts)
+     · 마운트 시 apply_honor_decay RPC 호출 → decay 적용 시 패널 데이터 즉시 재로드
    - 신뢰도 게이지 (trust_score %)
    - 미션 현황 (3칸 묶음): 완료 미션(총 누적) / 참여 가능(슬롯 여유 있는 active 미션) / 이번 주 활동(7일 내 제출)
      · 참여 가능 수: status='active' + 슬롯 여유(filled_count < panel_count) + 미참여 미션 전수 조회 (limit 없음)
    - 수익 현황 (3칸 묶음): 총 정산 완료(금액+건수) / 정산 대기 중(금액+건수) / 필터 탈락(건수)
      · feedbacks(status≠draft) SELECT → purity_passed/status 기준 집계
-     · 금액 표시: fmtAmt() — 만 단위 + 나머지 천원 단위 (예: ₩1만 5,000)
+     · 금액 표시: fmtWon() (honorLevels.js) — 만 단위 + 나머지 천원 단위 (예: ₩1만 5,000)
+   - 헤더 배지: Lv.X · 라벨 (colorMeta 스타일) + XXXpts 표시 + 🔥 연속 횟수
    - 참여 가능한 미션 카드 목록 제거 (→ 미션 탐색 페이지로 유도)
 
 2. 미션 관리 (/panel/missions) — Missions.jsx  ★ 전면 재설계 (미션 탐색 + 진행 중 통합)
@@ -339,6 +358,7 @@
        a. feedbacks UPDATE (status: draft → submitted, strengths: null, suggestions 통합)
        b. missions.filled_count +1 → RPC increment_mission_filled_count (SECURITY DEFINER)
        c. panels.total_missions +1 → RPC increment_panel_mission_count (SECURITY DEFINER)
+       d. panels.honor_points +5 → RPC add_panel_honor_points (SECURITY DEFINER) ★ 신규
 
 4. 정산 내역 (/panel/history) — History.jsx  ★ 개편 (수익 이력에서 명칭 변경)
    - 페이지 제목: "정산 내역", 헤더 태그: LEDGER
@@ -378,7 +398,12 @@
    - 사이드바 상단 포털 전환 버튼(어드민/기업/패널) 표시
 
 1. 플랫폼 대시보드 (/admin) — Dashboard.jsx
-2. 패널 관리 (/admin/panels) — PanelManagement.jsx
+2. 패널 관리 (/admin/panels) — PanelManagement.jsx  ★ 명예 레벨 시스템 적용 (2026-05-02)
+   - 통계 카드: 전체 패널 / 활성 / 심사 대기 / 평균 Trust
+   - 레벨 필터: 전체 / Lv.1-3 / Lv.4-6 / Lv.7-9 / Lv.10 (honor_points 기반 getHonorLevel() 계산)
+   - 테이블: 이름 / 직군 / Trust / 레벨(Lv.X 뱃지, HONOR_COLOR_META 스타일) / 완료 / 상태
+   - 패널 상세 카드: Lv.X · XXXpts 뱃지 + 명예 포인트 항목 포함
+   - 등급 수동 조정 버튼 없음 (honor_points 자동 계산 방식으로 대체됨)
 3. 미션 관리 (/admin/missions) — Missions.jsx  ★ UX 개선
    - 기본 탭: '진행' (active) — 사이드바 클릭 시 진행 중 미션으로 바로 진입
    - 탭 4개: 전체 / 진행 / 완료 / 취소

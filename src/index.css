@@ -113,6 +113,9 @@ input:focus, textarea:focus, select:focus {
 .tag-blue { background: var(--blue-dim); color: var(--text-2); border: 1px solid var(--border); }
 .tag-gray { background: var(--bg-2); color: var(--text-3); border: 1px solid var(--border); }
 
+/* Honor level info tooltip */
+.honor-info-wrap:hover .honor-tooltip { display: block !important; }
+
 /* Mission card responsive layout */
 .mc-row { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
 .mc-right { flex-shrink:0; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }

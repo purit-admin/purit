@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Card, Badge, Btn, Stat } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
 
-const tierColor = (tier) => {
-  if (tier === 'ELITE' || tier === 'EXPERT') return 'gold';
-  if (tier === 'PRO') return 'blue';
-  return 'gray';
-};
 const scoreColor = (s) => s >= 80 ? 'var(--green)' : s >= 60 ? 'var(--accent)' : 'var(--red)';
 
 export default function AdminPanels() {
@@ -15,7 +11,7 @@ export default function AdminPanels() {
   const [loading, setLoading]     = useState(true);
   const [acting, setActing]       = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [tierFilter, setTierFilter]     = useState('all');
+  const [levelFilter, setLevelFilter]   = useState('all');
 
   useEffect(() => {
     async function load() {
@@ -37,10 +33,17 @@ export default function AdminPanels() {
     setActing(false);
   };
 
-  const filtered = panels.filter(p =>
-    (statusFilter === 'all' || (p.status || 'active') === statusFilter) &&
-    (tierFilter === 'all' || (p.tier || 'ROOKIE') === tierFilter)
-  );
+  const filtered = panels.filter(p => {
+    const statusOk = statusFilter === 'all' || (p.status || 'active') === statusFilter;
+    if (!statusOk) return false;
+    if (levelFilter === 'all') return true;
+    const lv = getHonorLevel(p.honor_points ?? 0).level;
+    if (levelFilter === '1-3')  return lv >= 1 && lv <= 3;
+    if (levelFilter === '4-6')  return lv >= 4 && lv <= 6;
+    if (levelFilter === '7-9')  return lv >= 7 && lv <= 9;
+    if (levelFilter === '10')   return lv === 10;
+    return true;
+  });
 
   const panel = selected ? panels.find(p => p.id === selected) : null;
 
@@ -90,14 +93,14 @@ export default function AdminPanels() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          {['all', 'EXPERT', 'PRO', 'ROOKIE'].map(t => (
-            <button key={t} onClick={() => setTierFilter(t)} style={{
+          {[['all', '전체 레벨'], ['1-3', 'Lv.1-3'], ['4-6', 'Lv.4-6'], ['7-9', 'Lv.7-9'], ['10', 'Lv.10']].map(([v, l]) => (
+            <button key={v} onClick={() => setLevelFilter(v)} style={{
               padding: '5px 12px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500,
-              background: tierFilter === t ? 'var(--accent)' : 'var(--surface)',
-              color: tierFilter === t ? '#FFFFFF' : 'var(--text-3)',
-              border: '1px solid ' + (tierFilter === t ? 'var(--accent)' : 'var(--border)'),
+              background: levelFilter === v ? 'var(--accent)' : 'var(--surface)',
+              color: levelFilter === v ? '#FFFFFF' : 'var(--text-3)',
+              border: '1px solid ' + (levelFilter === v ? 'var(--accent)' : 'var(--border)'),
               cursor: 'pointer', transition: 'all 0.15s',
-            }}>{t === 'all' ? '전체 등급' : t}</button>
+            }}>{l}</button>
           ))}
         </div>
       </div>
@@ -113,7 +116,7 @@ export default function AdminPanels() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['이름', '직군', 'Trust', '등급', '완료', '상태', ''].map(h => (
+                  {['이름', '직군', 'Trust', '레벨', '완료', '상태', ''].map(h => (
                     <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                       {h}
                     </th>
@@ -123,7 +126,8 @@ export default function AdminPanels() {
               <tbody>
                 {filtered.map((p, i) => {
                   const status = p.status || 'active';
-                  const tier   = p.tier   || 'ROOKIE';
+                  const hl     = getHonorLevel(p.honor_points ?? 0);
+                  const cm     = HONOR_COLOR_META[hl.colorTier];
                   return (
                     <tr key={p.id} onClick={() => setSelected(selected === p.id ? null : p.id)} style={{
                       borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
@@ -140,7 +144,11 @@ export default function AdminPanels() {
                           {p.trust_score || 0}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px' }}><Badge type={tierColor(tier)}>{tier}</Badge></td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, color: cm.color, background: cm.bg, border: `1px solid ${cm.color}` }}>
+                          Lv.{hl.level}
+                        </span>
+                      </td>
                       <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-2)' }}>{p.total_missions || 0}</td>
                       <td style={{ padding: '12px 16px' }}>
                         <Badge type={status === 'active' ? 'green' : status === 'pending' ? 'gold' : 'red'}>
@@ -157,8 +165,9 @@ export default function AdminPanels() {
 
           {/* Detail panel */}
           {panel && (() => {
-            const status = panel.status || 'active';
-            const tier   = panel.tier   || 'ROOKIE';
+            const status  = panel.status || 'active';
+            const hl      = getHonorLevel(panel.honor_points ?? 0);
+            const cm      = HONOR_COLOR_META[hl.colorTier];
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <Card>
@@ -167,7 +176,9 @@ export default function AdminPanels() {
                       <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{panel.name}</div>
                       <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{panel.industry || '직군 미설정'}</div>
                     </div>
-                    <Badge type={tierColor(tier)}>{tier}</Badge>
+                    <span style={{ fontSize: 13, fontWeight: 700, padding: '4px 12px', borderRadius: 20, color: cm.color, background: cm.bg, border: `1px solid ${cm.color}` }}>
+                      Lv.{hl.level} · {(panel.honor_points ?? 0).toLocaleString()}pts
+                    </span>
                   </div>
 
                   <div style={{ marginBottom: 16 }}>
@@ -182,10 +193,11 @@ export default function AdminPanels() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {[
-                      { label: '경력',      value: panel.experience || '—' },
-                      { label: '완료 미션', value: `${panel.total_missions || 0}건` },
-                      { label: '가입일',    value: new Date(panel.created_at).toLocaleDateString('ko-KR') },
-                      { label: '상태',      value: status === 'active' ? '활성' : status === 'pending' ? '심사중' : '정지' },
+                      { label: '경력',       value: panel.experience || '—' },
+                      { label: '완료 미션',  value: `${panel.total_missions || 0}건` },
+                      { label: '명예 포인트', value: `${(panel.honor_points ?? 0).toLocaleString()}pts` },
+                      { label: '가입일',     value: new Date(panel.created_at).toLocaleDateString('ko-KR') },
+                      { label: '상태',       value: status === 'active' ? '활성' : status === 'pending' ? '심사중' : '정지' },
                     ].map(({ label, value }) => (
                       <div key={label} style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
                         <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
@@ -235,22 +247,10 @@ export default function AdminPanels() {
                       </>
                     )}
                     {status === 'active' && (
-                      <>
-                        <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>등급 수동 조정</div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {['ROOKIE', 'PRO', 'EXPERT'].filter(t => t !== tier).map(t => (
-                            <Btn key={t} size="sm" variant="secondary" disabled={acting}
-                              style={{ flex: 1, justifyContent: 'center', fontSize: 11 }}
-                              onClick={() => updatePanel(panel.id, { tier: t })}>
-                              → {t}
-                            </Btn>
-                          ))}
-                        </div>
-                        <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center', marginTop: 4 }}
-                          onClick={() => updatePanel(panel.id, { status: 'suspended' })}>
-                          활동 정지
-                        </Btn>
-                      </>
+                      <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center' }}
+                        onClick={() => updatePanel(panel.id, { status: 'suspended' })}>
+                        활동 정지
+                      </Btn>
                     )}
                     {status === 'suspended' && (
                       <Btn size="sm" disabled={acting} style={{ justifyContent: 'center' }}
