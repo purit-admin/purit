@@ -4,9 +4,8 @@ import { Btn, Card } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
-const STEPS = ['기본 정보', '페르소나 설정', '소재 업로드', '질문 설정', '검토 & 제출'];
+const STEPS = ['페르소나 설정', '소재 업로드', '질문 설정', '검토 & 제출'];
 
-const INDUSTRIES = ['패션/커머스', '뷰티/코스메틱', '헬스/보충제', '금융/핀테크', 'B2B SaaS', '교육/에듀테크', '부동산/인테리어', '식품/F&B', '기타'];
 const PANEL_COUNTS = [5, 8, 10, 15, 20];
 const PRICE_PER = { 5: 50, 8: 75, 10: 90, 15: 130, 20: 170 };
 const MAX_IMAGES = 5;
@@ -22,7 +21,7 @@ export default function NewMission() {
   const [step, setStep] = useState(0);
   const [missionUuid] = useState(() => editMissionId || crypto.randomUUID());
   const [form, setForm] = useState({
-    company: '', product: '', industry: '', lpUrl: '',
+    product: '', lpUrl: '',
     personaAge: '', personaIncome: '', personaRole: '', personaContext: '',
     panels: 8, briefText: '', focusAreas: [],
     imageUrls: [],
@@ -203,6 +202,18 @@ export default function NewMission() {
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>{isEditMode ? '의뢰 수정' : '의뢰 등록'}</h1>
       </div>
 
+      {/* NDA 안내 배너 */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 16px', marginBottom: 28,
+        background: 'var(--accent-dim)', borderRadius: 'var(--radius)',
+        border: '1px solid var(--accent)',
+        fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
+      }}>
+        <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
+        평가 참가 패널은 기업의 정보를 외부에 발설할 수 없습니다.
+      </div>
+
       {/* Step indicator */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 40, position: 'relative' }}>
         {STEPS.map((s, i) => (
@@ -221,37 +232,8 @@ export default function NewMission() {
       </div>
 
       <Card>
-        {/* Step 0: 기본 정보 */}
+        {/* Step 0: 페르소나 설정 */}
         {step === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>기본 정보</h2>
-            <div style={{ padding: '12px 16px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)' }}>
-              💡 이 정보는 패널에게 공개되지 않습니다. 내부 관리용입니다.
-            </div>
-            <label style={lbl}>
-              <span style={lblTxt}>회사명</span>
-              <input value={form.company} onChange={e => set('company', e.target.value)} placeholder="어반핏 코리아" />
-            </label>
-            <label style={lbl}>
-              <span style={lblTxt}>검증할 제품/서비스명</span>
-              <input value={form.product} onChange={e => set('product', e.target.value)} placeholder="프리미엄 러닝화 LP" />
-            </label>
-            <label style={lbl}>
-              <span style={lblTxt}>산업군</span>
-              <select value={form.industry} onChange={e => set('industry', e.target.value)}>
-                <option value="">선택하세요</option>
-                {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
-              </select>
-            </label>
-            <label style={lbl}>
-              <span style={lblTxt}>랜딩페이지 URL</span>
-              <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
-            </label>
-          </div>
-        )}
-
-        {/* Step 1: 페르소나 설정 */}
-        {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>타겟 페르소나 설정</h2>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>이 조건에 맞는 패널을 매칭합니다. 구체적일수록 수율이 높아집니다.</p>
@@ -278,10 +260,18 @@ export default function NewMission() {
           </div>
         )}
 
-        {/* Step 2: 소재 업로드 */}
-        {step === 2 && (
+        {/* Step 1: 소재 업로드 */}
+        {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>소재 & 검증 범위</h2>
+            <label style={lbl}>
+              <span style={lblTxt}>검증할 제품/서비스명</span>
+              <input value={form.product} onChange={e => set('product', e.target.value)} placeholder="프리미엄 러닝화 LP" />
+            </label>
+            <label style={lbl}>
+              <span style={lblTxt}>랜딩페이지 URL</span>
+              <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
+            </label>
             <label style={lbl}>
               <span style={lblTxt}>패널 수</span>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -397,8 +387,8 @@ export default function NewMission() {
           </div>
         )}
 
-        {/* Step 3: 질문 설정 (신규) */}
-        {step === 3 && (
+        {/* Step 2: 질문 설정 */}
+        {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div>
@@ -544,13 +534,12 @@ export default function NewMission() {
           </div>
         )}
 
-        {/* Step 4: 검토 & 제출 */}
-        {step === 4 && (
+        {/* Step 3: 검토 & 제출 */}
+        {step === 3 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>최종 검토</h2>
             {[
               ['제품/서비스', form.product || '—'],
-              ['산업군', form.industry || '—'],
               ['LP URL', form.lpUrl || '—'],
               ['타겟 페르소나', `${form.personaAge}, ${form.personaRole}` || '—'],
               ['패널 수', `${form.panels}명`],

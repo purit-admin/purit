@@ -13,7 +13,7 @@ const PLANS = [
     credits: { monthly: 38, extraPrice: 25000 },
     panelMin: 10,
     panelMax: 15,
-    targeting: '주니어·미들급 (1~7년차) + 명예 Lv 1~3',
+    targeting: '주니어·미들급 (1~7년차)',
     features: [
       '추가 크레딧 구매 가능',
       '랜딩페이지 전환 검증',
@@ -39,12 +39,12 @@ const PLANS = [
     credits: { monthly: 110, extraPrice: 21600 },
     panelMin: 10,
     panelMax: 30,
-    targeting: '시니어·C레벨 + 명예 Lv 4~5 매칭 오픈',
+    targeting: '시니어·C레벨 매칭 오픈',
     features: [
       '추가 크레딧 구매 시 14% 할인',
       'Starter 모든 기능',
       '시니어·의사결정권자 패널 매칭',
-      '엘리트 패널 (명예 Lv 4~5) 우선 배정',
+      '시니어·C레벨 패널 우선 배정',
       'AI 인사이트 리포트',
       'ICP 리서치',
       '브랜드 추적 (분기)',
@@ -318,11 +318,10 @@ export default function PricingPage() {
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>자주 묻는 질문</div>
         {[
           ['크레딧이란 무엇인가요?', '1 크레딧 = 패널 1명의 피드백 1건입니다. 패널 15명에게 검증 요청하면 15크레딧이 차감됩니다. 월간 크레딧은 다음 달로 이월되지 않습니다.'],
-          ['Starter에서 크레딧이 부족하면?', 'Starter 플랜은 크레딧 소진 후 추가 충전 시 1크레딧당 25,000원의 할증 요금이 적용됩니다. Pro 플랜 전환 시 즉시 정가(21,600원)가 적용됩니다.'],
-          ['패널 등급(명예 Lv)은 무엇인가요?', '패널의 피드백 품질·성실도·신뢰도를 기반으로 Purit이 부여하는 등급입니다. Lv 4~5는 현업 시니어·의사결정권자급으로 구성되며 Pro 이상에서만 매칭됩니다.'],
+          ['추가 크레딧 가격이 어떻게 되나요?', 'Starter 플랜은 추가 충전 시 1크레딧당 25,000원(정가)이 적용됩니다. Pro 플랜은 14% 할인된 1크레딧당 21,600원에 충전할 수 있습니다.'],
           ['결과는 얼마 만에 나오나요?', '패널 매칭 후 평균 24~48시간 내에 피드백이 취합됩니다. Enterprise는 전담 CSM이 일정을 조율합니다.'],
         ].map(([q, a], i) => (
-          <div key={i} style={{ padding: '14px 0', borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>
+          <div key={i} style={{ padding: '14px 0', borderBottom: i < 2 ? '1px solid var(--border)' : 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{q}</div>
             <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{a}</div>
           </div>
