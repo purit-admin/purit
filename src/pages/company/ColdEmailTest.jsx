@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import PanelTargetStep, { calcCredits } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 
-const PANEL_COUNTS = [10, 15, 20, 30];
-const PRICE_PER = { 10: 90, 15: 130, 20: 170, 30: 250 };
-const STEPS = ['이메일 원문', '제품 설명', '질문 설정'];
+const STEPS = ['이메일 원문', '제품 설명', '질문 설정', '패널 설정'];
 
 export default function ColdEmailTest() {
   const location = useLocation();
@@ -41,6 +40,8 @@ export default function ColdEmailTest() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [companyId, setCompanyId] = useState(null);
+  const [companyPlan, setCompanyPlan] = useState(null);
+  const [careerLevels, setCareerLevels] = useState(['junior']);
 
   const initTemplateName = location.state?.templateName || null;
 
@@ -63,8 +64,9 @@ export default function ColdEmailTest() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+    const { data: co } = await supabase.from('companies').select('id, plan').eq('user_id', user.id).single();
     setCompanyId(co?.id);
+    setCompanyPlan(co?.plan?.toLowerCase() || 'starter');
     if (co) {
       const { data: missionsData } = await supabase
         .from('missions').select('id, title, status, panel_count, filled_count, created_at')
@@ -166,9 +168,10 @@ export default function ColdEmailTest() {
           content: emailText.trim(),
           productDescription: productDescription.trim(),
           selectedQuestions: [...selectedQuestions, ...localCustomQs],
+          careerLevels,
         }),
         panel_count: panelSize,
-        reward_amount: (PRICE_PER[panelSize] || 90) * 1000,
+        reward_amount: calcCredits(panelSize, careerLevels) * 1000,
         status: 'active',
         assets: [],
       });
@@ -263,30 +266,9 @@ export default function ColdEmailTest() {
               </div>
             )}
 
-            {/* Step 2: 패널 수 & 질문 설정 */}
+            {/* Step 2: 질문 설정 */}
             {createStep === 2 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>패널 수</div>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                    {PANEL_COUNTS.map(n => (
-                      <button key={n} onClick={() => setPanelSize(n)} style={{
-                        flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
-                        background: panelSize === n ? 'var(--accent)' : 'var(--surface)',
-                        color: panelSize === n ? '#FFF' : 'var(--text-2)',
-                        border: `1px solid ${panelSize === n ? 'var(--accent)' : 'var(--border)'}`,
-                        fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s',
-                      }}>{n}명</button>
-                    ))}
-                  </div>
-                  <div style={{ background: 'var(--accent-dim)', borderRadius: 'var(--radius)', padding: '12px 16px', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-2)', fontSize: 13 }}>예상 비용</span>
-                    <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
-                      ₩ {((PRICE_PER[panelSize] || 90) * 1000).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>질문 설정</div>
@@ -537,6 +519,17 @@ export default function ColdEmailTest() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Step 3: 패널 설정 */}
+            {createStep === 3 && (
+              <PanelTargetStep
+                plan={companyPlan}
+                panelCount={panelSize}
+                onPanelCount={setPanelSize}
+                careerLevels={careerLevels}
+                onCareerLevels={setCareerLevels}
+              />
             )}
           </Card>
 

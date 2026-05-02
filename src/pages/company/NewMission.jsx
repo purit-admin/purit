@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Btn, Card } from '../../components/ui';
+import PanelTargetStep, { calcCredits, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
-const STEPS = ['페르소나 설정', '소재 업로드', '질문 설정', '검토 & 제출'];
-
-const PANEL_COUNTS = [5, 8, 10, 15, 20];
-const PRICE_PER = { 5: 50, 8: 75, 10: 90, 15: 130, 20: 170 };
+const STEPS = ['페르소나 설정', '소재 업로드', '질문 설정', '패널 설정', '검토 & 제출'];
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -23,7 +21,7 @@ export default function NewMission() {
   const [form, setForm] = useState({
     product: '', lpUrl: '',
     personaAge: '', personaIncome: '', personaRole: '', personaContext: '',
-    panels: 8, briefText: '', focusAreas: [],
+    panels: 10, briefText: '', focusAreas: [],
     imageUrls: [],
     estimatedMinutes: 5,
   });
@@ -31,11 +29,24 @@ export default function NewMission() {
   const [uploadError, setUploadError]     = useState('');
   const [submitting, setSubmitting]       = useState(false);
   const [submitError, setSubmitError]     = useState('');
+  const [companyPlan, setCompanyPlan]     = useState(null);
+  const [careerLevels, setCareerLevels]   = useState(['junior']);
 
   // 질문 설정 state
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [localCustomQs,     setLocalCustomQs]     = useState([]);
   const [expandedTmpl,      setExpandedTmpl]      = useState({});
+
+  // 플랜 로드
+  useEffect(() => {
+    async function fetchPlan() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('companies').select('plan').eq('user_id', user.id).single();
+      setCompanyPlan(data?.plan?.toLowerCase() || 'starter');
+    }
+    fetchPlan();
+  }, []);
 
   // 편집 모드: 기존 미션 데이터 pre-fill
   useEffect(() => {
@@ -54,7 +65,7 @@ export default function NewMission() {
         product:        ms.title || '',
         lpUrl:          ms.target_url || '',
         briefText,
-        panels:         ms.panel_count || 8,
+        panels:         ms.panel_count || 10,
         focusAreas:     ms.assets || [],
         imageUrls:      ms.image_urls || [],
         personaContext: ms.persona || '',
@@ -62,6 +73,7 @@ export default function NewMission() {
       try {
         const p = JSON.parse(ms.description || '{}');
         if (Array.isArray(p.selectedQuestions)) setSelectedQuestions(p.selectedQuestions);
+        if (Array.isArray(p.careerLevels)) setCareerLevels(p.careerLevels);
       } catch {}
     }
     load();
@@ -86,8 +98,6 @@ export default function NewMission() {
     if (sel) setSelectedQuestions(prev => prev.filter(s => s.id !== q.id));
     else if (canAddLPQ(q)) setSelectedQuestions(prev => [...prev, q]);
   };
-
-  const total = (PRICE_PER[form.panels] || 90) * 10000;
 
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -133,10 +143,9 @@ export default function NewMission() {
   };
 
   const buildDescription = () => {
-    if (allLPSelected.length > 0) {
-      return JSON.stringify({ briefText: form.briefText, selectedQuestions: allLPSelected });
-    }
-    return form.briefText;
+    const base = { briefText: form.briefText, careerLevels };
+    if (allLPSelected.length > 0) base.selectedQuestions = allLPSelected;
+    return JSON.stringify(base);
   };
 
   const handleSubmit = async () => {
@@ -164,7 +173,7 @@ export default function NewMission() {
           description,
           persona,
           panel_count:   form.panels,
-          reward_amount: (PRICE_PER[form.panels] || 90) * 1000,
+          reward_amount: calcCredits(form.panels, careerLevels) * 10000,
           assets:        form.focusAreas,
           image_urls:    form.imageUrls,
         }).eq('id', editMissionId);
@@ -179,7 +188,7 @@ export default function NewMission() {
           description,
           persona,
           panel_count:       form.panels,
-          reward_amount:     (PRICE_PER[form.panels] || 90) * 1000,
+          reward_amount:     calcCredits(form.panels, careerLevels) * 10000,
           status:            'active',
           assets:            form.focusAreas,
           image_urls:        form.imageUrls,
@@ -272,32 +281,6 @@ export default function NewMission() {
               <span style={lblTxt}>랜딩페이지 URL</span>
               <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
             </label>
-            <label style={lbl}>
-              <span style={lblTxt}>패널 수</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {PANEL_COUNTS.map(n => (
-                  <button key={n} onClick={() => set('panels', n)} style={{
-                    flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
-                    background: form.panels === n ? 'var(--accent)' : 'var(--surface-2)',
-                    color: form.panels === n ? '#FFFFFF' : 'var(--text-2)',
-                    border: '1px solid ' + (form.panels === n ? 'var(--accent)' : 'var(--border)'),
-                    fontWeight: 600, fontSize: 14, transition: 'all 0.15s', cursor: 'pointer',
-                  }}
-                  onMouseEnter={e => { if (form.panels !== n) e.currentTarget.style.background = 'var(--bg-3)'; }}
-                  onMouseLeave={e => { if (form.panels !== n) e.currentTarget.style.background = 'var(--surface-2)'; }}
-                  >
-                    {n}명
-                  </button>
-                ))}
-              </div>
-            </label>
-            <div style={{ background: 'var(--accent-dim)', borderRadius: 'var(--radius)', padding: '14px 18px', display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-2)', fontSize: 14 }}>예상 비용</span>
-              <span style={{ fontWeight: 800, fontSize: 20, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
-                ₩ {total.toLocaleString()}
-              </span>
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: -12 }}>Pro 플랜 구독 시 20% 할인 적용</div>
             <label style={lbl}>
               <span style={lblTxt}>검증 포커스 (복수 선택)</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
@@ -534,8 +517,19 @@ export default function NewMission() {
           </div>
         )}
 
-        {/* Step 3: 검토 & 제출 */}
+        {/* Step 3: 패널 설정 */}
         {step === 3 && (
+          <PanelTargetStep
+            plan={companyPlan}
+            panelCount={form.panels}
+            onPanelCount={(n) => set('panels', n)}
+            careerLevels={careerLevels}
+            onCareerLevels={setCareerLevels}
+          />
+        )}
+
+        {/* Step 4: 검토 & 제출 */}
+        {step === 4 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>최종 검토</h2>
             {[
@@ -543,8 +537,9 @@ export default function NewMission() {
               ['LP URL', form.lpUrl || '—'],
               ['타겟 페르소나', `${form.personaAge}, ${form.personaRole}` || '—'],
               ['패널 수', `${form.panels}명`],
+              ['커리어 레벨', careerLevels.map(k => CAREER_LEVELS.find(c => c.key === k)?.label).filter(Boolean).join(', ') || '—'],
+              ['예상 크레딧', `${calcCredits(form.panels, careerLevels)} 크레딧`],
               ['검증 포커스', form.focusAreas.join(', ') || '—'],
-              ['예상 비용', `₩ ${total.toLocaleString()}`],
               ...(allLPSelected.length > 0 ? [['추가 질문', `${allLPSelected.length}개 선택`]] : []),
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-02 (10단계 명예 레벨 시스템 — honorLevels.js 신규, 015 마이그레이션)
+최종 업데이트: 2026-05-02 (패널 설정 단계 추가 — PanelTargetStep.jsx 신규, 전 의뢰 등록 플로우 적용)
 ================================================================
 
 ## 기술 스택
@@ -34,6 +34,12 @@ purit/
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
 │   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원, activeDimension prop으로 차원 고정)
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
+│   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
+│   │                  exports: default PanelTargetStep, calcCredits(panelCount, careerLevels), CAREER_LEVELS
+│   │                  props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels
+│   │                  크레딧 배수: 주니어 1.0× / 미들 1.5× / 시니어 2.0×(Pro) / C레벨 3.0×(Pro)
+│   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
+│   │                  사용: NewMission(Step 3), PreferenceTest(Step 4), PricingTest(Step 3), ColdEmailTest(Step 3)
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
 │       ├── company/  (17개 — 라우트 목록 참조)
