@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-02 (패널 설정 단계 추가 — PanelTargetStep.jsx 신규, 전 의뢰 등록 플로우 적용)
+최종 업데이트: 2026-05-03 (이미지 최대 3장·전체 이미지 확인 필수·차원 탭 체크 제거, 테스트 미션 생성 스크립트 추가)
 ================================================================
 
 ## 기술 스택
@@ -47,6 +47,7 @@ purit/
 │       └── admin/    (6개 — 라우트 목록 참조)
 ├── scripts/   (개발·테스트 전용 Node.js 유틸리티 — 배포 대상 아님)
 │   ├── create-panel-accounts.mjs      (Supabase Admin API로 테스트 패널 계정 일괄 생성)
+│   ├── create-test-main-mission.mjs   (어드민 계정으로 테스트 메인 의뢰 생성 — SVG 이미지 5장 Storage 업로드 포함)
 │   ├── submit-greencart-feedbacks.mjs (서비스롤 키로 미션 피드백·어노테이션 자동 제출)
 │   └── update-panel-profiles.mjs      (panel1~10 직군·경력 업데이트 — .env.local 필요)
 ├── supabase/

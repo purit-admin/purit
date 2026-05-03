@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const STEPS = ['페르소나 설정', '소재 업로드', '질문 설정', '패널 설정', '검토 & 제출'];
-const MAX_IMAGES = 5;
+const MAX_IMAGES = 3;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export default function NewMission() {

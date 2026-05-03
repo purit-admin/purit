@@ -169,6 +169,7 @@ export default function ActiveMission() {
   // ── IMAGE ANNOTATION ──
   const [annotations, setAnnotations]         = useState([]);
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
+  const [viewedImages, setViewedImages]       = useState(() => new Set([0]));
   const [activeDimension, setActiveDimension] = useState('clarity');
   const [overallComment, setOverallComment]   = useState('');
   const [skippedDims, setSkippedDims]         = useState({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
@@ -207,6 +208,7 @@ export default function ActiveMission() {
     setAnnotations([]);
     setCustomAnswers([]);
     setCurrentImageIdx(0);
+    setViewedImages(new Set([0]));
     setActiveDimension('clarity');
     setOverallComment('');
     setSkippedDims({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
@@ -1139,13 +1141,14 @@ export default function ActiveMission() {
       Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k) || skippedDims[k]])
     );
     const allDimsDone    = Object.values(dimDone).every(Boolean);
+    const allImagesViewed = imageUrls.length <= 1 || viewedImages.size >= imageUrls.length;
     const lpQsAnswered = lpTypedQs.length === 0 || lpTypedQs.every(q => {
       const a = customAnswers.find(x => x.questionId === q.id)?.answer;
       if (a === undefined || a === null || a === '') return false;
       if (q.type === 'text') return String(a).trim().length >= 10;
       return true;
     });
-    const canSubmitImage = allDimsDone && overallComment.trim().length > 0 && lpQsAnswered;
+    const canSubmitImage = allDimsDone && allImagesViewed && overallComment.trim().length > 0 && lpQsAnswered;
 
     return (
       <div style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
@@ -1187,7 +1190,6 @@ export default function ActiveMission() {
                   opacity: skipped && !isActive ? 0.75 : 1,
                 }}
               >
-                {done && !isActive && !skipped && <span>✓</span>}
                 {skipped && !isActive && <span>—</span>}
                 {!done && !skipped && <span style={{ fontSize: 11, opacity: 0.5 }}>○</span>}
                 {meta.label}
@@ -1232,14 +1234,18 @@ export default function ActiveMission() {
             {imageUrls.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCurrentImageIdx(i)}
+                onClick={() => {
+                  setCurrentImageIdx(i);
+                  setViewedImages(prev => { const s = new Set(prev); s.add(i); return s; });
+                }}
                 style={{
                   padding: '6px 16px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
                   cursor: 'pointer', border: '1.5px solid',
-                  borderColor: currentImageIdx === i ? 'var(--accent)' : 'var(--border)',
+                  borderColor: currentImageIdx === i ? 'var(--accent)' : viewedImages.has(i) ? 'var(--accent)' : 'var(--border)',
                   background: currentImageIdx === i ? 'var(--accent)' : 'var(--surface)',
-                  color: currentImageIdx === i ? '#fff' : 'var(--text-2)',
+                  color: currentImageIdx === i ? '#fff' : viewedImages.has(i) ? 'var(--accent)' : 'var(--text-2)',
                   transition: 'all 0.12s',
+                  opacity: viewedImages.has(i) ? 1 : 0.6,
                 }}
               >
                 이미지 {i + 1}
@@ -1376,6 +1382,15 @@ export default function ActiveMission() {
           </Card>
         )}
 
+        {imageUrls.length > 1 && !allImagesViewed && (
+          <div style={{
+            marginBottom: 12, padding: '10px 14px',
+            background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.4)',
+            borderRadius: 'var(--radius)', fontSize: 12, color: '#b45309',
+          }}>
+            📷 이미지 {imageUrls.map((_, i) => i).filter(i => !viewedImages.has(i)).map(i => `${i + 1}번`).join(', ')}을 아직 확인하지 않았습니다. 모든 이미지를 확인한 후 제출할 수 있습니다.
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
