@@ -62,8 +62,9 @@ purit/
 ├── scripts/   (개발·테스트 전용 Node.js 유틸리티 — 배포 대상 아님)
 │   ├── create-panel-accounts.mjs      (Supabase Admin API로 테스트 패널 계정 일괄 생성)
 │   ├── create-test-main-mission.mjs   (어드민 계정으로 테스트 메인 의뢰 생성 — SVG 이미지 5장 Storage 업로드 포함)
-│   ├── submit-greencart-feedbacks.mjs (서비스롤 키로 미션 피드백·어노테이션 자동 제출)
-│   └── update-panel-profiles.mjs      (panel1~10 직군·경력 업데이트 — .env.local 필요)
+│   ├── submit-greencart-feedbacks.mjs         (GreenCart 미션 전용 피드백·어노테이션 자동 제출)
+│   ├── submit-active-mission-feedbacks.mjs    (최신 활성 메인 의뢰에 패널 1~10 완전한 피드백 자동 제출 — 어노테이션·custom_answers·honor_points 포함)
+│   └── update-panel-profiles.mjs              (panel1~10 직군·경력 업데이트 — .env.local 필요)
 ├── supabase/
 │   ├── migrations/  001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
 │   │                006(annotations) 007(subtest) 008(templates) 009(gamification)
