@@ -349,10 +349,10 @@ export default function MissionList() {
       {/* ── 메인/서브 분리 목록 ── */}
       {filtered.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {/* 메인 의뢰 섹션 */}
+          {/* 메인 미션 섹션 */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 의뢰</h2>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 미션</h2>
               <Badge type="gray">{mainFiltered.length}개</Badge>
             </div>
             {mainFiltered.length === 0 ? (
@@ -378,10 +378,10 @@ export default function MissionList() {
             )}
           </div>
 
-          {/* 서브 의뢰 섹션 */}
+          {/* 서브 미션 섹션 */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 의뢰</h2>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 미션</h2>
               <Badge type="blue">{subFiltered.length}개</Badge>
             </div>
             {subFiltered.length === 0 ? (

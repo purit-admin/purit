@@ -5,19 +5,21 @@ import { supabase } from '../../lib/supabase';
 import { TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const TABS = [
-  { key: 'preference', label: '소재 비교 A/B', category: '광고소재', badge: 'blue',  icon: '🎨', path: '/company/preference',    desc: '두 소재 중 어떤 것이 더 전환율 높은지 실 패널로 검증' },
-  { key: 'pricing',    label: '가격 페이지',    category: '가격',    badge: 'gold',  icon: '💰', path: '/company/pricing-test',  desc: '가격 구성·플랜 명확성·WTP를 정밀 측정' },
-  { key: 'email',      label: '이메일 검증',    category: '이메일',  badge: 'green', icon: '📬', path: '/company/email-test',    desc: '제목줄·개봉 의향·CTA 효과를 패널 피드백으로 진단' },
-  { key: 'custom',     label: '질문 만들기',    category: null,      badge: null,    icon: '✏️', path: null,                    desc: '나만의 질문을 직접 만들어 서브 의뢰에 자동 포함하세요' },
+  { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지', badge: 'blue',  icon: '🖼', path: '/company/new',         desc: '랜딩페이지·광고 소재 등 마케팅 소재를 5차원으로 종합 진단' },
+  { key: 'preference', label: '소재 비교 A/B',  category: '광고소재',  badge: 'blue',  icon: '🎨', path: '/company/preference',    desc: '두 소재 중 어떤 것이 더 전환율 높은지 실 패널로 검증' },
+  { key: 'pricing',    label: '가격 페이지',     category: '가격',     badge: 'gold',  icon: '💰', path: '/company/pricing-test',  desc: '가격 구성·플랜 명확성·WTP를 정밀 측정' },
+  { key: 'email',      label: '이메일 검증',     category: '이메일',   badge: 'green', icon: '📬', path: '/company/email-test',    desc: '제목줄·개봉 의향·CTA 효과를 패널 피드백으로 진단' },
+  { key: 'custom',     label: '질문 만들기',     category: null,       badge: null,    icon: '✏️', path: null,                    desc: '나만의 질문을 직접 만들어 의뢰에 자동 포함하세요' },
 ];
 
 const CUSTOM_CAT_TABS = [
-  { key: 'preference', label: '소재 비교 A/B', category: '광고소재' },
+  { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지' },
+  { key: 'preference', label: '소재 비교 A/B',  category: '광고소재' },
   { key: 'pricing',    label: '가격 페이지',    category: '가격' },
   { key: 'email',      label: '이메일 검증',    category: '이메일' },
 ];
 
-const BADGE_COLORS = { 광고소재: 'blue', 가격: 'gold', 이메일: 'green', LP검증: 'blue', LP: 'blue' };
+const BADGE_COLORS = { 랜딩페이지: 'blue', 광고소재: 'blue', 가격: 'gold', 이메일: 'green', LP검증: 'blue', LP: 'blue' };
 const TYPE_BG = { radio: 'rgba(59,130,246,0.13)', scale: 'rgba(99,102,241,0.13)', text: 'rgba(52,199,89,0.13)' };
 const TYPE_COL = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
 
@@ -25,7 +27,7 @@ export default function QuestionTemplates() {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('preference');
+  const [activeTab, setActiveTab] = useState('lp');
   const [selected, setSelected] = useState(null);
   const [companyId, setCompanyId] = useState(null);
 
@@ -74,7 +76,7 @@ export default function QuestionTemplates() {
 
   async function loadCustomQs(cid, cat) {
     setCustomLoading(true);
-    const catLabel = { preference: '광고소재', pricing: '가격', email: '이메일' }[cat];
+    const catLabel = { lp: '랜딩페이지', preference: '광고소재', pricing: '가격', email: '이메일' }[cat];
     const { data } = await supabase
       .from('question_templates')
       .select('id, template_questions(id, question_text, question_type, options, question_order)')
@@ -94,7 +96,7 @@ export default function QuestionTemplates() {
     if (!newQText.trim() || !companyId) return;
     setSavingQ(true);
     setSaveError('');
-    const catLabel = { preference: '광고소재', pricing: '가격', email: '이메일' }[customCategory];
+    const catLabel = { lp: '랜딩페이지', preference: '광고소재', pricing: '가격', email: '이메일' }[customCategory];
     const options =
       newQType === 'radio' ? newQOptions.filter(o => o.trim()) :
       newQType === 'scale' ? [newQScaleMin.trim(), newQScaleMax.trim()] : [];
@@ -150,6 +152,10 @@ export default function QuestionTemplates() {
 
   async function handleUse(template) {
     const tab = TABS.find(t => t.key === activeTab);
+    if (activeTab === 'lp') {
+      navigate('/company/new');
+      return;
+    }
     await supabase.from('question_templates')
       .update({ use_count: (template.use_count || 0) + 1 })
       .eq('id', template.id);
@@ -171,7 +177,7 @@ export default function QuestionTemplates() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>QUESTION TEMPLATES</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>질문 템플릿</h1>
-        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>서브 의뢰 유형에 맞는 검증된 질문 세트를 선택하고, 바로 의뢰를 등록하세요.</p>
+        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>의뢰 유형별 검증된 질문 세트를 미리보기하고, 나만의 커스텀 질문을 저장·관리하세요.</p>
       </div>
 
       {/* Tabs */}
