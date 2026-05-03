@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-03 (크레딧 계산 로직 및 구독 요금제 개편 — calcCredits 최고직급+의뢰배수, calcPanelPayout 신규, MAIN/SUB_BASE_PAYOUT 상수, Starter 50·Pro 165·Enterprise 400 크레딧, sticky footer 레이블·안내문 변경)
+최종 업데이트: 2026-05-04 (ImageAnnotator seqPool·highlightedId props 추가, 어노테이션 뱃지 숫자만 표시, Results DimTabView 글로벌 번호·클릭 하이라이트)
 ================================================================
 
 ## 기술 스택
@@ -33,6 +33,8 @@ purit/
 │   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 질문 템플릿 링크: 메인 의뢰 그룹 하단 배치)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
 │   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원, activeDimension prop으로 차원 고정)
+│   │                  seqPool prop(글로벌 번호 계산용 전체 어노테이션 배열, 미전달 시 annotations 사용), highlightedId prop(해당 id만 표시·나머지 숨김)
+│   │                  어노테이션 뱃지: 한국어 접두사 없이 숫자만 표시 (색상으로 차원 구분)
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
 │   │   ※ pages/company/NewMission.jsx: view state('list'|'form') — editMode 시 form 직접 진입

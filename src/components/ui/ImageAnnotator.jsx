@@ -11,12 +11,12 @@ const DIMENSIONS = [
 
 const dimMeta = Object.fromEntries(DIMENSIONS.map(d => [d.key, d]));
 
-function getDimSeq(annotations, ann) {
-  const sameDim = annotations.filter(a => a.dimension === ann.dimension);
+function getDimSeq(pool, ann) {
+  const sameDim = pool.filter(a => a.dimension === ann.dimension);
   return sameDim.findIndex(a => a.id === ann.id) + 1;
 }
 
-export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations = [], onAdd, onRemove, readonly = false, activeDimension = 'clarity', dragDisabled = false }) {
+export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations = [], onAdd, onRemove, readonly = false, activeDimension = 'clarity', dragDisabled = false, seqPool, highlightedId }) {
   const containerRef = useRef(null);
   const [dragging, setDragging]       = useState(false);
   const [dragStart, setDragStart]     = useState({ x: 0, y: 0 });
@@ -119,8 +119,9 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
         {/* 기존 어노테이션 오버레이 */}
         {annotations.map(ann => {
           const meta = dimMeta[ann.dimension];
-          const seqNum = getDimSeq(annotations, ann);
+          const seqNum = getDimSeq(seqPool || annotations, ann);
           const isSelected = selectedAnn === ann.id;
+          const isHidden = highlightedId !== null && highlightedId !== undefined && ann.id !== highlightedId;
           return (
             <div
               key={ann.id}
@@ -136,6 +137,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                 borderRadius: 3,
                 cursor: 'pointer',
                 boxSizing: 'border-box',
+                display: isHidden ? 'none' : undefined,
               }}
             >
               {/* 번호 뱃지 */}
@@ -146,7 +148,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                 borderRadius: '2px 0 2px 0', lineHeight: 1.6,
                 whiteSpace: 'nowrap',
               }}>
-                {meta.short}{seqNum}
+                {seqNum}
               </div>
 
               {/* 툴팁 */}
@@ -164,7 +166,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: ann.comment ? 6 : 0 }}>
                     <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
-                      {meta.short}{seqNum}
+                      {seqNum}
                     </span>
                     <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{ann.score}점</span>
                     <span

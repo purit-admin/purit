@@ -402,9 +402,16 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
 
 /* ─── 이미지 미션: 차원 탭 뷰 ─── */
 function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAnnotations, panelProfiles }) {
+  const [selectedAnnId, setSelectedAnnId] = useState(null);
   const meta = DIM_META[dim];
   const imgAnns = allAnnotations.filter(a => a.dimension === dim && a.image_index === currentImageIdx);
   const allDimAnns = allAnnotations.filter(a => a.dimension === dim);
+
+  const handleAnnClick = (ann) => {
+    const next = selectedAnnId === ann.id ? null : ann.id;
+    setSelectedAnnId(next);
+    if (next !== null) setCurrentImageIdx(ann.image_index);
+  };
 
   return (
     <div>
@@ -414,7 +421,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
           {imageUrls.map((_, i) => {
             const cnt = allAnnotations.filter(a => a.dimension === dim && a.image_index === i).length;
             return (
-              <button key={i} onClick={() => setCurrentImageIdx(i)} style={{
+              <button key={i} onClick={() => { setCurrentImageIdx(i); setSelectedAnnId(null); }} style={{
                 padding: '5px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 border: `1.5px solid ${currentImageIdx === i ? 'var(--accent)' : 'var(--border)'}`,
                 background: currentImageIdx === i ? 'var(--accent)' : 'var(--surface)',
@@ -434,6 +441,8 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
           imageUrl={imageUrls[currentImageIdx]}
           imageIndex={currentImageIdx}
           annotations={imgAnns}
+          seqPool={allDimAnns}
+          highlightedId={selectedAnnId}
           readonly
         />
       </div>
@@ -441,6 +450,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
       {/* 어노테이션 개수 안내 */}
       <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
         <span style={{ color: meta.color, fontWeight: 700 }}>{meta.label}</span> 차원 어노테이션 {allDimAnns.length}개 (전체 이미지 합산)
+        {selectedAnnId && <span style={{ marginLeft: 8, color: 'var(--accent)', fontWeight: 600 }}>— 선택된 항목만 표시 중 (다시 클릭하면 전체 표시)</span>}
       </div>
 
       {/* 코멘트 목록 */}
@@ -450,26 +460,36 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {allDimAnns.map((ann, i) => (
-            <div key={ann.id} style={{
-              padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)', borderLeft: `3px solid ${meta.color}`,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: ann.comment ? 8 : 0, flexWrap: 'wrap' }}>
-                <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
-                  {meta.short}{i + 1}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{ann.score}점</span>
-                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>이미지 {ann.image_index + 1}</span>
-                <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
+          {allDimAnns.map((ann, i) => {
+            const isActive = selectedAnnId === ann.id;
+            return (
+              <div
+                key={ann.id}
+                onClick={() => handleAnnClick(ann)}
+                style={{
+                  padding: '12px 14px', background: isActive ? 'var(--accent-dim, rgba(99,102,241,0.08))' : 'var(--bg-3)',
+                  borderRadius: 'var(--radius)', cursor: 'pointer',
+                  border: isActive ? `1.5px solid ${meta.color}` : '1px solid var(--border)',
+                  borderLeft: `3px solid ${meta.color}`,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: ann.comment ? 8 : 0, flexWrap: 'wrap' }}>
+                  <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
+                    {i + 1}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{ann.score}점</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>이미지 {ann.image_index + 1}</span>
+                  <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
+                </div>
+                {ann.comment ? (
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>{ann.comment}</div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
+                )}
               </div>
-              {ann.comment ? (
-                <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>{ann.comment}</div>
-              ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

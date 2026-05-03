@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-03 (크레딧 계산 로직 및 구독 요금제 개편 — calcCredits 최고직급 기준+의뢰종류 배수, calcPanelPayout 신규, Starter 50·Pro 165·Enterprise 400 크레딧, sticky footer "최대 예상 소모" + 환불 안내 문구)
+최종 업데이트: 2026-05-04 (Results 차원 탭 어노테이션 UX 개편 — 번호 글로벌화·한국어 접두사 제거·코멘트 클릭 시 해당 박스만 표시)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -95,10 +95,10 @@
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
    - reward_amount = calcPanelPayout(careerLevels, 'main') — 패널 1인당 예상 정산금 (메인 주니어 기준 8,000원)
 
-3. 피드백 결과 (/company/results) — Results.jsx  ★ 도움 됨/안 됨 평가 버튼 추가 (2026-05-02)
+3. 피드백 결과 (/company/results) — Results.jsx  ★ 어노테이션 번호 일관성·클릭 하이라이트 추가 (2026-05-04)
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
    - 좌측 패널: 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시
-   - 도움 됨/안 됨 평가 버튼 (HelpfulnessButtons): 총평 섹션에만 표시 ★ 신규
+   - 도움 됨/안 됨 평가 버튼 (HelpfulnessButtons): 총평 섹션에만 표시
      · 기업이 패널의 총평 코멘트에 👍도움 됨 / 👎도움 안 됨 평가 (선택사항)
      · 낙관적 UI: 클릭 즉시 반영 + rate_panel_feedback_helpfulness RPC 호출 + 에러 시 롤백
      · 같은 버튼 재클릭 → 평가 취소(토글 오프) / 반대 버튼 클릭 → 평가 변경
@@ -113,7 +113,11 @@
    - 우측 콘텐츠: mission.type 및 image_urls 유무에 따라 3가지 분기
      A. 이미지 미션 (image_urls 존재 && !isSubMission):
         · 6개 탭: [명확성][관련성][가치][차별화][신뢰][종합]
-        · 차원 탭: ImageAnnotator(readonly)로 전체 패널 어노테이션 오버레이 + 코멘트 목록
+        · 차원 탭 (DimTabView): ImageAnnotator(readonly)로 전체 패널 어노테이션 오버레이 + 코멘트 목록 ★ 개편
+          - 어노테이션 번호: 한국어 접두사 제거 → 숫자만 표시 (색상으로 차원 구분)
+          - 번호 기준: 글로벌(차원 전체 이미지 합산) — 이미지 전환 시에도 번호가 이어짐 (seqPool 방식)
+          - 코멘트 클릭: 목록에서 항목 클릭 시 해당 어노테이션 박스만 이미지에 표시, 나머지 숨김
+                         클릭한 이미지로 자동 전환 / 다시 클릭하면 전체 복원 (토글)
         · 종합 탭: 5차원 평균 점수 카드 + RadarChart + 패널 총평 목록 + 도움됨 버튼
           - 총평 파싱: extractOverallComment() → feedbacks.suggestions의 [총평]\n 이후 텍스트
           - LP 추가 질문 있으면 하단에 CustomQuestionsSection 집계 표시
