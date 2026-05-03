@@ -25,6 +25,7 @@ const NAV = {
         { path: '/company/new', label: '의뢰 등록', icon: Plus },
         { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
         { path: '/company/diagnosis', label: '5차원 진단', icon: Layers },
+        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
       ],
     },
     {
@@ -33,7 +34,6 @@ const NAV = {
         { path: '/company/preference', label: '소재 비교 A/B', icon: Columns2 },
         { path: '/company/pricing-test', label: '가격 페이지', icon: Tag },
         { path: '/company/email-test', label: '이메일 검증', icon: Mail },
-        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
       ],
     },
     {

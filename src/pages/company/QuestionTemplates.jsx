@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
-import { TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
+import { QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const TABS = [
   { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지', badge: 'blue',  icon: '🖼', path: '/company/new',         desc: '랜딩페이지·광고 소재 등 마케팅 소재를 5차원으로 종합 진단' },
@@ -67,10 +67,20 @@ export default function QuestionTemplates() {
       : baseQuery.eq('is_default', true));
 
     if (error) console.error('[QuestionTemplates]', error.message);
-    if (data) setTemplates(data.map(t => ({
-      ...t,
-      template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),
-    })));
+    if (data) {
+      const allData = [...data];
+      // lp 템플릿이 DB에 없으면 로컬 상수로 폴백 (D-31 패턴)
+      const hasLp = allData.some(t => t.category === '랜딩페이지' && t.is_default);
+      if (!hasLp) {
+        (QUESTION_TEMPLATES.lp || []).forEach(t => allData.push({
+          ...t, is_default: true, template_questions: [], use_count: 0,
+        }));
+      }
+      setTemplates(allData.map(t => ({
+        ...t,
+        template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),
+      })));
+    }
     setLoading(false);
   }
 
@@ -152,13 +162,13 @@ export default function QuestionTemplates() {
 
   async function handleUse(template) {
     const tab = TABS.find(t => t.key === activeTab);
-    if (activeTab === 'lp') {
-      navigate('/company/new');
-      return;
+    // 로컬 폴백 템플릿(UUID 아닌 id)은 DB update 생략
+    const isDbTemplate = template.id && template.id.includes('-') && template.id.length > 20;
+    if (isDbTemplate) {
+      await supabase.from('question_templates')
+        .update({ use_count: (template.use_count || 0) + 1 })
+        .eq('id', template.id);
     }
-    await supabase.from('question_templates')
-      .update({ use_count: (template.use_count || 0) + 1 })
-      .eq('id', template.id);
     navigate(tab.path, { state: { templateId: template.id, templateName: template.name } });
   }
 
@@ -463,6 +473,10 @@ export default function QuestionTemplates() {
                     <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 16 }}>
                       {selectedTemplate.description}
                     </p>
+
+                    <Btn size="sm" onClick={() => handleUse(selectedTemplate)} style={{ width: '100%', marginBottom: 16 }}>
+                      이 템플릿으로 의뢰 등록 →
+                    </Btn>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {(() => {

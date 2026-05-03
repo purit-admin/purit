@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Btn, Card, Badge } from '../../components/ui';
+import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
@@ -12,8 +12,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 export default function NewMission() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isEditMode    = Boolean(location.state?.editMode);
-  const editMissionId = location.state?.missionId || null;
+  const isEditMode      = Boolean(location.state?.editMode);
+  const editMissionId   = location.state?.missionId   || null;
+  const initTemplateId   = location.state?.templateId   || null;
+  const initTemplateName = location.state?.templateName || null;
 
   const fileInputRef = useRef(null);
   const [view, setView]         = useState(isEditMode ? 'form' : 'list');
@@ -41,6 +43,13 @@ export default function NewMission() {
   const [localCustomQs,     setLocalCustomQs]     = useState([]);
   const [expandedTmpl,      setExpandedTmpl]      = useState({});
   const [customLPQs,        setCustomLPQs]        = useState([]);
+  const [newQText,           setNewQText]          = useState('');
+  const [newQType,           setNewQType]          = useState('text');
+  const [newQOptions,        setNewQOptions]       = useState(['', '']);
+  const [newQScaleMin,       setNewQScaleMin]      = useState('');
+  const [newQScaleMax,       setNewQScaleMax]      = useState('');
+  const [showSaveModal,      setShowSaveModal]     = useState(false);
+  const [savingToTemplate,   setSavingToTemplate]  = useState(false);
 
   // 플랜 & company id 로드
   useEffect(() => {
@@ -101,6 +110,20 @@ export default function NewMission() {
     loadMissions();
   }, [view]);
 
+  // 질문 템플릿 페이지에서 templateId/templateName 전달 시 해당 템플릿 미리 선택
+  useEffect(() => {
+    if (!initTemplateId) return;
+    setView('form');
+    if (initTemplateName) {
+      const target = (QUESTION_TEMPLATES.lp || []).find(t => t.name === initTemplateName);
+      if (target) {
+        setSelectedQuestions(target.questions.slice(0, 5));
+        setExpandedTmpl({ [target.id]: true });
+        setStep(2);
+      }
+    }
+  }, []);
+
   // 편집 모드: 기존 미션 데이터 pre-fill
   useEffect(() => {
     if (!isEditMode || !editMissionId) return;
@@ -151,6 +174,55 @@ export default function NewMission() {
     if (sel) setSelectedQuestions(prev => prev.filter(s => s.id !== q.id));
     else if (canAddLPQ(q)) setSelectedQuestions(prev => [...prev, q]);
   };
+
+  function handleAddLocalQ() {
+    if (!newQText.trim()) return;
+    if (!canAddLPQ({ type: newQType })) return;
+    const options =
+      newQType === 'radio' ? newQOptions.filter(o => o.trim()) :
+      newQType === 'scale' ? [newQScaleMin.trim(), newQScaleMax.trim()] : [];
+    setLocalCustomQs(prev => [...prev, { id: `local-${Date.now()}`, text: newQText.trim(), type: newQType, options }]);
+    setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
+  }
+
+  async function handleSaveTmpl() {
+    if (!newQText.trim() || !companyId) return;
+    setSavingToTemplate(true);
+    const options =
+      newQType === 'radio' ? newQOptions.filter(o => o.trim()) :
+      newQType === 'scale' ? [newQScaleMin.trim(), newQScaleMax.trim()] : [];
+    try {
+      let { data: tmpl } = await supabase
+        .from('question_templates').select('id')
+        .eq('company_id', companyId).eq('category', '랜딩페이지').eq('is_default', false)
+        .maybeSingle();
+      if (!tmpl) {
+        const { data: newT, error: tErr } = await supabase
+          .from('question_templates')
+          .insert({ company_id: companyId, name: '내 커스텀 질문', category: '랜딩페이지', icon: '✏️', description: '직접 만든 질문 모음', is_default: false })
+          .select().single();
+        if (tErr) throw tErr;
+        tmpl = newT;
+      }
+      const { data: newQ, error: qErr } = await supabase.from('template_questions').insert({
+        template_id: tmpl.id, question_text: newQText.trim(), question_type: newQType,
+        options, question_order: customLPQs.length + 1,
+      }).select().single();
+      if (qErr) throw qErr;
+      const saved = {
+        id: newQ.id, text: newQ.question_text, type: newQ.question_type,
+        options: Array.isArray(newQ.options) ? newQ.options : (() => { try { return JSON.parse(newQ.options || '[]'); } catch { return []; } })(),
+      };
+      setCustomLPQs(prev => [...prev, saved]);
+      setLocalCustomQs(prev => [...prev, { ...saved, id: `local-${Date.now()}` }]);
+      setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
+      setShowSaveModal(false);
+    } catch (e) {
+      console.error('[NewMission] 템플릿 저장 실패:', e.message);
+    } finally {
+      setSavingToTemplate(false);
+    }
+  }
 
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -692,6 +764,99 @@ export default function NewMission() {
                   );
                 })}
 
+                {/* 질문 만들기 */}
+                <div style={{ marginTop: 14, border: `1px solid ${localCustomQs.length > 0 ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '14px 14px 10px', transition: 'border-color 0.2s' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>질문 만들기</span>
+                    {localCustomQs.length > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '2px 8px', borderRadius: 10 }}>+{localCustomQs.length}개 추가됨</span>
+                    )}
+                  </div>
+                  <textarea value={newQText} onChange={e => setNewQText(e.target.value)} rows={2}
+                    placeholder="질문을 입력하세요"
+                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, marginBottom: 8 }} />
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    {[['radio', '옵션형'], ['scale', '점수형'], ['text', '서술형']].map(([t, label]) => (
+                      <button key={t} onClick={() => setNewQType(t)} style={{
+                        padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        border: `1px solid ${newQType === t ? 'var(--accent)' : 'var(--border)'}`,
+                        background: newQType === t ? 'var(--accent)' : 'var(--surface)',
+                        color: newQType === t ? '#fff' : 'var(--text-2)',
+                      }}>{label}</button>
+                    ))}
+                  </div>
+                  {newQType === 'radio' && (
+                    <div style={{ marginBottom: 8 }}>
+                      {newQOptions.map((opt, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                          <input value={opt} onChange={e => setNewQOptions(prev => prev.map((o, j) => j === i ? e.target.value : o))}
+                            placeholder={`옵션 ${i + 1}`}
+                            style={{ flex: 1, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
+                          {newQOptions.length > 2 && (
+                            <button onClick={() => setNewQOptions(prev => prev.filter((_, j) => j !== i))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16 }}>×</button>
+                          )}
+                        </div>
+                      ))}
+                      {newQOptions.length < 6 && (
+                        <button onClick={() => setNewQOptions(prev => [...prev, ''])}
+                          style={{ background: 'none', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', padding: '5px 12px', fontSize: 12, color: 'var(--text-3)', cursor: 'pointer' }}>
+                          + 옵션 추가
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {newQType === 'scale' && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                      <input value={newQScaleMin} onChange={e => setNewQScaleMin(e.target.value)}
+                        placeholder="1점 라벨 (예: 매우 아니다)"
+                        style={{ flex: 1, minWidth: 140, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                        {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, border: '1px solid var(--accent)', color: 'var(--accent)' }}>{n}</span>)}
+                      </span>
+                      <input value={newQScaleMax} onChange={e => setNewQScaleMax(e.target.value)}
+                        placeholder="5점 라벨 (예: 매우 그렇다)"
+                        style={{ flex: 1, minWidth: 140, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
+                    </div>
+                  )}
+                  {newQType === 'text' && textLPSelected >= 2 && (
+                    <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>서술형 질문은 최대 2개까지만 추가할 수 있습니다.</div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <Btn size="sm" onClick={handleAddLocalQ}
+                      disabled={!newQText.trim() || totalLPSelected >= 5 || (newQType === 'text' && textLPSelected >= 2)}>추가</Btn>
+                    <Btn size="sm" variant="secondary" onClick={() => setShowSaveModal(true)} disabled={!newQText.trim()}>템플릿에 저장 →</Btn>
+                  </div>
+                  {localCustomQs.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 800, flexShrink: 0 }}>✓</span>
+                        추가된 질문 목록
+                      </div>
+                      {localCustomQs.map((q, i) => (
+                        <div key={q.id} style={{
+                          display: 'flex', gap: 10, alignItems: 'flex-start',
+                          padding: '10px 12px', background: 'var(--accent-dim)',
+                          borderRadius: 'var(--radius)', border: '1px solid var(--accent)',
+                          borderLeft: '3px solid var(--accent)', marginBottom: 6,
+                        }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, color: '#fff', background: 'var(--accent)', borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.text}</span>
+                            <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, fontWeight: 600, background: TYPE_COLOR[q.type] + '22', color: TYPE_COLOR[q.type] }}>{TYPE_LABEL[q.type]}</span>
+                              {q.type === 'radio' && q.options?.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>[{q.options.join(' / ')}]</span>}
+                              {q.type === 'scale' && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{q.options?.[0] || '매우 아니다'} · 1~5 · {q.options?.[1] || '매우 그렇다'}</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => setLocalCustomQs(prev => prev.filter(lq => lq.id !== q.id))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16, flexShrink: 0, marginTop: 1 }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* 선택된 질문 미리보기 */}
                 {allLPSelected.length > 0 && (
                   <div style={{ padding: '14px 16px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', border: '1px solid var(--accent)' }}>
@@ -802,6 +967,16 @@ export default function NewMission() {
             </Btn>
           </div>
         </>
+      )}
+
+      {showSaveModal && (
+        <ConfirmModal
+          title="질문 템플릿에 저장"
+          desc={"이 질문을 템플릿에 추가하겠습니까?\n저장된 질문은 이후 의뢰 등록 시 자동으로 표시됩니다."}
+          confirmLabel={savingToTemplate ? '저장 중…' : '저장'}
+          onConfirm={handleSaveTmpl}
+          onCancel={() => setShowSaveModal(false)}
+        />
       )}
     </div>
   );

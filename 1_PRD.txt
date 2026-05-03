@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-03 (마케팅 소재 종합 진단 소개 페이지 추가, Step 0 서비스 정보 통합, 질문 템플릿 LP 탭 추가, 패널 미션 관리 텍스트 개선)
+최종 업데이트: 2026-05-03 (질문 만들기 양방향 연동 — NewMission Step 2 인라인 빌더·템플릿에 저장, QuestionTemplates LP 탭 DB 폴백·미리보기 패널 "의뢰 등록 →" 버튼, 사이드바 질문 템플릿 → 메인 의뢰 그룹 이동)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -70,6 +70,14 @@
      · 최대 5개 질문 선택 / 서술형(text) 최대 2개 한도
      · "N/5 선택됨" 배지 실시간 표시 + 하단 선택 미리보기 카드
      · 질문 선택 시 description = JSON.stringify({ briefText, selectedQuestions, careerLevels })
+     · "질문 만들기" 인라인 섹션 (하단 Card): ★ 신규
+       - textarea 질문 입력 + 타입 버튼 (옵션형/점수형/서술형)
+       - 옵션형: 옵션 입력 필드 동적 추가 / 점수형: min·max 레이블 입력
+       - "추가" 버튼: localCustomQs state에 추가 (DB 저장 없음, 현재 폼에만 사용)
+       - "템플릿에 저장 →" 버튼: ConfirmModal 확인 → DB INSERT (category='랜딩페이지') → customLPQs 갱신
+     · location.state.templateId + templateName 전달 시 자동 진입: ★ 신규
+       - initTemplateId/initTemplateName 읽어 QUESTION_TEMPLATES.lp 중 일치 템플릿 찾기
+       - 찾은 템플릿의 questions 사전 selectedQuestions에 설정 + 해당 아코디언 펼침 + Step 2 바로 이동
    - Step 3 패널 설정 (PanelTargetStep 컴포넌트): ★ 신규
      · 패널 인원수 슬라이더 (10~30명, 기본 10명)
        - 스타터 플랜: 15명 초과 드래그 후 마우스 놓으면 15명으로 snap-back + 업그레이드 팝업
@@ -199,6 +207,13 @@
      · 각 질문에 [옵션형]/[점수형]/[서술형] 타입 뱃지 표시
      · 탭 설명 영역 우측: "바로 의뢰 등록 →" 버튼 → 해당 의뢰 페이지 navigate
        (마케팅 소재 종합 진단 탭 → /company/new)
+     · 우측 미리보기 패널 상단: "이 템플릿으로 의뢰 등록 →" 버튼 (전체 탭 공통) ★ 신규
+       - 클릭 시 navigate(tab.path, { state: { templateId, templateName } }) 전달
+       - DB 템플릿(UUID): use_count +1 UPDATE 후 이동 / 로컬 템플릿(t-lp-*): use_count 업데이트 없이 바로 이동
+       - NewMission 진입 시 해당 LP 템플릿 질문 자동 사전 선택 + Step 2 직행
+     · LP 탭(마케팅 소재 종합 진단) DB 폴백 (D-31 패턴): ★ 신규
+       - DB에 category='랜딩페이지' is_default=true 행이 없으면 QUESTION_TEMPLATES.lp 로컬 상수로 자동 보완
+       - 미리보기 질문 목록: DB template_questions 없으면 TEMPLATE_BY_NAME[name].questions 폴백
    - 탭 5 "질문 만들기":
      · 카테고리 선택 버튼 4개 (마케팅 소재 종합 진단 / 소재 비교 A/B / 가격 페이지 / 이메일 검증)
      · 저장된 커스텀 질문 목록: DB에서 is_default=false, 선택 category로 로드
@@ -208,7 +223,7 @@
        - 저장 실패 시 버튼 아래 에러 메시지 표시 (saveError state)
      · category='랜딩페이지'로 저장된 커스텀 질문은 NewMission Step 2 "내 커스텀 질문" 그룹에 자동 표시
      · RLS 필요: 013_custom_question_rls.sql Supabase SQL Editor에서 수동 실행 필요
-   - Sidebar: 서브 미션 그룹 최 하단에 위치
+   - Sidebar: 메인 의뢰 그룹 맨 하단에 위치 (서브 의뢰 그룹에서 이동) ★ 변경
    ※ 전체 기본 템플릿 12종: 랜딩페이지(첫인상&전환신호·메시지명확성&공감도·신뢰&전환저해요인),
                              광고소재(광고 소재 A/B·첫인상&전환력·메시지 공명 분석),
                              가격(가격 페이지 검증·가격 감지 테스트·플랜 비교 명확성),
