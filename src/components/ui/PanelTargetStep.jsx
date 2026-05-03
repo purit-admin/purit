@@ -10,24 +10,43 @@ export const CAREER_LEVELS = [
   { key: 'clevel', label: 'C레벨/임원진', sub: '',           multiplier: 3.0, proOnly: true  },
 ];
 
+// 패널 정산금 기준단가 (주니어 1.0× 기준)
+// 메인: 주니어 8,000 / 미들 12,000 / 시니어 16,000 / C레벨 24,000
+// 서브: 주니어 4,500 / 미들 6,750 / 시니어 9,000 / C레벨 13,500
+export const MAIN_BASE_PAYOUT = 8000;
+export const SUB_BASE_PAYOUT  = 4500;
+
 const SLIDER_MIN  = 10;
 const SLIDER_MAX  = 30;
 const STARTER_MAX = 15;
 
-export function calcCredits(panelCount, careerLevels) {
+function getFinalWeight(careerLevels) {
   const active = CAREER_LEVELS.filter(c => careerLevels.includes(c.key));
-  const avg = active.length
-    ? active.reduce((s, c) => s + c.multiplier, 0) / active.length
-    : 1.0;
-  return Math.ceil(panelCount * avg);
+  if (active.length === 0) return 1.0;
+  if (active.length <= 2) return Math.max(...active.map(c => c.multiplier));
+  return 1.8; // 3~4개 혼합 상한
 }
 
-export default function PanelTargetStep({ plan, panelCount, onPanelCount, careerLevels, onCareerLevels }) {
+// missionType: 'main'(1.5×) | 'sub'(1.0×)
+export function calcCredits(panelCount, careerLevels, missionType = 'sub') {
+  const finalWeight  = getFinalWeight(careerLevels);
+  const missionFactor = missionType === 'main' ? 1.5 : 1.0;
+  return Math.ceil(panelCount * finalWeight * missionFactor);
+}
+
+// 패널 1인당 예상 정산금 (reward_amount DB 저장용)
+export function calcPanelPayout(careerLevels, missionType = 'sub') {
+  const finalWeight = getFinalWeight(careerLevels);
+  const base = missionType === 'main' ? MAIN_BASE_PAYOUT : SUB_BASE_PAYOUT;
+  return Math.round(base * finalWeight);
+}
+
+export default function PanelTargetStep({ plan, panelCount, onPanelCount, careerLevels, onCareerLevels, missionType = 'sub' }) {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   const isStarter = !plan || plan === 'starter';
-  const credits   = calcCredits(panelCount, careerLevels);
+  const credits   = calcCredits(panelCount, careerLevels, missionType);
 
   const handleSliderChange = (e) => onPanelCount(Number(e.target.value));
   const handleSliderCommit = () => {
@@ -51,9 +70,6 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
       로딩 중…
     </div>
   );
-
-  const activeMultipliers = CAREER_LEVELS.filter(c => careerLevels.includes(c.key));
-  const formulaStr = activeMultipliers.map(c => `${c.multiplier}`).join('+');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -163,22 +179,21 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
         position: 'sticky', bottom: 0,
         margin: '8px -32px -32px', padding: '16px 32px',
         background: 'var(--surface)', borderTop: '2px solid var(--accent)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         zIndex: 10,
       }}>
-        <div>
-          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
-            예상 소모 크레딧
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            최대 예상 소모
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
-            {panelCount}명 × ({formulaStr}) ÷ {activeMultipliers.length} = {credits}
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 32, color: 'var(--accent)' }}>
+              {credits}
+            </span>
+            <span style={{ fontSize: 14, color: 'var(--text-2)', marginLeft: 6 }}>크레딧</span>
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 32, color: 'var(--accent)' }}>
-            {credits}
-          </span>
-          <span style={{ fontSize: 14, color: 'var(--text-2)', marginLeft: 6 }}>크레딧</span>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
+          실제 매칭된 패널의 직급 비율에 따라 소모량은 줄어들 수 있으며, 사용되지 않은 차액 크레딧은 테스트 완료 후 즉시 환불(Refund)됩니다.
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
-import PanelTargetStep, { calcCredits } from '../../components/ui/PanelTargetStep';
+import PanelTargetStep, { calcCredits, calcPanelPayout } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
@@ -171,7 +171,7 @@ export default function ColdEmailTest() {
           careerLevels,
         }),
         panel_count: panelSize,
-        reward_amount: calcCredits(panelSize, careerLevels) * 1000,
+        reward_amount: calcPanelPayout(careerLevels, 'sub'),
         status: 'active',
         assets: [],
       });
@@ -529,6 +529,7 @@ export default function ColdEmailTest() {
                 onPanelCount={setPanelSize}
                 careerLevels={careerLevels}
                 onCareerLevels={setCareerLevels}
+                missionType="sub"
               />
             )}
           </Card>

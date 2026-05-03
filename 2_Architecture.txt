@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-03 (질문 만들기 양방향 연동 — NewMission Step 2 인라인 빌더·템플릿에 저장, QuestionTemplates "이 템플릿으로 의뢰 등록 →"·LP 로컬 폴백·handleUse 통일, Sidebar 질문 템플릿 메인 의뢰 그룹으로 이동)
+최종 업데이트: 2026-05-03 (크레딧 계산 로직 및 구독 요금제 개편 — calcCredits 최고직급+의뢰배수, calcPanelPayout 신규, MAIN/SUB_BASE_PAYOUT 상수, Starter 50·Pro 165·Enterprise 400 크레딧, sticky footer 레이블·안내문 변경)
 ================================================================
 
 ## 기술 스택
@@ -49,11 +49,14 @@ purit/
 │   │                load(): DB에 LP 기본 템플릿 없으면 QUESTION_TEMPLATES.lp 로컬 상수로 보완 (D-31)
 │   │                미리보기 패널 상단: "이 템플릿으로 의뢰 등록 →" 버튼 (전 탭 공통, handleUse 호출)
 │   │                catLabel 맵 양쪽(loadCustomQs, handleSaveCustomQ)에 lp:'랜딩페이지' 추가
-│   │                  exports: default PanelTargetStep, calcCredits(panelCount, careerLevels), CAREER_LEVELS
-│   │                  props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels
+│   │                  exports: default PanelTargetStep, calcCredits(panelCount, careerLevels, missionType), calcPanelPayout(careerLevels, missionType), CAREER_LEVELS, MAIN_BASE_PAYOUT(8000), SUB_BASE_PAYOUT(4500)
+│   │                  props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels, missionType('main'|'sub', 기본 'sub')
 │   │                  크레딧 배수: 주니어 1.0× / 미들 1.5× / 시니어 2.0×(Pro) / C레벨 3.0×(Pro)
+│   │                  calcCredits 공식: ceil(패널수 × 최종가중치 × 의뢰배수) — 1~2직급=최고값, 3~4직급=1.8상한, 메인×1.5/서브×1.0
+│   │                  calcPanelPayout 공식: round(BASE × 최종가중치) — 패널 1인당 정산금, reward_amount DB 저장용
+│   │                  sticky footer: "최대 예상 소모: N 크레딧" + 환불 안내문 (계산식 표시 없음)
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
-│   │                  사용: NewMission(Step 3), PreferenceTest(Step 4), PricingTest(Step 3), ColdEmailTest(Step 3)
+│   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 4, "sub"), PricingTest(Step 3, "sub"), ColdEmailTest(Step 3, "sub")
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
 │       ├── company/  (17개 — 라우트 목록 참조)

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-03 (질문 만들기 양방향 연동 — NewMission Step 2 인라인 빌더·템플릿에 저장, QuestionTemplates LP 탭 DB 폴백·미리보기 패널 "의뢰 등록 →" 버튼, 사이드바 질문 템플릿 → 메인 의뢰 그룹 이동)
+최종 업데이트: 2026-05-03 (크레딧 계산 로직 및 구독 요금제 개편 — calcCredits 최고직급 기준+의뢰종류 배수, calcPanelPayout 신규, Starter 50·Pro 165·Enterprise 400 크레딧, sticky footer "최대 예상 소모" + 환불 안내 문구)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -84,12 +84,16 @@
      · 경력/직급 다중 선택 버튼: 주니어(1.0×) / 미들(1.5×) / 시니어(2.0×, PRO) / C레벨(3.0×, PRO)
        - 스타터 플랜이 시니어·C레벨 클릭 시 체크 없이 업그레이드 팝업만 표시
        - PRO 뱃지: 금빛 shimmer 애니메이션
-     · 실시간 크레딧 계산기 (하단 sticky): ceil(패널수 × 선택 직급 평균 배수)
+     · 실시간 크레딧 계산기 (하단 sticky): ceil(패널수 × 최종직급가중치 × 의뢰종류배수)
+       - 최종직급가중치: 1~2개 선택 시 최고 배수 / 3~4개 선택 시 혼합상한 1.8 고정
+       - 의뢰종류배수: 메인 1.5× / 서브 1.0×
+       - 표시 레이블: "최대 예상 소모: N 크레딧"
+       - 하단 안내문: "실제 매칭된 패널의 직급 비율에 따라 소모량은 줄어들 수 있으며, 사용되지 않은 차액 크레딧은 테스트 완료 후 즉시 환불(Refund)됩니다."
      · 업그레이드 팝업: ReactDOM.createPortal — 폼 데이터 초기화 없이 현재 화면 위에만 표시
                         [Pro 플랜 전환하기] → /company/plans 이동
    - Step 4 검토: 패널 수·커리어 레벨·예상 크레딧 행 포함, '의뢰 제출 →' 버튼
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
-   - reward_amount = calcCredits(panelCount, careerLevels) × 10000
+   - reward_amount = calcPanelPayout(careerLevels, 'main') — 패널 1인당 예상 정산금 (메인 주니어 기준 8,000원)
 
 3. 피드백 결과 (/company/results) — Results.jsx  ★ 도움 됨/안 됨 평가 버튼 추가 (2026-05-02)
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
@@ -163,7 +167,7 @@
    - 등록 시: missions INSERT(type='preference', description=JSON.stringify({
        variantA, variantB, variantAImage, variantBImage,
        productDescription, selectedQuestions, careerLevels})) + preference_tests INSERT
-   - reward_amount = calcCredits(panelSize, careerLevels) × 1000
+   - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 + CustomQuestionsSection
 
 6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 패널 설정 단계 추가 (2026-05-02)
@@ -178,7 +182,7 @@
    - 등록 시: missions INSERT(type='pricing', description=JSON.stringify({
        content: pricingDesc, image, productDescription,
        selectedQuestions, careerLevels})) + pricing_tests INSERT
-   - reward_amount = calcCredits(panelSize, careerLevels) × 1000
+   - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + CustomQuestionsSection
 
 7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 목록 missions 테이블 기반으로 개편 (2026-05-01)
@@ -193,7 +197,7 @@
    - 등록 시: missions INSERT(type='email', title='이메일 검증'(고정), description=JSON.stringify({
        content: emailText, productDescription,
        selectedQuestions, careerLevels})) + cold_email_tests INSERT
-   - reward_amount = calcCredits(panelSize, careerLevels) × 1000
+   - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: 답장 의향 비율 + open_intent / curiosity_score / hook_score / clarity_score 평균 + CustomQuestionsSection
 
 8. 질문 템플릿 관리 (/company/templates) — QuestionTemplates.jsx  ★ 마케팅 소재 종합 진단 탭 추가 (2026-05-03)
@@ -262,11 +266,11 @@
       · 제출 시 notifications 테이블에 접수 기록 INSERT
       · 완료 후 2.5초 뒤 모달 자동 닫힘
     - 크레딧 기반 구독 모델 (B2B):
-      · Starter: 월 82만(무약정) / 68만(연간), 월 38크레딧, 패널 10~15명, 주니어·미들급(1~7년차)
+      · Starter: 월 82만(무약정) / 68만(연간), 월 50크레딧, 패널 10~15명, 주니어·미들급(1~7년차)
         - 추가 크레딧 구매 가능 (1크레딧 = 25,000원 정가)
-      · Pro:     월 238만(무약정) / 198만(연간), 월 110크레딧, 패널 10~30명, 시니어·C레벨
+      · Pro:     월 238만(무약정) / 198만(연간), 월 165크레딧, 패널 10~30명, 시니어·C레벨
         - 추가 크레딧 구매 시 14% 할인 (1크레딧 = 21,600원)
-      · Enterprise: 월 450만~(연간 전용·협의), 월 250+크레딧, 패널 무제한 커스텀
+      · Enterprise: 월 450만~(연간 전용·협의), 월 400+크레딧, 패널 무제한 커스텀
         - 특정 회사·산업군 핀셋 필터링, 전담 CSM 배정
     - 플랜 카드 UI: 월 크레딧 수 + 회당 패널 규모 스펙 그리드 + 타겟팅 권한 배지 표시
     - 연간/월간 결제 토글: 연간 선택 시 절감액(Starter 14만, Pro 40만) 표시

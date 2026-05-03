@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
-import PanelTargetStep, { calcCredits, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
+import PanelTargetStep, { calcCredits, calcPanelPayout, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
@@ -298,7 +298,7 @@ export default function NewMission() {
           description,
           persona,
           panel_count:   form.panels,
-          reward_amount: calcCredits(form.panels, careerLevels) * 10000,
+          reward_amount: calcPanelPayout(careerLevels, 'main'),
           assets:        form.focusAreas,
           image_urls:    form.imageUrls,
         }).eq('id', editMissionId);
@@ -894,6 +894,7 @@ export default function NewMission() {
                 onPanelCount={(n) => set('panels', n)}
                 careerLevels={careerLevels}
                 onCareerLevels={setCareerLevels}
+                missionType="main"
               />
             )}
 
@@ -907,7 +908,7 @@ export default function NewMission() {
                   ['타겟 페르소나', `${form.personaAge}, ${form.personaRole}` || '—'],
                   ['패널 수', `${form.panels}명`],
                   ['커리어 레벨', careerLevels.map(k => CAREER_LEVELS.find(c => c.key === k)?.label).filter(Boolean).join(', ') || '—'],
-                  ['예상 크레딧', `${calcCredits(form.panels, careerLevels)} 크레딧`],
+                  ['예상 크레딧', `${calcCredits(form.panels, careerLevels, 'main')} 크레딧`],
                   ['검증 포커스', form.focusAreas.join(', ') || '—'],
                   ...(allLPSelected.length > 0 ? [['추가 질문', `${allLPSelected.length}개 선택`]] : []),
                 ].map(([k, v]) => (
