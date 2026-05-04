@@ -339,8 +339,7 @@ export default function NewMission() {
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>MAIN MISSION</div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>마케팅 소재 종합 진단</h1>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
-              랜딩페이지, 광고 소재, 배너 등을 실제 타겟 패널이 종합적으로 진단합니다.<br />
-              패널은 이미지 위에 영역을 지정해 어노테이션 피드백을 남기고, 5개 차원에서 정량 점수를 부여합니다.
+              랜딩페이지, 광고 소재, 배너 등을 실제 타겟 패널이 종합적으로 진단합니다.
             </p>
           </div>
 

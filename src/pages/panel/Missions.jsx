@@ -265,6 +265,8 @@ export default function MissionList() {
 
   const changeTab = (key) => { setFilter(key); setMainPage(1); setSubPage(1); };
 
+  const rejectedCount = Object.values(feedbackMap).filter(f => f.status === 'rejected').length;
+
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
 
@@ -325,7 +327,17 @@ export default function MissionList() {
             background: filter === key ? 'var(--bg)' : 'transparent',
             color: filter === key ? 'var(--text)' : 'var(--text-3)',
             border: 'none', transition: 'all 0.15s', cursor: 'pointer',
-          }}>{label}</button>
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            {label}
+            {key === 'needsRevision' && rejectedCount > 0 && (
+              <span style={{
+                background: 'var(--red, #ef4444)', color: '#fff',
+                borderRadius: 99, fontSize: 11, fontWeight: 700,
+                padding: '1px 6px', lineHeight: 1.6, minWidth: 18, textAlign: 'center',
+              }}>{rejectedCount}</span>
+            )}
+          </button>
         ))}
       </div>
 
