@@ -9,6 +9,14 @@ const STEPS = ['서비스/타겟 설정', '소재 업로드', '질문 설정', '
 const MAX_IMAGES = 3;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
+const INDUSTRIES = [
+  '뷰티/코스메틱', '헬스/피트니스', '식품/음료', '패션/의류',
+  'SaaS/소프트웨어', '교육/에듀테크', '금융/핀테크', '여행/숙박',
+  '부동산/인테리어', '의료/헬스케어', '반려동물', '게임/엔터테인먼트',
+  '이커머스/리테일', '자동차/모빌리티', '미디어/콘텐츠', 'B2B 서비스',
+  'HR/채용', '법률/컨설팅', '물류/배송', '환경/에너지',
+];
+
 export default function NewMission() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,10 +32,14 @@ export default function NewMission() {
   const [form, setForm] = useState({
     product: '', lpUrl: '',
     personaAge: '', personaIncome: '', personaRole: '', personaContext: '',
+    industry: '',
     panels: 10, briefText: '', focusAreas: [],
     imageUrls: [],
     estimatedMinutes: 5,
   });
+  const [industryOpen,        setIndustryOpen]        = useState(false);
+  const [industryCustomMode,  setIndustryCustomMode]  = useState(false);
+  const [industryCustomInput, setIndustryCustomInput] = useState('');
   const [uploading, setUploading]         = useState(false);
   const [uploadError, setUploadError]     = useState('');
   const [submitting, setSubmitting]       = useState(false);
@@ -272,6 +284,7 @@ export default function NewMission() {
   const buildDescription = () => {
     const base = { briefText: form.briefText, careerLevels };
     if (allLPSelected.length > 0) base.selectedQuestions = allLPSelected;
+    if (form.industry) base.industry = form.industry;
     return JSON.stringify(base);
   };
 
@@ -288,6 +301,7 @@ export default function NewMission() {
         form.personaAge && `연령: ${form.personaAge}`,
         form.personaIncome && `소득: ${form.personaIncome}`,
         form.personaRole && `직군: ${form.personaRole}`,
+        form.industry && `산업군: ${form.industry}`,
         form.personaContext && form.personaContext,
       ].filter(Boolean).join(' / ');
 
@@ -432,13 +446,24 @@ export default function NewMission() {
           {/* NDA 안내 배너 */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
-            padding: '10px 16px', marginBottom: 28,
+            padding: '10px 16px', marginBottom: 10,
             background: 'var(--accent-dim)', borderRadius: 'var(--radius)',
             border: '1px solid var(--accent)',
             fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
           }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
             평가 참가 패널은 기업의 정보를 외부에 발설할 수 없습니다.
+          </div>
+          {/* 패널 매칭 안내 배너 */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 16px', marginBottom: 28,
+            background: 'rgba(16,185,129,0.07)', borderRadius: 'var(--radius)',
+            border: '1px solid rgba(16,185,129,0.3)',
+            fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
+          }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>✨</span>
+            의뢰 조건에 맞는 패널이 자동으로 매칭됩니다.
           </div>
 
           {/* Step indicator */}
@@ -468,6 +493,76 @@ export default function NewMission() {
                   <span style={lblTxt}>검증할 제품/서비스명</span>
                   <input value={form.product} onChange={e => set('product', e.target.value)} placeholder="프리미엄 러닝화 LP" />
                 </label>
+                {/* 산업군 선택 */}
+                <div>
+                  <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군 (선택)</span>
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIndustryOpen(o => !o)}
+                      style={{
+                        width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '9px 14px', background: 'var(--surface)', border: 'none', cursor: 'pointer',
+                        fontSize: 13, color: form.industry ? 'var(--text)' : 'var(--text-3)', textAlign: 'left',
+                      }}
+                    >
+                      <span>{form.industry || '산업군을 선택하세요'}</span>
+                      <span style={{ transition: 'transform 0.2s', transform: industryOpen ? 'rotate(180deg)' : 'none', display: 'inline-block', color: 'var(--text-3)', fontSize: 11 }}>▼</span>
+                    </button>
+                    {industryOpen && (
+                      <div style={{ borderTop: '1px solid var(--border)', padding: 14, background: 'var(--bg)' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {INDUSTRIES.map(ind => (
+                            <button
+                              key={ind} type="button"
+                              onClick={() => { set('industry', ind); setIndustryCustomMode(false); setIndustryOpen(false); }}
+                              style={{
+                                padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                                background: form.industry === ind ? 'var(--accent)' : 'var(--surface-2)',
+                                color: form.industry === ind ? '#fff' : 'var(--text-2)',
+                                border: '1px solid ' + (form.industry === ind ? 'var(--accent)' : 'var(--border)'),
+                                transition: 'all 0.12s',
+                              }}
+                            >{ind}</button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setIndustryCustomMode(m => !m)}
+                            style={{
+                              padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                              background: industryCustomMode ? 'var(--blue)' : 'var(--surface-2)',
+                              color: industryCustomMode ? '#fff' : 'var(--text-2)',
+                              border: '1px solid ' + (industryCustomMode ? 'var(--blue)' : 'var(--border)'),
+                              transition: 'all 0.12s',
+                            }}
+                          >✏️ 직접 쓰기</button>
+                        </div>
+                        {industryCustomMode && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                            <input
+                              value={industryCustomInput}
+                              onChange={e => setIndustryCustomInput(e.target.value)}
+                              placeholder="산업군을 직접 입력하세요"
+                              style={{ flex: 1, fontSize: 12, padding: '6px 10px' }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && industryCustomInput.trim()) {
+                                  set('industry', industryCustomInput.trim());
+                                  setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
+                                }
+                              }}
+                            />
+                            <Btn size="sm" onClick={() => {
+                              if (industryCustomInput.trim()) {
+                                set('industry', industryCustomInput.trim());
+                                setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
+                              }
+                            }}>확인</Btn>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <label style={lbl}>
                   <span style={lblTxt}>랜딩페이지 URL</span>
                   <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />

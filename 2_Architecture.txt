@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-04 (모바일 퍼스트 반응형 전면 재설계 — index.css 반응형 유틸리티 클래스 128줄 추가, Sidebar.jsx 모바일 햄버거/드로어, Landing.jsx 깨진 style 태그 교체→className 연결, 3개 Dashboard 반응형 그리드, 전 페이지 page-wrap 적용)
+최종 업데이트: 2026-05-04 (의뢰 등록 폼 4종 — NDA·패널 매칭 배너 추가, 산업군 선택 UI 추가 (INDUSTRIES 상수 20종, ▼ 드롭다운 + 직접 입력 모드, description JSON industry 필드 저장))
 ================================================================
 
 ## 기술 스택
@@ -42,7 +42,12 @@ purit/
 │   │                companyId state: fetchPlan useEffect에서 select('id, plan, credit_balance') 로 함께 로드 → creditBalance state 설정
 │   │                customLPQs state: companyId 의존 useEffect → question_templates(category='랜딩페이지', is_default=false) 조회
 │   │                initTemplateId/initTemplateName: location.state에서 읽어 해당 LP 템플릿 사전 선택 + Step 2 진입
-│   │                Step 0: 제품명·LP URL 최상단 배치, 페르소나 필드 아래, 부제 "검증할 서비스와 서비스 타겟에 대해 설정합니다."
+│   │                form.industry state + industryOpen/industryCustomMode/industryCustomInput state 추가
+│   │                INDUSTRIES 상수 (20개 산업군): 파일 최상단 모듈 레벨 정의 (4개 등록 폼 공통 패턴)
+│   │                Step 0: 제품명 → 산업군 선택(▼ 드롭다운) → LP URL 순 배치, 페르소나 필드 아래, 부제 "검증할 서비스와 서비스 타겟에 대해 설정합니다."
+│   │                  산업군 드롭다운: INDUSTRIES 칩 grid + "✏️ 직접 쓰기" 토글 → 텍스트 입력 + 확인 버튼 (Enter 키 지원)
+│   │                  buildDescription(): industry 포함 → description JSON / persona 문자열에도 "산업군: XXX" 포함
+│   │                폼 상단 배너: 🔒 NDA(accent-dim) + ✨ 매칭(rgba(16,185,129,0.07)) 2개 항상 표시
 │   │                Step 2: "내 커스텀 질문" 아코디언 (customLPQs DB 데이터) + QUESTION_TEMPLATES.lp 아코디언
 │   │                        "질문 만들기" 인라인 Card: textarea + 타입(옵션형/점수형/서술형) + "추가"(localCustomQs) + "템플릿에 저장 →"(DB INSERT, ConfirmModal)
 │   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|질문 만들기

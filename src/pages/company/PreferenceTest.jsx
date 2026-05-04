@@ -16,6 +16,14 @@ const ASSET_TYPES = [
 
 const STEPS = ['소재 유형', '소재 입력', '제품 설명', '질문 설정', '패널 설정'];
 
+const INDUSTRIES = [
+  '뷰티/코스메틱', '헬스/피트니스', '식품/음료', '패션/의류',
+  'SaaS/소프트웨어', '교육/에듀테크', '금융/핀테크', '여행/숙박',
+  '부동산/인테리어', '의료/헬스케어', '반려동물', '게임/엔터테인먼트',
+  '이커머스/리테일', '자동차/모빌리티', '미디어/콘텐츠', 'B2B 서비스',
+  'HR/채용', '법률/컨설팅', '물류/배송', '환경/에너지',
+];
+
 export default function PreferenceTest() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -37,6 +45,10 @@ export default function PreferenceTest() {
   const [uploadingB, setUploadingB] = useState(false);
   // Step 2
   const [productDescription, setProductDescription] = useState('');
+  const [industry,            setIndustry]            = useState('');
+  const [industryOpen,        setIndustryOpen]        = useState(false);
+  const [industryCustomMode,  setIndustryCustomMode]  = useState(false);
+  const [industryCustomInput, setIndustryCustomInput] = useState('');
   // Step 3
   const [panelSize, setPanelSize] = useState(10);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -213,6 +225,7 @@ export default function PreferenceTest() {
           variantAImage: variantAImage || null,
           variantBImage: variantBImage || null,
           productDescription: productDescription.trim(),
+          industry: industry || null,
           selectedQuestions: [...selectedQuestions, ...localCustomQs],
           careerLevels,
         }),
@@ -280,6 +293,28 @@ export default function PreferenceTest() {
       {/* ── 생성 폼 (스텝 기반) ── */}
       {view === 'create' && (
         <div>
+          {/* NDA 안내 배너 */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 16px', marginBottom: 10,
+            background: 'var(--accent-dim)', borderRadius: 'var(--radius)',
+            border: '1px solid var(--accent)',
+            fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
+          }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
+            평가 참가 패널은 기업의 정보를 외부에 발설할 수 없습니다.
+          </div>
+          {/* 패널 매칭 안내 배너 */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 16px', marginBottom: 28,
+            background: 'rgba(16,185,129,0.07)', borderRadius: 'var(--radius)',
+            border: '1px solid rgba(16,185,129,0.3)',
+            fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
+          }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>✨</span>
+            의뢰 조건에 맞는 패널이 자동으로 매칭됩니다.
+          </div>
           {/* 스텝 인디케이터 */}
           <div style={{ display: 'flex', gap: 0, marginBottom: 32 }}>
             {STEPS.map((s, i) => (
@@ -364,16 +399,88 @@ export default function PreferenceTest() {
 
             {/* Step 2: 제품/타겟 설명 */}
             {createStep === 2 && (
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>제품 / 타겟 설명</div>
-                <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>패널에게 표시됩니다. 어떤 제품인지, 어떤 타겟을 대상으로 하는지 간단히 적어주세요.</p>
-                <textarea
-                  value={productDescription}
-                  onChange={e => setProductDescription(e.target.value)}
-                  rows={4}
-                  placeholder={"예) 제품명: 기능성 러닝화 / 타겟: 30-40대 직장인 러너"}
-                  style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
-                />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>제품 / 타겟 설명</div>
+                  <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>패널에게 표시됩니다. 어떤 제품인지, 어떤 타겟을 대상으로 하는지 간단히 적어주세요.</p>
+                  <textarea
+                    value={productDescription}
+                    onChange={e => setProductDescription(e.target.value)}
+                    rows={4}
+                    placeholder={"예) 제품명: 기능성 러닝화 / 타겟: 30-40대 직장인 러너"}
+                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+                  />
+                </div>
+                {/* 산업군 선택 */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군 (선택)</div>
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIndustryOpen(o => !o)}
+                      style={{
+                        width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '9px 14px', background: 'var(--surface)', border: 'none', cursor: 'pointer',
+                        fontSize: 13, color: industry ? 'var(--text)' : 'var(--text-3)', textAlign: 'left',
+                      }}
+                    >
+                      <span>{industry || '산업군을 선택하세요'}</span>
+                      <span style={{ transition: 'transform 0.2s', transform: industryOpen ? 'rotate(180deg)' : 'none', display: 'inline-block', color: 'var(--text-3)', fontSize: 11 }}>▼</span>
+                    </button>
+                    {industryOpen && (
+                      <div style={{ borderTop: '1px solid var(--border)', padding: 14, background: 'var(--bg)' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {INDUSTRIES.map(ind => (
+                            <button
+                              key={ind} type="button"
+                              onClick={() => { setIndustry(ind); setIndustryCustomMode(false); setIndustryOpen(false); }}
+                              style={{
+                                padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                                background: industry === ind ? 'var(--accent)' : 'var(--surface-2)',
+                                color: industry === ind ? '#fff' : 'var(--text-2)',
+                                border: '1px solid ' + (industry === ind ? 'var(--accent)' : 'var(--border)'),
+                                transition: 'all 0.12s',
+                              }}
+                            >{ind}</button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setIndustryCustomMode(m => !m)}
+                            style={{
+                              padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                              background: industryCustomMode ? 'var(--blue)' : 'var(--surface-2)',
+                              color: industryCustomMode ? '#fff' : 'var(--text-2)',
+                              border: '1px solid ' + (industryCustomMode ? 'var(--blue)' : 'var(--border)'),
+                              transition: 'all 0.12s',
+                            }}
+                          >✏️ 직접 쓰기</button>
+                        </div>
+                        {industryCustomMode && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                            <input
+                              value={industryCustomInput}
+                              onChange={e => setIndustryCustomInput(e.target.value)}
+                              placeholder="산업군을 직접 입력하세요"
+                              style={{ flex: 1, fontSize: 12, padding: '6px 10px' }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && industryCustomInput.trim()) {
+                                  setIndustry(industryCustomInput.trim());
+                                  setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
+                                }
+                              }}
+                            />
+                            <Btn size="sm" onClick={() => {
+                              if (industryCustomInput.trim()) {
+                                setIndustry(industryCustomInput.trim());
+                                setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
+                              }
+                            }}>확인</Btn>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

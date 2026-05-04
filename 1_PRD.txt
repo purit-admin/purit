@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-04 (Toss 스타일 전면 재설계 — Landing.jsx·admin/Dashboard·company/Dashboard·panel/Dashboard 흰 카드+회색 배경+단일 파란 CTA 적용, 랜딩 카피 대화체 전환)
+최종 업데이트: 2026-05-04 (의뢰 등록 폼 전체 — NDA·패널 매칭 안내 배너 추가, 산업군 선택 UI 추가)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -55,10 +55,15 @@
      · 제출 시 missions INSERT → UPDATE(editMode) 분기
      · Step 4 검토 화면에 ⚠️ "첫 피드백 수신 후 수정 불가" 경고 표시
      · 제출 버튼: 신규="의뢰 제출 →" / 편집="수정 완료 →"
-   - 상단 NDA 안내 배너 (form 뷰 모든 단계 상시 표시): "🔒 평가 참가 패널은 기업의 정보를 외부에 발설할 수 없습니다."
+   - 상단 배너 2개 (form 뷰 모든 단계 상시 표시):
+     · 🔒 NDA 배너: "평가 참가 패널은 기업의 정보를 외부에 발설할 수 없습니다."
+     · ✨ 매칭 배너: "의뢰 조건에 맞는 패널이 자동으로 매칭됩니다."
    - Step 0 서비스 정보 & 타겟 페르소나 (구 '페르소나 설정'): ★ 개편
      · 서브타이틀: "검증할 서비스와 서비스 타겟에 대해 설정합니다."
-     · 상단: 제품/서비스명 입력 + 랜딩페이지 URL 입력 (구 Step 1에서 이동)
+     · 상단: 제품/서비스명 입력 → 바로 아래 산업군 선택 → 랜딩페이지 URL 입력
+     · 산업군 선택: ▼ 토글 드롭다운 — 20개 산업군 칩(뷰티/코스메틱·헬스/피트니스·SaaS 등) + "✏️ 직접 쓰기" 모드
+       선택값 → missions.description JSON의 `industry` 필드 저장 / persona 문자열에도 "산업군: XXX" 포함
+       패널·어드민 화면에는 별도 표시 없음 (기업 등록 정보로만 활용)
      · 구분선 아래: 연령대, 월 소득, 직군/역할 + '타겟 상세(선택)' 자유 입력
    - Step 1 소재 업로드: 이미지 업로드(최대 3장, 5MB) + 검증 포인트(FOCUS) 선택 + 브리핑
      · 제품/서비스명·LP URL 입력 필드 제거 (Step 0으로 이동)
@@ -158,50 +163,56 @@
    - Recharts LineChart: 5차원 점수 시계열 변화
    - 하단 요약 테이블 (점수 색상 코딩)
 
-5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 패널 설정 단계 추가 (2026-05-02)
+5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 산업군·배너 추가 (2026-05-04)
    - 목록: missions 테이블에서 type='preference' 필터로 로드
      · 목록 카드 클릭 → navigate('/company/results?id=…') / 미션 있을 때 "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
+   - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 소재 유형 선택 (이미지/텍스트/랜딩페이지)
    - Step 1: 소재 A/B 입력 + 이미지 업로드 (선택, 각 1장)
      · variantA / variantB 텍스트 필수, 업로드 경로: {companyId}/{missionUuid}/va.{ext} / vb.{ext}
-   - Step 2: 제품/타겟 설명 입력 (패널에게 표시됨, productDescription)
+   - Step 2: 제품/타겟 설명 입력 (productDescription) + 산업군 선택 (industry)
+     · 산업군: ▼ 드롭다운 — 20개 칩 + "✏️ 직접 쓰기" 모드 (선택 시 description JSON에 industry 저장)
    - Step 3: 질문 설정
      · 아코디언 그룹 1 — 내 커스텀 질문 / 그룹 2~4 — QUESTION_TEMPLATES.preference 3종
      · 최대 5개 / 서술형 최대 2개 / 질문 만들기 → localCustomQs 또는 템플릿 저장
-   - Step 4: 패널 설정 (PanelTargetStep — NewMission Step 3과 동일 컴포넌트) ★ 신규
+   - Step 4: 패널 설정 (PanelTargetStep — NewMission Step 3과 동일 컴포넌트)
    - 등록 시: missions INSERT(type='preference', description=JSON.stringify({
        variantA, variantB, variantAImage, variantBImage,
-       productDescription, selectedQuestions, careerLevels})) + preference_tests INSERT
+       productDescription, industry, selectedQuestions, careerLevels})) + preference_tests INSERT
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 + CustomQuestionsSection
 
-6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 패널 설정 단계 추가 (2026-05-02)
+6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 산업군·배너 추가 (2026-05-04)
    - 목록: missions 테이블에서 type='pricing' 필터로 로드
      · 목록 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
+   - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 가격 페이지 입력 + 이미지 업로드 (선택, 1장)
      · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
-   - Step 1: 제품/타겟 설명 입력 (productDescription)
+   - Step 1: 제품/타겟 설명 입력 (productDescription) + 산업군 선택 (industry)
+     · 산업군: ▼ 드롭다운 — 20개 칩 + "✏️ 직접 쓰기" 모드 (선택 시 description JSON에 industry 저장)
    - Step 2: 질문 설정 (category='가격', PreferenceTest Step 3과 동일 구조)
-   - Step 3: 패널 설정 (PanelTargetStep) ★ 신규
+   - Step 3: 패널 설정 (PanelTargetStep)
    - 등록 시: missions INSERT(type='pricing', description=JSON.stringify({
-       content: pricingDesc, image, productDescription,
+       content: pricingDesc, image, productDescription, industry,
        selectedQuestions, careerLevels})) + pricing_tests INSERT
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + CustomQuestionsSection
 
-7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 목록 missions 테이블 기반으로 개편 (2026-05-01)
+7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 산업군·배너 추가 (2026-05-04)
    - 목록: missions 테이블에서 type='email' 필터로 로드 (cold_email_tests 테이블 의존 제거)
      · 목록 카드 클릭 → navigate('/company/results?id=…') — 별도 결과 뷰 없음
      · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
+   - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 이메일 원문 설명 입력
-   - Step 1: 제품/타겟 설명 입력 (productDescription)
+   - Step 1: 제품/타겟 설명 입력 (productDescription) + 산업군 선택 (industry)
+     · 산업군: ▼ 드롭다운 — 20개 칩 + "✏️ 직접 쓰기" 모드 (선택 시 description JSON에 industry 저장)
    - Step 2: 질문 설정 (category='이메일', PricingTest Step 2와 동일 구조)
-   - Step 3: 패널 설정 (PanelTargetStep) ★ 신규
+   - Step 3: 패널 설정 (PanelTargetStep)
    - 등록 시: missions INSERT(type='email', title='이메일 검증'(고정), description=JSON.stringify({
-       content: emailText, productDescription,
+       content: emailText, productDescription, industry,
        selectedQuestions, careerLevels})) + cold_email_tests INSERT
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: 답장 의향 비율 + open_intent / curiosity_score / hook_score / clarity_score 평균 + CustomQuestionsSection
