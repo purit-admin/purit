@@ -1,16 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, X, AlertCircle } from 'lucide-react';
+import { ArrowRight, Check, X } from 'lucide-react';
 
 /* ─── 색상 토큰 ──────────────────────── */
-const NAVY   = '#0A2540';
-const WHITE  = '#FFFFFF';
-const CHALK  = '#1A1A1A';
-const MUTED  = '#4A5568';
-const FAINT  = '#718096';
-const BORDER = '#E8ECF0';
-const BG2    = '#F7F9FB';
-const BG3    = '#EEF2F7';
+const BG      = '#FFFFFF';
+const BG2     = '#F8FAFC';
+const BG3     = '#EFF6FF';   // blue-50
+const PRIMARY = '#2563EB';   // blue-600 — 단일 CTA
+const TEXT    = '#0F172A';   // slate-900
+const TEXT2   = '#475569';   // slate-500
+const TEXT3   = '#94A3B8';   // slate-400
+const SUCCESS = '#22C55E';
+const DANGER  = '#EF4444';
 
 /* ─── 스크롤 페이드인 훅 ─────────────── */
 function useFadeIn(delay = 0) {
@@ -19,8 +20,8 @@ function useFadeIn(delay = 0) {
     const el = ref.current;
     if (!el) return;
     el.style.opacity = '0';
-    el.style.transform = 'translateY(30px)';
-    el.style.transition = `opacity 0.72s ${delay}s cubic-bezier(0.22,1,0.36,1), transform 0.72s ${delay}s cubic-bezier(0.22,1,0.36,1)`;
+    el.style.transform = 'translateY(24px)';
+    el.style.transition = `opacity 0.65s ${delay}s cubic-bezier(0.22,1,0.36,1), transform 0.65s ${delay}s cubic-bezier(0.22,1,0.36,1)`;
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { el.style.opacity = '1'; el.style.transform = 'none'; obs.unobserve(el); } },
       { threshold: 0.1 }
@@ -32,55 +33,7 @@ function useFadeIn(delay = 0) {
 }
 
 /* ─── 공통 레이아웃 ──────────────────── */
-const W = { maxWidth: 1140, margin: '0 auto', padding: '0 32px' };
-
-function SectionLabel({ children }) {
-  return (
-    <div style={{
-      display: 'inline-block', fontSize: 12, fontWeight: 700,
-      letterSpacing: '0.1em', textTransform: 'uppercase',
-      color: NAVY, background: 'rgba(10,37,64,0.07)',
-      borderRadius: 6, padding: '5px 12px', marginBottom: 20,
-    }}>{children}</div>
-  );
-}
-
-/* ─── 버튼 ───────────────────────────── */
-function BtnPrimary({ children, onClick, size = 'md' }) {
-  const pad = size === 'lg' ? '18px 40px' : '14px 28px';
-  const fs  = size === 'lg' ? 17 : 15;
-  return (
-    <button onClick={onClick} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 8,
-      padding: pad, borderRadius: 10,
-      background: NAVY, color: WHITE,
-      fontSize: fs, fontWeight: 700, border: 'none',
-      cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
-      boxShadow: '0 4px 20px rgba(10,37,64,0.28)',
-      transition: 'all 0.2s',
-    }}
-    onMouseEnter={e => { e.currentTarget.style.background = '#0D3060'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(10,37,64,0.36)'; }}
-    onMouseLeave={e => { e.currentTarget.style.background = NAVY; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(10,37,64,0.28)'; }}
-    >{children}</button>
-  );
-}
-
-function BtnSecondary({ children, onClick }) {
-  return (
-    <button onClick={onClick} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 8,
-      padding: '13px 26px', borderRadius: 10,
-      background: WHITE, color: CHALK,
-      fontSize: 15, fontWeight: 600,
-      border: `1.5px solid ${BORDER}`,
-      cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
-      transition: 'all 0.2s',
-    }}
-    onMouseEnter={e => { e.currentTarget.style.background = BG2; e.currentTarget.style.borderColor = '#CBD5E0'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-    onMouseLeave={e => { e.currentTarget.style.background = WHITE; e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.transform = 'none'; }}
-    >{children}</button>
-  );
-}
+const W = { maxWidth: 1100, margin: '0 auto', padding: '0 32px' };
 
 /* ════════════════════════════════════════
    MAIN
@@ -95,11 +48,10 @@ export default function Landing() {
   const r5 = useFadeIn(0);
   const r6 = useFadeIn(0);
   const r7 = useFadeIn(0);
-  const r8 = useFadeIn(0);
 
   return (
     <div style={{
-      background: WHITE, color: CHALK,
+      background: BG, color: TEXT,
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif",
       overflowX: 'hidden', lineHeight: 1.6,
     }}>
@@ -109,33 +61,32 @@ export default function Landing() {
       ══════════════════════════ */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 200,
-        background: 'rgba(255,255,255,0.94)',
-        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: `1px solid ${BORDER}`,
+        background: 'rgba(255,255,255,0.95)',
+        backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       }}>
         <div style={{ ...W, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span onClick={() => navigate('/')} style={{
-            fontSize: 20, fontWeight: 800, letterSpacing: '-0.05em', color: NAVY, cursor: 'pointer',
+            fontSize: 20, fontWeight: 800, letterSpacing: '-0.04em', color: TEXT, cursor: 'pointer',
           }}>PURIT</span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={() => navigate('/login')} style={{
               padding: '9px 18px', borderRadius: 8,
-              background: 'none', color: MUTED,
+              background: 'none', color: TEXT2,
               fontSize: 14, fontWeight: 500, border: 'none',
               cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.color = CHALK}
-            onMouseLeave={e => e.currentTarget.style.color = MUTED}
+            onMouseEnter={e => e.currentTarget.style.color = TEXT}
+            onMouseLeave={e => e.currentTarget.style.color = TEXT2}
             >로그인</button>
 
             <button onClick={() => navigate('/login?role=company')} style={{
-              padding: '9px 20px', borderRadius: 8,
-              background: NAVY, color: WHITE,
-              fontSize: 14, fontWeight: 700, border: 'none',
+              padding: '10px 20px', borderRadius: 8,
+              background: PRIMARY, color: BG,
+              fontSize: 14, fontWeight: 600, border: 'none',
               cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s',
             }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >무료로 시작하기</button>
           </div>
@@ -145,47 +96,53 @@ export default function Landing() {
       {/* ══════════════════════════
           2. 히어로
       ══════════════════════════ */}
-      <section style={{ padding: '140px 32px 120px' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center' }} ref={r1}>
+      <section style={{ padding: '120px 32px 100px', background: BG }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }} ref={r1}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: BG2, border: `1px solid ${BORDER}`,
+            background: BG3,
             borderRadius: 100, padding: '7px 18px',
-            fontSize: 13, color: MUTED, marginBottom: 40, fontWeight: 500,
+            fontSize: 13, color: PRIMARY, marginBottom: 36, fontWeight: 600,
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
-            AI Purit Filter 실시간 가동 중
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: SUCCESS, display: 'inline-block' }} />
+            실시간 검증 진행 중
           </div>
 
           <h1 style={{
-            fontSize: 'clamp(38px, 5.8vw, 68px)',
-            fontWeight: 800, letterSpacing: '-0.05em',
-            lineHeight: 1.1, color: CHALK,
-            marginBottom: 30,
+            fontSize: 'clamp(34px, 5.2vw, 60px)',
+            fontWeight: 800, letterSpacing: '-0.04em',
+            lineHeight: 1.15, color: TEXT,
+            marginBottom: 28,
           }}>
-            광고비를 집행하기 전,<br /><span style={{ color: NAVY }}>전환 소재부터 검증하십시오.</span>
+            고객이 '뒤로 가기'를 누르는 이유, <span style={{ color: PRIMARY }}>마케터 30명에게 물어보세요.</span>
           </h1>
 
           <p style={{
-            fontSize: 19, color: MUTED, lineHeight: 1.85,
-            maxWidth: 620, margin: '0 auto 52px',
+            fontSize: 18, color: TEXT2, lineHeight: 1.8,
+            maxWidth: 580, margin: '0 auto 44px',
           }}>
-            상위 5% 현업 전문가 패널이 당신의 마케팅 에셋을 직접 해체하고 분석합니다.<br />
-            기업별 검증 목적과 페르소나에 완벽히 정렬된 맞춤형 인사이트를<br />
-            48시간 내에 수령하십시오.
+            타겟 분야의 마케팅 전문가 패널이 여러분의 마케팅 소재를 직접 평가하고,<br />
+            전환율을 높이는 피드백을 48시간 안에 줍니다.
           </p>
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 40 }}>
-            <BtnPrimary onClick={() => navigate('/login?role=company')}>
-              무료로 시작하기 <ArrowRight size={17} />
-            </BtnPrimary>
-            <BtnSecondary onClick={() => navigate('/login')}>
-              데모 신청
-            </BtnSecondary>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
+            <button onClick={() => navigate('/login?role=company')} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '16px 32px', borderRadius: 12,
+              background: PRIMARY, color: BG,
+              fontSize: 16, fontWeight: 700, border: 'none',
+              cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
+              transition: 'all 0.2s', height: 52,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+            >
+              무료로 시작해보세요 <ArrowRight size={17} />
+            </button>
           </div>
 
-          <div style={{ fontSize: 14, color: FAINT }}>
-            현재 <strong style={{ color: MUTED }}>312개</strong> 기업이 광고비를 아끼고 있습니다
+          <div style={{ fontSize: 14, color: TEXT3 }}>
+            현재 <strong style={{ color: TEXT2 }}>312개</strong> 기업이 사용 중입니다
           </div>
         </div>
       </section>
@@ -193,25 +150,24 @@ export default function Landing() {
       {/* ══════════════════════════
           3. 숫자 임팩트
       ══════════════════════════ */}
-      <section style={{ background: NAVY }}>
+      <section style={{ background: BG2 }}>
         <div style={{ ...W }} ref={r2}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
             {[
               { val: '48h',   label: '피드백 수집 완료' },
-              { val: '100%',  label: 'Purit Filter 통과 수율' },
+              { val: '100%',  label: '검증된 응답만 납품' },
               { val: '40%+',  label: '평균 전환율 개선' },
               { val: '₩800만', label: '평균 절감 광고비' },
             ].map((m, i) => (
               <div key={i} style={{
-                padding: '72px 32px', textAlign: 'center',
-                borderRight: i < 3 ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                padding: '56px 32px', textAlign: 'center',
               }}>
                 <div style={{
-                  fontSize: 'clamp(40px, 5vw, 64px)',
-                  fontWeight: 800, letterSpacing: '-0.05em',
-                  color: WHITE, lineHeight: 1, marginBottom: 14,
+                  fontSize: 'clamp(36px, 4.5vw, 56px)',
+                  fontWeight: 800, letterSpacing: '-0.04em',
+                  color: PRIMARY, lineHeight: 1, marginBottom: 12,
                 }}>{m.val}</div>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', fontWeight: 500 }}>{m.label}</div>
+                <div style={{ fontSize: 14, color: TEXT3, fontWeight: 500 }}>{m.label}</div>
               </div>
             ))}
           </div>
@@ -221,26 +177,26 @@ export default function Landing() {
       {/* ══════════════════════════
           4. 고통점 공감
       ══════════════════════════ */}
-      <section style={{ padding: '72px 32px', background: BG2, borderBottom: `1px solid ${BORDER}` }}>
+      <section style={{ padding: '80px 32px', background: BG }}>
         <div style={{ ...W }} ref={r3}>
-          <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <h2 style={{ fontSize: 'clamp(20px, 2.8vw, 30px)', fontWeight: 700, letterSpacing: '-0.03em', color: CHALK }}>
-              이런 경험 있으신가요?
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <h2 style={{ fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 700, letterSpacing: '-0.03em', color: TEXT }}>
+              혹시 이런 상황이지 않나요?
             </h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
             {[
               { icon: '📉', pain: '광고비를 쏟아부었는데 전환율이 왜 이런지 모르겠다' },
               { icon: '😶', pain: '내부에서는 좋다고 했는데 막상 시장 반응이 없다' },
               { icon: '⏳', pain: 'A/B 테스트 할 시간도 예산도 없다' },
             ].map((c, i) => (
               <div key={i} style={{
-                background: WHITE, border: `1px solid ${BORDER}`,
-                borderRadius: 14, padding: '24px 24px',
+                background: BG2,
+                borderRadius: 16, padding: '24px',
                 display: 'flex', alignItems: 'flex-start', gap: 14,
               }}>
                 <span style={{ fontSize: 24, flexShrink: 0, lineHeight: 1.4 }}>{c.icon}</span>
-                <span style={{ fontSize: 15, fontWeight: 600, color: CHALK, lineHeight: 1.6, letterSpacing: '-0.01em' }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: TEXT, lineHeight: 1.6, letterSpacing: '-0.01em' }}>
                   "{c.pain}"
                 </span>
               </div>
@@ -252,12 +208,17 @@ export default function Landing() {
       {/* ══════════════════════════
           5. 솔루션
       ══════════════════════════ */}
-      <section style={{ padding: '140px 32px' }}>
+      <section style={{ padding: '100px 32px', background: BG2 }}>
         <div style={{ ...W }} ref={r4}>
-          <div style={{ textAlign: 'center', marginBottom: 72 }}>
-            <SectionLabel>솔루션</SectionLabel>
-            <h2 style={{ fontSize: 'clamp(28px, 4vw, 46px)', fontWeight: 800, letterSpacing: '-0.04em', color: CHALK }}>
-              PURIT가 해결합니다
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div style={{
+              display: 'inline-block', fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: PRIMARY, background: BG3,
+              borderRadius: 6, padding: '5px 12px', marginBottom: 20,
+            }}>솔루션</div>
+            <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 800, letterSpacing: '-0.04em', color: TEXT }}>
+              PURIT이 이렇게 해결해 드립니다
             </h2>
           </div>
 
@@ -281,39 +242,38 @@ export default function Landing() {
               },
             ].map((f, i) => (
               <div key={i} style={{
-                background: BG2, border: `1px solid ${BORDER}`,
-                borderRadius: 18, padding: '32px 32px',
-                display: 'flex', gap: 24, alignItems: 'flex-start',
-                transition: 'all 0.22s', cursor: 'default',
+                background: BG, borderRadius: 16, padding: '28px 28px',
+                display: 'flex', gap: 20, alignItems: 'flex-start',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s', cursor: 'default',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = WHITE; e.currentTarget.style.boxShadow = '0 16px 48px rgba(10,37,64,0.09)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = '#CBD5E0'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = BG2; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = BORDER; }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(37,99,235,0.10)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'none'; }}
               >
-                {/* 아이콘 */}
                 <div style={{
-                  width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                  background: WHITE, border: `1px solid ${BORDER}`,
+                  width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+                  background: BG3,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 24,
+                  fontSize: 22,
                 }}>{f.icon}</div>
 
                 <div style={{ flex: 1 }}>
                   <div style={{
                     display: 'inline-flex', alignItems: 'center',
-                    background: 'rgba(10,37,64,0.07)', borderRadius: 6,
+                    background: BG3, borderRadius: 6,
                     padding: '3px 10px', fontSize: 11, fontWeight: 700,
-                    color: NAVY, letterSpacing: '0.06em', marginBottom: 10,
+                    color: PRIMARY, letterSpacing: '0.06em', marginBottom: 10,
                   }}>{f.tag}</div>
 
-                  <div style={{ fontSize: 18, fontWeight: 800, color: CHALK, letterSpacing: '-0.03em', marginBottom: 12, lineHeight: 1.35 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: TEXT, letterSpacing: '-0.02em', marginBottom: 10, lineHeight: 1.4 }}>
                     {f.title}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {f.points.map(p => (
                       <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 4, height: 4, borderRadius: '50%', background: NAVY, opacity: 0.4, flexShrink: 0 }} />
-                        <span style={{ fontSize: 14, color: MUTED }}>{p}</span>
+                        <div style={{ width: 4, height: 4, borderRadius: '50%', background: PRIMARY, opacity: 0.5, flexShrink: 0 }} />
+                        <span style={{ fontSize: 14, color: TEXT2 }}>{p}</span>
                       </div>
                     ))}
                   </div>
@@ -327,34 +287,37 @@ export default function Landing() {
       {/* ══════════════════════════
           6. 작동 방식
       ══════════════════════════ */}
-      <section style={{ background: BG2, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, padding: '140px 32px' }}>
+      <section style={{ padding: '100px 32px', background: BG }}>
         <div style={{ ...W }} ref={r5}>
-          <div style={{ textAlign: 'center', marginBottom: 80 }}>
-            <SectionLabel>작동 방식</SectionLabel>
-            <h2 style={{ fontSize: 'clamp(28px, 4vw, 46px)', fontWeight: 800, letterSpacing: '-0.04em', color: CHALK }}>
+          <div style={{ textAlign: 'center', marginBottom: 72 }}>
+            <div style={{
+              display: 'inline-block', fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: PRIMARY, background: BG3,
+              borderRadius: 6, padding: '5px 12px', marginBottom: 20,
+            }}>작동 방식</div>
+            <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 800, letterSpacing: '-0.04em', color: TEXT }}>
               2분 등록, 48시간 안에 결과
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 27, left: 'calc(16.66% + 20px)', right: 'calc(16.66% + 20px)', height: 1, background: NAVY, opacity: 0.1 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
             {[
-              { n: '1', step: '1단계 — 의뢰 등록', desc: '타겟 페르소나와 검증할 랜딩페이지 URL을 입력합니다. 2분이면 충분합니다.', tag: '약 2분' },
-              { n: '2', step: '2단계 — 전문가 매칭', desc: 'Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
-              { n: '3', step: '3단계 — 결과 수령', desc: 'AI 리포트와 함께 우선순위별 개선 액션을 48시간 내에 확인합니다.', tag: '48시간 내' },
+              { n: '1', step: '의뢰 등록', desc: '타겟 페르소나와 검증할 랜딩페이지 URL을 입력합니다. 2분이면 충분합니다.', tag: '약 2분' },
+              { n: '2', step: '전문가 매칭', desc: 'Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
+              { n: '3', step: '결과 수령', desc: 'AI 리포트와 함께 우선순위별 개선 액션을 48시간 내에 확인합니다.', tag: '48시간 내' },
             ].map((s, i) => (
-              <div key={i} style={{ padding: '0 40px', position: 'relative', zIndex: 1 }}>
+              <div key={i} style={{ padding: '0 8px' }}>
                 <div style={{
-                  width: 54, height: 54, borderRadius: '50%',
-                  background: NAVY, color: WHITE,
-                  fontSize: 18, fontWeight: 800,
+                  width: 48, height: 48, borderRadius: '50%',
+                  background: PRIMARY, color: BG,
+                  fontSize: 17, fontWeight: 800,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 32,
-                  boxShadow: '0 4px 16px rgba(10,37,64,0.22)',
+                  marginBottom: 24,
                 }}>{s.n}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: FAINT, marginBottom: 10, letterSpacing: '0.01em' }}>{s.step}</div>
-                <div style={{ fontSize: 16, color: MUTED, lineHeight: 1.8, marginBottom: 20 }}>{s.desc}</div>
-                <div style={{ display: 'inline-flex', background: BG3, borderRadius: 100, padding: '5px 14px', fontSize: 12, fontWeight: 700, color: NAVY }}>{s.tag}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: TEXT, marginBottom: 10, letterSpacing: '-0.02em' }}>{s.step}</div>
+                <div style={{ fontSize: 15, color: TEXT2, lineHeight: 1.75, marginBottom: 16 }}>{s.desc}</div>
+                <div style={{ display: 'inline-flex', background: BG3, borderRadius: 100, padding: '5px 14px', fontSize: 12, fontWeight: 700, color: PRIMARY }}>{s.tag}</div>
               </div>
             ))}
           </div>
@@ -364,51 +327,53 @@ export default function Landing() {
       {/* ══════════════════════════
           7. 비교 섹션
       ══════════════════════════ */}
-      <section style={{ padding: '140px 32px' }}>
+      <section style={{ padding: '100px 32px', background: BG2 }}>
         <div style={{ ...W }} ref={r6}>
-          <div style={{ textAlign: 'center', marginBottom: 72 }}>
-            <SectionLabel>차별화</SectionLabel>
-            <h2 style={{ fontSize: 'clamp(28px, 4vw, 46px)', fontWeight: 800, letterSpacing: '-0.04em', color: CHALK, marginBottom: 14 }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div style={{
+              display: 'inline-block', fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: PRIMARY, background: BG3,
+              borderRadius: 6, padding: '5px 12px', marginBottom: 20,
+            }}>차별화</div>
+            <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 800, letterSpacing: '-0.04em', color: TEXT, marginBottom: 12 }}>
               기존 방식과 무엇이 다른가요?
             </h2>
-            <p style={{ fontSize: 17, color: MUTED }}>수율, 속도, 전문성 — 세 가지 모두에서 차원이 다릅니다.</p>
+            <p style={{ fontSize: 16, color: TEXT2 }}>수율, 속도, 전문성 — 세 가지 모두 다릅니다.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, alignItems: 'stretch' }}>
-            {/* 일반 설문 서비스 */}
-            <div style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 20, padding: '36px 32px' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: FAINT, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>일반 설문 서비스</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, alignItems: 'stretch' }}>
+            <div style={{ background: BG, borderRadius: 16, padding: '32px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: TEXT3, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 24 }}>일반 설문 서비스</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {['무작위 응답자', '데이터 품질 보장 없음', '수율 1% 미만', '결과까지 2~4주'].map(t => (
                   <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <X size={15} color="#EF4444" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: 15, color: MUTED }}>{t}</span>
+                    <X size={15} color={DANGER} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 15, color: TEXT2 }}>{t}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* 마케팅 에이전시 */}
-            <div style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 20, padding: '36px 32px' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: FAINT, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>마케팅 에이전시</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 24 }}>
+            <div style={{ background: BG, borderRadius: 16, padding: '32px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: TEXT3, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 24 }}>마케팅 에이전시</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {['내부 팀의 주관적 판단', '비용 수천만 원', '실제 타겟 검증 없음'].map(t => (
                   <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <X size={15} color="#EF4444" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: 15, color: MUTED }}>{t}</span>
+                    <X size={15} color={DANGER} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 15, color: TEXT2 }}>{t}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* PURIT */}
-            <div style={{ background: NAVY, border: `1px solid ${NAVY}`, borderRadius: 20, padding: '36px 32px' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>PURIT</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 24 }}>
+            <div style={{ background: BG3, borderRadius: 16, padding: '32px 28px', boxShadow: '0 4px 20px rgba(37,99,235,0.12)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: PRIMARY, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 24 }}>PURIT</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {['동일 페르소나 전문가 패널', 'Purit Filter 품질 보장', '수율 100%', '48시간 결과'].map(t => (
                   <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Check size={15} color="#22C55E" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{t}</span>
+                    <Check size={15} color={SUCCESS} style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 15, color: TEXT, fontWeight: 500 }}>{t}</span>
                   </div>
                 ))}
               </div>
@@ -420,16 +385,21 @@ export default function Landing() {
       {/* ══════════════════════════
           8. 후기 섹션
       ══════════════════════════ */}
-      <section style={{ background: BG2, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, padding: '140px 32px' }}>
+      <section style={{ padding: '100px 32px', background: BG }}>
         <div style={{ ...W }} ref={r7}>
-          <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <SectionLabel>고객 후기</SectionLabel>
-            <h2 style={{ fontSize: 'clamp(28px, 4vw, 46px)', fontWeight: 800, letterSpacing: '-0.04em', color: CHALK }}>
-              광고비를 아낀 기업들의 이야기
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div style={{
+              display: 'inline-block', fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: PRIMARY, background: BG3,
+              borderRadius: 6, padding: '5px 12px', marginBottom: 20,
+            }}>고객 후기</div>
+            <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 800, letterSpacing: '-0.04em', color: TEXT }}>
+              이미 바꿔놓은 기업들의 이야기
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
             {[
               {
                 quote: '헤드라인 하나 바꿨더니 전환율이 2배 됐어요',
@@ -445,27 +415,27 @@ export default function Landing() {
               },
             ].map((r, i) => (
               <div key={i} style={{
-                background: WHITE, border: `1px solid ${BORDER}`,
-                borderRadius: 20, padding: '36px 32px',
-                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 28,
+                background: BG2,
+                borderRadius: 16, padding: '28px 28px',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 24,
                 transition: 'box-shadow 0.2s',
               }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 40px rgba(10,37,64,0.09)'}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.07)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
               >
-                <div style={{ fontSize: 22, fontWeight: 700, color: CHALK, lineHeight: 1.5, letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: TEXT, lineHeight: 1.55, letterSpacing: '-0.02em' }}>
                   "{r.quote}"
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
-                    width: 40, height: 40, borderRadius: '50%',
-                    background: BG3, border: `1px solid ${BORDER}`,
+                    width: 38, height: 38, borderRadius: '50%',
+                    background: BG3,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 15, fontWeight: 700, color: NAVY,
+                    fontSize: 14, fontWeight: 700, color: PRIMARY,
                   }}>{r.name[0]}</div>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: CHALK }}>{r.name}</div>
-                    <div style={{ fontSize: 13, color: FAINT }}>{r.role} · {r.company}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: TEXT }}>{r.name}</div>
+                    <div style={{ fontSize: 13, color: TEXT3 }}>{r.role} · {r.company}</div>
                   </div>
                 </div>
               </div>
@@ -477,33 +447,32 @@ export default function Landing() {
       {/* ══════════════════════════
           9. 하단 CTA
       ══════════════════════════ */}
-      <section style={{ background: NAVY, padding: '140px 32px' }}>
-        <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }} ref={r7}>
+      <section style={{ background: BG3, padding: '100px 32px' }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{
-            fontSize: 'clamp(30px, 5vw, 56px)',
-            fontWeight: 800, letterSpacing: '-0.05em',
-            color: WHITE, lineHeight: 1.1, marginBottom: 22,
+            fontSize: 'clamp(26px, 4vw, 48px)',
+            fontWeight: 800, letterSpacing: '-0.04em',
+            color: TEXT, lineHeight: 1.15, marginBottom: 20,
           }}>
-            더 이상 감에 의존하여<br />광고비를 낭비하지 마십시오.
+            지금 무료로 시작해보세요.
           </h2>
-          <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.52)', lineHeight: 1.8, marginBottom: 52 }}>
-            지금 바로 시작하고, 48시간 안에 전환을 막고 있는 결함을 확인하세요.
+          <p style={{ fontSize: 17, color: TEXT2, lineHeight: 1.75, marginBottom: 44 }}>
+            48시간 안에 전환을 막고 있는 원인을 확인하세요.
           </p>
           <button
             onClick={() => navigate('/login?role=company')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
               padding: '18px 40px', borderRadius: 12,
-              background: WHITE, color: NAVY,
-              fontSize: 17, fontWeight: 800, border: 'none',
-              cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.02em',
-              boxShadow: '0 4px 24px rgba(255,255,255,0.14)',
-              transition: 'all 0.2s',
+              background: PRIMARY, color: BG,
+              fontSize: 17, fontWeight: 700, border: 'none',
+              cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '-0.01em',
+              transition: 'all 0.2s', height: 56,
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 36px rgba(255,255,255,0.22)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(255,255,255,0.14)'; }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
           >
-            지금 전환율 개선 시작하기 <ArrowRight size={20} />
+            무료로 시작하기 <ArrowRight size={20} />
           </button>
         </div>
       </section>
@@ -511,36 +480,36 @@ export default function Landing() {
       {/* ══════════════════════════
           푸터
       ══════════════════════════ */}
-      <footer style={{ background: '#060D1A', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ ...W, padding: '60px 32px 48px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 48, flexWrap: 'wrap', gap: 40 }}>
+      <footer style={{ background: BG2 }}>
+        <div style={{ ...W, padding: '56px 32px 40px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40, flexWrap: 'wrap', gap: 40 }}>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.05em', color: WHITE, marginBottom: 10 }}>PURIT</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.28)', lineHeight: 1.85, maxWidth: 260 }}>
-                광고비 집행 전, 전환 결함을 먼저 잡는<br />고순도 피드백 인텔리전스 플랫폼
+              <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.04em', color: TEXT, marginBottom: 10 }}>PURIT</div>
+              <div style={{ fontSize: 13, color: TEXT3, lineHeight: 1.8, maxWidth: 240 }}>
+                광고비 집행 전, 전환 결함을 먼저 잡는<br />고순도 피드백 검증 플랫폼
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 64, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
               {[
                 { title: '서비스', links: ['서비스 소개', '기업 솔루션', '요금 안내', '문의하기'] },
                 { title: '법적 고지', links: ['이용약관', '개인정보처리방침', '운영 정책'] },
               ].map((col) => (
                 <div key={col.title}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.28)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 18 }}>{col.title}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: TEXT3, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>{col.title}</div>
                   {col.links.map(link => (
                     <div key={link}
-                      style={{ fontSize: 14, color: 'rgba(255,255,255,0.42)', marginBottom: 12, cursor: 'pointer', transition: 'color 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.color = WHITE}
-                      onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.42)'}
+                      style={{ fontSize: 14, color: TEXT2, marginBottom: 12, cursor: 'pointer', transition: 'color 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = TEXT}
+                      onMouseLeave={e => e.currentTarget.style.color = TEXT2}
                     >{link}</div>
                   ))}
                 </div>
               ))}
             </div>
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 28, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)' }}>© 2026 PURIT. All rights reserved.</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)' }}>사업자등록번호 000-00-00000 · 대표 홍길동</div>
+          <div style={{ borderTop: `1px solid #E2E8F0`, paddingTop: 24, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ fontSize: 13, color: TEXT3 }}>© 2026 PURIT. All rights reserved.</div>
+            <div style={{ fontSize: 13, color: TEXT3 }}>사업자등록번호 000-00-00000 · 대표 홍길동</div>
           </div>
         </div>
       </footer>
@@ -554,7 +523,7 @@ export default function Landing() {
         }
         @media (max-width: 600px) {
           .purit-grid-4 { grid-template-columns: 1fr 1fr !important; }
-          section { padding-top: 80px !important; padding-bottom: 80px !important; padding-left: 20px !important; padding-right: 20px !important; }
+          section { padding-top: 72px !important; padding-bottom: 72px !important; padding-left: 20px !important; padding-right: 20px !important; }
           footer > div { padding-left: 20px !important; padding-right: 20px !important; }
         }
       `}</style>
