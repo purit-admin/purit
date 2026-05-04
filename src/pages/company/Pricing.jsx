@@ -151,7 +151,7 @@ export default function PricingPage() {
   const currentPlan = company?.plan?.toLowerCase() || '';
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 1100, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1100, animation: 'fadeUp 0.5s ease both' }}>
       {msg && (
         <div style={{
           marginBottom: 20, padding: '12px 20px', borderRadius: 'var(--radius)', fontSize: 13,

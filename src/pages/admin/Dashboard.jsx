@@ -62,13 +62,13 @@ export default function AdminDashboard() {
   const purityColor = purityRate >= 70 ? '#22C55E' : purityRate >= 50 ? C.primary : '#EF4444';
 
   return (
-    <div style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', maxWidth: 1100, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', maxWidth: 1100, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 36 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text }}>플랫폼 개요</h1>
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="dash-stat-grid-4">
         {[
           { label: '총 의뢰',      value: String(stats.missions),  sub: '누적' },
           { label: '등록 패널',    value: String(stats.panels),    sub: '전체' },
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, marginBottom: 24 }}>
+      <div className="dash-two-col">
         {/* Quick actions */}
         <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 16 }}>빠른 작업</div>

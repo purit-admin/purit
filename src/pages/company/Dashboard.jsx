@@ -282,7 +282,7 @@ export default function CompanyDashboard() {
       )}
 
       {/* Header */}
-      <motion.div {...fadeUp(0)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+      <motion.div {...fadeUp(0)} className="dash-header-row">
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, marginBottom: 6 }}>
             {company?.name || '대시보드'}
@@ -302,7 +302,7 @@ export default function CompanyDashboard() {
         variants={stagger}
         initial="initial"
         animate="animate"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}
+        className="dash-stat-grid-5"
       >
         {[
           { label: '잔여 크레딧', value: String(company?.credit_balance ?? 0), sub: (company?.plan || '플랜 미선택').toUpperCase(), accent: (company?.credit_balance ?? 0) > 0 },
@@ -318,7 +318,7 @@ export default function CompanyDashboard() {
       </motion.div>
 
       {/* Chart Row 1: 레이더 + KPI 게이지 */}
-      <motion.div {...fadeUp(0.1)} style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginBottom: 16 }}>
+      <motion.div {...fadeUp(0.1)} className="dash-chart-row">
 
         {/* 5차원 레이더 차트 */}
         <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow }}>

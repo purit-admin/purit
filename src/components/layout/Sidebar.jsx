@@ -5,7 +5,7 @@ import {
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
   Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
-  LogOut,
+  LogOut, Menu, X as CloseIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -111,6 +111,8 @@ export default function Layout({ role, children }) {
   const navGroups = NAV[role] || [];
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -138,8 +140,19 @@ export default function Layout({ role, children }) {
     return () => { if (sub) supabase.removeChannel(sub); };
   }, [user?.id]);
 
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e) => {
+      setIsMobile(e.matches);
+      if (!e.matches) setMobileOpen(false);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const handleSignOut = async () => {
     await signOut();
+    setMobileOpen(false);
     navigate('/login', { replace: true });
   };
 
@@ -148,8 +161,14 @@ export default function Layout({ role, children }) {
     (path !== `/${role}` && path !== `/${role}/notifications` && location.pathname.startsWith(path));
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
-      <aside style={{
+    <div className="sidebar-layout-root" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* 모바일 백드롭 */}
+      <div
+        className={`sidebar-backdrop${mobileOpen ? ' is-open' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
+      <aside className={`sidebar-drawer${mobileOpen ? ' is-open' : ''}`} style={{
         width: collapsed ? 60 : 220, flexShrink: 0,
         background: 'var(--bg-2)',
         borderRight: '1px solid var(--border)',
@@ -170,7 +189,7 @@ export default function Layout({ role, children }) {
               <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{ROLE_LABEL[role]} 포털</div>
             </div>
           )}
-          <button onClick={() => setCollapsed(c => !c)} style={{
+          <button className="sidebar-collapse-btn" onClick={() => setCollapsed(c => !c)} style={{
             background: 'var(--surface)', color: 'var(--text-3)',
             width: 28, height: 28, borderRadius: 8,
             border: '1px solid var(--border)',
@@ -185,6 +204,15 @@ export default function Layout({ role, children }) {
               : <ChevronLeft size={14} />
             }
           </button>
+          {isMobile && (
+            <button onClick={() => setMobileOpen(false)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-3)', padding: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <CloseIcon size={18} />
+            </button>
+          )}
         </div>
 
         {/* Admin portal switcher */}
@@ -193,7 +221,7 @@ export default function Layout({ role, children }) {
             {collapsed ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
                 {[['admin', 'AD', '/admin'], ['company', 'CO', '/company'], ['panel', 'PN', '/panel']].map(([p, abbr, path]) => (
-                  <button key={p} onClick={() => navigate(path)} title={ROLE_LABEL[p] + ' 포털'}
+                  <button key={p} onClick={() => { navigate(path); if (isMobile) setMobileOpen(false); }} title={ROLE_LABEL[p] + ' 포털'}
                     style={{
                       width: 36, height: 22, borderRadius: 5, fontSize: 10, fontWeight: 700,
                       background: role === p ? 'var(--accent)' : 'var(--surface)',
@@ -213,7 +241,7 @@ export default function Layout({ role, children }) {
                 </div>
                 <div style={{ display: 'flex', gap: 3, background: 'var(--bg)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
                   {[['admin', '어드민', '/admin'], ['company', '기업', '/company'], ['panel', '패널', '/panel']].map(([p, label, path]) => (
-                    <button key={p} onClick={() => navigate(path)}
+                    <button key={p} onClick={() => { navigate(path); if (isMobile) setMobileOpen(false); }}
                       style={{
                         flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 11, fontWeight: 600,
                         background: role === p ? 'var(--accent)' : 'transparent',
@@ -252,7 +280,7 @@ export default function Layout({ role, children }) {
                 const active = isActive(item.path);
                 const Icon = item.icon;
                 return (
-                  <button key={item.path} onClick={() => navigate(item.path)}
+                  <button key={item.path} onClick={() => { navigate(item.path); if (isMobile) setMobileOpen(false); }}
                     title={collapsed ? item.label : undefined}
                     style={{
                       width: collapsed ? '100%' : 'calc(100% - 12px)', display: 'flex', alignItems: 'center',
@@ -324,7 +352,25 @@ export default function Layout({ role, children }) {
 
       </aside>
 
-      <main style={{ flex: 1, minHeight: '100vh', overflow: 'auto' }}>{children}</main>
+      <div style={{ flex: 1, minHeight: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {/* 모바일 탑바 — 데스크탑에서는 CSS로 숨김 */}
+        <div className="mobile-topbar">
+          <button
+            onClick={() => setMobileOpen(true)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text)', padding: 6,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            aria-label="메뉴 열기"
+          >
+            <Menu size={22} />
+          </button>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)' }}>PURIT</span>
+          <div style={{ width: 34 }} />
+        </div>
+        <main style={{ flex: 1 }}>{children}</main>
+      </div>
     </div>
   );
 }

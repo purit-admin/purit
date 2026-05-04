@@ -814,7 +814,7 @@ export default function ActiveMission() {
   );
 
   if (mission === false) return (
-    <div style={{ padding: '40px 48px', maxWidth: 560, animation: 'fadeUp 0.4s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, animation: 'fadeUp 0.4s ease both' }}>
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '48px 40px', textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
@@ -835,7 +835,7 @@ export default function ActiveMission() {
 
   /* ─── 브리핑 화면 ─── */
   if (step === 0) return (
-    <div style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
       {cancelModal && (
         <ConfirmModal
           title="수락을 취소할까요?"
@@ -923,7 +923,7 @@ export default function ActiveMission() {
 
   /* ─── 완료 화면 ─── */
   if (step > SECTIONS.length) return (
-    <div style={{ padding: '40px 48px', maxWidth: 600, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 600, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
       <div style={{ fontSize: 64, marginBottom: 20 }}>{isResubmit ? '🔄' : '✅'}</div>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
         {isResubmit ? '피드백 재제출 완료!' : '피드백 제출 완료!'}
@@ -1005,7 +1005,7 @@ export default function ActiveMission() {
     };
 
     return (
-      <div style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.4s ease both' }}>
+      <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.4s ease both' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>FEEDBACK</div>
@@ -1151,7 +1151,7 @@ export default function ActiveMission() {
     const canSubmitImage = allDimsDone && allImagesViewed && overallComment.trim().length > 0 && lpQsAnswered;
 
     return (
-      <div style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
+      <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
@@ -1426,7 +1426,7 @@ export default function ActiveMission() {
   const isLast = step === SECTIONS.length;
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.4s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.4s ease both' }}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
         {SECTIONS.map((s, i) => (
           <div key={s.key} style={{

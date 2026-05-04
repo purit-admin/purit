@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-04 (Toss 스타일 재설계: Landing.jsx·admin·company·panel Dashboard — 흰 카드+회색 배경(#F8FAFC)+단일 CTA 파란색(#2563EB), border-as-background 제거, CSS변수 미변경·인라인 C 상수 방식 적용 / honorLevels.js fmtKRW 추가 / Revenue.jsx KPI KRW 단위 표시 개선)
+최종 업데이트: 2026-05-04 (모바일 퍼스트 반응형 전면 재설계 — index.css 반응형 유틸리티 클래스 128줄 추가, Sidebar.jsx 모바일 햄버거/드로어, Landing.jsx 깨진 style 태그 교체→className 연결, 3개 Dashboard 반응형 그리드, 전 페이지 page-wrap 적용)
 ================================================================
 
 ## 기술 스택
@@ -145,10 +145,43 @@ purit/
 ================================================================
 ## 반응형 CSS 유틸리티 클래스 (src/index.css)
 
+  반응형 구현 방식: 인라인 React 스타일 시스템 유지 + CSS 클래스 !important 오버라이드
+  (인라인 스타일이 CSS 클래스보다 specificity가 높으므로 반응형 오버라이드는 !important 필수)
+
+  ### 기존 (미션 카드)
   .mc-row    — 미션 카드 내부 좌/우 2열 레이아웃 (640px 이하: 1열로 전환)
   .mc-right  — 미션 카드 우측 영역 (보상금·슬롯·버튼 묶음)
   .page-wrap — 페이지 컨테이너 (640px 이하: 패딩 20px 16px로 축소)
   ※ 미션 카드 적용 대상: company/Dashboard, panel/Missions, panel/ActiveMission(목록뷰), admin/Missions
+
+  ### 모바일 사이드바 (≤768px: 햄버거 드로어 전환)
+  .sidebar-layout-root  — 루트 flex 컨테이너 (모바일: display:block)
+  .sidebar-drawer       — aside 래퍼 (모바일: position:fixed + transform:translateX(-100%))
+  .sidebar-drawer.is-open — 드로어 열림 상태 (transform:translateX(0))
+  .sidebar-backdrop     — 드로어 오픈 시 반투명 배경 오버레이 (모바일에서만 렌더)
+  .sidebar-collapse-btn — 데스크탑 접기 버튼 (모바일: display:none)
+  .mobile-topbar        — 모바일 전용 상단 바 (햄버거 + PURIT 로고, 데스크탑: display:none)
+  ※ Sidebar.jsx: isMobile state(matchMedia), mobileOpen state, Menu/X 아이콘 (lucide-react)
+
+  ### 랜딩 그리드 (Landing.jsx)
+  .landing-nav-inner    — 네비 내부 max-width 컨테이너
+  .landing-hero         — 히어로 섹션 패딩 (모바일: 56px 16px)
+  .landing-section      — 일반 섹션 패딩 (모바일: 56px 16px)
+  .landing-footer-inner — 푸터 내부 컨테이너
+  .landing-grid-4       — 4열 → 모바일 2열 (900px↓: 2열, 600px↓: 2열)
+  .landing-grid-3       — 3열 → 모바일 1열 (900px↓: 2열, 600px↓: 1열)
+  .landing-grid-2       — 2열 → 모바일 1열 (900px↓: 1열)
+  .landing-grid-3-steps — 3열 스텝 → 모바일 1열 (900px↓: 2열, 600px↓: 1열)
+  ※ 이전 Landing.jsx의 <style> 태그(.purit-grid-*)는 JSX에 연결되지 않아 무효였음 → 삭제 후 교체
+
+  ### 대시보드 그리드 (3개 Dashboard.jsx)
+  .dash-header-row      — 헤더 flex row (모바일: flex-wrap)
+  .dash-stat-grid-4     — 4열 통계 카드 (768px↓: 2열) — admin/Dashboard
+  .dash-stat-grid-5     — 5열 통계 카드 (768px↓: 2열) — company/Dashboard
+  .dash-stat-grid-3     — 3열 통계 카드 (768px↓: 2열, 480px↓: 1열) — panel/Dashboard
+  .dash-two-col         — 1fr+300px 2열 (768px↓: 1열) — admin/Dashboard
+  .dash-chart-row       — 3fr:2fr 차트 행 (768px↓: 1열) — company/Dashboard
+  ※ 전체 페이지(28개): className="page-wrap" 적용 완료 → 모바일 패딩 자동 축소
 
 ================================================================
 ## 환경 변수 (.env)

@@ -70,7 +70,7 @@ export default function History() {
     : rejected;
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>LEDGER</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>정산 내역</h1>
@@ -80,15 +80,17 @@ export default function History() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}>
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 정산 완료</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
-            {fmtAmt(totalPaid)}
+          <div style={{ lineHeight: 1, marginBottom: 6 }}>
+            <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.03em' }}>{Math.round(totalPaid).toLocaleString()}</div>
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{approved.length}건</div>
         </div>
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>정산 대기 중</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>
-            {fmtAmt(totalPending)}
+          <div style={{ lineHeight: 1, marginBottom: 6 }}>
+            <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>{Math.round(totalPending).toLocaleString()}</div>
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{pending.length}건</div>
         </div>
@@ -145,11 +147,15 @@ export default function History() {
                       {new Date(f.created_at).toLocaleDateString('ko-KR')}
                     </div>
                   </div>
-                  <div style={{
-                    fontWeight: 700, fontFamily: 'var(--font-mono)',
-                    color: statusKey === 'approved' ? 'var(--green)' : isRejected ? 'var(--text-3)' : 'var(--accent)',
-                  }}>
-                    {isRejected ? '—' : `₩${reward.toLocaleString()}`}
+                  <div style={{ textAlign: 'right' }}>
+                    {isRejected ? (
+                      <span style={{ fontWeight: 700, color: 'var(--text-3)' }}>—</span>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: statusKey === 'approved' ? 'var(--green)' : 'var(--accent)' }}>{reward.toLocaleString()}</div>
+                      </>
+                    )}
                   </div>
                   {isRejected && (
                     <button

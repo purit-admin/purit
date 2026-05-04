@@ -935,7 +935,7 @@ export default function Results() {
   const DIM_TABS = [...DIMS, 'summary'];
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 1360, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1360, animation: 'fadeUp 0.5s ease both' }}>
       {/* 헤더 */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>FEEDBACK RESULTS</div>

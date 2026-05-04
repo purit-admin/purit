@@ -187,7 +187,7 @@ export default function AIReport() {
   );
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 880, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 880, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>
           AI INSIGHT REPORT{aiGenerated && <span style={{ marginLeft: 8, color: 'var(--green)' }}>✦ AI 분석 완료</span>}

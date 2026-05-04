@@ -58,7 +58,7 @@ export default function BrandTracking() {
   }));
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>BRAND TRACKING</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>브랜드 추적</h1>

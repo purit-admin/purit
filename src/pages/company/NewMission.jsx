@@ -349,7 +349,7 @@ export default function NewMission() {
   };
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.5s ease both' }}>
 
       {/* ── 목록 뷰 ── */}
       {view === 'list' && (

@@ -373,3 +373,21 @@ D-37. Supabase RPC fire-and-forget 호출 시 마이그레이션 미적용 상�
      → 원칙: SECURITY DEFINER RPC를 fire-and-forget으로 호출할 때는 반드시 에러 로깅을 달 것
              마이그레이션 미적용·권한 오류·함수 미존재 모두 동일하게 조용히 실패하므로
              콘솔 경고 없이는 원인 파악이 불가능함
+
+D-38. React 인라인 스타일 + CSS 클래스 반응형 오버라이드 시 !important 필수 패턴 ✅ 정착
+     → 문제: index.css에 반응형 미디어쿼리 클래스를 정의해도 JSX 인라인 스타일이 CSS보다
+             specificity가 높아 (@media 규칙이 인라인 스타일을 절대 이길 수 없음) 반응형이 무효화됨
+     → 해결: 반응형 오버라이드 CSS 규칙에 !important 필수
+             예) @media (max-width: 768px) { .dash-stat-grid-4 { grid-template-columns: repeat(2,1fr) !important; } }
+     → 원칙: 인라인 스타일 코드베이스에서 CSS 클래스로 반응형 오버라이드할 때는
+             모든 오버라이드 속성에 !important를 붙여야 한다
+             Tailwind처럼 className 전용인 시스템에서는 불필요하지만, 인라인 스타일 혼용 프로젝트에서는 필수
+
+D-39. Landing.jsx inline style 태그 안의 CSS 클래스가 JSX에 연결되지 않아 반응형 무효화 패턴 ✅ 해결
+     → 증상: Landing.jsx가 모바일에서 레이아웃이 전혀 바뀌지 않음
+     → 원인: 파일 하단 <style> 태그에 .purit-grid-4/.purit-grid-3/.purit-grid-2 클래스 정의가 있었으나
+             실제 JSX 요소에 className이 붙어있지 않아 완전히 사문화된 CSS였음
+     → 해결: 파일 하단 <style> 태그 전체 삭제 → index.css에 동등한 클래스 재정의(D-38 !important 포함)
+             → JSX 그리드 div에 className="landing-grid-4" 등 직접 연결
+     → 원칙: JSX에서 사용되지 않는 CSS 클래스는 존재해도 완전히 무효 — 반응형이 동작 안 할 때
+             가장 먼저 "실제 JSX 요소에 className이 붙어있는가"를 확인할 것

@@ -134,9 +134,9 @@ export default function PanelDashboard() {
   const totalPending = pendingFbs.reduce((s, f)  => s + (f.missions?.reward_amount || 0), 0);
 
   return (
-    <div style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+      <div className="dash-header-row" style={{ marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, marginBottom: 8 }}>안녕하세요, {name}님</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -251,7 +251,7 @@ export default function PanelDashboard() {
       {/* 미션 현황 */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text2, marginBottom: 10 }}>미션 현황</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="dash-stat-grid-3">
           {[
             { label: '완료 미션',   value: String(panel?.total_missions || 0), sub: '총 누적' },
             { label: '참여 가능',   value: String(missions.length),            sub: '현재 오픈 미션' },
@@ -269,7 +269,7 @@ export default function PanelDashboard() {
       {/* 수익 현황 */}
       <div style={{ marginBottom: 32, marginTop: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text2, marginBottom: 10 }}>수익 현황</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="dash-stat-grid-3">
           <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
             <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>총 정산 완료</div>
             <div style={{ lineHeight: 1, marginBottom: 6 }}>

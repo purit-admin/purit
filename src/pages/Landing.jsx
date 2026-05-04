@@ -64,7 +64,7 @@ export default function Landing() {
         background: 'rgba(255,255,255,0.95)',
         backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       }}>
-        <div style={{ ...W, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="landing-nav-inner">
           <span onClick={() => navigate('/')} style={{
             fontSize: 20, fontWeight: 800, letterSpacing: '-0.04em', color: TEXT, cursor: 'pointer',
           }}>PURIT</span>
@@ -96,7 +96,7 @@ export default function Landing() {
       {/* ══════════════════════════
           2. 히어로
       ══════════════════════════ */}
-      <section style={{ padding: '120px 32px 100px', background: BG }}>
+      <section className="landing-hero" style={{ background: BG }}>
         <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }} ref={r1}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -153,7 +153,7 @@ export default function Landing() {
       ══════════════════════════ */}
       <section style={{ background: BG2 }}>
         <div style={{ ...W }} ref={r2}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="landing-grid-4">
             {[
               { val: '48h',   label: '피드백 수집 완료' },
               { val: '100%',  label: '검증된 응답' },
@@ -178,14 +178,14 @@ export default function Landing() {
       {/* ══════════════════════════
           4. 고통점 공감
       ══════════════════════════ */}
-      <section style={{ padding: '80px 32px', background: BG }}>
+      <section className="landing-section" style={{ background: BG }}>
         <div style={{ ...W }} ref={r3}>
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <h2 style={{ fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 700, letterSpacing: '-0.03em', color: TEXT }}>
               혹시 이런 상황이지 않나요?
             </h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <div className="landing-grid-3">
             {[
               { icon: '📉', pain: '광고비를 쏟아부었는데 전환율이 왜 이런지 모르겠다' },
               { icon: '😶', pain: '내부에서는 좋다고 했는데 막상 시장 반응이 없다' },
@@ -209,7 +209,7 @@ export default function Landing() {
       {/* ══════════════════════════
           5. 솔루션
       ══════════════════════════ */}
-      <section style={{ padding: '100px 32px', background: BG2 }}>
+      <section className="landing-section" style={{ background: BG2 }}>
         <div style={{ ...W }} ref={r4}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{
@@ -223,7 +223,7 @@ export default function Landing() {
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+          <div className="landing-grid-2">
             {[
               {
                 icon: '🔍', tag: '사전 검증', title: '전환 결함을 집행 전에 잡는다',
@@ -288,7 +288,7 @@ export default function Landing() {
       {/* ══════════════════════════
           6. 작동 방식
       ══════════════════════════ */}
-      <section style={{ padding: '100px 32px', background: BG }}>
+      <section className="landing-section" style={{ background: BG }}>
         <div style={{ ...W }} ref={r5}>
           <div style={{ textAlign: 'center', marginBottom: 72 }}>
             <div style={{
@@ -302,7 +302,7 @@ export default function Landing() {
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
+          <div className="landing-grid-3-steps">
             {[
               { n: '1', step: '의뢰 등록', desc: '타겟 페르소나와 검증할 소재를 업로드합니다. 5분이면 충분합니다.', tag: '약 5분' },
               { n: '2', step: '전문가 매칭', desc: 'Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
@@ -328,7 +328,7 @@ export default function Landing() {
       {/* ══════════════════════════
           7. 비교 섹션
       ══════════════════════════ */}
-      <section style={{ padding: '100px 32px', background: BG2 }}>
+      <section className="landing-section" style={{ background: BG2 }}>
         <div style={{ ...W }} ref={r6}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{
@@ -343,7 +343,7 @@ export default function Landing() {
             <p style={{ fontSize: 16, color: TEXT2 }}>수율, 속도, 전문성 — 세 가지 모두 다릅니다.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, alignItems: 'stretch' }}>
+          <div className="landing-grid-3" style={{ alignItems: 'stretch' }}>
             <div style={{ background: BG, borderRadius: 16, padding: '32px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: TEXT3, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 24 }}>일반 설문 서비스</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -386,7 +386,7 @@ export default function Landing() {
       {/* ══════════════════════════
           8. 후기 섹션
       ══════════════════════════ */}
-      <section style={{ padding: '100px 32px', background: BG }}>
+      <section className="landing-section" style={{ background: BG }}>
         <div style={{ ...W }} ref={r7}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <div style={{
@@ -400,7 +400,7 @@ export default function Landing() {
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <div className="landing-grid-3">
             {[
               {
                 quote: '헤드라인 하나 바꿨더니 전환율이 2배 됐어요',
@@ -448,7 +448,7 @@ export default function Landing() {
       {/* ══════════════════════════
           9. 하단 CTA
       ══════════════════════════ */}
-      <section style={{ background: BG3, padding: '100px 32px' }}>
+      <section className="landing-section" style={{ background: BG3 }}>
         <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{
             fontSize: 'clamp(26px, 4vw, 48px)',
@@ -482,7 +482,7 @@ export default function Landing() {
           푸터
       ══════════════════════════ */}
       <footer style={{ background: BG2 }}>
-        <div style={{ ...W, padding: '56px 32px 40px' }}>
+        <div className="landing-footer-inner">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40, flexWrap: 'wrap', gap: 40 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.04em', color: TEXT, marginBottom: 10 }}>PURIT</div>
@@ -515,19 +515,6 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* 모바일 반응형 */}
-      <style>{`
-        @media (max-width: 900px) {
-          .purit-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
-          .purit-grid-3 { grid-template-columns: 1fr !important; }
-          .purit-grid-2 { grid-template-columns: 1fr !important; }
-        }
-        @media (max-width: 600px) {
-          .purit-grid-4 { grid-template-columns: 1fr 1fr !important; }
-          section { padding-top: 72px !important; padding-bottom: 72px !important; padding-left: 20px !important; padding-right: 20px !important; }
-          footer > div { padding-left: 20px !important; padding-right: 20px !important; }
-        }
-      `}</style>
     </div>
   );
 }

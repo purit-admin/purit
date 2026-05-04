@@ -72,7 +72,7 @@ export default function CompanyAccount() {
   );
 
   return (
-    <div style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>COMPANY · ACCOUNT</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>내 계정</h1>
