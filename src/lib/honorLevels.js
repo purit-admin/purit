@@ -69,3 +69,8 @@ export function fmtWon(n) {
   if (!rest) return `₩${man}만`;
   return `₩${man}만 ${rest.toLocaleString()}`;
 }
+
+export function fmtKRW(n) {
+  if (!n) return '0';
+  return Math.round(n).toLocaleString();
+}

@@ -4,7 +4,7 @@ import { Card, Stat, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import {
   getHonorLevel, getNextLevel, getProgressPct, getPanelReward,
-  HONOR_COLOR_META, fmtWon,
+  HONOR_COLOR_META, fmtWon, fmtKRW,
 } from '../../lib/honorLevels';
 
 const C = {
@@ -272,15 +272,17 @@ export default function PanelDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
             <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>총 정산 완료</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: C.primary, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>
-              {fmtWon(totalPaid)}
+            <div style={{ lineHeight: 1, marginBottom: 6 }}>
+              <div style={{ fontSize: 10, color: C.text3, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: C.primary, letterSpacing: '-0.03em' }}>{fmtKRW(totalPaid)}</div>
             </div>
             <div style={{ fontSize: 13, color: C.text3 }}>{approvedFbs.length}건</div>
           </div>
           <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
             <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>정산 대기 중</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: C.text, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>
-              {fmtWon(totalPending)}
+            <div style={{ lineHeight: 1, marginBottom: 6 }}>
+              <div style={{ fontSize: 10, color: C.text3, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: C.text, letterSpacing: '-0.03em' }}>{fmtKRW(totalPending)}</div>
             </div>
             <div style={{ fontSize: 13, color: C.text3 }}>{pendingFbs.length}건</div>
           </div>

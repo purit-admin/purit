@@ -109,12 +109,13 @@ export default function Landing() {
           </div>
 
           <h1 style={{
-            fontSize: 'clamp(34px, 5.2vw, 60px)',
+            fontSize: 'clamp(28px, 4vw, 44px)',
             fontWeight: 800, letterSpacing: '-0.04em',
-            lineHeight: 1.15, color: TEXT,
-            marginBottom: 28,
+            lineHeight: 1.3, color: TEXT,
+            marginBottom: 28, wordBreak: 'keep-all',
           }}>
-            고객이 '뒤로 가기'를 누르는 이유, <span style={{ color: PRIMARY }}>마케터 30명에게 물어보세요.</span>
+            고객이 '뒤로 가기'를 누르는 이유,<br />
+            <span style={{ color: PRIMARY }}>마케터 30명에게 물어보세요.</span>
           </h1>
 
           <p style={{
@@ -155,9 +156,9 @@ export default function Landing() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
             {[
               { val: '48h',   label: '피드백 수집 완료' },
-              { val: '100%',  label: '검증된 응답만 납품' },
-              { val: '40%+',  label: '평균 전환율 개선' },
-              { val: '₩800만', label: '평균 절감 광고비' },
+              { val: '100%',  label: '검증된 응답' },
+              { val: '40%',   label: '평균 전환율 개선' },
+              { val: '800만원', label: '평균 절감 광고비' },
             ].map((m, i) => (
               <div key={i} style={{
                 padding: '56px 32px', textAlign: 'center',
@@ -297,15 +298,15 @@ export default function Landing() {
               borderRadius: 6, padding: '5px 12px', marginBottom: 20,
             }}>작동 방식</div>
             <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 800, letterSpacing: '-0.04em', color: TEXT }}>
-              2분 등록, 48시간 안에 결과
+              5분 등록, 48시간 안에 결과
             </h2>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
             {[
-              { n: '1', step: '의뢰 등록', desc: '타겟 페르소나와 검증할 랜딩페이지 URL을 입력합니다. 2분이면 충분합니다.', tag: '약 2분' },
+              { n: '1', step: '의뢰 등록', desc: '타겟 페르소나와 검증할 소재를 업로드합니다. 5분이면 충분합니다.', tag: '약 5분' },
               { n: '2', step: '전문가 매칭', desc: 'Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
-              { n: '3', step: '결과 수령', desc: 'AI 리포트와 함께 우선순위별 개선 액션을 48시간 내에 확인합니다.', tag: '48시간 내' },
+              { n: '3', step: '결과 수령', desc: '피드백 결과와 함께 개선 우선순위를 48시간 내에 확인합니다.', tag: '48시간 내' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '0 8px' }}>
                 <div style={{
