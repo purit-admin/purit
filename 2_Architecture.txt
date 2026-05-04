@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-04 (크레딧 시스템 — companies.credit_balance, missions.credits_reserved/credits_consumed, RPC 3개, PanelTargetStep creditBalance prop)
+최종 업데이트: 2026-05-04 (Results.jsx ExpandableText 컴포넌트 추가, PreferenceResults 소재A/B 표시, PricingResults/EmailResults 더보기 토글)
 ================================================================
 
 ## 기술 스택
@@ -60,6 +60,10 @@ purit/
 │   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
 │   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 4, "sub"), PricingTest(Step 3, "sub"), ColdEmailTest(Step 3, "sub")
+│   │   ※ pages/company/Results.jsx: ExpandableText(text, limit=200) — 텍스트 길이 초과 시 더보기/접기 토글
+│   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
+│   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
+│   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
 │       ├── company/  (17개 — 라우트 목록 참조)
