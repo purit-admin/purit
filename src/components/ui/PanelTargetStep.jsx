@@ -31,7 +31,11 @@ function getFinalWeight(careerLevels) {
 export function calcCredits(panelCount, careerLevels, missionType = 'sub') {
   const finalWeight  = getFinalWeight(careerLevels);
   const missionFactor = missionType === 'main' ? 1.5 : 1.0;
-  return Math.ceil(panelCount * finalWeight * missionFactor);
+  return Math.round(panelCount * finalWeight * missionFactor * 100) / 100;
+}
+
+function fmtCr(n) {
+  return parseFloat((n ?? 0).toFixed(2));
 }
 
 // 패널 1인당 예상 정산금 (reward_amount DB 저장용)
@@ -198,7 +202,7 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 32, color: (creditBalance != null && credits > creditBalance) ? '#ef4444' : 'var(--accent)' }}>
-              {credits}
+              {fmtCr(credits)}
             </span>
             <span style={{ fontSize: 14, color: 'var(--text-2)', marginLeft: 6 }}>크레딧</span>
           </div>

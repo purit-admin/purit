@@ -126,11 +126,13 @@ export default function PurityFilter() {
 
   const approve = async (id) => {
     setActing(true);
+    const fb = feedbacks.find(f => f.id === id);
     const { error } = await supabase.from('feedbacks').update({ purity_passed: true, status: 'approved' }).eq('id', id);
     if (error) { alert('승인 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: true, status: 'approved' } : f));
 
-    const fb = feedbacks.find(f => f.id === id);
+    if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
+
     const panelUserId = fb?.panels?.user_id;
     const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
@@ -143,11 +145,13 @@ export default function PurityFilter() {
 
   const reject = async (id) => {
     setActing(true);
+    const fb = feedbacks.find(f => f.id === id);
     const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected' }).eq('id', id);
     if (error) { alert('반려 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected' } : f));
 
-    const fb = feedbacks.find(f => f.id === id);
+    if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
+
     const panelUserId = fb?.panels?.user_id;
     const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
@@ -160,9 +164,13 @@ export default function PurityFilter() {
 
   const reset = async (id) => {
     setActing(true);
+    const fb = feedbacks.find(f => f.id === id);
     const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted' }).eq('id', id);
     if (error) { alert('취소 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted' } : f));
+
+    if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
+
     setSelected(null);
     setActing(false);
   };

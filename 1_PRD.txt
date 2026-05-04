@@ -458,10 +458,11 @@
    - 전체(all) 탭: 메인 미션 / 서브 미션 섹션 분리, 각 섹션 10개씩 페이지네이션
    - 취소(cancelled) 상태 미션 영구 삭제: 확인 모달(ConfirmModal) → missions DELETE
    - ★ 크레딧 완료 처리: "완료 처리" 버튼 클릭 시 complete_mission_and_refund RPC 호출
-     · purity_passed=true 패널의 experience 기반 실소비량 계산 후 잔여분 기업 계정에 자동 환불
-     · 미션 카드 크레딧 표시:
-       - active: "예약 N 크레딧"
-       - completed: "소비 N / 예약 N cr (환불 N)"
+     · purity_passed=true 패널의 experience 기반 실소비량 계산(소수, CEIL 없음) 후 잔여분 기업 계정에 자동 환불
+     · 미션 카드 크레딧 표시 (credits_reserved > 0): "예상 N / 사용 N (환불 N cr)"
+       - 사용 N: recalc_mission_consumed 결과 (퓨릿 필터 승인/반려 시 자동 갱신)
+       - ↺ 재계산 버튼: 취소 제외 모든 미션 — 클릭 시 recalc 호출 후 로컬 상태 즉시 반영
+     · ₩N/건 표시 제거 (경력별 단가 상이로 의미 없음)
      · RPC 실패 시 statusError state로 에러 메시지 상단 표시
 
 4. Purity Filter (/admin/purity) — PurityFilter.jsx  ★ LP 질문 응답 표시 추가 (2026-05-02)
@@ -480,6 +481,7 @@
               would_reply + hook/clarity/open_intent/curiosity 점수 + comment
    - Purit Score: 서브 미션은 calcSubPurityScore (코멘트 충실도 + 지표 충실도 기반)
    - 승인/반려: feedbacks.status 업데이트 (서브 미션도 동일)
+   - 승인/반려/초기화 직후: recalc_mission_consumed RPC 호출 → 해당 미션의 credits_consumed 자동 재계산
    - 승인/반려 시 패널 + 기업 양쪽에 알림 자동 발송 (sendNotification 사용)
    - 반려 알림: 패널에게 actionUrl='/panel/history' 로 발송 → 재작성 버튼으로 바로 이동 유도
    - 패널 재제출 시: feedbacks.status 'rejected' → 'submitted' 자동 전환 → "검토 대기" 탭에 노출

@@ -6,6 +6,8 @@ const STATUS_LABEL = { draft: '초안', active: '진행', in_review: '검토중'
 const STATUS_TYPE  = { draft: 'gray', active: 'green', in_review: 'blue', completed: 'gold', cancelled: 'red' };
 const PAGE_SIZE = 10;
 
+function fmtCr(n) { return parseFloat((n ?? 0).toFixed(2)); }
+
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
@@ -29,7 +31,7 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function MissionCard({ m, onUpdateStatus, onDelete }) {
+function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
   return (
     <Card key={m.id}>
       <div className="mc-row">
@@ -77,14 +79,18 @@ function MissionCard({ m, onUpdateStatus, onDelete }) {
             )}
           </div>
           {m.credits_reserved > 0 && (
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-              {m.status === 'completed'
-                ? `소비 ${m.credits_consumed ?? 0} / 예약 ${m.credits_reserved} cr (환불 ${Math.max(0, m.credits_reserved - (m.credits_consumed ?? 0))})`
-                : `예약 ${m.credits_reserved} 크레딧`}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+              <span>{`예상 ${fmtCr(m.credits_reserved)} / 사용 ${fmtCr(m.credits_consumed)} (환불 ${fmtCr(Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)))} cr)`}</span>
+              {m.status !== 'cancelled' && (
+                <button onClick={() => onRecalc(m.id)} title="크레딧 재계산"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 13, padding: 0, lineHeight: 1 }}>
+                  ↺
+                </button>
+              )}
             </div>
           )}
           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
-            {new Date(m.created_at).toLocaleDateString('ko-KR')} · ₩{(m.reward_amount || 0).toLocaleString()}/건
+            {new Date(m.created_at).toLocaleDateString('ko-KR')}
           </div>
         </div>
       </div>
@@ -136,6 +142,12 @@ export default function AdminMissions() {
     await supabase.from('missions').delete().eq('id', id);
     setMissions(ms => ms.filter(m => m.id !== id));
     setConfirmDelete(null);
+  };
+
+  const recalcCredits = async (id) => {
+    const { data, error } = await supabase.rpc('recalc_mission_consumed', { p_mission_id: id });
+    if (error) { setStatusError('재계산 실패: ' + error.message); return; }
+    setMissions(ms => ms.map(m => m.id === id ? { ...m, credits_consumed: data } : m));
   };
 
   const filtered = filter === 'all' ? missions : missions.filter(m => m.status === filter);
@@ -204,7 +216,7 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {mainPaged.map(m => (
-                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} />
                 ))}
               </div>
               <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
@@ -226,7 +238,7 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {subPaged.map(m => (
-                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} />
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} />
                 ))}
               </div>
               <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />

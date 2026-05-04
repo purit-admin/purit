@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-04 (Results.jsx ExpandableText 컴포넌트 추가, PreferenceResults 소재A/B 표시, PricingResults/EmailResults 더보기 토글)
+최종 업데이트: 2026-05-04 (크레딧 NUMERIC 변환·소수 지원, recalc_mission_consumed RPC, 미션 카드 ↺ 재계산 버튼)
 ================================================================
 
 ## 기술 스택
@@ -54,7 +54,7 @@ purit/
 │   │                  exports: default PanelTargetStep, calcCredits(panelCount, careerLevels, missionType), calcPanelPayout(careerLevels, missionType), CAREER_LEVELS, MAIN_BASE_PAYOUT(8000), SUB_BASE_PAYOUT(4500)
 │   │                  props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels, missionType('main'|'sub', 기본 'sub'), creditBalance(number|null, optional)
 │   │                  크레딧 배수: 주니어 1.0× / 미들 1.5× / 시니어 2.0×(Pro) / C레벨 3.0×(Pro)
-│   │                  calcCredits 공식: ceil(패널수 × 최종가중치 × 의뢰배수) — 1~2직급=최고값, 3~4직급=1.8상한, 메인×1.5/서브×1.0
+│   │                  calcCredits 공식: 패널수 × 최종가중치 × 의뢰배수 (소수 그대로, CEIL 없음) — 1~2직급=최고값, 3~4직급=1.8상한, 메인×1.5/서브×1.0
 │   │                  calcPanelPayout 공식: round(BASE × 최종가중치) — 패널 1인당 정산금, reward_amount DB 저장용
 │   │                  sticky footer: 잔여 크레딧(creditBalance!=null 시) + "최대 예상 소모: N 크레딧" + 환불 안내문
 │   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
@@ -82,6 +82,8 @@ purit/
 │   │                013(custom_question_rls) 014(feedbacks_custom_answers)
 │   │                015(honor_level_system: panels.honor_points·honor_decay_applied_at, feedback_helpfulness_ratings, RPC 3개)
 │   │                016(credit_system: companies.credit_balance, missions.credits_reserved·credits_consumed, RPC 3개: grant_plan_credits·reserve_mission_credits·complete_mission_and_refund)
+│   │                017(recalc_mission_consumed: 초기 버전 — 018로 대체됨)
+│   │                018(credits_numeric: 크레딧 컬럼 INTEGER→NUMERIC(10,2), CEIL 제거, recalc_mission_consumed·reserve_mission_credits·complete_mission_and_refund 재정의)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 

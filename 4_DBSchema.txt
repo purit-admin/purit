@@ -4,7 +4,7 @@
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
-
+ 
 ※ 코드에서 역설계한 스키마. 실제 Supabase 대시보드와 교차 검증 필요.
 
 ### [auth.users] — Supabase 내장
@@ -19,7 +19,7 @@
   user_id         UUID  FK → auth.users.id  (UNIQUE, 1:1)
   name            TEXT
   plan            TEXT  (플랜명: starter/pro/enterprise)
-  credit_balance  INT   NOT NULL DEFAULT 0  ← 016 추가 (잔여 크레딧, 플랜 선택 시 갱신·의뢰 등록 시 차감·완료 시 환불)
+  credit_balance  NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (잔여 크레딧, 플랜 선택 시 갱신·의뢰 등록 시 차감·완료 시 환불)
 
 ---
 
@@ -68,8 +68,8 @@
   estimated_minutes  INT   DEFAULT 5  (예상 소요 시간, 009_gamification.sql)
   difficulty         TEXT  DEFAULT 'normal'  CHECK IN ('easy','normal','hard')  (009_gamification.sql)
   share_token        TEXT  UNIQUE  (010_sharing.sql, NULL이면 비공개)
-  credits_reserved   INT   NOT NULL DEFAULT 0  ← 016 추가 (의뢰 등록 시 차감 예약 크레딧)
-  credits_consumed   INT   NOT NULL DEFAULT 0  ← 016 추가 (의뢰 완료 시 실제 소비 크레딧)
+  credits_reserved   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (의뢰 등록 시 차감 예약 크레딧)
+  credits_consumed   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (퓨릿 필터 승인 시 실시간 갱신·완료 처리 시 최종 확정)
   created_at         TIMESTAMPTZ DEFAULT now()
 
 ---
@@ -369,20 +369,28 @@
     → Pricing.jsx 플랜 선택 시 호출 (기존 직접 UPDATE 대체)
     → 파일: supabase/migrations/016_credit_system.sql
 
-  reserve_mission_credits(p_mission_id UUID, p_company_id UUID, p_credits INT) RETURNS jsonb
+  reserve_mission_credits(p_mission_id UUID, p_company_id UUID, p_credits NUMERIC) RETURNS jsonb
+    → 018에서 p_credits INTEGER → NUMERIC 변경 (소수 크레딧 지원)
     → 잔액 부족 시 {success:false, error:'INSUFFICIENT_CREDITS', balance, required} 반환
     → 성공 시 companies.credit_balance -= p_credits, missions.credits_reserved = p_credits
     → 의뢰 등록 4개 페이지(NewMission/PreferenceTest/PricingTest/ColdEmailTest)에서 missions INSERT 직후 호출
-    → 파일: supabase/migrations/016_credit_system.sql
+    → 파일: supabase/migrations/018_credits_numeric.sql (016 버전 대체)
+
+  recalc_mission_consumed(p_mission_id UUID) RETURNS NUMERIC
+    → 어드민 전용 (role='admin' 검사)
+    → purity_passed=true 패널의 experience 기반 소비 크레딧 합산 (CEIL 없음, 소수 그대로)
+    → missions.credits_consumed = 합산값으로 즉시 갱신
+    → PurityFilter 승인/반려/초기화 직후 자동 호출 + admin/Missions.jsx ↺ 버튼에서 수동 호출
+    → 파일: supabase/migrations/018_credits_numeric.sql (017 버전 대체)
 
   complete_mission_and_refund(p_mission_id UUID) RETURNS jsonb
     → 어드민 전용 (role='admin' 검사)
-    → purity_passed=true 패널의 experience 기반 실소비 크레딧 계산
+    → purity_passed=true 패널의 experience 기반 실소비 크레딧 계산 (CEIL 없음, NUMERIC)
     → missions.status='completed', missions.credits_consumed=실소비
     → companies.credit_balance += GREATEST(0, credits_reserved - credits_consumed)
     → {success, credits_reserved, credits_consumed, credits_refunded} 반환
     → admin/Missions.jsx 완료 처리 버튼에서 호출
-    → 파일: supabase/migrations/016_credit_system.sql
+    → 파일: supabase/migrations/018_credits_numeric.sql (016 버전 대체)
 
   apply_honor_decay(p_panel_id UUID) RETURNS jsonb
     → 30일 비활동 후 매주 -200 HP 지연 적용 (honor_decay_applied_at 커서로 이중 적용 방지)

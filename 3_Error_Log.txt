@@ -361,3 +361,15 @@ D-36. React useState를 컴포넌트 최상위가 아닌 중첩 함수 내부에
      → 해결: 모든 useState는 반드시 컴포넌트 함수 최상위(top-level)에 선언할 것
      → 원칙: 조건문·반복문·중첩 함수 안의 useState는 항상 에러 — 핸들러가 필요한 상태는
              컴포넌트 상단에 선언 후 핸들러에서 setter만 호출할 것
+
+D-37. Supabase RPC fire-and-forget 호출 시 마이그레이션 미적용 상태의 silent failure 패턴
+     → 증상: PurityFilter에서 승인해도 AdminMissions의 credits_consumed가 0에서 변하지 않음
+     → 원인: recalc_mission_consumed RPC가 Supabase에 존재하지 않는 상태에서
+             supabase.rpc('recalc_mission_consumed', ...) 호출이 에러를 반환해도
+             fire-and-forget(.then(...)만 연결)이라 UI 피드백 없이 조용히 실패함
+     → 해결: 1) 마이그레이션 파일을 Supabase SQL Editor에서 반드시 실행
+              2) fire-and-forget에 .then(({ error }) => { if (error) console.warn(...) }) 추가
+              3) 이미 승인된 피드백은 AdminMissions 카드의 ↺ 재계산 버튼으로 수동 보정
+     → 원칙: SECURITY DEFINER RPC를 fire-and-forget으로 호출할 때는 반드시 에러 로깅을 달 것
+             마이그레이션 미적용·권한 오류·함수 미존재 모두 동일하게 조용히 실패하므로
+             콘솔 경고 없이는 원인 파악이 불가능함
