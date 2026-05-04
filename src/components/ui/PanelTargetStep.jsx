@@ -41,7 +41,7 @@ export function calcPanelPayout(careerLevels, missionType = 'sub') {
   return Math.round(base * finalWeight);
 }
 
-export default function PanelTargetStep({ plan, panelCount, onPanelCount, careerLevels, onCareerLevels, missionType = 'sub' }) {
+export default function PanelTargetStep({ plan, panelCount, onPanelCount, careerLevels, onCareerLevels, missionType = 'sub', creditBalance = null }) {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
@@ -181,17 +181,33 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
         background: 'var(--surface)', borderTop: '2px solid var(--accent)',
         zIndex: 10,
       }}>
+        {creditBalance != null && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              보유 크레딧
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 20, color: credits > creditBalance ? '#ef4444' : 'var(--text-1)' }}>
+              {creditBalance}
+              <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 4, fontWeight: 400 }}>크레딧</span>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             최대 예상 소모
           </div>
           <div style={{ textAlign: 'right' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 32, color: 'var(--accent)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 32, color: (creditBalance != null && credits > creditBalance) ? '#ef4444' : 'var(--accent)' }}>
               {credits}
             </span>
             <span style={{ fontSize: 14, color: 'var(--text-2)', marginLeft: 6 }}>크레딧</span>
           </div>
         </div>
+        {creditBalance != null && credits > creditBalance && (
+          <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 6 }}>
+            ⚠ 크레딧이 부족합니다. 요금제 페이지에서 플랜을 선택하거나 크레딧을 충전하세요.
+          </div>
+        )}
         <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
           실제 매칭된 패널의 직급 비율에 따라 소모량은 줄어들 수 있으며, 사용되지 않은 차액 크레딧은 테스트 완료 후 즉시 환불(Refund)됩니다.
         </div>

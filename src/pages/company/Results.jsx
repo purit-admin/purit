@@ -195,6 +195,29 @@ function CommentList({ items }) {
   );
 }
 
+/* ─── 텍스트 더보기 토글 ─── */
+const EXPAND_LIMIT = 200;
+function ExpandableText({ text, limit = EXPAND_LIMIT }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
+  const isLong = text.length > limit;
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+        {isLong && !expanded ? text.slice(0, limit) + '…' : text}
+      </div>
+      {isLong && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{ marginTop: 6, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+        >
+          {expanded ? '접기 ▲' : '더보기 ▼'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ─── 커스텀 질문 결과 섹션 (아코디언) ─── */
 function CustomQuestionsSection({ questions, responses }) {
   const [expanded, setExpanded] = useState({});
@@ -295,10 +318,32 @@ function PreferenceResults({ responses, mission, panelProfiles, companyId, helpR
 
   return (
     <div>
+      {/* 소재 A/B 원본 */}
+      {(parsedDesc.variantA || parsedDesc.variantAImage || parsedDesc.variantB || parsedDesc.variantBImage) && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>제출된 소재</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 'var(--radius)' }}>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 A</div>
+              {parsedDesc.variantAImage && (
+                <img src={parsedDesc.variantAImage} alt="소재 A" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
+              )}
+              {parsedDesc.variantA && <ExpandableText text={parsedDesc.variantA} />}
+            </div>
+            <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 B</div>
+              {parsedDesc.variantBImage && (
+                <img src={parsedDesc.variantBImage} alt="소재 B" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
+              )}
+              {parsedDesc.variantB && <ExpandableText text={parsedDesc.variantB} />}
+            </div>
+          </div>
+        </div>
+      )}
       {parsedDesc.productDescription && (
-        <div style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase' }}>제품 설명</div>
-          {parsedDesc.productDescription}
+          <ExpandableText text={parsedDesc.productDescription} />
         </div>
       )}
       <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>A/B 선호도 결과</div>
@@ -335,10 +380,10 @@ function PricingResults({ responses, mission, panelProfiles, companyId, helpRati
   return (
     <div>
       {(parsedDesc.content || parsedDesc.image) && (
-        <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
+        <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>가격 구성</div>
           {parsedDesc.image && <img src={parsedDesc.image} alt="가격" style={{ width: '100%', borderRadius: 'var(--radius)', marginBottom: 8, maxHeight: 200, objectFit: 'cover' }} />}
-          {parsedDesc.content && <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{parsedDesc.content}</div>}
+          {parsedDesc.content && <ExpandableText text={parsedDesc.content} />}
         </div>
       )}
       <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>구매 의향</div>
@@ -375,9 +420,9 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
   return (
     <div>
       {parsedDesc.content && (
-        <div style={{ padding: '12px 14px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', marginBottom: 20, whiteSpace: 'pre-wrap', lineHeight: 1.8, maxHeight: 240, overflowY: 'auto' }}>
+        <div style={{ padding: '12px 14px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>이메일 원문</div>
-          {parsedDesc.content}
+          <ExpandableText text={parsedDesc.content} limit={250} />
         </div>
       )}
       <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>답장 의향</div>

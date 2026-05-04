@@ -18,7 +18,8 @@
   id              UUID  PK
   user_id         UUID  FK → auth.users.id  (UNIQUE, 1:1)
   name            TEXT
-  plan            TEXT  (플랜명, 예: free/pro 등)
+  plan            TEXT  (플랜명: starter/pro/enterprise)
+  credit_balance  INT   NOT NULL DEFAULT 0  ← 016 추가 (잔여 크레딧, 플랜 선택 시 갱신·의뢰 등록 시 차감·완료 시 환불)
 
 ---
 
@@ -67,6 +68,8 @@
   estimated_minutes  INT   DEFAULT 5  (예상 소요 시간, 009_gamification.sql)
   difficulty         TEXT  DEFAULT 'normal'  CHECK IN ('easy','normal','hard')  (009_gamification.sql)
   share_token        TEXT  UNIQUE  (010_sharing.sql, NULL이면 비공개)
+  credits_reserved   INT   NOT NULL DEFAULT 0  ← 016 추가 (의뢰 등록 시 차감 예약 크레딧)
+  credits_consumed   INT   NOT NULL DEFAULT 0  ← 016 추가 (의뢰 완료 시 실제 소비 크레딧)
   created_at         TIMESTAMPTZ DEFAULT now()
 
 ---
@@ -360,6 +363,26 @@
     → Returns: {action: 'inserted'|'updated_changed'|'deleted', hp_delta: N}
     → 기업 Results.jsx handleRate()에서 호출
     → 파일: supabase/migrations/015_honor_level_system.sql
+
+  grant_plan_credits(p_company_id UUID, p_plan TEXT) RETURNS void
+    → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(50/165/400)으로 갱신
+    → Pricing.jsx 플랜 선택 시 호출 (기존 직접 UPDATE 대체)
+    → 파일: supabase/migrations/016_credit_system.sql
+
+  reserve_mission_credits(p_mission_id UUID, p_company_id UUID, p_credits INT) RETURNS jsonb
+    → 잔액 부족 시 {success:false, error:'INSUFFICIENT_CREDITS', balance, required} 반환
+    → 성공 시 companies.credit_balance -= p_credits, missions.credits_reserved = p_credits
+    → 의뢰 등록 4개 페이지(NewMission/PreferenceTest/PricingTest/ColdEmailTest)에서 missions INSERT 직후 호출
+    → 파일: supabase/migrations/016_credit_system.sql
+
+  complete_mission_and_refund(p_mission_id UUID) RETURNS jsonb
+    → 어드민 전용 (role='admin' 검사)
+    → purity_passed=true 패널의 experience 기반 실소비 크레딧 계산
+    → missions.status='completed', missions.credits_consumed=실소비
+    → companies.credit_balance += GREATEST(0, credits_reserved - credits_consumed)
+    → {success, credits_reserved, credits_consumed, credits_refunded} 반환
+    → admin/Missions.jsx 완료 처리 버튼에서 호출
+    → 파일: supabase/migrations/016_credit_system.sql
 
   apply_honor_decay(p_panel_id UUID) RETURNS jsonb
     → 30일 비활동 후 매주 -200 HP 지연 적용 (honor_decay_applied_at 커서로 이중 적용 방지)

@@ -16,16 +16,17 @@ const PLANS = [
     targeting: '주니어·미들급 (1~7년차)',
     features: [
       '추가 크레딧 구매 가능',
-      '랜딩페이지 전환 검증',
+      '24-72시간 내 피드백 수집 보장',
+      '마케팅 소재 종합 진단 (랜딩/UI 시안)',
       '소재 A/B 비교 테스트',
-      '가격 페이지 검증',
-      '콜드 이메일 검증',
+      '가격 페이지 수용도 검증',
+      '콜드 이메일 타겟팅 검증',
       '5차원 진단 리포트',
       'Purit Filter 자동 적용',
       '피드백 결과 대시보드',
-      '이메일 지원',
+      '이메일 고객 지원',
     ],
-    notIncluded: ['시니어·C레벨 패널 매칭', '핀셋 타겟 필터링', '전담 CSM'],
+    notIncluded: ['시니어·C레벨 패널 매칭', '퀄리티 보증 (SLA) 및 무상 재매칭'],
     highlight: false,
     cta: '스타터 시작',
   },
@@ -42,15 +43,15 @@ const PLANS = [
     targeting: '시니어·C레벨 매칭 오픈',
     features: [
       '추가 크레딧 구매 시 14% 할인',
-      'Starter 모든 기능',
-      '시니어·의사결정권자 패널 매칭',
-      '시니어·C레벨 패널 우선 배정',
-      'AI 인사이트 리포트',
-      'ICP 리서치',
-      '브랜드 추적 (분기)',
-      '전담 온보딩 지원',
+      'Starter 플랜의 모든 기능',
+      '12-48시간 내 피드백 수집 보장',
+      '시니어·의사결정권자 패널 매칭 오픈',
+      '시니어·C레벨 패널 최우선 배정',
+      '불량 응답 100% 무상 재매칭 (퀄리티 보증)',
+      'AI 인사이트 핵심 요약 리포트',
+      '전담 온보딩 매니저 지원',
     ],
-    notIncluded: ['특정 회사·산업군 핀셋 필터링', '전담 CSM', 'SLA 보장'],
+    notIncluded: ['특정 회사·산업군 핀셋 필터링'],
     highlight: true,
     cta: '프로 시작',
   },
@@ -66,14 +67,13 @@ const PLANS = [
     panelMax: null,
     targeting: '특정 회사·산업군 핀셋 필터링 + 전담 CSM',
     features: [
-      'Pro 모든 기능',
-      '특정 회사·산업군 핀셋 필터링',
-      '전담 CS 매니저 배정',
-      '크레딧 커스텀 협의',
-      '팀 멤버 무제한',
-      'Slack 연동 결과 알림',
-      '커스텀 질문 템플릿 제작',
-      'SLA 보장 + 백필 리포트',
+      'Pro 플랜의 모든 기능',
+      '특정 회사·산업군 마이크로 핀셋 필터링',
+      '기업 맞춤형 커스텀 질문 템플릿 세팅',
+      '엔터프라이즈 전담 CS 매니저 배정',
+      '크레딧 커스텀 단가 협의',
+      '워크스페이스 팀 멤버 무제한 초대',
+      'SLA(서비스 수준 약정) 보장 + 백필 리포트',
     ],
     notIncluded: [],
     highlight: false,
@@ -115,10 +115,11 @@ export default function PricingPage() {
     if (!company) return;
     setChanging(planId);
     setMsg('');
-    const { error } = await supabase.from('companies').update({ plan: planId }).eq('id', company.id);
+    const { error } = await supabase.rpc('grant_plan_credits', { p_company_id: company.id, p_plan: planId });
     if (!error) {
-      setCompany(c => ({ ...c, plan: planId }));
-      setMsg('플랜이 변경됐습니다.');
+      const planCredits = { starter: 50, pro: 165, enterprise: 400 };
+      setCompany(c => ({ ...c, plan: planId, credit_balance: planCredits[planId] ?? 0 }));
+      setMsg('플랜이 변경됐습니다. 크레딧이 지급됐습니다.');
     } else {
       setMsg('변경 실패: ' + error.message);
     }

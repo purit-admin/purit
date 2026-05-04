@@ -286,9 +286,10 @@ export default function CompanyDashboard() {
         variants={stagger}
         initial="initial"
         animate="animate"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}
       >
         {[
+          { label: '잔여 크레딧', value: String(company?.credit_balance ?? 0), sub: (company?.plan || '플랜 미선택').toUpperCase(), accent: (company?.credit_balance ?? 0) > 0 },
           { label: '전체 의뢰',  value: String(missions.length),                                        sub: '누적' },
           { label: '진행 중',    value: String(missions.filter(m => m.status === 'active').length),    sub: '현재 활성' },
           { label: '완료',       value: String(missions.filter(m => m.status === 'completed').length), sub: '검증 완료' },

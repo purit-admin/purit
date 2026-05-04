@@ -354,3 +354,10 @@ D-35. 동일 데이터를 표시하는 어드민 페이지가 여러 곳일 때 
      → 원인: admin 포털에는 패널 목록을 표시하는 페이지가 /admin (Dashboard)과 /admin/panels (PanelManagement) 두 곳 존재 — 하나만 수정하면 불일치 발생
      → 해결: UI 시스템 전환(tier→honorLevel 등) 시 반드시 전체 grep으로 구 패턴 전수 확인 후 교체
      → 원칙: 동일 도메인 데이터를 여러 페이지에서 렌더할 때, 한 파일 수정 후 같은 패턴을 codebase 전체 검색해 누락된 곳 없는지 교차 확인할 것
+
+D-36. React useState를 컴포넌트 최상위가 아닌 중첩 함수 내부에 선언하면 Rules of Hooks 위반
+     → 증상: 컴포넌트 렌더 시 "React Hook 'useState' cannot be called inside a callback" 런타임 에러
+     → 원인: async 핸들러(updateStatus 등) 내부에 const [state, setState] = useState() 선언
+     → 해결: 모든 useState는 반드시 컴포넌트 함수 최상위(top-level)에 선언할 것
+     → 원칙: 조건문·반복문·중첩 함수 안의 useState는 항상 에러 — 핸들러가 필요한 상태는
+             컴포넌트 상단에 선언 후 핸들러에서 setter만 호출할 것

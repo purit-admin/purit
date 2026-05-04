@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-04 (수정 필요 탭 반려 뱃지 추가 + NewMission 부제목 정리)
+최종 업데이트: 2026-05-04 (크레딧 시스템 전면 구현 — 대시보드 잔여 크레딧 카드, 의뢰 등록 크레딧 예약, 어드민 완료처리 시 자동 환불)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -23,7 +23,9 @@
 1. 대시보드 (/company) — Dashboard.jsx
    - NDA 배너 최상단 표시: "Purit의 피드백 패널은 기업의 정보를 발설할 수 없습니다."
      × 클릭 시 localStorage(purit_nda_banner_dismissed) 저장 → 24시간 비노출
-   - Stats 카드 4개: 전체 의뢰 / 진행 중 / 완료 / 수집 피드백(제출 완료 건수)
+   - Stats 카드 5개: 잔여 크레딧(현재 플랜 표시) / 전체 의뢰 / 진행 중 / 완료 / 수집 피드백(제출 완료 건수)
+     · 잔여 크레딧 카드: company.credit_balance 표시, 서브타이틀에 현재 플랜명(STARTER/PRO 등) 표시
+     · credit_balance = 0 이면 기본 색, > 0 이면 accent 색으로 강조
    - 5차원 레이더 차트: feedbacks 실데이터 집계 → 내 점수 vs 플랫폼 벤치마크 비교
      (피드백 미수집 시 0점 표시, 수집 시 자동 반영)
    - KPI 달성률 게이지: 5축 평균을 100점 환산한 반원형 RadialBarChart
@@ -260,9 +262,10 @@
     - 탭 알림 설정: 토글 상태 localStorage 저장 (키: purit_notif_prefs), 재방문 복원
     ※ 기업 프로필 탭 제거 → Account.jsx로 이전
 
-15. 플랜 & 가격 (/company/plans) — Pricing.jsx  ★ 가격 정책 전면 개편 (2026-05-02)
+15. 플랜 & 가격 (/company/plans) — Pricing.jsx  ★ 크레딧 연동 (2026-05-04)
     - companies.plan Supabase 로드 → 현재 플랜 카드에 "현재 플랜" 배지 + 테두리 강조
-    - CTA 버튼 클릭 → companies.plan UPDATE (starter/pro)
+    - CTA 버튼 클릭 → grant_plan_credits RPC 호출 (plan + credit_balance 원자적 업데이트)
+      · Starter 선택 시 credit_balance = 50, Pro = 165, Enterprise = 400 으로 SET
     - 현재 사용 중 플랜 버튼 "사용 중" 표시·비활성화
     - 성공/실패 메시지 상단 표시
     - Enterprise "영업팀 문의" 버튼: 문의 모달 표시
@@ -445,7 +448,7 @@
    - 테이블: 이름 / 직군 / Trust / 레벨(Lv.X 뱃지, HONOR_COLOR_META 스타일) / 완료 / 상태
    - 패널 상세 카드: Lv.X · XXXpts 뱃지 + 명예 포인트 항목 포함
    - 등급 수동 조정 버튼 없음 (honor_points 자동 계산 방식으로 대체됨)
-3. 미션 관리 (/admin/missions) — Missions.jsx  ★ UX 개선
+3. 미션 관리 (/admin/missions) — Missions.jsx  ★ 크레딧 연동 추가 (2026-05-04)
    - 기본 탭: '진행' (active) — 사이드바 클릭 시 진행 중 미션으로 바로 진입
    - 탭 4개: 전체 / 진행 / 완료 / 취소
    - 모든 탭에서 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리 ★ 개편
@@ -454,6 +457,12 @@
    - 완료(completed) 탭에 '재진행' 버튼 추가 → missions.status = 'active'로 복원
    - 전체(all) 탭: 메인 미션 / 서브 미션 섹션 분리, 각 섹션 10개씩 페이지네이션
    - 취소(cancelled) 상태 미션 영구 삭제: 확인 모달(ConfirmModal) → missions DELETE
+   - ★ 크레딧 완료 처리: "완료 처리" 버튼 클릭 시 complete_mission_and_refund RPC 호출
+     · purity_passed=true 패널의 experience 기반 실소비량 계산 후 잔여분 기업 계정에 자동 환불
+     · 미션 카드 크레딧 표시:
+       - active: "예약 N 크레딧"
+       - completed: "소비 N / 예약 N cr (환불 N)"
+     · RPC 실패 시 statusError state로 에러 메시지 상단 표시
 
 4. Purity Filter (/admin/purity) — PurityFilter.jsx  ★ LP 질문 응답 표시 추가 (2026-05-02)
    - 피드백 품질 필터링 / purity_passed 관리

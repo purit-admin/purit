@@ -76,6 +76,13 @@ function MissionCard({ m, onUpdateStatus, onDelete }) {
               <Btn size="sm" variant="danger" onClick={() => onDelete(m.id)}>삭제</Btn>
             )}
           </div>
+          {m.credits_reserved > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+              {m.status === 'completed'
+                ? `소비 ${m.credits_consumed ?? 0} / 예약 ${m.credits_reserved} cr (환불 ${Math.max(0, m.credits_reserved - (m.credits_consumed ?? 0))})`
+                : `예약 ${m.credits_reserved} 크레딧`}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
             {new Date(m.created_at).toLocaleDateString('ko-KR')} · ₩{(m.reward_amount || 0).toLocaleString()}/건
           </div>
@@ -92,6 +99,7 @@ export default function AdminMissions() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [mainPage, setMainPage] = useState(1);
   const [subPage, setSubPage]   = useState(1);
+  const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -106,9 +114,22 @@ export default function AdminMissions() {
     load();
   }, []);
 
-  const updateStatus = async (id, status) => {
-    await supabase.from('missions').update({ status }).eq('id', id);
-    setMissions(ms => ms.map(m => m.id === id ? { ...m, status } : m));
+  const updateStatus = async (id, newStatus) => {
+    setStatusError('');
+    if (newStatus === 'completed') {
+      const { data, error } = await supabase.rpc('complete_mission_and_refund', { p_mission_id: id });
+      if (error || !data?.success) {
+        setStatusError(error?.message || data?.error || '완료 처리 실패');
+        return;
+      }
+      setMissions(ms => ms.map(m => m.id === id
+        ? { ...m, status: 'completed', credits_consumed: data.credits_consumed }
+        : m
+      ));
+    } else {
+      await supabase.from('missions').update({ status: newStatus }).eq('id', id);
+      setMissions(ms => ms.map(m => m.id === id ? { ...m, status: newStatus } : m));
+    }
   };
 
   const deleteMission = async (id) => {
@@ -135,6 +156,12 @@ export default function AdminMissions() {
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 관리</h1>
       </div>
+
+      {statusError && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', fontSize: 13, color: '#ef4444' }}>
+          완료 처리 실패: {statusError}
+        </div>
+      )}
 
       {/* Filter */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>

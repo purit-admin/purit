@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-04 (ImageAnnotator seqPool·highlightedId props 추가, 어노테이션 뱃지 숫자만 표시, Results DimTabView 글로벌 번호·클릭 하이라이트)
+최종 업데이트: 2026-05-04 (크레딧 시스템 — companies.credit_balance, missions.credits_reserved/credits_consumed, RPC 3개, PanelTargetStep creditBalance prop)
 ================================================================
 
 ## 기술 스택
@@ -39,7 +39,7 @@ purit/
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
 │   │   ※ pages/company/NewMission.jsx: view state('list'|'form') — editMode 시 form 직접 진입
 │   │                list 뷰: missions .or('type.is.null,type.eq.landing_page') 로드, 기존 의뢰 카드 목록
-│   │                companyId state: fetchPlan useEffect에서 select('id, plan') 로 함께 로드
+│   │                companyId state: fetchPlan useEffect에서 select('id, plan, credit_balance') 로 함께 로드 → creditBalance state 설정
 │   │                customLPQs state: companyId 의존 useEffect → question_templates(category='랜딩페이지', is_default=false) 조회
 │   │                initTemplateId/initTemplateName: location.state에서 읽어 해당 LP 템플릿 사전 선택 + Step 2 진입
 │   │                Step 0: 제품명·LP URL 최상단 배치, 페르소나 필드 아래, 부제 "검증할 서비스와 서비스 타겟에 대해 설정합니다."
@@ -52,11 +52,12 @@ purit/
 │   │                미리보기 패널 상단: "이 템플릿으로 의뢰 등록 →" 버튼 (전 탭 공통, handleUse 호출)
 │   │                catLabel 맵 양쪽(loadCustomQs, handleSaveCustomQ)에 lp:'랜딩페이지' 추가
 │   │                  exports: default PanelTargetStep, calcCredits(panelCount, careerLevels, missionType), calcPanelPayout(careerLevels, missionType), CAREER_LEVELS, MAIN_BASE_PAYOUT(8000), SUB_BASE_PAYOUT(4500)
-│   │                  props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels, missionType('main'|'sub', 기본 'sub')
+│   │                  props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels, missionType('main'|'sub', 기본 'sub'), creditBalance(number|null, optional)
 │   │                  크레딧 배수: 주니어 1.0× / 미들 1.5× / 시니어 2.0×(Pro) / C레벨 3.0×(Pro)
 │   │                  calcCredits 공식: ceil(패널수 × 최종가중치 × 의뢰배수) — 1~2직급=최고값, 3~4직급=1.8상한, 메인×1.5/서브×1.0
 │   │                  calcPanelPayout 공식: round(BASE × 최종가중치) — 패널 1인당 정산금, reward_amount DB 저장용
-│   │                  sticky footer: "최대 예상 소모: N 크레딧" + 환불 안내문 (계산식 표시 없음)
+│   │                  sticky footer: 잔여 크레딧(creditBalance!=null 시) + "최대 예상 소모: N 크레딧" + 환불 안내문
+│   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
 │   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 4, "sub"), PricingTest(Step 3, "sub"), ColdEmailTest(Step 3, "sub")
 │   └── pages/
@@ -76,6 +77,7 @@ purit/
 │   │                010(sharing) 011(notification_triggers) 012(typed_template_questions)
 │   │                013(custom_question_rls) 014(feedbacks_custom_answers)
 │   │                015(honor_level_system: panels.honor_points·honor_decay_applied_at, feedback_helpfulness_ratings, RPC 3개)
+│   │                016(credit_system: companies.credit_balance, missions.credits_reserved·credits_consumed, RPC 3개: grant_plan_credits·reserve_mission_credits·complete_mission_and_refund)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 

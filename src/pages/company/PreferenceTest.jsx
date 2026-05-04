@@ -57,6 +57,7 @@ export default function PreferenceTest() {
   const [companyId, setCompanyId] = useState(null);
   const [companyPlan, setCompanyPlan] = useState(null);
   const [careerLevels, setCareerLevels] = useState(['junior']);
+  const [creditBalance, setCreditBalance] = useState(null);
 
   const fileInputARef = useRef(null);
   const fileInputBRef = useRef(null);
@@ -82,9 +83,10 @@ export default function PreferenceTest() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-    const { data: co } = await supabase.from('companies').select('id, plan').eq('user_id', user.id).single();
+    const { data: co } = await supabase.from('companies').select('id, plan, credit_balance').eq('user_id', user.id).single();
     setCompanyId(co?.id);
     setCompanyPlan(co?.plan?.toLowerCase() || 'starter');
+    if (co != null) setCreditBalance(co.credit_balance ?? 0);
     if (co) {
       const { data: missionsData } = await supabase
         .from('missions').select('id, title, status, panel_count, filled_count, created_at')
@@ -220,6 +222,23 @@ export default function PreferenceTest() {
         assets: [],
       });
       if (mErr) throw mErr;
+
+      // 크레딧 예약
+      const requiredCredits = calcCredits(panelSize, careerLevels, 'sub');
+      const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+        p_mission_id: missionUuid,
+        p_company_id: companyId,
+        p_credits:    requiredCredits,
+      });
+      if (creditErr) throw creditErr;
+      if (!creditData?.success) {
+        await supabase.from('missions').delete().eq('id', missionUuid);
+        throw new Error(
+          creditData?.error === 'INSUFFICIENT_CREDITS'
+            ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+            : '크레딧 처리 중 오류가 발생했습니다.'
+        );
+      }
 
       const { error: tErr } = await supabase.from('preference_tests').insert({
         company_id: companyId,
@@ -622,6 +641,7 @@ export default function PreferenceTest() {
                 careerLevels={careerLevels}
                 onCareerLevels={setCareerLevels}
                 missionType="sub"
+                creditBalance={creditBalance}
               />
             )}
           </Card>
@@ -639,7 +659,7 @@ export default function PreferenceTest() {
                 다음 →
               </Btn>
             ) : (
-              <Btn onClick={handleSubmit} disabled={submitting || !variantA.trim() || !variantB.trim()}>
+              <Btn onClick={handleSubmit} disabled={submitting || !variantA.trim() || !variantB.trim() || (creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
                 {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}

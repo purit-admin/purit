@@ -34,6 +34,7 @@ export default function NewMission() {
   const [submitError, setSubmitError]     = useState('');
   const [companyPlan, setCompanyPlan]     = useState(null);
   const [companyId, setCompanyId]         = useState(null);
+  const [creditBalance, setCreditBalance] = useState(null);
   const [careerLevels, setCareerLevels]   = useState(['junior']);
   const [missions, setMissions]           = useState([]);
   const [loadingList, setLoadingList]     = useState(true);
@@ -56,9 +57,10 @@ export default function NewMission() {
     async function fetchPlan() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('companies').select('id, plan').eq('user_id', user.id).single();
+      const { data } = await supabase.from('companies').select('id, plan, credit_balance').eq('user_id', user.id).single();
       setCompanyPlan(data?.plan?.toLowerCase() || 'starter');
       if (data?.id) setCompanyId(data.id);
+      if (data != null) setCreditBalance(data.credit_balance ?? 0);
     }
     fetchPlan();
   }, []);
@@ -320,6 +322,23 @@ export default function NewMission() {
           estimated_minutes: form.estimatedMinutes,
         });
         if (error) throw error;
+
+        // 크레딧 예약
+        const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
+        const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+          p_mission_id: missionUuid,
+          p_company_id: company.id,
+          p_credits:    requiredCredits,
+        });
+        if (creditErr) throw creditErr;
+        if (!creditData?.success) {
+          await supabase.from('missions').delete().eq('id', missionUuid);
+          throw new Error(
+            creditData?.error === 'INSUFFICIENT_CREDITS'
+              ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+              : '크레딧 처리 중 오류가 발생했습니다.'
+          );
+        }
       }
       navigate('/company');
     } catch (err) {
@@ -894,6 +913,7 @@ export default function NewMission() {
                 careerLevels={careerLevels}
                 onCareerLevels={setCareerLevels}
                 missionType="main"
+                creditBalance={creditBalance}
               />
             )}
 
@@ -962,7 +982,11 @@ export default function NewMission() {
                 {submitError}
               </div>
             )}
-            <Btn onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()} size="md" disabled={submitting || uploading}>
+            <Btn
+              onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()}
+              size="md"
+              disabled={submitting || uploading || (step === STEPS.length - 1 && !isEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
+            >
               {step === STEPS.length - 1 ? (submitting ? '처리 중...' : isEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
             </Btn>
           </div>
