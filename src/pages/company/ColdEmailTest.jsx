@@ -57,7 +57,7 @@ export default function ColdEmailTest() {
   const [careerLevels, setCareerLevels] = useState(['junior']);
   const [creditBalance, setCreditBalance] = useState(null);
   const [draftId, setDraftId] = useState(null);
-  const [listFilter, setListFilter] = useState('all');
+  const [listFilter, setListFilter] = useState('active');
   const [savingDraft, setSavingDraft] = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
 
@@ -294,7 +294,10 @@ export default function ColdEmailTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>이메일 검증</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>대량 발송 전 타겟 패널에게 먼저 검증받아 개봉률과 답장율을 높이세요.</p>
           </div>
-          {view !== 'list' && <Btn variant="ghost" onClick={() => setView('list')}>← 목록</Btn>}
+          {view !== 'list' && <Btn variant="ghost" onClick={() => {
+            if (shouldBlockNav) setShowDraftModal(true);
+            else setView('list');
+          }}>← 목록</Btn>}
         </div>
       </div>
 

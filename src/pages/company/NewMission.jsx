@@ -51,7 +51,7 @@ export default function NewMission() {
   const [careerLevels, setCareerLevels]   = useState(['junior']);
   const [missions, setMissions]           = useState([]);
   const [loadingList, setLoadingList]     = useState(true);
-  const [listFilter, setListFilter]       = useState('all');
+  const [listFilter, setListFilter]       = useState('active');
   const [savingDraft, setSavingDraft]     = useState(false);
   const [isDraftMode, setIsDraftMode]     = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);

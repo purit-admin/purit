@@ -418,17 +418,17 @@ export default function CompanyDashboard() {
       {/* Chart Row 2: 긍/부정 스택 바 */}
       <motion.div {...fadeUp(0.2)} style={{ background: C.cardBg, borderRadius: 16, padding: '24px', marginBottom: 24, boxShadow: C.shadow }}>
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>타겟별 긍/부정 반응 분포</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>패널별 긍/부정 반응 분포</div>
           <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>
             {feedbacks.length > 0 ? '평균 점수 3.5 이상 = 긍정 반응 기준' : '피드백 수집 시 실데이터로 업데이트됩니다'}
           </div>
         </div>
         {sentimentData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={Math.max(180, sentimentData.length * 44)}>
-            <BarChart data={sentimentData} layout="vertical" margin={{ top: 0, right: 24, bottom: 0, left: 64 }}>
+          <ResponsiveContainer width="100%" height={Math.max(160, sentimentData.length * 34)}>
+            <BarChart data={sentimentData} layout="vertical" barSize={16} margin={{ top: 0, right: 24, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
               <XAxis type="number" domain={[0, 100]} tick={{ fill: C.text3, fontSize: 11 }} tickFormatter={v => `${v}%`} />
-              <YAxis type="category" dataKey="name" tick={{ fill: C.text2, fontSize: 12, fontWeight: 600 }} width={60} />
+              <YAxis type="category" dataKey="name" tick={{ fill: C.text2, fontSize: 12, fontWeight: 600 }} width={88} />
               <Tooltip
                 formatter={(value, name) => [`${value}%`, name === 'positive' ? '긍정' : '부정']}
                 contentStyle={{ background: C.cardBg, border: 'none', borderRadius: 8, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}

@@ -72,7 +72,7 @@ export default function PreferenceTest() {
   const [careerLevels, setCareerLevels] = useState(['junior']);
   const [creditBalance, setCreditBalance] = useState(null);
   const [draftId, setDraftId] = useState(null);
-  const [listFilter, setListFilter] = useState('all');
+  const [listFilter, setListFilter] = useState('active');
   const [savingDraft, setSavingDraft] = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
 
@@ -350,7 +350,10 @@ export default function PreferenceTest() {
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>소재 비교 A/B</h1>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>두 소재를 패널에게 제시하고, 어느 쪽이 더 전환에 기여하는지 측정합니다.</p>
           </div>
-          {view !== 'list' && <Btn variant="ghost" onClick={() => setView('list')}>← 목록</Btn>}
+          {view !== 'list' && <Btn variant="ghost" onClick={() => {
+            if (shouldBlockNav) setShowDraftModal(true);
+            else setView('list');
+          }}>← 목록</Btn>}
         </div>
       </div>
 
