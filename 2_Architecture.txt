@@ -31,7 +31,7 @@ purit/
 │   │              navigationGuard.js (싱글톤 — register(config)/unregister()/intercept(path); 폼 페이지가 register, Sidebar가 intercept 호출)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
-│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 질문 템플릿 링크: 메인 의뢰 그룹 하단 배치)
+│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(질문템플릿·피드백결과·5차원진단·AI리포트)/리서치(ICP·Pulse·브랜드)/계정)
 │   │   │              handleNav(path) 헬퍼: navigationGuard.intercept(path) → false면 navigate, true면 guard가 모달 트리거
 │   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
