@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useBlocker } from 'react-router-dom';
+import ReactDOM from 'react-dom';
 import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
@@ -50,6 +51,10 @@ export default function NewMission() {
   const [careerLevels, setCareerLevels]   = useState(['junior']);
   const [missions, setMissions]           = useState([]);
   const [loadingList, setLoadingList]     = useState(true);
+  const [listFilter, setListFilter]       = useState('all');
+  const [savingDraft, setSavingDraft]     = useState(false);
+  const [isDraftMode, setIsDraftMode]     = useState(false);
+  const [showDraftModal, setShowDraftModal] = useState(false);
 
   // 질문 설정 state
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -144,27 +149,26 @@ export default function NewMission() {
     async function load() {
       const { data: ms } = await supabase.from('missions').select('*').eq('id', editMissionId).single();
       if (!ms) return;
-      const briefText = (() => {
-        try {
-          const p = JSON.parse(ms.description || '');
-          return (p && p.briefText) ? p.briefText : (ms.description || '');
-        } catch { return ms.description || ''; }
-      })();
+      if (ms.status === 'draft') setIsDraftMode(true);
+      let parsed = {};
+      try { parsed = JSON.parse(ms.description || '{}'); } catch {}
       setForm(f => ({
         ...f,
-        product:        ms.title || '',
+        product:        parsed.product || ms.title || '',
         lpUrl:          ms.target_url || '',
-        briefText,
+        briefText:      parsed.briefText || '',
         panels:         ms.panel_count || 10,
-        focusAreas:     ms.assets || [],
+        focusAreas:     parsed.focusAreas || ms.assets || [],
         imageUrls:      ms.image_urls || [],
-        personaContext: ms.persona || '',
+        industry:       parsed.industry || '',
+        personaAge:     parsed.personaAge || '',
+        personaIncome:  parsed.personaIncome || '',
+        personaRole:    parsed.personaRole || '',
+        personaContext: parsed.personaContext || '',
       }));
-      try {
-        const p = JSON.parse(ms.description || '{}');
-        if (Array.isArray(p.selectedQuestions)) setSelectedQuestions(p.selectedQuestions);
-        if (Array.isArray(p.careerLevels)) setCareerLevels(p.careerLevels);
-      } catch {}
+      if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+      if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
+      if (parsed.step != null) setStep(parsed.step);
     }
     load();
   }, []);
@@ -281,6 +285,57 @@ export default function NewMission() {
     set('imageUrls', form.imageUrls.filter(u => u !== url));
   };
 
+  const shouldBlockNav = view === 'form'
+    && (!isEditMode || isDraftMode)
+    && Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0);
+
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    shouldBlockNav && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  useEffect(() => {
+    const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [shouldBlockNav]);
+
+  async function saveDraft() {
+    if (!companyId) return;
+    if (isEditMode && !isDraftMode) return;
+    setSavingDraft(true);
+    try {
+      const persona = [
+        form.personaAge && `연령: ${form.personaAge}`,
+        form.personaIncome && `소득: ${form.personaIncome}`,
+        form.personaRole && `직군: ${form.personaRole}`,
+        form.industry && `산업군: ${form.industry}`,
+        form.personaContext && form.personaContext,
+      ].filter(Boolean).join(' / ');
+      const desc = JSON.stringify({
+        briefText: form.briefText, careerLevels, selectedQuestions: allLPSelected,
+        industry: form.industry, product: form.product,
+        personaAge: form.personaAge, personaIncome: form.personaIncome,
+        personaRole: form.personaRole, personaContext: form.personaContext,
+        focusAreas: form.focusAreas, panels: form.panels, step,
+      });
+      const payload = {
+        company_id: companyId, title: form.product || '임시 저장된 의뢰',
+        type: 'landing_page', status: 'draft', target_url: form.lpUrl || null,
+        description: desc, panel_count: form.panels || 10,
+        image_urls: form.imageUrls, assets: form.focusAreas, persona,
+      };
+      if (isEditMode && editMissionId) {
+        await supabase.from('missions').update(payload).eq('id', editMissionId);
+      } else {
+        await supabase.from('missions').insert({ id: missionUuid, ...payload });
+      }
+    } catch (e) {
+      console.error('[NewMission] 임시 저장 실패:', e.message);
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
   const buildDescription = () => {
     const base = { briefText: form.briefText, careerLevels };
     if (allLPSelected.length > 0) base.selectedQuestions = allLPSelected;
@@ -308,7 +363,7 @@ export default function NewMission() {
       const description = buildDescription();
 
       if (isEditMode && editMissionId) {
-        const { error } = await supabase.from('missions').update({
+        const updatePayload = {
           title:         form.product || '의뢰',
           target_url:    form.lpUrl,
           description,
@@ -317,8 +372,26 @@ export default function NewMission() {
           reward_amount: calcPanelPayout(careerLevels, 'main'),
           assets:        form.focusAreas,
           image_urls:    form.imageUrls,
-        }).eq('id', editMissionId);
+        };
+        if (isDraftMode) updatePayload.status = 'active';
+        const { error } = await supabase.from('missions').update(updatePayload).eq('id', editMissionId);
         if (error) throw error;
+        if (isDraftMode) {
+          const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
+          const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+            p_mission_id: editMissionId,
+            p_company_id: company.id,
+            p_credits:    requiredCredits,
+          });
+          if (creditErr || !creditData?.success) {
+            await supabase.from('missions').update({ status: 'draft' }).eq('id', editMissionId);
+            throw new Error(
+              creditData?.error === 'INSUFFICIENT_CREDITS'
+                ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+                : '크레딧 처리 중 오류가 발생했습니다.'
+            );
+          }
+        }
       } else {
         const { error } = await supabase.from('missions').insert({
           id:                missionUuid,
@@ -395,43 +468,73 @@ export default function NewMission() {
             </div>
           </Card>
 
+          {/* 탭 */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+            {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장']].map(([v, l]) => (
+              <button key={v} onClick={() => setListFilter(v)} style={{
+                padding: '7px 14px', marginBottom: -1, fontSize: 13,
+                fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
+                color: listFilter === v ? 'var(--accent)' : 'var(--text-3)',
+                borderBottom: listFilter === v ? '2px solid var(--accent)' : '2px solid transparent',
+                border: 'none', borderRadius: 0, cursor: 'pointer',
+              }}>{l}</button>
+            ))}
+          </div>
+
           {loadingList ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 13 }}>로딩 중...</div>
-          ) : missions.length === 0 ? (
-            <Card style={{ padding: '60px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 의뢰가 없습니다</div>
-              <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 24 }}>
-                마케팅 소재를 등록하고 실제 패널의 진단을 받아보세요.
-              </div>
-              <Btn onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
-            </Card>
-          ) : (
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-                <Btn size="sm" onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
-              </div>
-              {missions.map(m => (
-                <Card key={m.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/company/results?id=${m.id}`)}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <Badge
-                        type={m.status === 'completed' ? 'green' : m.status === 'active' ? 'gold' : 'default'}
-                        style={{ marginBottom: 8 }}
-                      >
-                        {m.status === 'completed' ? '완료' : m.status === 'active' ? '진행중' : m.status}
-                      </Badge>
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '마케팅 소재 종합 진단'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                        {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
+          ) : (() => {
+            const filtered = listFilter === 'all' ? missions : missions.filter(m => m.status === listFilter);
+            if (missions.length === 0) return (
+              <Card style={{ padding: '60px', textAlign: 'center' }}>
+                <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 의뢰가 없습니다</div>
+                <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 24 }}>
+                  마케팅 소재를 등록하고 실제 패널의 진단을 받아보세요.
+                </div>
+                <Btn onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
+              </Card>
+            );
+            return (
+              <div style={{ display: 'grid', gap: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                  <Btn size="sm" onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
+                </div>
+                {filtered.length === 0 ? (
+                  <Card style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+                    해당 조건의 의뢰가 없습니다.
+                  </Card>
+                ) : filtered.map(m => {
+                  const isDraft = m.status === 'draft';
+                  return (
+                    <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
+                      onClick={() => {
+                        if (isDraft) setView('form') || navigate('/company/new', { state: { editMode: true, missionId: m.id } });
+                        else navigate(`/company/results?id=${m.id}`);
+                      }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <Badge
+                            type={isDraft ? 'gold' : m.status === 'completed' ? 'green' : m.status === 'active' ? 'gold' : 'default'}
+                            style={{ marginBottom: 8 }}
+                          >
+                            {isDraft ? '임시 저장' : m.status === 'completed' ? '완료' : m.status === 'active' ? '진행중' : m.status}
+                          </Badge>
+                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '마케팅 소재 종합 진단'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                            {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 12, color: isDraft ? '#f59e0b' : 'var(--accent)' }}>
+                          {isDraft ? '이어 작성하기 →' : '결과 보기 →'}
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--accent)' }}>결과 보기 →</div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1066,7 +1169,8 @@ export default function NewMission() {
           {/* Navigation */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
             <Btn variant="secondary" onClick={() => {
-              if (step > 0) setStep(s => s - 1);
+              if (step > 0) { setStep(s => s - 1); }
+              else if (shouldBlockNav) { setShowDraftModal(true); }
               else if (isEditMode) navigate('/company');
               else setView('list');
             }} size="md">
@@ -1096,6 +1200,34 @@ export default function NewMission() {
           onConfirm={handleSaveTmpl}
           onCancel={() => setShowSaveModal(false)}
         />
+      )}
+
+      {(blocker.state === 'blocked' || showDraftModal) && ReactDOM.createPortal(
+        <div onClick={e => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--bg)', borderRadius: 16, padding: '28px 24px', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>작성 중인 내용이 있습니다</div>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 12 }}>
+              의뢰 등록을 완료하지 않았습니다.<br />임시 저장하고 나가시겠습니까?
+            </p>
+            <Btn onClick={async () => {
+              await saveDraft();
+              if (showDraftModal) { setShowDraftModal(false); if (isEditMode) navigate('/company'); else setView('list'); }
+              else blocker.proceed();
+            }} disabled={savingDraft}>
+              {savingDraft ? '저장 중...' : '임시 저장 후 나가기'}
+            </Btn>
+            <Btn variant="secondary" onClick={() => {
+              if (showDraftModal) { setShowDraftModal(false); if (isEditMode) navigate('/company'); else setView('list'); }
+              else blocker.proceed();
+            }}>저장 없이 나가기</Btn>
+            <Btn variant="ghost" onClick={() => {
+              if (showDraftModal) setShowDraftModal(false);
+              else blocker.reset();
+            }}>계속 작성하기</Btn>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

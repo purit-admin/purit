@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-04 (의뢰 등록 폼 4종 — NDA·패널 매칭 배너 추가, 산업군 선택 UI 추가 (INDUSTRIES 상수 20종, ▼ 드롭다운 + 직접 입력 모드, description JSON industry 필드 저장))
+최종 업데이트: 2026-05-06 (임시 저장 기능 — useBlocker + DraftSaveModal + draftId 패턴, 의뢰 목록 탭 5종(전체/진행/완료/임시저장/취소))
 ================================================================
 
 ## 기술 스택
@@ -38,7 +38,8 @@ purit/
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
 │   │   ※ pages/company/NewMission.jsx: view state('list'|'form') — editMode 시 form 직접 진입
-│   │                list 뷰: missions .or('type.is.null,type.eq.landing_page') 로드, 기존 의뢰 카드 목록
+│   │                list 뷰: missions .or('type.is.null,type.eq.landing_page') 로드, 탭 4개(전체/진행/완료/임시저장)
+│   │                  listFilter state로 탭별 필터링, draft 카드 클릭 시 navigate(editMode) 진입
 │   │                companyId state: fetchPlan useEffect에서 select('id, plan, credit_balance') 로 함께 로드 → creditBalance state 설정
 │   │                customLPQs state: companyId 의존 useEffect → question_templates(category='랜딩페이지', is_default=false) 조회
 │   │                initTemplateId/initTemplateName: location.state에서 읽어 해당 LP 템플릿 사전 선택 + Step 2 진입
@@ -50,6 +51,18 @@ purit/
 │   │                폼 상단 배너: 🔒 NDA(accent-dim) + ✨ 매칭(rgba(16,185,129,0.07)) 2개 항상 표시
 │   │                Step 2: "내 커스텀 질문" 아코디언 (customLPQs DB 데이터) + QUESTION_TEMPLATES.lp 아코디언
 │   │                        "질문 만들기" 인라인 Card: textarea + 타입(옵션형/점수형/서술형) + "추가"(localCustomQs) + "템플릿에 저장 →"(DB INSERT, ConfirmModal)
+│   │                임시 저장 상태: isDraftMode(ms.status==='draft'), savingDraft, showDraftModal
+│   │                  shouldBlockNav: view==='form' && (!isEditMode || isDraftMode) && 입력값 존재
+│   │                  useBlocker: 라우터 이탈 감지 / showDraftModal: 로컬 setView('list') 이탈 감지
+│   │                  saveDraft(): description JSON에 모든 필드(step 포함) 저장 → missions INSERT/UPDATE(status='draft')
+│   │                  draft→active 제출: UPDATE(status='active') + reserve_mission_credits 호출, 실패 시 'draft' 롤백
+│   │                  editMode 복원: description JSON 전체 파싱 → 개별 필드 set (personaAge/Income/Role/Context/industry/step 포함)
+│   │   ※ 임시저장 공통 패턴 (4개 등록 폼 — NewMission/PreferenceTest/PricingTest/ColdEmailTest):
+│   │                  useBlocker (react-router-dom) + ReactDOM (react-dom) import 추가
+│   │                  draftId state: draft 이어쓰기 시 대상 mission id 추적
+│   │                  DraftSaveModal: ReactDOM.createPortal(document.body) 인라인 3버튼 모달 (D-19 패턴)
+│   │                  window.beforeunload: shouldBlockNav 조건 시 e.preventDefault() + e.returnValue=''
+│   │                  서브 의뢰(Preference/Pricing/Email): location.state.editMode+missionId 감지 → DB 로드 → 상태 복원
 │   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|질문 만들기
 │   │                CUSTOM_CAT_TABS 4개(LP 포함): lp→'랜딩페이지', preference→'광고소재', pricing→'가격', email→'이메일'
 │   │                handleUse (전 탭 통일): navigate(tab.path, { state: { templateId, templateName } }) — DB 템플릿만 use_count +1

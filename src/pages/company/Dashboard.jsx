@@ -21,8 +21,10 @@ const C = {
   shadow:  '0 1px 3px rgba(0,0,0,0.06)',
 };
 
-const STATUS_LABEL = { draft: '초안', active: '진행 중', in_review: '검토 중', completed: '완료', cancelled: '취소' };
-const STATUS_COLOR = { draft: 'gray', active: 'green', in_review: 'blue', completed: 'gold', cancelled: 'red' };
+const STATUS_LABEL = { draft: '임시 저장', active: '진행 중', in_review: '검토 중', completed: '완료', cancelled: '취소' };
+const STATUS_COLOR = { draft: 'gold', active: 'green', in_review: 'blue', completed: 'gold', cancelled: 'red' };
+
+const DRAFT_ROUTE = { landing_page: '/company/new', preference: '/company/preference', pricing: '/company/pricing-test', email: '/company/email-test' };
 
 const BENCHMARK = { 명확성: 3.2, 관련성: 3.5, 가치: 3.0, 차별성: 2.8, 신뢰도: 3.3 };
 const SCORE_KEYS = ['clarity_score', 'relevance_score', 'value_score', 'differentiation_score', 'trust_score'];
@@ -100,20 +102,29 @@ function Pagination({ page, total, onPage }) {
 function CompanyMissionCard({ m, navigate, onTerminate }) {
   const filled = m.filled_count ?? 0;
   const isLive = m.status === 'active' && filled >= 1;
+  const isDraft = m.status === 'draft';
   const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
 
-  // active 상태는 피드백 수 기준으로 두 가지로 분기
-  const statusBadgeType = m.status === 'active'
-    ? (filled === 0 ? 'blue' : 'green')
+  const statusBadgeType = isDraft ? 'gold'
+    : m.status === 'active' ? (filled === 0 ? 'blue' : 'green')
     : (STATUS_COLOR[m.status] || 'gray');
-  const statusBadgeLabel = m.status === 'active'
-    ? (filled === 0 ? '매칭 대기' : '진행 중')
+  const statusBadgeLabel = isDraft ? '임시 저장'
+    : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
     : (STATUS_LABEL[m.status] || m.status);
+
+  const handleClick = () => {
+    if (isDraft) {
+      const route = DRAFT_ROUTE[m.type || 'landing_page'] || '/company/new';
+      navigate(route, { state: { editMode: true, missionId: m.id } });
+    } else {
+      navigate(`/company/results?id=${m.id}`);
+    }
+  };
 
   return (
     <div
-      onClick={() => navigate(`/company/results?id=${m.id}`)}
-      style={{ background: C.cardBg, borderRadius: 16, padding: '20px', boxShadow: C.shadow, cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+      onClick={handleClick}
+      style={{ background: C.cardBg, borderRadius: 16, padding: '20px', boxShadow: C.shadow, cursor: 'pointer', transition: 'box-shadow 0.2s', border: isDraft ? '1px dashed #f59e0b' : 'none' }}
       onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.10)'}
       onMouseLeave={e => e.currentTarget.style.boxShadow = C.shadow}
     >
@@ -138,41 +149,56 @@ function CompanyMissionCard({ m, navigate, onTerminate }) {
           {m.target_url && <div style={{ fontSize: 12, color: C.text3 }}>{m.target_url}</div>}
         </div>
         <div className="mc-right">
-          <div style={{ fontSize: 11, color: C.text3 }}>피드백 수집</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: C.primary }}>
-            {filled}<span style={{ fontSize: 13, color: C.text3, fontWeight: 400 }}> / {m.panel_count}</span>
-          </div>
-          <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
-          </div>
-          <div style={{ fontSize: 11, color: C.text3 }}>
-            {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
-          </div>
-          {m.status === 'active' && filled === 0 && (
+          {isDraft ? (
             <button
-              onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+              onClick={e => { e.stopPropagation(); handleClick(); }}
               style={{
-                marginTop: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                marginTop: 6, padding: '6px 14px', fontSize: 11, fontWeight: 700,
                 borderRadius: 8, border: 'none',
-                background: '#F1F5F9', color: C.text2, cursor: 'pointer',
-                transition: 'background 0.12s',
+                background: '#fef3c7', color: '#92400e', cursor: 'pointer',
               }}
             >
-              수정
+              이어 작성하기 →
             </button>
-          )}
-          {m.status === 'active' && filled >= 1 && (
-            <button
-              onClick={e => { e.stopPropagation(); onTerminate(m); }}
-              style={{
-                marginTop: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600,
-                borderRadius: 8, border: 'none',
-                background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
-                transition: 'background 0.12s',
-              }}
-            >
-              의뢰 조기 종료
-            </button>
+          ) : (
+            <>
+              <div style={{ fontSize: 11, color: C.text3 }}>피드백 수집</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.primary }}>
+                {filled}<span style={{ fontSize: 13, color: C.text3, fontWeight: 400 }}> / {m.panel_count}</span>
+              </div>
+              <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
+              </div>
+              <div style={{ fontSize: 11, color: C.text3 }}>
+                {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
+              </div>
+              {m.status === 'active' && filled === 0 && (
+                <button
+                  onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                  style={{
+                    marginTop: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                    borderRadius: 8, border: 'none',
+                    background: '#F1F5F9', color: C.text2, cursor: 'pointer',
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  수정
+                </button>
+              )}
+              {m.status === 'active' && filled >= 1 && (
+                <button
+                  onClick={e => { e.stopPropagation(); onTerminate(m); }}
+                  style={{
+                    marginTop: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                    borderRadius: 8, border: 'none',
+                    background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  의뢰 조기 종료
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -245,7 +271,7 @@ export default function CompanyDashboard() {
 
   const missionFiltered = missionFilter === 'all'
     ? missions
-    : missions.filter(m => m.status === (missionFilter === 'active' ? 'active' : missionFilter === 'completed' ? 'completed' : 'cancelled'));
+    : missions.filter(m => m.status === missionFilter);
   const mainMissions = missionFiltered.filter(m => !m.type || m.type === 'landing_page');
   const subMissions  = missionFiltered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
   const mainPaged    = mainMissions.slice((mainMissionPage - 1) * PAGE_SIZE, mainMissionPage * PAGE_SIZE);
@@ -430,7 +456,7 @@ export default function CompanyDashboard() {
 
         {/* 탭 — underline 스타일 */}
         <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: `1px solid #E2E8F0` }}>
-          {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['cancelled', '취소']].map(([v, l]) => (
+          {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['draft', '임시 저장'], ['cancelled', '취소']].map(([v, l]) => (
             <button key={v} onClick={() => { setMissionFilter(v); setMainMissionPage(1); setSubMissionPage(1); }} style={{
               padding: '8px 16px', marginBottom: -1, fontSize: 14, fontWeight: missionFilter === v ? 700 : 500,
               background: 'transparent',

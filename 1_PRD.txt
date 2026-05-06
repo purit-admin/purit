@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-04 (의뢰 등록 폼 전체 — NDA·패널 매칭 안내 배너 추가, 산업군 선택 UI 추가)
+최종 업데이트: 2026-05-06 (의뢰 임시 저장 + 목록 탭 추가 — 전체/진행/완료/임시저장 탭, 나가기 임시 저장 모달)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -32,29 +32,44 @@
    - 긍/부정 스택 바 차트: 의뢰별 평균점수 ≥3.5 → 긍정 비율 수평 바 (최대 5개 의뢰)
    - 전체 의뢰 현황 (통합 섹션): ★ 개편
      · "진행 중인 의뢰" 별도 섹션 제거 → "전체 의뢰 현황"에 통합
-     · 탭 4개: 전체 / 진행 / 완료 / 취소 (어드민 미션관리와 동일 구조)
+     · 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ 임시 저장 탭 추가
      · 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리
      · 각 섹션 10개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
      · CompanyMissionCard: 카드 클릭 시 navigate('/company/results?id=<missionId>') → Results.jsx가 해당 의뢰 즉시 선택
      · CompanyMissionCard: status='active' && filled_count=0 조건 시 "수정" 버튼 표시
        클릭 시 navigate('/company/new', { state: { editMode: true, missionId } }) 이동
+     · CompanyMissionCard: status='draft' 카드 클릭 시 DRAFT_ROUTE 맵으로 해당 폼으로 이동
+       (landing_page→/company/new, preference→/company/preference, pricing→/company/pricing-test, email→/company/email-test)
+       draft 카드 우측에 "이어 작성하기 →" 버튼 표시, 카드 테두리 dashed amber
    - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
    ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') 실시간 집계
      - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지
      - computeSentiment(missions, fbs): 의뢰별 평균 ≥3.5 비율 → 스택 바
 
 ### [검증 도구]
-2. 의뢰 등록/수정 (/company/new) — NewMission.jsx  ★ 소개 페이지 + Step 개편 (2026-05-03)
+2. 의뢰 등록/수정 (/company/new) — NewMission.jsx  ★ 소개 페이지 + Step 개편 + 임시 저장 (2026-05-06)
    - 목록 뷰 (list): /company/new 진입 시 '마케팅 소재 종합 진단' 소개 페이지 먼저 표시
      · 설명: "랜딩페이지, 광고 소재, 배너 등을 실제 타겟 패널이 종합적으로 진단합니다."
      · 특징 카드 4개 (이미지 업로드·영역 어노테이션·5차원 평가·추가 질문)
-     · 기존 의뢰 목록 표시 (type='landing_page' or null) + "새 의뢰 등록하기" 버튼
+     · 기존 의뢰 목록 탭 4개: 전체 / 진행 / 완료 / 임시 저장 ★ 신규
+     · 임시 저장 카드 클릭 → form 뷰 진입 + 기존 데이터 복원
      · 서브 의뢰 페이지들(PreferenceTest 등)과 동일한 list/form 뷰 전환 패턴
    - 편집 모드(location.state.editMode=true): list 뷰 건너뛰고 form 뷰 바로 진입
-     · 기존 title/lpUrl/description/panels/focusAreas/imageUrls/persona + selectedQuestions + careerLevels 자동 복원
+     · description JSON 파싱으로 전체 필드 복원: product/lpUrl/briefText/panels/focusAreas/imageUrls
+       + industry/personaAge/personaIncome/personaRole/personaContext/selectedQuestions/careerLevels/step
+     · isDraftMode: ms.status==='draft'일 때 true → 제출 시 status='active'+크레딧예약 처리
      · 제출 시 missions INSERT → UPDATE(editMode) 분기
      · Step 4 검토 화면에 ⚠️ "첫 피드백 수신 후 수정 불가" 경고 표시
      · 제출 버튼: 신규="의뢰 제출 →" / 편집="수정 완료 →"
+   - 임시 저장 (draft) 기능 ★ 신규
+     · form 뷰에서 입력 중 사이드바 클릭·브라우저 뒤로가기 등 이탈 시도 시 3버튼 모달 표시
+       (useBlocker 라우터 이탈 + showDraftModal 로컬 뷰 전환 이중 감지)
+     · "임시 저장 후 나가기" → missions INSERT/UPDATE(status='draft') → 이탈
+     · "저장 없이 나가기" → 즉시 이탈
+     · "계속 작성하기" → 모달 닫기
+     · window.beforeunload: 브라우저 탭 닫기/새로고침 시 기본 확인 다이얼로그
+     · shouldBlockNav: product || lpUrl || briefText || imageUrls.length > 0 조건
+     · isDraftMode=false인 editMode(active 미션 수정)는 임시 저장 인터셉트 없음
    - 상단 배너 2개 (form 뷰 모든 단계 상시 표시):
      · 🔒 NDA 배너: "평가 참가 패널은 기업의 정보를 외부에 발설할 수 없습니다."
      · ✨ 매칭 배너: "의뢰 조건에 맞는 패널이 자동으로 매칭됩니다."
@@ -163,10 +178,15 @@
    - Recharts LineChart: 5차원 점수 시계열 변화
    - 하단 요약 테이블 (점수 색상 코딩)
 
-5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 산업군·배너 추가 (2026-05-04)
+5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 임시 저장 + 목록 탭 추가 (2026-05-06)
    - 목록: missions 테이블에서 type='preference' 필터로 로드
-     · 목록 카드 클릭 → navigate('/company/results?id=…') / 미션 있을 때 "+ 새 테스트" 버튼 표시
+     · 목록 탭 4개: 전체 / 진행 / 완료 / 임시 저장 ★ 신규
+     · 임시 저장 카드 클릭 → form 뷰 진입 + draftId 설정 + description JSON 복원
+     · 목록 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
+   - 임시 저장 기능: useBlocker + showDraftModal + window.beforeunload (NewMission과 동일 패턴)
+     · hasUnsavedChanges: variantA || variantB || productDescription
+     · draftId 상태로 draft 이어쓰기 추적, 제출 시 draftId 있으면 UPDATE + active 전환 + 크레딧 예약
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 소재 유형 선택 (이미지/텍스트/랜딩페이지)
    - Step 1: 소재 A/B 입력 + 이미지 업로드 (선택, 각 1장)
@@ -183,10 +203,13 @@
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 + CustomQuestionsSection
 
-6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 산업군·배너 추가 (2026-05-04)
+6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 임시 저장 + 목록 탭 추가 (2026-05-06)
    - 목록: missions 테이블에서 type='pricing' 필터로 로드
+     · 목록 탭 4개: 전체 / 진행 / 완료 / 임시 저장 ★ 신규
+     · 임시 저장 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
      · 목록 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
+   - 임시 저장 기능: hasUnsavedChanges = pricingDesc, draftId 패턴 (PreferenceTest와 동일)
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 가격 페이지 입력 + 이미지 업로드 (선택, 1장)
      · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
@@ -200,11 +223,14 @@
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + CustomQuestionsSection
 
-7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 산업군·배너 추가 (2026-05-04)
+7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 임시 저장 + 목록 탭 추가 (2026-05-06)
    - 목록: missions 테이블에서 type='email' 필터로 로드 (cold_email_tests 테이블 의존 제거)
-     · 목록 카드 클릭 → navigate('/company/results?id=…') — 별도 결과 뷰 없음
+     · 목록 탭 4개: 전체 / 진행 / 완료 / 임시 저장 ★ 신규
+     · 임시 저장 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
+     · 목록 카드 클릭 → navigate('/company/results?id=…')
      · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
+   - 임시 저장 기능: hasUnsavedChanges = emailText, draftId 패턴 (PreferenceTest와 동일)
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 이메일 원문 설명 입력
    - Step 1: 제품/타겟 설명 입력 (productDescription) + 산업군 선택 (industry)

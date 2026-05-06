@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useBlocker } from 'react-router-dom';
+import ReactDOM from 'react-dom';
 import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
@@ -70,6 +71,10 @@ export default function PreferenceTest() {
   const [companyPlan, setCompanyPlan] = useState(null);
   const [careerLevels, setCareerLevels] = useState(['junior']);
   const [creditBalance, setCreditBalance] = useState(null);
+  const [draftId, setDraftId] = useState(null);
+  const [listFilter, setListFilter] = useState('all');
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [showDraftModal, setShowDraftModal] = useState(false);
 
   const fileInputARef = useRef(null);
   const fileInputBRef = useRef(null);
@@ -88,6 +93,27 @@ export default function PreferenceTest() {
           setExpandedTmpl({ [target.id]: true });
         }
       }
+    }
+    // draft 이어쓰기 진입
+    if (location.state?.editMode && location.state?.missionId) {
+      const mid = location.state.missionId;
+      setDraftId(mid);
+      setView('create');
+      supabase.from('missions').select('*').eq('id', mid).single().then(({ data: ms }) => {
+        if (!ms) return;
+        let parsed = {};
+        try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+        if (parsed.variantA) setVariantA(parsed.variantA);
+        if (parsed.variantB) setVariantB(parsed.variantB);
+        if (parsed.variantAImage) setVariantAImage(parsed.variantAImage);
+        if (parsed.variantBImage) setVariantBImage(parsed.variantBImage);
+        if (parsed.productDescription) setProductDescription(parsed.productDescription);
+        if (parsed.industry) setIndustry(parsed.industry);
+        if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+        if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
+        if (parsed.panelSize) setPanelSize(parsed.panelSize);
+        if (parsed.assetType) setAssetType(parsed.assetType);
+      });
     }
   }, []);
 
@@ -118,6 +144,49 @@ export default function PreferenceTest() {
       })));
     }
     setLoading(false);
+  }
+
+  const shouldBlockNav = view === 'create' && Boolean(variantA || variantB || productDescription);
+
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    shouldBlockNav && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  useEffect(() => {
+    const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [shouldBlockNav]);
+
+  async function saveDraft() {
+    if (!companyId) return;
+    setSavingDraft(true);
+    try {
+      const desc = JSON.stringify({
+        variantA, variantB, variantAImage, variantBImage,
+        productDescription, industry, assetType,
+        selectedQuestions: [...selectedQuestions, ...localCustomQs],
+        careerLevels, panelSize,
+      });
+      const payload = {
+        company_id: companyId,
+        title: `소재 비교 (임시 저장)`,
+        type: 'preference', status: 'draft',
+        description: desc, panel_count: panelSize,
+        reward_amount: calcPanelPayout(careerLevels, 'sub'), assets: [],
+      };
+      if (draftId) {
+        await supabase.from('missions').update(payload).eq('id', draftId);
+      } else {
+        const newId = missionUuid;
+        await supabase.from('missions').insert({ id: newId, ...payload });
+        setDraftId(newId);
+      }
+    } catch (e) {
+      console.error('[PreferenceTest] 임시 저장 실패:', e.message);
+    } finally {
+      setSavingDraft(false);
+    }
   }
 
   function parseOptions(opts) {
@@ -213,39 +282,43 @@ export default function PreferenceTest() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
+    const targetId = draftId || missionUuid;
+    const descJson = JSON.stringify({
+      variantA: variantA.trim(), variantB: variantB.trim(),
+      variantAImage: variantAImage || null, variantBImage: variantBImage || null,
+      productDescription: productDescription.trim(),
+      industry: industry || null,
+      selectedQuestions: [...selectedQuestions, ...localCustomQs],
+      careerLevels,
+    });
     try {
-      const { error: mErr } = await supabase.from('missions').insert({
-        id: missionUuid,
-        company_id: companyId,
-        title: `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`,
-        type: 'preference',
-        description: JSON.stringify({
-          variantA: variantA.trim(),
-          variantB: variantB.trim(),
-          variantAImage: variantAImage || null,
-          variantBImage: variantBImage || null,
-          productDescription: productDescription.trim(),
-          industry: industry || null,
-          selectedQuestions: [...selectedQuestions, ...localCustomQs],
-          careerLevels,
-        }),
-        panel_count: panelSize,
-        reward_amount: calcPanelPayout(careerLevels, 'sub'),
-        status: 'active',
-        assets: [],
-      });
-      if (mErr) throw mErr;
+      if (draftId) {
+        const { error: mErr } = await supabase.from('missions').update({
+          title: `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`,
+          description: descJson, panel_count: panelSize,
+          reward_amount: calcPanelPayout(careerLevels, 'sub'), status: 'active',
+        }).eq('id', draftId);
+        if (mErr) throw mErr;
+      } else {
+        const { error: mErr } = await supabase.from('missions').insert({
+          id: targetId, company_id: companyId,
+          title: `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`,
+          type: 'preference', description: descJson,
+          panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'),
+          status: 'active', assets: [],
+        });
+        if (mErr) throw mErr;
+      }
 
       // 크레딧 예약
       const requiredCredits = calcCredits(panelSize, careerLevels, 'sub');
       const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
-        p_mission_id: missionUuid,
-        p_company_id: companyId,
-        p_credits:    requiredCredits,
+        p_mission_id: targetId, p_company_id: companyId, p_credits: requiredCredits,
       });
       if (creditErr) throw creditErr;
       if (!creditData?.success) {
-        await supabase.from('missions').delete().eq('id', missionUuid);
+        if (draftId) await supabase.from('missions').update({ status: 'draft' }).eq('id', draftId);
+        else await supabase.from('missions').delete().eq('id', targetId);
         throw new Error(
           creditData?.error === 'INSUFFICIENT_CREDITS'
             ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
@@ -254,14 +327,9 @@ export default function PreferenceTest() {
       }
 
       const { error: tErr } = await supabase.from('preference_tests').insert({
-        company_id: companyId,
-        asset_type: assetType,
-        variant_a: variantA.trim(),
-        variant_b: variantB.trim(),
-        panel_size: panelSize,
-        status: 'active',
-        mission_id: missionUuid,
-        template_id: null,
+        company_id: companyId, asset_type: assetType,
+        variant_a: variantA.trim(), variant_b: variantB.trim(),
+        panel_size: panelSize, status: 'active', mission_id: targetId, template_id: null,
       });
       if (tErr) console.warn('[PreferenceTest] 서브테이블 등록 실패:', tErr.message);
 
@@ -755,7 +823,11 @@ export default function PreferenceTest() {
 
           {/* 네비게이션 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-            <Btn variant="secondary" onClick={() => createStep > 0 ? setCreateStep(s => s - 1) : setView('list')}>
+            <Btn variant="secondary" onClick={() => {
+              if (createStep > 0) setCreateStep(s => s - 1);
+              else if (shouldBlockNav) setShowDraftModal(true);
+              else setView('list');
+            }}>
               {createStep === 0 ? '취소' : '이전'}
             </Btn>
             {createStep < STEPS.length - 1 ? (
@@ -788,22 +860,43 @@ export default function PreferenceTest() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
               <Btn size="sm" onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
             </div>
-            {missions.map(m => (
-              <Card key={m.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/company/results?id=${m.id}`)}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <Badge type={m.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
-                      {m.status === 'completed' ? '완료' : '진행중'}
-                    </Badge>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '소재 비교 A/B'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
+            {/* 탭 */}
+            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
+              {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장']].map(([v, l]) => (
+                <button key={v} onClick={() => setListFilter(v)} style={{
+                  padding: '7px 14px', marginBottom: -1, fontSize: 13,
+                  fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
+                  color: listFilter === v ? 'var(--accent)' : 'var(--text-3)',
+                  borderBottom: listFilter === v ? '2px solid var(--accent)' : '2px solid transparent',
+                  border: 'none', borderRadius: 0, cursor: 'pointer',
+                }}>{l}</button>
+              ))}
+            </div>
+            {(listFilter === 'all' ? missions : missions.filter(m => m.status === listFilter)).map(m => {
+              const isDraft = m.status === 'draft';
+              return (
+                <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
+                  onClick={() => {
+                    if (isDraft) { setDraftId(m.id); navigate('/company/preference', { state: { editMode: true, missionId: m.id } }); }
+                    else navigate(`/company/results?id=${m.id}`);
+                  }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <Badge type={isDraft ? 'gold' : m.status === 'completed' ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
+                        {isDraft ? '임시 저장' : m.status === 'completed' ? '완료' : '진행중'}
+                      </Badge>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '소재 비교 A/B'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                        {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: isDraft ? '#f59e0b' : 'var(--accent)' }}>
+                      {isDraft ? '이어 작성하기 →' : '결과 보기 →'}
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--accent)' }}>결과 보기 →</div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )
       )}
@@ -816,6 +909,34 @@ export default function PreferenceTest() {
           onConfirm={handleSaveTmpl}
           onCancel={() => setShowSaveModal(false)}
         />
+      )}
+
+      {(blocker.state === 'blocked' || showDraftModal) && ReactDOM.createPortal(
+        <div onClick={e => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--bg)', borderRadius: 16, padding: '28px 24px', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>작성 중인 내용이 있습니다</div>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 12 }}>
+              의뢰 등록을 완료하지 않았습니다.<br />임시 저장하고 나가시겠습니까?
+            </p>
+            <Btn onClick={async () => {
+              await saveDraft();
+              if (showDraftModal) { setShowDraftModal(false); setView('list'); }
+              else blocker.proceed();
+            }} disabled={savingDraft}>
+              {savingDraft ? '저장 중...' : '임시 저장 후 나가기'}
+            </Btn>
+            <Btn variant="secondary" onClick={() => {
+              if (showDraftModal) { setShowDraftModal(false); setView('list'); }
+              else blocker.proceed();
+            }}>저장 없이 나가기</Btn>
+            <Btn variant="ghost" onClick={() => {
+              if (showDraftModal) setShowDraftModal(false);
+              else blocker.reset();
+            }}>계속 작성하기</Btn>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>
