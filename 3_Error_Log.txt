@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-01 (D-24 서브 미션 목록 missions 테이블 기반 원칙 추가)
+최종 업데이트: 2026-05-06 (D-43 React Router navigate 동일 경로 리마운트 미실행 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -423,3 +423,21 @@ D-41. draft 이어쓰기(editMode) 시 active 미션 수정과 draft 수정을 i
              제출 시: isDraftMode이면 UPDATE payload에 status:'active' 포함 + 크레딧 예약
      → 원칙: editMode 진입 경로가 복수일 때 반드시 DB 상태 조회로 context를 구분할 것
              location.state만 보면 두 케이스를 구분할 수 없음
+
+D-43. React Router navigate()를 동일 경로로 호출하면 컴포넌트 리마운트 불실행 ✅ 해결
+     → 증상: 서브 미션 목록 뷰(PreferenceTest 등)에서 draft 이어하기 버튼이나 수정 버튼 클릭 후
+             form 뷰로 전환되지 않고 create 뷰로 변경되지 않음 (useEffect 미재실행)
+     → 원인: navigate('/company/preference', { state: { editMode: true, missionId: m.id } })
+             같은 경로로 navigate 시 React Router가 컴포넌트를 리마운트하지 않음
+             → useEffect(..., []) 내의 editMode 처리 코드가 재실행되지 않음 → view='list'로 남아있음
+             → 직관적으로는 URL이 바뀌면 컴포넌트가 새로 초기화될 것으로 예상하지만,
+                이미 같은 경로에 있으면 React Router는 state만 업데이트하고 컴포넌트 마운트는 스킵함
+     → 해결: navigate 대신 직접 DB 로드 후 상태 복원 + setView('create') 호출
+             openDraftOrActiveForEdit(missionId) 헬퍼 함수 패턴:
+             1. supabase.from('missions').select('*').eq('id', missionId).single() 직접 실행
+             2. description JSON 파싱 → 각 필드(variantA, content, productDescription 등) 복원
+             3. setView('create') 호출 → 폼 뷰로 즉시 전환 (navigat 없음)
+     → 원칙: 같은 라우트 내에서 상태 기반 뷰 전환(list → create)이 필요하면
+             useEffect가 location.state 변화를 감지하도록 설계하거나,
+             navigate 미사용하고 직접 DB 로드 + 상태 setter 호출 패턴으로 구현할 것
+             동일 경로 navigate는 컴포넌트 마운트를 트리거하지 않음 — 라우터 설계상 명확한 한계

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-06 (UI 통일 — 대시보드/의뢰등록/서브의뢰 목록 카드 레이아웃 통합; 탭 기본값 "진행"; 수정/조기종료 버튼; 취소 탭; 워딩 정비; 질문 템플릿 탭 이모지 제거·커스텀 질문 rename)
+최종 업데이트: 2026-05-06 (조기 종료 모달 크레딧 환불 불가 경고 강화; 서브 미션 목록 이어하기·수정·취소 카드 버그 수정; Dashboard 수정 버튼 서브 미션 경로 분기)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -39,9 +39,11 @@
      · CompanyMissionCard 상태 뱃지: active+filled=0 → "매칭 대기"(blue), active+filled≥1 → "진행 중"(green) ★
      · CompanyMissionCard: 카드 클릭 시 navigate('/company/results?id=<missionId>') → Results.jsx가 해당 의뢰 즉시 선택
      · CompanyMissionCard: status='active' && filled_count=0 조건 시 "수정" 버튼 표시
-       클릭 시 navigate('/company/new', { state: { editMode: true, missionId } }) 이동
+       클릭 시 DRAFT_ROUTE 맵으로 타입별 올바른 폼 경로로 navigate (메인→/company/new, 서브→각 서브 페이지)
      · CompanyMissionCard: status='active' && filled_count≥1 조건 시 "의뢰 조기 종료" 버튼 표시
-       클릭 시 ConfirmModal(danger) → status='cancelled' UPDATE (되돌릴 수 없음, 환불 불가)
+       클릭 시 ConfirmModal(danger) → status='cancelled' UPDATE
+       모달 경고 문구: "⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 계속 확인 가능합니다."
+       확인 버튼 레이블: "조기 종료 (크레딧 환불 불가)"
      · CompanyMissionCard: status='draft' 카드 클릭 시 DRAFT_ROUTE 맵으로 해당 폼으로 이동
        (landing_page→/company/new, preference→/company/preference, pricing→/company/pricing-test, email→/company/email-test)
        draft 카드 우측 상단에 "이어 작성하기 →" 버튼, 우측 하단에 "삭제" 버튼 표시, 카드 테두리 dashed amber
@@ -201,8 +203,12 @@
    - 목록: missions 테이블에서 type='preference' 필터로 로드 (cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
      · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기/진행중 뱃지, 수정/조기종료 버튼 (NewMission과 동일) ★
-     · 임시 저장 카드 클릭 → form 뷰 진입 + draftId 설정 + description JSON 복원
-     · 목록 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
+     · 임시 저장(draft) 카드 클릭/이어작성하기 버튼 → openDraftOrActiveForEdit(id) 호출
+       → DB에서 직접 데이터 로드 후 각 필드 복원 + setView('create') (navigate 미사용 — D-43 참조)
+     · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
+     · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
+     · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…')
+     · "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: navigationGuard + showDraftModal + window.beforeunload (NewMission과 동일 패턴)
      · hasUnsavedChanges: variantA || variantB || productDescription
@@ -229,8 +235,10 @@
    - 목록: missions 테이블에서 type='pricing' 필터로 로드 (cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
      · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기/진행중 뱃지, 수정/조기종료 버튼 ★
-     · 임시 저장 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
-     · 목록 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
+     · 임시 저장(draft) 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
+     · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
+     · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
+     · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: hasUnsavedChanges = pricingDesc, draftId 패턴 (PreferenceTest와 동일)
    - 목록 완료·임시저장 카드 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
@@ -252,8 +260,10 @@
    - 목록: missions 테이블에서 type='email' 필터로 로드 (cold_email_tests 테이블 의존 제거, cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
      · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기/진행중 뱃지, 수정/조기종료 버튼 (NewMission과 동일) ★
-     · 임시 저장 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
-     · 목록 카드 클릭 → navigate('/company/results?id=…')
+     · 임시 저장(draft) 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
+     · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
+     · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
+     · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…')
      · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: hasUnsavedChanges = emailText, draftId 패턴 (PreferenceTest와 동일)

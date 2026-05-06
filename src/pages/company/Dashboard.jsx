@@ -185,7 +185,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
               </div>
               {m.status === 'active' && filled === 0 && (
                 <button
-                  onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                  onClick={e => { e.stopPropagation(); navigate(DRAFT_ROUTE[m.type || 'landing_page'] || '/company/new', { state: { editMode: true, missionId: m.id } }); }}
                   style={{
                     padding: '5px 12px', fontSize: 11, fontWeight: 600,
                     borderRadius: 8, border: 'none',

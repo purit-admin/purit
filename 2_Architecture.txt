@@ -77,8 +77,14 @@ purit/
 │   │                  window.beforeunload: shouldBlockNav 조건 시 e.preventDefault() + e.returnValue=''
 │   │                  deleteTarget state + handleDeleteMission(): missions DELETE + 로컬 필터 제거
 │   │                  terminateTarget state + handleTerminate(): missions UPDATE(status='cancelled') + 로컬 상태 반영 (4개 폼 공통)
-│   │                  서브 의뢰(Preference/Pricing/Email): location.state.editMode+missionId 감지 → DB 로드 → 상태 복원
-│   │                  서브 의뢰 목록: .neq('status','cancelled') 제거 — cancelled 포함 5탭 (전체/진행/완료/임시저장/취소)
+│   │                  서브 의뢰(Preference/Pricing/Email): 목록 뷰 draft/active 이어하기·수정 버튼은 navigate 불사용
+│   │                    openDraftOrActiveForEdit(missionId) 헬퍼로 직접 DB 로드 후 필드 복원 + setView('create') 호출
+│   │                    (같은 경로 navigate는 컴포넌트 리마운트 미실행으로 useEffect 미재실행 — D-43 참조)
+│   │                  서브 의뢰 목록: cancelled 포함 5탭 (전체/진행/완료/임시저장/취소)
+│   │                    - draft 카드 클릭 / 이어 작성하기 버튼 → openDraftOrActiveForEdit(id)
+│   │                    - active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id)
+│   │                    - cancelled 카드 클릭 → navigate('/company/results?id=…')
+│   │                    - 일반 카드 클릭 (active/completed) → navigate('/company/results?id=…')
 │   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|➕ 커스텀 질문
 │   │                탭 이모지: lp/preference/pricing/email 탭은 icon: null (이모지 없음), 커스텀 탭만 icon: '➕'
 │   │                "질문 만들기" → "커스텀 질문" (탭 레이블 + 탭 콘텐츠 헤더 모두 변경)

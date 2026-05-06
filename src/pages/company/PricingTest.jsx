@@ -200,6 +200,23 @@ export default function PricingTest() {
     }
   }
 
+  function openDraftOrActiveForEdit(missionId) {
+    setDraftId(missionId);
+    supabase.from('missions').select('*').eq('id', missionId).single().then(({ data: ms }) => {
+      if (!ms) return;
+      let parsed = {};
+      try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+      if (parsed.content) setPricingDesc(parsed.content);
+      if (parsed.image) setPricingImage(parsed.image);
+      if (parsed.productDescription) setProductDescription(parsed.productDescription);
+      if (parsed.industry) setIndustry(parsed.industry);
+      if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+      if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
+      if (parsed.panelSize) setPanelSize(parsed.panelSize);
+      setView('create');
+    });
+  }
+
   function parseOptions(opts) {
     if (Array.isArray(opts)) return opts;
     try { return JSON.parse(opts || '[]'); } catch { return []; }
@@ -853,8 +870,8 @@ export default function PricingTest() {
               return (
                 <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                   onClick={() => {
-                    if (isDraft) { setDraftId(m.id); navigate('/company/pricing-test', { state: { editMode: true, missionId: m.id } }); }
-                    else if (m.status !== 'cancelled') navigate(`/company/results?id=${m.id}`);
+                    if (isDraft) { openDraftOrActiveForEdit(m.id); }
+                    else navigate(`/company/results?id=${m.id}`);
                   }}>
                   <div className="mc-row">
                     <div style={{ flex: 1 }}>
@@ -878,13 +895,13 @@ export default function PricingTest() {
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</div>
                       {isDraft && (
-                        <button onClick={e => { e.stopPropagation(); setDraftId(m.id); navigate('/company/pricing-test', { state: { editMode: true, missionId: m.id } }); }}
+                        <button onClick={e => { e.stopPropagation(); openDraftOrActiveForEdit(m.id); }}
                           style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: '#fef3c7', color: '#92400e', cursor: 'pointer' }}>
                           이어 작성하기 →
                         </button>
                       )}
                       {m.status === 'active' && filled === 0 && (
-                        <button onClick={e => { e.stopPropagation(); setDraftId(m.id); navigate('/company/pricing-test', { state: { editMode: true, missionId: m.id } }); }}
+                        <button onClick={e => { e.stopPropagation(); openDraftOrActiveForEdit(m.id); }}
                           style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: '#F1F5F9', color: 'var(--text-2)', cursor: 'pointer' }}>
                           수정
                         </button>
