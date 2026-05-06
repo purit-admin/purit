@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-06 (의뢰 목록 5탭 + 취소 탭; 수정/조기종료 버튼; 매칭대기/진행중 뱃지; LP검증 뱃지 제거; QuestionTemplates 이모지 정리 + 커스텀 질문 탭; Dashboard 기본 탭 '진행')
+최종 업데이트: 2026-05-06 (서브 의뢰 폼 단계 통합: PreferenceTest 4단계·PricingTest 4단계·ColdEmailTest 4단계; 뱃지 색 통일: 매칭대기→gray·완료→blue; admin/Missions.jsx MissionCard 동적 뱃지)
 ================================================================
 
 ## 기술 스택
@@ -43,7 +43,7 @@ purit/
 │   │   ※ pages/company/NewMission.jsx: view state('list'|'form') — editMode 시 form 직접 진입
 │   │                list 뷰: missions .or('type.is.null,type.eq.landing_page') 로드 (cancelled 포함, .neq 제거), 탭 5개(전체/진행/완료/임시저장/취소)
 │   │                  listFilter state로 탭별 필터링, draft 카드 클릭 시 navigate(editMode) 진입
-│   │                  카드 레이아웃: mc-row/mc-right CSS 클래스 사용, 상태 뱃지(매칭대기/진행중/완료/임시저장/취소), 소재비교·가격검증·이메일검증 타입 뱃지 (LP검증 뱃지 없음)
+│   │                  카드 레이아웃: mc-row/mc-right CSS 클래스 사용, 상태 뱃지(매칭대기gray/진행중green/완료blue/임시저장gold/취소gray), 소재비교·가격검증·이메일검증 타입 뱃지 (LP검증 뱃지 없음)
 │   │                  active 카드: filled=0 → '수정' 버튼(navigate editMode) / filled≥1 → '조기 종료' 버튼 → terminateTarget ConfirmModal → status='cancelled' UPDATE
 │   │                  terminateTarget state + handleTerminate(): missions UPDATE(status='cancelled') + 로컬 상태 즉시 반영
 │   │                  조기 종료 ConfirmModal 본문: "조기 종료 시 사용된 크레딧은 환불되지 않습니다."
@@ -85,6 +85,14 @@ purit/
 │   │                    - active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id)
 │   │                    - cancelled 카드 클릭 → navigate('/company/results?id=…')
 │   │                    - 일반 카드 클릭 (active/completed) → navigate('/company/results?id=…')
+│   │                  서브 의뢰 폼 단계 (4단계 공통 구조): ★ 개편
+│   │                    PreferenceTest: STEPS=['소재 입력','질문 설정','패널 설정','검토']
+│   │                      Step 0: 소재유형+소재A/B+이미지+제품설명+산업군 통합
+│   │                    PricingTest: STEPS=['가격 페이지','질문 설정','패널 설정','검토']
+│   │                      Step 0: 가격내용+이미지+제품설명+산업군 통합
+│   │                    ColdEmailTest: STEPS=['이메일 입력','질문 설정','패널 설정','검토']
+│   │                      Step 0: 이메일원문+제품설명+산업군 통합
+│   │                    Step 3 '검토': 입력 내용 요약 + 패널수·직급·크레딧 표시 + 제출 버튼 (메인의뢰 Step 4와 동일 패턴)
 │   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|➕ 커스텀 질문
 │   │                탭 이모지: lp/preference/pricing/email 탭은 icon: null (이모지 없음), 커스텀 탭만 icon: '➕'
 │   │                "질문 만들기" → "커스텀 질문" (탭 레이블 + 탭 콘텐츠 헤더 모두 변경)
@@ -101,7 +109,7 @@ purit/
 │   │                  sticky footer: 잔여 크레딧(creditBalance!=null 시) + "최대 예상 소모: N 크레딧" + 환불 안내문
 │   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
-│   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 4, "sub"), PricingTest(Step 3, "sub"), ColdEmailTest(Step 3, "sub")
+│   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 2, "sub"), PricingTest(Step 2, "sub"), ColdEmailTest(Step 2, "sub")
 │   │   ※ pages/company/Results.jsx: 좌측 패널 미션 목록 — 타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
 │   │                ExpandableText(text, limit=200) — 텍스트 길이 초과 시 더보기/접기 토글
 │   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드

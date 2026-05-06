@@ -16,7 +16,9 @@ const ASSET_TYPES = [
   { key: 'email',      label: '이메일 제목',   icon: '✉', desc: '두 이메일 제목 중 열람율이 높을 쪽' },
 ];
 
-const STEPS = ['소재 유형', '소재 입력', '제품 설명', '질문 설정', '패널 설정'];
+const STEPS = ['소재 입력', '질문 설정', '패널 설정', '검토'];
+
+const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', 'c-level': 'C레벨' };
 
 const INDUSTRIES = [
   '뷰티/코스메틱', '헬스/피트니스', '식품/음료', '패션/의류',
@@ -89,7 +91,7 @@ export default function PreferenceTest() {
     load();
     if (initTemplateId) {
       setView('create');
-      setCreateStep(3);
+      setCreateStep(1);
       if (initTemplateName) {
         const target = QUESTION_TEMPLATES.preference.find(t => t.name === initTemplateName);
         if (target) {
@@ -451,157 +453,132 @@ export default function PreferenceTest() {
           </div>
 
           <Card>
-            {/* Step 0: 소재 유형 선택 */}
+            {/* Step 0: 소재 입력 (유형 + A/B + 제품 설명 통합) */}
             {createStep === 0 && (
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>소재 유형을 선택하세요</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  {ASSET_TYPES.map(t => (
-                    <div key={t.key} onClick={() => setAssetType(t.key)} style={{
-                      padding: '14px 16px', borderRadius: 'var(--radius)',
-                      border: `1px solid ${assetType === t.key ? 'var(--accent)' : 'var(--border)'}`,
-                      cursor: 'pointer',
-                      background: assetType === t.key ? 'var(--accent-dim)' : 'var(--surface)',
-                      transition: 'all 0.15s',
-                    }}>
-                      <div style={{ fontSize: 18, marginBottom: 6 }}>{t.icon}</div>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{t.label}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.4 }}>{t.desc}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Step 1: 소재 A/B 입력 + 이미지 업로드 */}
-            {createStep === 1 && (
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>소재 A / B 입력</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  {[
-                    ['A', variantA, setVariantA, variantAImage, setVariantAImage, uploadingA, fileInputARef, 'var(--blue)'],
-                    ['B', variantB, setVariantB, variantBImage, setVariantBImage, uploadingB, fileInputBRef, 'var(--accent)'],
-                  ].map(([label, val, setter, img, imgSetter, uploading, ref, color]) => (
-                    <div key={label}>
-                      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>소재 {label}</div>
-                      <textarea
-                        value={val}
-                        onChange={e => setter(e.target.value)}
-                        rows={5}
-                        placeholder={`소재 ${label} 텍스트를 입력하세요\n(카피, 문구, 설명 등)`}
-                        style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, borderLeft: `3px solid ${color}`, marginBottom: 10 }}
-                      />
-                      <input type="file" accept="image/*" ref={ref} style={{ display: 'none' }}
-                        onChange={e => { if (e.target.files[0]) handleImageUpload(label, e.target.files[0]); e.target.value = ''; }} />
-                      {img ? (
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                          <img src={img} alt={`소재 ${label}`} style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, border: `1px solid ${color}` }} />
-                          <button onClick={() => imgSetter(null)} style={{
-                            position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>×</button>
-                        </div>
-                      ) : (
-                        <Btn variant="secondary" size="sm" disabled={uploading} onClick={() => ref.current?.click()}>
-                          {uploading ? '업로드 중...' : '이미지 추가 (선택)'}
-                        </Btn>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: 제품/타겟 설명 */}
-            {createStep === 2 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {/* 소재 유형 */}
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>제품 / 타겟 설명</div>
-                  <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>패널에게 표시됩니다. 어떤 제품인지, 어떤 타겟을 대상으로 하는지 간단히 적어주세요.</p>
-                  <textarea
-                    value={productDescription}
-                    onChange={e => setProductDescription(e.target.value)}
-                    rows={4}
-                    placeholder={"예) 제품명: 기능성 러닝화 / 타겟: 30-40대 직장인 러너"}
-                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
-                  />
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>소재 유형</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    {ASSET_TYPES.map(t => (
+                      <div key={t.key} onClick={() => setAssetType(t.key)} style={{
+                        padding: '12px 14px', borderRadius: 'var(--radius)',
+                        border: `1px solid ${assetType === t.key ? 'var(--accent)' : 'var(--border)'}`,
+                        cursor: 'pointer',
+                        background: assetType === t.key ? 'var(--accent-dim)' : 'var(--surface)',
+                        transition: 'all 0.15s',
+                      }}>
+                        <div style={{ fontSize: 16, marginBottom: 4 }}>{t.icon}</div>
+                        <div style={{ fontWeight: 600, fontSize: 12 }}>{t.label}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.4 }}>{t.desc}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                {/* 산업군 선택 */}
+
+                <div style={{ height: 1, background: 'var(--border)' }} />
+
+                {/* 소재 A/B 입력 */}
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군 (선택)</div>
-                  <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-                    <button
-                      type="button"
-                      onClick={() => setIndustryOpen(o => !o)}
-                      style={{
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>소재 A / B 입력</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    {[
+                      ['A', variantA, setVariantA, variantAImage, setVariantAImage, uploadingA, fileInputARef, 'var(--blue)'],
+                      ['B', variantB, setVariantB, variantBImage, setVariantBImage, uploadingB, fileInputBRef, 'var(--accent)'],
+                    ].map(([label, val, setter, img, imgSetter, uploading, ref, color]) => (
+                      <div key={label}>
+                        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>소재 {label}</div>
+                        <textarea
+                          value={val}
+                          onChange={e => setter(e.target.value)}
+                          rows={5}
+                          placeholder={`소재 ${label} 텍스트를 입력하세요\n(카피, 문구, 설명 등)`}
+                          style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, borderLeft: `3px solid ${color}`, marginBottom: 10 }}
+                        />
+                        <input type="file" accept="image/*" ref={ref} style={{ display: 'none' }}
+                          onChange={e => { if (e.target.files[0]) handleImageUpload(label, e.target.files[0]); e.target.value = ''; }} />
+                        {img ? (
+                          <div style={{ position: 'relative', display: 'inline-block' }}>
+                            <img src={img} alt={`소재 ${label}`} style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6, border: `1px solid ${color}` }} />
+                            <button onClick={() => imgSetter(null)} style={{
+                              position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%',
+                              background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>×</button>
+                          </div>
+                        ) : (
+                          <Btn variant="secondary" size="sm" disabled={uploading} onClick={() => ref.current?.click()}>
+                            {uploading ? '업로드 중...' : '이미지 추가 (선택)'}
+                          </Btn>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: 'var(--border)' }} />
+
+                {/* 제품/타겟 설명 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>제품 / 타겟 설명</div>
+                    <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>패널에게 표시됩니다. 어떤 제품인지, 어떤 타겟을 대상으로 하는지 간단히 적어주세요.</p>
+                    <textarea
+                      value={productDescription}
+                      onChange={e => setProductDescription(e.target.value)}
+                      rows={3}
+                      placeholder={"예) 제품명: 기능성 러닝화 / 타겟: 30-40대 직장인 러너"}
+                      style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군 (선택)</div>
+                    <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                      <button type="button" onClick={() => setIndustryOpen(o => !o)} style={{
                         width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         padding: '9px 14px', background: 'var(--surface)', border: 'none', cursor: 'pointer',
                         fontSize: 13, color: industry ? 'var(--text)' : 'var(--text-3)', textAlign: 'left',
-                      }}
-                    >
-                      <span>{industry || '산업군을 선택하세요'}</span>
-                      <span style={{ transition: 'transform 0.2s', transform: industryOpen ? 'rotate(180deg)' : 'none', display: 'inline-block', color: 'var(--text-3)', fontSize: 11 }}>▼</span>
-                    </button>
-                    {industryOpen && (
-                      <div style={{ borderTop: '1px solid var(--border)', padding: 14, background: 'var(--bg)' }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {INDUSTRIES.map(ind => (
-                            <button
-                              key={ind} type="button"
-                              onClick={() => { setIndustry(ind); setIndustryCustomMode(false); setIndustryOpen(false); }}
-                              style={{
+                      }}>
+                        <span>{industry || '산업군을 선택하세요'}</span>
+                        <span style={{ transition: 'transform 0.2s', transform: industryOpen ? 'rotate(180deg)' : 'none', display: 'inline-block', color: 'var(--text-3)', fontSize: 11 }}>▼</span>
+                      </button>
+                      {industryOpen && (
+                        <div style={{ borderTop: '1px solid var(--border)', padding: 14, background: 'var(--bg)' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {INDUSTRIES.map(ind => (
+                              <button key={ind} type="button" onClick={() => { setIndustry(ind); setIndustryCustomMode(false); setIndustryOpen(false); }} style={{
                                 padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
                                 background: industry === ind ? 'var(--accent)' : 'var(--surface-2)',
                                 color: industry === ind ? '#fff' : 'var(--text-2)',
-                                border: '1px solid ' + (industry === ind ? 'var(--accent)' : 'var(--border)'),
-                                transition: 'all 0.12s',
-                              }}
-                            >{ind}</button>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => setIndustryCustomMode(m => !m)}
-                            style={{
+                                border: '1px solid ' + (industry === ind ? 'var(--accent)' : 'var(--border)'), transition: 'all 0.12s',
+                              }}>{ind}</button>
+                            ))}
+                            <button type="button" onClick={() => setIndustryCustomMode(m => !m)} style={{
                               padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
                               background: industryCustomMode ? 'var(--blue)' : 'var(--surface-2)',
                               color: industryCustomMode ? '#fff' : 'var(--text-2)',
-                              border: '1px solid ' + (industryCustomMode ? 'var(--blue)' : 'var(--border)'),
-                              transition: 'all 0.12s',
-                            }}
-                          >✏️ 직접 쓰기</button>
-                        </div>
-                        {industryCustomMode && (
-                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                            <input
-                              value={industryCustomInput}
-                              onChange={e => setIndustryCustomInput(e.target.value)}
-                              placeholder="산업군을 직접 입력하세요"
-                              style={{ flex: 1, fontSize: 12, padding: '6px 10px' }}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' && industryCustomInput.trim()) {
-                                  setIndustry(industryCustomInput.trim());
-                                  setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
-                                }
-                              }}
-                            />
-                            <Btn size="sm" onClick={() => {
-                              if (industryCustomInput.trim()) {
-                                setIndustry(industryCustomInput.trim());
-                                setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
-                              }
-                            }}>확인</Btn>
+                              border: '1px solid ' + (industryCustomMode ? 'var(--blue)' : 'var(--border)'), transition: 'all 0.12s',
+                            }}>✏️ 직접 쓰기</button>
                           </div>
-                        )}
-                      </div>
-                    )}
+                          {industryCustomMode && (
+                            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                              <input value={industryCustomInput} onChange={e => setIndustryCustomInput(e.target.value)}
+                                placeholder="산업군을 직접 입력하세요"
+                                style={{ flex: 1, fontSize: 12, padding: '6px 10px' }}
+                                onKeyDown={e => { if (e.key === 'Enter' && industryCustomInput.trim()) { setIndustry(industryCustomInput.trim()); setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput(''); } }} />
+                              <Btn size="sm" onClick={() => { if (industryCustomInput.trim()) { setIndustry(industryCustomInput.trim()); setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput(''); } }}>확인</Btn>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Step 3: 질문 설정 */}
-            {createStep === 3 && (
+            {/* Step 1: 질문 설정 */}
+            {createStep === 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -855,8 +832,8 @@ export default function PreferenceTest() {
               </div>
             )}
 
-            {/* Step 4: 패널 설정 */}
-            {createStep === 4 && (
+            {/* Step 2: 패널 설정 */}
+            {createStep === 2 && (
               <PanelTargetStep
                 plan={companyPlan}
                 panelCount={panelSize}
@@ -867,6 +844,63 @@ export default function PreferenceTest() {
                 creditBalance={creditBalance}
               />
             )}
+
+            {/* Step 3: 검토 */}
+            {createStep === 3 && (() => {
+              const allQs = [...selectedQuestions, ...localCustomQs];
+              const reqCredits = calcCredits(panelSize, careerLevels, 'sub');
+              const notEnough = creditBalance != null && reqCredits > creditBalance;
+              const rows = [
+                { label: '소재 유형', value: ASSET_TYPES.find(a => a.key === assetType)?.label || '-' },
+                { label: '소재 A', value: variantA.trim() || '-' },
+                { label: '소재 B', value: variantB.trim() || '-' },
+                productDescription.trim() && { label: '제품/타겟 설명', value: productDescription.trim() },
+                industry && { label: '산업군', value: industry },
+              ].filter(Boolean);
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>최종 검토</div>
+                    <p style={{ fontSize: 13, color: 'var(--text-2)' }}>아래 내용을 확인하고 의뢰를 제출하세요. 첫 피드백 수신 후에는 수정이 불가합니다.</p>
+                  </div>
+                  <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.06em' }}>소재 입력</div>
+                    {rows.map(r => (
+                      <div key={r.label} style={{ display: 'flex', padding: '10px 16px', borderBottom: '1px solid var(--border)', gap: 12, alignItems: 'flex-start' }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 110, flexShrink: 0 }}>{r.label}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text)', wordBreak: 'break-all', whiteSpace: 'pre-wrap', maxHeight: 60, overflow: 'hidden' }}>{r.value}</div>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', padding: '10px 16px', gap: 12, alignItems: 'center' }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 110, flexShrink: 0 }}>추가 질문</div>
+                      <div style={{ fontSize: 13, color: 'var(--text)' }}>{allQs.length > 0 ? `${allQs.length}개 선택됨` : '없음'}</div>
+                    </div>
+                  </div>
+                  <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.06em' }}>패널 설정</div>
+                    {[
+                      { label: '패널 수', value: `${panelSize}명` },
+                      { label: '직급', value: careerLevels.map(c => CAREER_LABEL[c]).join(' · ') || '-' },
+                      { label: '최대 예상 크레딧', value: `${reqCredits} 크레딧` },
+                      creditBalance != null && { label: '보유 크레딧', value: `${creditBalance} 크레딧`, warn: notEnough },
+                    ].filter(Boolean).map(r => (
+                      <div key={r.label} style={{ display: 'flex', padding: '10px 16px', borderBottom: '1px solid var(--border)', gap: 12, alignItems: 'center' }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 110, flexShrink: 0 }}>{r.label}</div>
+                        <div style={{ fontSize: 13, fontWeight: r.label === '최대 예상 크레딧' ? 700 : 400, color: r.warn ? '#ef4444' : 'var(--text)' }}>{r.value}</div>
+                      </div>
+                    ))}
+                    <div style={{ padding: '10px 16px', fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                      실제 매칭된 패널의 직급 비율에 따라 소모량은 줄어들 수 있으며, 차액 크레딧은 완료 후 즉시 환불됩니다.
+                    </div>
+                  </div>
+                  {notEnough && (
+                    <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius)', border: '1px solid rgba(239,68,68,0.3)', fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+                      크레딧이 부족합니다. 플랜을 업그레이드하거나 추가 크레딧을 충전하세요.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </Card>
 
           {/* 네비게이션 */}
@@ -880,8 +914,7 @@ export default function PreferenceTest() {
             </Btn>
             {createStep < STEPS.length - 1 ? (
               <Btn onClick={() => setCreateStep(s => s + 1)} disabled={
-                (createStep === 0 && !assetType) ||
-                (createStep === 1 && (!variantA.trim() || !variantB.trim()))
+                createStep === 0 && (!assetType || !variantA.trim() || !variantB.trim())
               }>
                 다음 →
               </Btn>
@@ -925,8 +958,8 @@ export default function PreferenceTest() {
               const filled = m.filled_count ?? 0;
               const isLive = m.status === 'active' && filled >= 1;
               const statusBadgeType = isDraft ? 'gold'
-                : m.status === 'active' ? (filled === 0 ? 'blue' : 'green')
-                : m.status === 'completed' ? 'green' : 'gray';
+                : m.status === 'active' ? (filled === 0 ? 'gray' : 'green')
+                : m.status === 'completed' ? 'blue' : 'gray';
               const statusBadgeLabel = isDraft ? '임시 저장'
                 : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
                 : m.status === 'completed' ? '완료' : '취소';

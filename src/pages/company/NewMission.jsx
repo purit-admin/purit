@@ -538,8 +538,8 @@ export default function NewMission() {
                   const filled = m.filled_count ?? 0;
                   const isLive = m.status === 'active' && filled >= 1;
                   const statusBadgeType = isDraft ? 'gold'
-                    : m.status === 'active' ? (filled === 0 ? 'blue' : 'green')
-                    : m.status === 'completed' ? 'green' : 'gray';
+                    : m.status === 'active' ? (filled === 0 ? 'gray' : 'green')
+                    : m.status === 'completed' ? 'blue' : 'gray';
                   const statusBadgeLabel = isDraft ? '임시 저장'
                     : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
                     : m.status === 'completed' ? '완료' : '취소';

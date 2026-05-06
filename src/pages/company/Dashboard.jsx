@@ -106,7 +106,8 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
   const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
 
   const statusBadgeType = isDraft ? 'gold'
-    : m.status === 'active' ? (filled === 0 ? 'blue' : 'green')
+    : m.status === 'active' ? (filled === 0 ? 'gray' : 'green')
+    : m.status === 'completed' ? 'blue'
     : (STATUS_COLOR[m.status] || 'gray');
   const statusBadgeLabel = isDraft ? '임시 저장'
     : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')

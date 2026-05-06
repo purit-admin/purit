@@ -3,7 +3,7 @@ import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const STATUS_LABEL = { draft: '초안', active: '진행', in_review: '검토중', completed: '완료', cancelled: '취소' };
-const STATUS_TYPE  = { draft: 'gray', active: 'green', in_review: 'blue', completed: 'gold', cancelled: 'red' };
+const STATUS_TYPE  = { draft: 'gray', active: 'green', in_review: 'blue', completed: 'blue', cancelled: 'red' };
 const PAGE_SIZE = 10;
 
 function fmtCr(n) { return parseFloat((n ?? 0).toFixed(2)); }
@@ -37,8 +37,8 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
       <div className="mc-row">
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 7, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Badge type={STATUS_TYPE[m.status] || 'gray'}>
-              {STATUS_LABEL[m.status] || m.status}
+            <Badge type={m.status === 'active' ? ((m.filled_count ?? 0) === 0 ? 'gray' : 'green') : (STATUS_TYPE[m.status] || 'gray')}>
+              {m.status === 'active' ? ((m.filled_count ?? 0) === 0 ? '매칭 대기' : '진행 중') : (STATUS_LABEL[m.status] || m.status)}
             </Badge>
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
