@@ -99,7 +99,7 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function CompanyMissionCard({ m, navigate, onTerminate }) {
+function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
   const filled = m.filled_count ?? 0;
   const isLive = m.status === 'active' && filled >= 1;
   const isDraft = m.status === 'draft';
@@ -148,54 +148,80 @@ function CompanyMissionCard({ m, navigate, onTerminate }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 3 }}>{m.title}</div>
           {m.target_url && <div style={{ fontSize: 12, color: C.text3 }}>{m.target_url}</div>}
         </div>
-        <div className="mc-right">
+        <div className="mc-right" style={{ alignSelf: 'stretch', justifyContent: 'space-between', gap: 0 }}>
           {isDraft ? (
-            <button
-              onClick={e => { e.stopPropagation(); handleClick(); }}
-              style={{
-                marginTop: 6, padding: '6px 14px', fontSize: 11, fontWeight: 700,
-                borderRadius: 8, border: 'none',
-                background: '#fef3c7', color: '#92400e', cursor: 'pointer',
-              }}
-            >
-              이어 작성하기 →
-            </button>
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); handleClick(); }}
+                style={{
+                  padding: '6px 14px', fontSize: 11, fontWeight: 700,
+                  borderRadius: 8, border: 'none',
+                  background: '#fef3c7', color: '#92400e', cursor: 'pointer',
+                }}
+              >
+                이어 작성하기 →
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onDelete(m.id); }}
+                style={{
+                  padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                  borderRadius: 8, border: 'none',
+                  background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                }}
+              >
+                삭제
+              </button>
+            </>
           ) : (
             <>
-              <div style={{ fontSize: 11, color: C.text3 }}>피드백 수집</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: C.primary }}>
-                {filled}<span style={{ fontSize: 13, color: C.text3, fontWeight: 400 }}> / {m.panel_count}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                <div style={{ fontSize: 11, color: C.text3 }}>피드백 수집</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: C.primary }}>
+                  {filled}<span style={{ fontSize: 13, color: C.text3, fontWeight: 400 }}> / {m.panel_count}</span>
+                </div>
+                <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
+                </div>
+                <div style={{ fontSize: 11, color: C.text3 }}>
+                  {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
+                </div>
+                {m.status === 'active' && filled === 0 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                    style={{
+                      padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                      borderRadius: 8, border: 'none',
+                      background: '#F1F5F9', color: C.text2, cursor: 'pointer',
+                      transition: 'background 0.12s',
+                    }}
+                  >
+                    수정
+                  </button>
+                )}
+                {m.status === 'active' && filled >= 1 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onTerminate(m); }}
+                    style={{
+                      padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                      borderRadius: 8, border: 'none',
+                      background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                      transition: 'background 0.12s',
+                    }}
+                  >
+                    의뢰 조기 종료
+                  </button>
+                )}
               </div>
-              <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
-              </div>
-              <div style={{ fontSize: 11, color: C.text3 }}>
-                {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
-              </div>
-              {m.status === 'active' && filled === 0 && (
+              {m.status === 'completed' && (
                 <button
-                  onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                  onClick={e => { e.stopPropagation(); onDelete(m.id); }}
                   style={{
-                    marginTop: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600,
-                    borderRadius: 8, border: 'none',
-                    background: '#F1F5F9', color: C.text2, cursor: 'pointer',
-                    transition: 'background 0.12s',
-                  }}
-                >
-                  수정
-                </button>
-              )}
-              {m.status === 'active' && filled >= 1 && (
-                <button
-                  onClick={e => { e.stopPropagation(); onTerminate(m); }}
-                  style={{
-                    marginTop: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                    padding: '4px 12px', fontSize: 11, fontWeight: 600,
                     borderRadius: 8, border: 'none',
                     background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
-                    transition: 'background 0.12s',
                   }}
                 >
-                  의뢰 조기 종료
+                  삭제
                 </button>
               )}
             </>
@@ -217,6 +243,7 @@ export default function CompanyDashboard() {
   const [subMissionPage, setSubMissionPage]   = useState(1);
   const [showBanner, setShowBanner] = useState(() => !isBannerDismissed());
   const [terminateTarget, setTerminateTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const dismissBanner = () => {
     localStorage.setItem(NDA_KEY, String(Date.now()));
@@ -233,6 +260,13 @@ export default function CompanyDashboard() {
       setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
     }
     setTerminateTarget(null);
+  };
+
+  const handleDeleteMission = async () => {
+    if (!deleteTarget) return;
+    await supabase.from('missions').delete().eq('id', deleteTarget);
+    setMissions(prev => prev.filter(m => m.id !== deleteTarget));
+    setDeleteTarget(null);
   };
 
   useEffect(() => {
@@ -488,7 +522,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} />)}
+                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} />)}
                   </div>
                   <Pagination page={mainMissionPage} total={mainMissions.length} onPage={setMainMissionPage} />
                 </>
@@ -508,7 +542,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} />)}
+                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} />)}
                   </div>
                   <Pagination page={subMissionPage} total={subMissions.length} onPage={setSubMissionPage} />
                 </>
@@ -529,6 +563,17 @@ export default function CompanyDashboard() {
         danger
         onConfirm={handleTerminate}
         onCancel={() => setTerminateTarget(null)}
+      />
+    )}
+    {deleteTarget && (
+      <ConfirmModal
+        title="의뢰를 영구 삭제할까요?"
+        desc={"이 의뢰를 영구적으로 삭제합니다.\n삭제된 데이터는 복구할 수 없습니다."}
+        confirmLabel="영구 삭제"
+        cancelLabel="취소"
+        danger
+        onConfirm={handleDeleteMission}
+        onCancel={() => setDeleteTarget(null)}
       />
     )}
     </>

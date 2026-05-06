@@ -19,7 +19,9 @@
       "Bash(npm install *)",
       "Bash(git pull *)",
       "Bash(node scripts/create-panel-accounts.mjs)",
-      "Bash(grep -E \"\\\\.\\(txt|md\\)$\")"
+      "Bash(grep -E \"\\\\.\\(txt|md\\)$\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\GNB_SY~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-gnb-system-Desktop-purit-mvp\\\\98080cc1-d61a-4ab2-b96c-b4b03b2962af\\\\tasks\\\\b9mhpghqk.output\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "c:\\Users\\gnb_system\\Desktop\\purit-mvp\\supabase\\migrations"

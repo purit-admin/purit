@@ -762,7 +762,7 @@ export default function Results() {
       const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
-      const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
+      const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id).neq('status', 'draft').order('created_at', { ascending: false });
       setMissions(ms || []);
       if (ms?.length > 0) {
         const paramId = searchParams.get('id');

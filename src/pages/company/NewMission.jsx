@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
+import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const STEPS = ['서비스/타겟 설정', '소재 업로드', '질문 설정', '패널 설정', '검토 & 제출'];
@@ -55,6 +56,8 @@ export default function NewMission() {
   const [savingDraft, setSavingDraft]     = useState(false);
   const [isDraftMode, setIsDraftMode]     = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
+  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [pendingNavPath, setPendingNavPath] = useState(null);
 
   // 질문 설정 state
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -296,6 +299,24 @@ export default function NewMission() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [shouldBlockNav]);
 
+  useEffect(() => {
+    if (shouldBlockNav) {
+      navigationGuard.register({
+        onAttempt: (path) => { setPendingNavPath(path); setShowDraftModal(true); },
+      });
+    } else {
+      navigationGuard.unregister();
+    }
+    return () => navigationGuard.unregister();
+  }, [shouldBlockNav]);
+
+  async function handleDeleteMission() {
+    if (!deleteTarget) return;
+    await supabase.from('missions').delete().eq('id', deleteTarget);
+    setMissions(prev => prev.filter(m => m.id !== deleteTarget));
+    setDeleteTarget(null);
+  }
+
   async function saveDraft() {
     if (!companyId) return;
     if (isEditMode && !isDraftMode) return;
@@ -508,7 +529,7 @@ export default function NewMission() {
                         if (isDraft) setView('form') || navigate('/company/new', { state: { editMode: true, missionId: m.id } });
                         else navigate(`/company/results?id=${m.id}`);
                       }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch' }}>
                         <div>
                           <Badge
                             type={isDraft ? 'gold' : m.status === 'completed' ? 'green' : m.status === 'active' ? 'gold' : 'default'}
@@ -521,8 +542,20 @@ export default function NewMission() {
                             {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
                           </div>
                         </div>
-                        <div style={{ fontSize: 12, color: isDraft ? '#f59e0b' : 'var(--accent)' }}>
-                          {isDraft ? '이어 작성하기 →' : '결과 보기 →'}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: isDraft ? '#f59e0b' : 'var(--accent)' }}>
+                            {isDraft ? '이어 작성하기 →' : '결과 보기 →'}
+                          </span>
+                          {(isDraft || m.status === 'completed') && (
+                            <button
+                              onClick={e => { e.stopPropagation(); setDeleteTarget(m.id); }}
+                              style={{
+                                padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                                borderRadius: 6, border: 'none',
+                                background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                              }}
+                            >삭제</button>
+                          )}
                         </div>
                       </div>
                     </Card>
@@ -1198,6 +1231,18 @@ export default function NewMission() {
         />
       )}
 
+      {deleteTarget && (
+        <ConfirmModal
+          title="의뢰를 영구 삭제할까요?"
+          desc={"이 의뢰를 영구적으로 삭제합니다.\n삭제된 데이터는 복구할 수 없습니다."}
+          confirmLabel="영구 삭제"
+          cancelLabel="취소"
+          danger
+          onConfirm={handleDeleteMission}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
       {showDraftModal && ReactDOM.createPortal(
         <div onClick={e => e.stopPropagation()}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1208,16 +1253,26 @@ export default function NewMission() {
             </p>
             <Btn onClick={async () => {
               await saveDraft();
+              navigationGuard.unregister();
               setShowDraftModal(false);
-              if (isEditMode) navigate('/company'); else setView('list');
+              const dest = pendingNavPath;
+              setPendingNavPath(null);
+              if (dest) navigate(dest);
+              else if (isEditMode) navigate('/company');
+              else setView('list');
             }} disabled={savingDraft}>
               {savingDraft ? '저장 중...' : '임시 저장 후 나가기'}
             </Btn>
             <Btn variant="secondary" onClick={() => {
+              navigationGuard.unregister();
               setShowDraftModal(false);
-              if (isEditMode) navigate('/company'); else setView('list');
+              const dest = pendingNavPath;
+              setPendingNavPath(null);
+              if (dest) navigate(dest);
+              else if (isEditMode) navigate('/company');
+              else setView('list');
             }}>저장 없이 나가기</Btn>
-            <Btn variant="ghost" onClick={() => setShowDraftModal(false)}>계속 작성하기</Btn>
+            <Btn variant="ghost" onClick={() => { setShowDraftModal(false); setPendingNavPath(null); }}>계속 작성하기</Btn>
           </div>
         </div>,
         document.body

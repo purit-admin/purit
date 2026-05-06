@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { navigationGuard } from '../../lib/navigationGuard';
 
 const NAV = {
   company: [
@@ -23,9 +24,6 @@ const NAV = {
       group: '메인 의뢰',
       items: [
         { path: '/company/new', label: '의뢰 등록', icon: Plus },
-        { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
-        { path: '/company/diagnosis', label: '5차원 진단', icon: Layers },
-        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
       ],
     },
     {
@@ -37,12 +35,20 @@ const NAV = {
       ],
     },
     {
-      group: '리서치 및 자산',
+      group: '자산',
+      items: [
+        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
+        { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
+        { path: '/company/diagnosis', label: '5차원 진단', icon: Layers },
+        { path: '/company/report', label: 'AI 리포트', icon: Sparkles },
+      ],
+    },
+    {
+      group: '리서치',
       items: [
         { path: '/company/icp', label: 'ICP 리서치', icon: Users },
         { path: '/company/icp-pulse', label: 'ICP Pulse', icon: Activity },
         { path: '/company/brand', label: '브랜드 트래킹', icon: TrendingUp },
-        { path: '/company/report', label: 'AI 리포트', icon: Sparkles },
       ],
     },
     {
@@ -156,6 +162,13 @@ export default function Layout({ role, children }) {
     navigate('/login', { replace: true });
   };
 
+  const handleNav = (path) => {
+    if (!navigationGuard.intercept(path)) {
+      navigate(path);
+      if (isMobile) setMobileOpen(false);
+    }
+  };
+
   const isActive = (path) =>
     location.pathname === path ||
     (path !== `/${role}` && path !== `/${role}/notifications` && location.pathname.startsWith(path));
@@ -221,7 +234,7 @@ export default function Layout({ role, children }) {
             {collapsed ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
                 {[['admin', 'AD', '/admin'], ['company', 'CO', '/company'], ['panel', 'PN', '/panel']].map(([p, abbr, path]) => (
-                  <button key={p} onClick={() => { navigate(path); if (isMobile) setMobileOpen(false); }} title={ROLE_LABEL[p] + ' 포털'}
+                  <button key={p} onClick={() => handleNav(path)} title={ROLE_LABEL[p] + ' 포털'}
                     style={{
                       width: 36, height: 22, borderRadius: 5, fontSize: 10, fontWeight: 700,
                       background: role === p ? 'var(--accent)' : 'var(--surface)',
@@ -241,7 +254,7 @@ export default function Layout({ role, children }) {
                 </div>
                 <div style={{ display: 'flex', gap: 3, background: 'var(--bg)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
                   {[['admin', '어드민', '/admin'], ['company', '기업', '/company'], ['panel', '패널', '/panel']].map(([p, label, path]) => (
-                    <button key={p} onClick={() => { navigate(path); if (isMobile) setMobileOpen(false); }}
+                    <button key={p} onClick={() => handleNav(path)}
                       style={{
                         flex: 1, padding: '5px 4px', borderRadius: 5, fontSize: 11, fontWeight: 600,
                         background: role === p ? 'var(--accent)' : 'transparent',
@@ -280,7 +293,7 @@ export default function Layout({ role, children }) {
                 const active = isActive(item.path);
                 const Icon = item.icon;
                 return (
-                  <button key={item.path} onClick={() => { navigate(item.path); if (isMobile) setMobileOpen(false); }}
+                  <button key={item.path} onClick={() => handleNav(item.path)}
                     title={collapsed ? item.label : undefined}
                     style={{
                       width: collapsed ? '100%' : 'calc(100% - 12px)', display: 'flex', alignItems: 'center',

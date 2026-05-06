@@ -401,14 +401,18 @@ D-40. useBlocker는 React Router 이탈만 감지 — 로컬 view 전환은 별�
      → 원칙: form → list 전환이 있는 뷰 구조에서 임시 저장 인터셉트가 필요하면
              useBlocker(라우터 이탈) + showDraftModal(로컬 뷰 전환) 이중 커버가 필수
 
-D-42. useBlocker는 <BrowserRouter>에서 사용 불가 — createBrowserRouter(data router)에서만 동작 ✅ 해결
+D-42. useBlocker는 <BrowserRouter>에서 사용 불가 — navigationGuard 싱글톤으로 대체 ✅ 해결
      → 증상: useBlocker를 import하면 해당 컴포넌트 마운트 시 즉시 크래시 (페이지 공백)
      → 원인: useBlocker 내부에서 DataRouterContext를 읽는데, <BrowserRouter>에는 이 Context가 없어
              UNSAFE_invariant(false) 에러를 던짐 (react-router v6.22.0 기준)
-     → 해결: useBlocker 제거 → 사이드바 이탈 차단 포기 + showDraftModal(로컬 버튼 인터셉트)만 유지
+     → 해결: useBlocker 제거 → src/lib/navigationGuard.js 싱글톤으로 사이드바 이탈 인터셉트 구현
+             Sidebar.jsx: handleNav(path)에서 navigationGuard.intercept(path) 먼저 호출
+             폼 페이지: shouldBlockNav 변화 시 guard.register({ onAttempt: (path)=>{ setPendingNavPath(path); setShowDraftModal(true) } })
+             모달 확인 후 guard.unregister() + navigate(pendingNavPath)로 이탈 완료
              window.beforeunload는 data router 없이도 동작 — 브라우저 탭 닫기/새로고침 경고용으로 유지
      → 원칙: React Router useBlocker는 createBrowserRouter / createHashRouter / createMemoryRouter
              로 만든 data router에서만 쓸 수 있음. <BrowserRouter> 앱에서는 절대 사용 금지
+             대안: 싱글톤 가드 모듈 — 라우터 독립적이며 Sidebar 등 네비게이션 진입점에서 intercept 호출
 
 D-41. draft 이어쓰기(editMode) 시 active 미션 수정과 draft 수정을 isDraftMode로 구분해야 함 ✅ 정착
      → 문제: editMode=true 진입이 두 가지 — ①active 미션 수정, ②draft 이어쓰기

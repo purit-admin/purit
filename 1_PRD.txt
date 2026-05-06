@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-06 (의뢰 임시 저장 + 목록 탭 추가 — 전체/진행/완료/임시저장 탭, 나가기 임시 저장 모달; 등록 폼 4종 목록 기본 탭 "진행"으로 변경; 긍부정 차트 제목 "패널별"로 변경)
+최종 업데이트: 2026-05-06 (사이드바 이탈 감지 → 임시 저장 모달 연동; 완료·임시저장 카드 영구 삭제 버튼; 피드백 결과 draft 의뢰 제외)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -40,7 +40,9 @@
        클릭 시 navigate('/company/new', { state: { editMode: true, missionId } }) 이동
      · CompanyMissionCard: status='draft' 카드 클릭 시 DRAFT_ROUTE 맵으로 해당 폼으로 이동
        (landing_page→/company/new, preference→/company/preference, pricing→/company/pricing-test, email→/company/email-test)
-       draft 카드 우측에 "이어 작성하기 →" 버튼 표시, 카드 테두리 dashed amber
+       draft 카드 우측 상단에 "이어 작성하기 →" 버튼, 우측 하단에 "삭제" 버튼 표시, 카드 테두리 dashed amber
+     · CompanyMissionCard: status='completed' 카드 우측 하단에 "삭제" 버튼 표시
+       클릭 시 ConfirmModal(danger) 확인 → missions DELETE + 카드 즉시 제거 (복구 불가)
    - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
    ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') 실시간 집계
      - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지
@@ -64,12 +66,16 @@
    - 임시 저장 (draft) 기능 ★ 신규
      · form 뷰에서 "취소/목록으로" 버튼 클릭 시 shouldBlockNav 조건이면 3버튼 모달 표시
        (showDraftModal state — useBlocker는 <BrowserRouter> 미지원으로 사용 불가, D-42 참조)
-     · "임시 저장 후 나가기" → missions INSERT/UPDATE(status='draft') → list 뷰 전환
-     · "저장 없이 나가기" → 즉시 list 뷰 전환
-     · "계속 작성하기" → 모달 닫기
+     · 사이드바 메뉴 클릭 시에도 navigationGuard 싱글톤을 통해 동일 모달 인터셉트 ★ 신규
+       (pendingNavPath state 저장 → 모달 확인 후 navigate(pendingNavPath) 실행)
+     · "임시 저장 후 나가기" → missions INSERT/UPDATE(status='draft') → 목적지 이동(pendingNavPath 우선, 없으면 list 뷰)
+     · "저장 없이 나가기" → 즉시 목적지 이동
+     · "계속 작성하기" → 모달 닫기 (guard 해제 없음)
      · window.beforeunload: 브라우저 탭 닫기/새로고침 시 기본 확인 다이얼로그 (라우터 없이 동작)
      · shouldBlockNav: product || lpUrl || briefText || imageUrls.length > 0 조건
      · isDraftMode=false인 editMode(active 미션 수정)는 임시 저장 인터셉트 없음
+   - 목록 뷰 완료·임시저장 카드 영구 삭제 ★ 신규
+     · draft/completed 카드 우측 하단 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
    - 상단 배너 2개 (form 뷰 모든 단계 상시 표시):
      · 🔒 NDA 배너: "평가 참가 패널은 기업의 정보를 외부에 발설할 수 없습니다."
      · ✨ 매칭 배너: "의뢰 조건에 맞는 패널이 자동으로 매칭됩니다."
@@ -120,6 +126,7 @@
 3. 피드백 결과 (/company/results) — Results.jsx  ★ 서브 미션 제출 소재 표시 + 더보기 토글 추가 (2026-05-04)
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
    - 좌측 패널: 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시
+     · status='draft' 의뢰는 목록에서 제외 (.neq('status','draft')) ★ 신규
    - 도움 됨/안 됨 평가 버튼 (HelpfulnessButtons): 총평 섹션에만 표시
      · 기업이 패널의 총평 코멘트에 👍도움 됨 / 👎도움 안 됨 평가 (선택사항)
      · 낙관적 UI: 클릭 즉시 반영 + rate_panel_feedback_helpfulness RPC 호출 + 에러 시 롤백
@@ -184,9 +191,10 @@
      · 임시 저장 카드 클릭 → form 뷰 진입 + draftId 설정 + description JSON 복원
      · 목록 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
-   - 임시 저장 기능: useBlocker + showDraftModal + window.beforeunload (NewMission과 동일 패턴)
+   - 임시 저장 기능: navigationGuard + showDraftModal + window.beforeunload (NewMission과 동일 패턴)
      · hasUnsavedChanges: variantA || variantB || productDescription
      · draftId 상태로 draft 이어쓰기 추적, 제출 시 draftId 있으면 UPDATE + active 전환 + 크레딧 예약
+   - 목록 완료·임시저장 카드 우측 하단 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 소재 유형 선택 (이미지/텍스트/랜딩페이지)
    - Step 1: 소재 A/B 입력 + 이미지 업로드 (선택, 각 1장)
@@ -210,6 +218,7 @@
      · 목록 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: hasUnsavedChanges = pricingDesc, draftId 패턴 (PreferenceTest와 동일)
+   - 목록 완료·임시저장 카드 우측 하단 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 가격 페이지 입력 + 이미지 업로드 (선택, 1장)
      · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
@@ -231,6 +240,7 @@
      · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: hasUnsavedChanges = emailText, draftId 패턴 (PreferenceTest와 동일)
+   - 목록 완료·임시저장 카드 우측 하단 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - Step 0: 이메일 원문 설명 입력
    - Step 1: 제품/타겟 설명 입력 (productDescription) + 산업군 선택 (industry)

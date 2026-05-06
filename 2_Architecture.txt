@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-06 (임시 저장 기능 — showDraftModal + draftId 패턴, 의뢰 목록 탭 5종(전체/진행/완료/임시저장/취소); useBlocker 제거 — <BrowserRouter> 미지원으로 크래시 발생, D-42 참조)
+최종 업데이트: 2026-05-06 (navigationGuard 싱글톤 — 사이드바 이탈 인터셉트; 완료·draft 카드 삭제 버튼; Results.jsx draft 필터)
 ================================================================
 
 ## 기술 스택
@@ -28,9 +28,12 @@ purit/
 │   ├── App.jsx, main.jsx, index.css
 │   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 3종, TYPE_LABEL, TYPE_COLOR)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getPanelReward·fmtWon·fmtKRW 헬퍼)
+│   │              navigationGuard.js (싱글톤 — register(config)/unregister()/intercept(path); 폼 페이지가 register, Sidebar가 intercept 호출)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
 │   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 질문 템플릿 링크: 메인 의뢰 그룹 하단 배치)
+│   │   │              handleNav(path) 헬퍼: navigationGuard.intercept(path) → false면 navigate, true면 guard가 모달 트리거
+│   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
 │   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원, activeDimension prop으로 차원 고정)
 │   │                  seqPool prop(글로벌 번호 계산용 전체 어노테이션 배열, 미전달 시 annotations 사용), highlightedId prop(해당 id만 표시·나머지 숨김)
@@ -58,10 +61,14 @@ purit/
 │   │                  draft→active 제출: UPDATE(status='active') + reserve_mission_credits 호출, 실패 시 'draft' 롤백
 │   │                  editMode 복원: description JSON 전체 파싱 → 개별 필드 set (personaAge/Income/Role/Context/industry/step 포함)
 │   │   ※ 임시저장 공통 패턴 (4개 등록 폼 — NewMission/PreferenceTest/PricingTest/ColdEmailTest):
-│   │                  useBlocker (react-router-dom) + ReactDOM (react-dom) import 추가
+│   │                  navigationGuard (src/lib/navigationGuard.js) 싱글톤 import
+│   │                  pendingNavPath state: 사이드바 이탈 시 목적지 경로 임시 저장
+│   │                  useEffect: shouldBlockNav 변화 시 navigationGuard.register({ onAttempt: (path)=>{ setPendingNavPath(path); setShowDraftModal(true); } }) / unregister()
+│   │                  finishLeave(): navigationGuard.unregister() → navigate(pendingNavPath) or setView('list') → setPendingNavPath(null)
 │   │                  draftId state: draft 이어쓰기 시 대상 mission id 추적
 │   │                  DraftSaveModal: ReactDOM.createPortal(document.body) 인라인 3버튼 모달 (D-19 패턴)
 │   │                  window.beforeunload: shouldBlockNav 조건 시 e.preventDefault() + e.returnValue=''
+│   │                  deleteTarget state + handleDeleteMission(): missions DELETE + 로컬 필터 제거
 │   │                  서브 의뢰(Preference/Pricing/Email): location.state.editMode+missionId 감지 → DB 로드 → 상태 복원
 │   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|질문 만들기
 │   │                CUSTOM_CAT_TABS 4개(LP 포함): lp→'랜딩페이지', preference→'광고소재', pricing→'가격', email→'이메일'
