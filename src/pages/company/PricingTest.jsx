@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate, useBlocker } from 'react-router-dom';
+﻿import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ReactDOM from 'react-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout } from '../../components/ui/PanelTargetStep';
@@ -135,10 +135,6 @@ export default function PricingTest() {
   }
 
   const shouldBlockNav = view === 'create' && Boolean(pricingDesc);
-
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    shouldBlockNav && currentLocation.pathname !== nextLocation.pathname
-  );
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -851,7 +847,7 @@ export default function PricingTest() {
         />
       )}
 
-      {(blocker.state === 'blocked' || showDraftModal) && ReactDOM.createPortal(
+      {showDraftModal && ReactDOM.createPortal(
         <div onClick={e => e.stopPropagation()}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--bg)', borderRadius: 16, padding: '28px 24px', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -861,19 +857,14 @@ export default function PricingTest() {
             </p>
             <Btn onClick={async () => {
               await saveDraft();
-              if (showDraftModal) { setShowDraftModal(false); setView('list'); }
-              else blocker.proceed();
+              setShowDraftModal(false); setView('list');
             }} disabled={savingDraft}>
               {savingDraft ? '저장 중...' : '임시 저장 후 나가기'}
             </Btn>
             <Btn variant="secondary" onClick={() => {
-              if (showDraftModal) { setShowDraftModal(false); setView('list'); }
-              else blocker.proceed();
+              setShowDraftModal(false); setView('list');
             }}>저장 없이 나가기</Btn>
-            <Btn variant="ghost" onClick={() => {
-              if (showDraftModal) setShowDraftModal(false);
-              else blocker.reset();
-            }}>계속 작성하기</Btn>
+            <Btn variant="ghost" onClick={() => setShowDraftModal(false)}>계속 작성하기</Btn>
           </div>
         </div>,
         document.body

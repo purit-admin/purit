@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation, useBlocker } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ReactDOM from 'react-dom';
 import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
@@ -289,9 +289,6 @@ export default function NewMission() {
     && (!isEditMode || isDraftMode)
     && Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0);
 
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    shouldBlockNav && currentLocation.pathname !== nextLocation.pathname
-  );
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -468,7 +465,10 @@ export default function NewMission() {
             </div>
           </Card>
 
-          {/* 탭 */}
+          {/* 버튼 + 탭 */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+            <Btn size="sm" onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
+          </div>
           <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
             {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장']].map(([v, l]) => (
               <button key={v} onClick={() => setListFilter(v)} style={{
@@ -492,14 +492,10 @@ export default function NewMission() {
                 <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 24 }}>
                   마케팅 소재를 등록하고 실제 패널의 진단을 받아보세요.
                 </div>
-                <Btn onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
               </Card>
             );
             return (
               <div style={{ display: 'grid', gap: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-                  <Btn size="sm" onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
-                </div>
                 {filtered.length === 0 ? (
                   <Card style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
                     해당 조건의 의뢰가 없습니다.
@@ -1202,7 +1198,7 @@ export default function NewMission() {
         />
       )}
 
-      {(blocker.state === 'blocked' || showDraftModal) && ReactDOM.createPortal(
+      {showDraftModal && ReactDOM.createPortal(
         <div onClick={e => e.stopPropagation()}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--bg)', borderRadius: 16, padding: '28px 24px', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1212,19 +1208,16 @@ export default function NewMission() {
             </p>
             <Btn onClick={async () => {
               await saveDraft();
-              if (showDraftModal) { setShowDraftModal(false); if (isEditMode) navigate('/company'); else setView('list'); }
-              else blocker.proceed();
+              setShowDraftModal(false);
+              if (isEditMode) navigate('/company'); else setView('list');
             }} disabled={savingDraft}>
               {savingDraft ? '저장 중...' : '임시 저장 후 나가기'}
             </Btn>
             <Btn variant="secondary" onClick={() => {
-              if (showDraftModal) { setShowDraftModal(false); if (isEditMode) navigate('/company'); else setView('list'); }
-              else blocker.proceed();
+              setShowDraftModal(false);
+              if (isEditMode) navigate('/company'); else setView('list');
             }}>저장 없이 나가기</Btn>
-            <Btn variant="ghost" onClick={() => {
-              if (showDraftModal) setShowDraftModal(false);
-              else blocker.reset();
-            }}>계속 작성하기</Btn>
+            <Btn variant="ghost" onClick={() => setShowDraftModal(false)}>계속 작성하기</Btn>
           </div>
         </div>,
         document.body
