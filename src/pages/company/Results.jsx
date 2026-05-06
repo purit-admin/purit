@@ -119,13 +119,15 @@ function MissionItem({ m, isSelected, onClick }) {
         cursor: 'pointer', marginBottom: 6, transition: 'all 0.15s',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-          background: typeInfo.color + '22', color: typeInfo.color,
-          border: `1px solid ${typeInfo.color}44`,
-        }}>{typeInfo.label}</span>
-      </div>
+      {m.type && m.type !== 'landing_page' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+            background: typeInfo.color + '22', color: typeInfo.color,
+            border: `1px solid ${typeInfo.color}44`,
+          }}>{typeInfo.label}</span>
+        </div>
+      )}
       <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--accent)' : 'var(--text)', lineHeight: 1.4 }}>
         {m.title}
       </div>

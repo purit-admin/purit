@@ -56,7 +56,8 @@ export default function NewMission() {
   const [savingDraft, setSavingDraft]     = useState(false);
   const [isDraftMode, setIsDraftMode]     = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
-  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [deleteTarget, setDeleteTarget]     = useState(null);
+  const [terminateTarget, setTerminateTarget] = useState(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
 
   // 질문 설정 state
@@ -123,7 +124,6 @@ export default function NewMission() {
           .select('id, title, status, panel_count, filled_count, created_at')
           .eq('company_id', co.id)
           .or('type.is.null,type.eq.landing_page')
-          .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
         setMissions(data || []);
       }
@@ -317,6 +317,18 @@ export default function NewMission() {
     setDeleteTarget(null);
   }
 
+  async function handleTerminate() {
+    if (!terminateTarget) return;
+    const { error } = await supabase
+      .from('missions')
+      .update({ status: 'cancelled' })
+      .eq('id', terminateTarget.id);
+    if (!error) {
+      setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+    }
+    setTerminateTarget(null);
+  }
+
   async function saveDraft() {
     if (!companyId) return;
     if (isEditMode && !isDraftMode) return;
@@ -491,7 +503,7 @@ export default function NewMission() {
             <Btn size="sm" onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
           </div>
           <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
-            {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장']].map(([v, l]) => (
+            {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
               <button key={v} onClick={() => setListFilter(v)} style={{
                 padding: '7px 14px', marginBottom: -1, fontSize: 13,
                 fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
@@ -523,38 +535,69 @@ export default function NewMission() {
                   </Card>
                 ) : filtered.map(m => {
                   const isDraft = m.status === 'draft';
+                  const filled = m.filled_count ?? 0;
+                  const isLive = m.status === 'active' && filled >= 1;
+                  const statusBadgeType = isDraft ? 'gold'
+                    : m.status === 'active' ? (filled === 0 ? 'blue' : 'green')
+                    : m.status === 'completed' ? 'green' : 'gray';
+                  const statusBadgeLabel = isDraft ? '임시 저장'
+                    : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
+                    : m.status === 'completed' ? '완료' : '취소';
                   return (
                     <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                       onClick={() => {
-                        if (isDraft) setView('form') || navigate('/company/new', { state: { editMode: true, missionId: m.id } });
-                        else navigate(`/company/results?id=${m.id}`);
+                        if (isDraft) navigate('/company/new', { state: { editMode: true, missionId: m.id } });
+                        else if (m.status !== 'cancelled') navigate(`/company/results?id=${m.id}`);
                       }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch' }}>
-                        <div>
-                          <Badge
-                            type={isDraft ? 'gold' : m.status === 'completed' ? 'green' : m.status === 'active' ? 'gold' : 'default'}
-                            style={{ marginBottom: 8 }}
-                          >
-                            {isDraft ? '임시 저장' : m.status === 'completed' ? '완료' : m.status === 'active' ? '진행중' : m.status}
-                          </Badge>
+                      <div className="mc-row">
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
+                            <Badge type={statusBadgeType}>{statusBadgeLabel}</Badge>
+                            {isLive && (
+                              <span style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.08)', borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>
+                                🔒 수정 잠금
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '마케팅 소재 종합 진단'}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                            {new Date(m.created_at).toLocaleDateString('ko-KR')} · {m.filled_count || 0}/{m.panel_count || 0}명 응답
+                            {new Date(m.created_at).toLocaleDateString('ko-KR')} · {filled}/{m.panel_count || 0}명 응답
                           </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 12, color: isDraft ? '#f59e0b' : 'var(--accent)' }}>
-                            {isDraft ? '이어 작성하기 →' : '결과 보기 →'}
-                          </span>
+                        <div className="mc-right">
+                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>피드백 수집</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)' }}>
+                            {filled}<span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count || 0}</span>
+                          </div>
+                          <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ width: `${m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0}%`, height: '100%', background: isLive ? '#ef4444' : 'var(--accent)', borderRadius: 2 }} />
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                            {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
+                          </div>
+                          {isDraft && (
+                            <button onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: '#fef3c7', color: '#92400e', cursor: 'pointer' }}>
+                              이어 작성하기 →
+                            </button>
+                          )}
+                          {m.status === 'active' && filled === 0 && (
+                            <button onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: '#F1F5F9', color: 'var(--text-2)', cursor: 'pointer', transition: 'background 0.12s' }}>
+                              수정
+                            </button>
+                          )}
+                          {m.status === 'active' && filled >= 1 && (
+                            <button onClick={e => { e.stopPropagation(); setTerminateTarget(m); }}
+                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer', transition: 'background 0.12s' }}>
+                              의뢰 조기 종료
+                            </button>
+                          )}
                           {(isDraft || m.status === 'completed') && (
-                            <button
-                              onClick={e => { e.stopPropagation(); setDeleteTarget(m.id); }}
-                              style={{
-                                padding: '4px 10px', fontSize: 11, fontWeight: 600,
-                                borderRadius: 6, border: 'none',
-                                background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
-                              }}
-                            >삭제</button>
+                            <button onClick={e => { e.stopPropagation(); setDeleteTarget(m.id); }}
+                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer' }}>
+                              삭제
+                            </button>
                           )}
                         </div>
                       </div>
@@ -622,12 +665,12 @@ export default function NewMission() {
                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>서비스 정보 & 타겟 페르소나</h2>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>검증할 서비스와 서비스 타겟에 대해 설정합니다.</p>
                 <label style={lbl}>
-                  <span style={lblTxt}>검증할 제품/서비스명</span>
+                  <span style={lblTxt}>검증할 서비스명(의뢰명)</span>
                   <input value={form.product} onChange={e => set('product', e.target.value)} placeholder="프리미엄 러닝화 LP" />
                 </label>
                 {/* 산업군 선택 */}
                 <div>
-                  <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군 (선택)</span>
+                  <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군</span>
                   <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
                     <button
                       type="button"
@@ -696,7 +739,7 @@ export default function NewMission() {
                   </div>
                 </div>
                 <label style={lbl}>
-                  <span style={lblTxt}>랜딩페이지 URL</span>
+                  <span style={lblTxt}>랜딩페이지 URL (선택)</span>
                   <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
                 </label>
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
@@ -825,7 +868,7 @@ export default function NewMission() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                   <div>
-                    <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>질문 설정 (선택)</h2>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>질문 설정</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
                       패널에게 추가로 물을 질문을 최대 5개 선택하세요. 선택하지 않으면 기본 5차원 피드백만 수집됩니다.
                     </p>
@@ -1175,7 +1218,7 @@ export default function NewMission() {
                   </div>
                 )}
                 <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
-                  ⚡ 의뢰 등록 후 24시간 내 매칭된 패널이 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
+                  ⚡ 의뢰 등록 후 패널이 매칭되어 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
                 </div>
                 <div style={{ marginTop: 10, padding: '14px 16px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', lineHeight: 1.75 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', marginBottom: 8 }}>⚠️ 수정 가능 시점 안내 (제출 전 반드시 확인)</div>
@@ -1183,12 +1226,12 @@ export default function NewMission() {
                     <span style={{ display: 'block', marginBottom: 4 }}>
                       ✅ <strong>제출 직후 ~ 첫 피드백 수신 전</strong>: 대시보드 의뢰 카드에서 수정 가능
                     </span>
-                    <span style={{ display: 'block', color: '#ef4444', fontWeight: 600 }}>
+                    <span style={{ display: 'block', color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>
                       🔒 <strong>첫 피드백 수신 즉시</strong>: 수정 영구 잠금 — 의뢰 조기 종료만 가능
                     </span>
-                  </div>
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(239,68,68,0.2)', fontSize: 11, color: 'var(--text-3)' }}>
-                    패널이 응답을 시작한 후 이미지·질문 등 조건을 변경하면 수집된 데이터 전체가 오염됩니다.
+                    <span style={{ display: 'block', fontSize: 12, color: '#ef4444' }}>
+                      ※ 조기 종료 시 사용된 크레딧은 환불되지 않습니다.
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1231,6 +1274,17 @@ export default function NewMission() {
         />
       )}
 
+      {terminateTarget && (
+        <ConfirmModal
+          title="의뢰를 조기 종료할까요?"
+          desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 중단되고 취소 상태로 변경됩니다.\n이 작업은 되돌릴 수 없습니다.`}
+          confirmLabel="조기 종료"
+          cancelLabel="유지"
+          danger
+          onConfirm={handleTerminate}
+          onCancel={() => setTerminateTarget(null)}
+        />
+      )}
       {deleteTarget && (
         <ConfirmModal
           title="의뢰를 영구 삭제할까요?"

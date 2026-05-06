@@ -5,11 +5,11 @@ import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const TABS = [
-  { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지', badge: 'blue',  icon: '🖼', path: '/company/new',         desc: '랜딩페이지·광고 소재 등 마케팅 소재를 5차원으로 종합 진단' },
-  { key: 'preference', label: '소재 비교 A/B',  category: '광고소재',  badge: 'blue',  icon: '🎨', path: '/company/preference',    desc: '두 소재 중 어떤 것이 더 전환율 높은지 실 패널로 검증' },
-  { key: 'pricing',    label: '가격 페이지',     category: '가격',     badge: 'gold',  icon: '💰', path: '/company/pricing-test',  desc: '가격 구성·플랜 명확성·WTP를 정밀 측정' },
-  { key: 'email',      label: '이메일 검증',     category: '이메일',   badge: 'green', icon: '📬', path: '/company/email-test',    desc: '제목줄·개봉 의향·CTA 효과를 패널 피드백으로 진단' },
-  { key: 'custom',     label: '질문 만들기',     category: null,       badge: null,    icon: '✏️', path: null,                    desc: '나만의 질문을 직접 만들어 의뢰에 자동 포함하세요' },
+  { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지', badge: 'blue',  icon: null, path: '/company/new',         desc: '랜딩페이지·광고 소재 등 마케팅 소재를 5차원으로 종합 진단' },
+  { key: 'preference', label: '소재 비교 A/B',  category: '광고소재',  badge: 'blue',  icon: null, path: '/company/preference',    desc: '두 소재 중 어떤 것이 더 전환율 높은지 실 패널로 검증' },
+  { key: 'pricing',    label: '가격 페이지',     category: '가격',     badge: 'gold',  icon: null, path: '/company/pricing-test',  desc: '가격 구성·플랜 명확성·WTP를 정밀 측정' },
+  { key: 'email',      label: '이메일 검증',     category: '이메일',   badge: 'green', icon: null, path: '/company/email-test',    desc: '제목줄·개봉 의향·CTA 효과를 패널 피드백으로 진단' },
+  { key: 'custom',     label: '커스텀 질문',     category: null,       badge: null,    icon: '➕', path: null,                    desc: '나만의 질문을 직접 만들어 의뢰에 자동 포함하세요' },
 ];
 
 const CUSTOM_CAT_TABS = [
@@ -206,7 +206,7 @@ export default function QuestionTemplates() {
               display: 'flex', alignItems: 'center', gap: 6,
             }}
           >
-            <span>{tab.icon}</span>
+            {tab.icon && <span>{tab.icon}</span>}
             {tab.label}
           </button>
         ))}
@@ -219,7 +219,7 @@ export default function QuestionTemplates() {
           <div style={{ background: 'var(--accent-dim)', borderRadius: 'var(--radius)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20 }}>✏️</span>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>질문 만들기</div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>커스텀 질문</div>
               <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>나만의 질문을 만들어 저장하면, 해당 카테고리 의뢰 등록 시 자동으로 나타납니다.</div>
             </div>
           </div>

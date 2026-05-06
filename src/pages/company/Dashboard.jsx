@@ -140,7 +140,6 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
             {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
-            {(!m.type || m.type === 'landing_page') && <Badge type="gray">LP 검증</Badge>}
             <span style={{ fontSize: 11, color: C.text3 }}>
               {m.id.slice(0, 8).toUpperCase()}
             </span>
@@ -148,9 +147,9 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 3 }}>{m.title}</div>
           {m.target_url && <div style={{ fontSize: 12, color: C.text3 }}>{m.target_url}</div>}
         </div>
-        <div className="mc-right" style={{ alignSelf: 'stretch', justifyContent: 'space-between', gap: 0 }}>
+        <div className="mc-right">
           {isDraft ? (
-            <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
               <button
                 onClick={e => { e.stopPropagation(); handleClick(); }}
                 style={{
@@ -164,59 +163,57 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
               <button
                 onClick={e => { e.stopPropagation(); onDelete(m.id); }}
                 style={{
-                  padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600,
                   borderRadius: 8, border: 'none',
                   background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
                 }}
               >
                 삭제
               </button>
-            </>
+            </div>
           ) : (
             <>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                <div style={{ fontSize: 11, color: C.text3 }}>피드백 수집</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: C.primary }}>
-                  {filled}<span style={{ fontSize: 13, color: C.text3, fontWeight: 400 }}> / {m.panel_count}</span>
-                </div>
-                <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
-                </div>
-                <div style={{ fontSize: 11, color: C.text3 }}>
-                  {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
-                </div>
-                {m.status === 'active' && filled === 0 && (
-                  <button
-                    onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
-                    style={{
-                      padding: '5px 12px', fontSize: 11, fontWeight: 600,
-                      borderRadius: 8, border: 'none',
-                      background: '#F1F5F9', color: C.text2, cursor: 'pointer',
-                      transition: 'background 0.12s',
-                    }}
-                  >
-                    수정
-                  </button>
-                )}
-                {m.status === 'active' && filled >= 1 && (
-                  <button
-                    onClick={e => { e.stopPropagation(); onTerminate(m); }}
-                    style={{
-                      padding: '5px 12px', fontSize: 11, fontWeight: 600,
-                      borderRadius: 8, border: 'none',
-                      background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
-                      transition: 'background 0.12s',
-                    }}
-                  >
-                    의뢰 조기 종료
-                  </button>
-                )}
+              <div style={{ fontSize: 11, color: C.text3 }}>피드백 수집</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.primary }}>
+                {filled}<span style={{ fontSize: 13, color: C.text3, fontWeight: 400 }}> / {m.panel_count}</span>
               </div>
+              <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
+              </div>
+              <div style={{ fontSize: 11, color: C.text3 }}>
+                {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
+              </div>
+              {m.status === 'active' && filled === 0 && (
+                <button
+                  onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                  style={{
+                    padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                    borderRadius: 8, border: 'none',
+                    background: '#F1F5F9', color: C.text2, cursor: 'pointer',
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  수정
+                </button>
+              )}
+              {m.status === 'active' && filled >= 1 && (
+                <button
+                  onClick={e => { e.stopPropagation(); onTerminate(m); }}
+                  style={{
+                    padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                    borderRadius: 8, border: 'none',
+                    background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  의뢰 조기 종료
+                </button>
+              )}
               {m.status === 'completed' && (
                 <button
                   onClick={e => { e.stopPropagation(); onDelete(m.id); }}
                   style={{
-                    padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                    padding: '5px 12px', fontSize: 11, fontWeight: 600,
                     borderRadius: 8, border: 'none',
                     background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
                   }}
@@ -238,7 +235,7 @@ export default function CompanyDashboard() {
   const [missions, setMissions]       = useState([]);
   const [feedbacks, setFeedbacks]     = useState([]);
   const [loading, setLoading]         = useState(true);
-  const [missionFilter, setMissionFilter] = useState('all');
+  const [missionFilter, setMissionFilter] = useState('active');
   const [mainMissionPage, setMainMissionPage] = useState(1);
   const [subMissionPage, setSubMissionPage]   = useState(1);
   const [showBanner, setShowBanner] = useState(() => !isBannerDismissed());
@@ -333,7 +330,7 @@ export default function CompanyDashboard() {
           borderRadius: 12, padding: '12px 18px', marginBottom: 24,
           fontSize: 13, color: C.text2,
         }}>
-          <span>🔒 <strong style={{ color: C.text }}>Purit의 피드백 패널은 기업의 정보를 발설할 수 없습니다.</strong></span>
+          <span>🔒 <strong style={{ color: C.text }}>Purit의 피드백 패널(참가자)는 기업의 정보를 발설할 수 없습니다.</strong></span>
           <button onClick={dismissBanner} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: C.text3, fontSize: 18, lineHeight: 1, padding: '0 4px', flexShrink: 0,
@@ -557,8 +554,8 @@ export default function CompanyDashboard() {
     {terminateTarget && (
       <ConfirmModal
         title="의뢰를 조기 종료할까요?"
-        desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 중단되고 취소 상태로 변경됩니다.\n이 작업은 되돌릴 수 없습니다.`}
-        confirmLabel="조기 종료"
+        desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 즉시 중단됩니다.\n\n⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 피드백 결과 페이지에서 계속 확인하실 수 있습니다.\n\n이 작업은 되돌릴 수 없습니다.`}
+        confirmLabel="조기 종료 (크레딧 환불 불가)"
         cancelLabel="유지"
         danger
         onConfirm={handleTerminate}

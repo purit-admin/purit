@@ -62,6 +62,7 @@ export default function ColdEmailTest() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [terminateTarget, setTerminateTarget] = useState(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
 
   const initTemplateName = location.state?.templateName || null;
@@ -108,7 +109,7 @@ export default function ColdEmailTest() {
     if (co) {
       const { data: missionsData } = await supabase
         .from('missions').select('id, title, status, panel_count, filled_count, created_at')
-        .eq('company_id', co.id).eq('type', 'email').neq('status', 'cancelled')
+        .eq('company_id', co.id).eq('type', 'email')
         .order('created_at', { ascending: false });
       setMissions(missionsData || []);
       const { data: ctData } = await supabase
@@ -150,6 +151,13 @@ export default function ColdEmailTest() {
     await supabase.from('missions').delete().eq('id', deleteTarget);
     setMissions(prev => prev.filter(m => m.id !== deleteTarget));
     setDeleteTarget(null);
+  }
+
+  async function handleTerminate() {
+    if (!terminateTarget) return;
+    const { error } = await supabase.from('missions').update({ status: 'cancelled' }).eq('id', terminateTarget.id);
+    if (!error) setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+    setTerminateTarget(null);
   }
 
   async function saveDraft() {
@@ -776,7 +784,7 @@ export default function ColdEmailTest() {
               <Btn size="sm" onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
             </div>
             <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
-              {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장']].map(([v, l]) => (
+              {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
                 <button key={v} onClick={() => setListFilter(v)} style={{
                   padding: '7px 14px', marginBottom: -1, fontSize: 13,
                   fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
@@ -788,35 +796,64 @@ export default function ColdEmailTest() {
             </div>
             {(listFilter === 'all' ? missions : missions.filter(m => m.status === listFilter)).map(m => {
               const isDraft = m.status === 'draft';
+              const filled = m.filled_count ?? 0;
+              const isLive = m.status === 'active' && filled >= 1;
+              const statusBadgeType = isDraft ? 'gold'
+                : m.status === 'active' ? (filled === 0 ? 'blue' : 'green')
+                : m.status === 'completed' ? 'green' : 'gray';
+              const statusBadgeLabel = isDraft ? '임시 저장'
+                : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
+                : m.status === 'completed' ? '완료' : '취소';
               return (
                 <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                   onClick={() => {
                     if (isDraft) { setDraftId(m.id); navigate('/company/email-test', { state: { editMode: true, missionId: m.id } }); }
-                    else navigate(`/company/results?id=${m.id}`);
+                    else if (m.status !== 'cancelled') navigate(`/company/results?id=${m.id}`);
                   }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch' }}>
+                  <div className="mc-row">
                     <div style={{ flex: 1 }}>
-                      <Badge type={isDraft ? 'gold' : (m.filled_count || 0) >= m.panel_count ? 'green' : 'gold'} style={{ marginBottom: 8 }}>
-                        {isDraft ? '임시 저장' : (m.filled_count || 0) >= m.panel_count ? '완료' : '진행중'}
-                      </Badge>
-                      <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{m.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-                        패널 {m.filled_count || 0}/{m.panel_count}명 · {new Date(m.created_at).toLocaleDateString('ko-KR')}
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
+                        <Badge type={statusBadgeType}>{statusBadgeLabel}</Badge>
+                        <Badge type="green">이메일 검증</Badge>
+                        {isLive && <span style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.08)', borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>🔒 수정 잠금</span>}
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '이메일 검증'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                        {new Date(m.created_at).toLocaleDateString('ko-KR')} · {filled}/{m.panel_count || 0}명 응답
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 12, color: isDraft ? '#f59e0b' : 'var(--accent)' }}>
-                        {isDraft ? '이어 작성하기 →' : '결과 보기 →'}
-                      </span>
+                    <div className="mc-right">
+                      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>피드백 수집</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)' }}>
+                        {filled}<span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count || 0}</span>
+                      </div>
+                      <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ width: `${m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0}%`, height: '100%', background: isLive ? '#ef4444' : 'var(--accent)', borderRadius: 2 }} />
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</div>
+                      {isDraft && (
+                        <button onClick={e => { e.stopPropagation(); setDraftId(m.id); navigate('/company/email-test', { state: { editMode: true, missionId: m.id } }); }}
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: '#fef3c7', color: '#92400e', cursor: 'pointer' }}>
+                          이어 작성하기 →
+                        </button>
+                      )}
+                      {m.status === 'active' && filled === 0 && (
+                        <button onClick={e => { e.stopPropagation(); setDraftId(m.id); navigate('/company/email-test', { state: { editMode: true, missionId: m.id } }); }}
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: '#F1F5F9', color: 'var(--text-2)', cursor: 'pointer' }}>
+                          수정
+                        </button>
+                      )}
+                      {m.status === 'active' && filled >= 1 && (
+                        <button onClick={e => { e.stopPropagation(); setTerminateTarget(m); }}
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer' }}>
+                          의뢰 조기 종료
+                        </button>
+                      )}
                       {(isDraft || m.status === 'completed') && (
-                        <button
-                          onClick={e => { e.stopPropagation(); setDeleteTarget(m.id); }}
-                          style={{
-                            padding: '4px 10px', fontSize: 11, fontWeight: 600,
-                            borderRadius: 6, border: 'none',
-                            background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
-                          }}
-                        >삭제</button>
+                        <button onClick={e => { e.stopPropagation(); setDeleteTarget(m.id); }}
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer' }}>
+                          삭제
+                        </button>
                       )}
                     </div>
                   </div>
@@ -827,6 +864,17 @@ export default function ColdEmailTest() {
         )
       )}
 
+      {terminateTarget && (
+        <ConfirmModal
+          title="의뢰를 조기 종료할까요?"
+          desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 중단되고 취소 상태로 변경됩니다.\n이 작업은 되돌릴 수 없습니다.`}
+          confirmLabel="조기 종료"
+          cancelLabel="유지"
+          danger
+          onConfirm={handleTerminate}
+          onCancel={() => setTerminateTarget(null)}
+        />
+      )}
       {deleteTarget && (
         <ConfirmModal
           title="의뢰를 영구 삭제할까요?"
