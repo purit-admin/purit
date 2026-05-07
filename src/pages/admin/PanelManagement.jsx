@@ -236,8 +236,8 @@ export default function AdminPanels() {
                       {panel.badges.map(b => (
                         <span key={b} style={{
                           padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                          background: 'var(--accent-dim)', color: 'var(--accent)',
-                          border: '1px solid rgba(232,213,163,0.4)',
+                          background: 'var(--surface)', color: 'var(--accent)',
+                          border: '1px solid var(--border)',
                         }}>{b}</span>
                       ))}
                     </div>

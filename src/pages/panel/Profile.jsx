@@ -214,7 +214,7 @@ export default function PanelProfile() {
       {tab === 'profile' && (
         <Card>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div style={{ padding: '10px 14px', background: 'var(--accent-dim)', border: '1px solid rgba(251,189,35,0.3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
+            <div style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
               📌 기업에게는 이름과 핸드폰 번호는 공개되지 않습니다. 직군과 경력만 공개됩니다.
             </div>
             <label style={lbl}>
@@ -412,7 +412,7 @@ export default function PanelProfile() {
                     <div key={badge.key} style={{
                       padding: '16px 14px', borderRadius: 'var(--radius)',
                       border: `1.5px solid ${earned ? 'var(--accent)' : 'var(--border)'}`,
-                      background: earned ? 'var(--accent-dim)' : 'var(--surface)',
+                      background: 'var(--surface)',
                       textAlign: 'center',
                       opacity: earned ? 1 : 0.5,
                       transition: 'all 0.15s',
@@ -447,7 +447,7 @@ export default function PanelProfile() {
               <span style={lblTxt}>예금주</span>
               <input value={bankHolder} onChange={e => setBankHolder(e.target.value)} placeholder="홍길동" />
             </label>
-            <div style={{ padding: '12px 16px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
+            <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
               ⚠ 예금주명은 실명으로 입력하세요. 불일치 시 정산이 지연될 수 있습니다.
             </div>
             <Btn

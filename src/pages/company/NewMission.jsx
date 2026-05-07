@@ -643,8 +643,8 @@ export default function NewMission() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 16px', marginBottom: 10,
-            background: 'var(--accent-dim)', borderRadius: 'var(--radius)',
-            border: '1px solid var(--accent)',
+            background: '#fff', borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
             fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
           }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
@@ -654,8 +654,8 @@ export default function NewMission() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 16px', marginBottom: 28,
-            background: 'rgba(16,185,129,0.07)', borderRadius: 'var(--radius)',
-            border: '1px solid rgba(16,185,129,0.3)',
+            background: '#fff', borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
             fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
           }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>✨</span>
@@ -948,7 +948,7 @@ export default function NewMission() {
                                 style={{
                                   display: 'flex', gap: 12, alignItems: 'flex-start',
                                   padding: '11px 16px',
-                                  background: isChecked ? 'rgba(232,213,163,0.07)' : 'var(--bg)',
+                                  background: 'var(--surface)',
                                   cursor: disabled ? 'not-allowed' : 'pointer',
                                   opacity: disabled ? 0.4 : 1,
                                   borderBottom: qi < customLPQs.length - 1 ? '1px solid var(--border)' : 'none',
@@ -1015,7 +1015,7 @@ export default function NewMission() {
                         onClick={() => setExpandedTmpl(prev => ({ ...prev, [tmpl.id]: !isOpen }))}
                         style={{
                           display: 'flex', alignItems: 'center', padding: '12px 16px',
-                          background: selectedInTmpl.length > 0 ? 'var(--accent-dim)' : 'var(--surface)',
+                          background: 'var(--surface)',
                           cursor: 'pointer', userSelect: 'none', gap: 10,
                         }}
                       >
@@ -1049,7 +1049,7 @@ export default function NewMission() {
                                 style={{
                                   display: 'flex', gap: 12, alignItems: 'flex-start',
                                   padding: '11px 16px',
-                                  background: isChecked ? 'rgba(232,213,163,0.07)' : 'var(--bg)',
+                                  background: 'var(--surface)',
                                   cursor: disabled ? 'not-allowed' : 'pointer',
                                   opacity: disabled ? 0.4 : 1,
                                   borderBottom: qi < tmpl.questions.length - 1 ? '1px solid var(--border)' : 'none',
@@ -1101,7 +1101,7 @@ export default function NewMission() {
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span>질문 만들기</span>
                     {localCustomQs.length > 0 && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '2px 8px', borderRadius: 10 }}>+{localCustomQs.length}개 추가됨</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--accent)' }}>+{localCustomQs.length}개 추가됨</span>
                     )}
                   </div>
                   <textarea value={newQText} onChange={e => setNewQText(e.target.value)} rows={2}
@@ -1168,7 +1168,7 @@ export default function NewMission() {
                       {localCustomQs.map((q, i) => (
                         <div key={q.id} style={{
                           display: 'flex', gap: 10, alignItems: 'flex-start',
-                          padding: '10px 12px', background: 'var(--accent-dim)',
+                          padding: '10px 12px', background: 'var(--surface)',
                           borderRadius: 'var(--radius)', border: '1px solid var(--accent)',
                           borderLeft: '3px solid var(--accent)', marginBottom: 6,
                         }}>
@@ -1191,7 +1191,7 @@ export default function NewMission() {
 
                 {/* 선택된 질문 미리보기 */}
                 {allLPSelected.length > 0 && (
-                  <div style={{ padding: '14px 16px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', border: '1px solid var(--accent)' }}>
+                  <div style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 10, letterSpacing: '0.05em' }}>선택된 질문 ({allLPSelected.length}개)</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {allLPSelected.map((q, i) => (
@@ -1261,7 +1261,7 @@ export default function NewMission() {
                     </div>
                   </div>
                 )}
-                <div style={{ marginTop: 24, padding: 16, background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
+                <div style={{ marginTop: 24, padding: 16, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
                   ⚡ 의뢰 등록 후 패널이 매칭되어 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
                 </div>
                 <div style={{ marginTop: 10, padding: '14px 16px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', lineHeight: 1.75 }}>

@@ -187,7 +187,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
                 style={{
                   padding: '6px 14px', fontSize: 11, fontWeight: 700,
                   borderRadius: 8, border: 'none',
-                  background: '#fef3c7', color: '#92400e', cursor: 'pointer',
+                  background: 'rgba(16,54,125,0.07)', color: '#10367D', cursor: 'pointer',
                 }}
               >
                 이어 작성하기 →
@@ -389,7 +389,7 @@ export default function CompanyDashboard() {
       {showBanner && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: C.blue50, borderLeft: `3px solid ${C.primary}`,
+          background: '#fff', borderLeft: `3px solid ${C.primary}`,
           borderRadius: 12, padding: '12px 18px', marginBottom: 24,
           fontSize: 13, color: C.text2,
         }}>

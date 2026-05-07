@@ -183,8 +183,8 @@ export default function Layout({ role, children }) {
 
       <aside className={`sidebar-drawer${mobileOpen ? ' is-open' : ''}`} style={{
         width: collapsed ? 60 : 220, flexShrink: 0,
-        background: 'var(--bg)',
-        borderRight: '1px solid var(--border)',
+        background: '#FFFFFF',
+        borderRight: '1px solid #E9ECF0',
         display: 'flex', flexDirection: 'column',
         transition: 'width 0.22s cubic-bezier(0.22,1,0.36,1)',
         position: 'sticky', top: 0, height: '100vh', zIndex: 10, overflow: 'hidden',

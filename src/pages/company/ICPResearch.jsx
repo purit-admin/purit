@@ -93,7 +93,7 @@ export default function ICPResearch() {
           {researches.map(r => (
             <button key={r.id} onClick={() => { loadDetail(r); setStep('detail'); }} style={{
               padding: '6px 14px', borderRadius: 'var(--radius)', border: `1px solid ${selected?.id === r.id ? 'var(--accent)' : 'var(--border)'}`,
-              background: selected?.id === r.id ? 'var(--accent-dim)' : 'var(--surface)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
+              background: 'var(--surface)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
               color: selected?.id === r.id ? 'var(--accent)' : 'var(--text)',
             }}>{r.persona_name}</button>
           ))}

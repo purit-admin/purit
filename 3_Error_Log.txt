@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-08 (D-45 Supabase Storage 파일 삭제 후 이미지 깨짐 onError fallback 패턴)
+최종 업데이트: 2026-05-07 (D-46 sectionLabel 없는 첫 템플릿에서 groups[-1] 접근 → TypeError 크래시 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -452,6 +452,18 @@ D-44. 반응형 그리드에서 인라인 index 기반 borderRight는 2×2 전�
              nth-child(2n)으로 2×2 레이아웃의 오른쪽 열 아이템에서 자동 제거
      → 원칙: 그리드 열 수가 반응형으로 바뀌는 레이아웃에서 마지막 열 구분선 제거는
              인라인 index 조건이 아니라 CSS nth-child + 미디어쿼리로 처리해야 함
+
+D-46. sectionLabel 없는 첫 템플릿에서 groups[-1] 접근 → TypeError 크래시 패턴 ✅ 해결
+     → 증상: QuestionTemplates.jsx 소재비교·가격·이메일 탭 클릭 시 화면이 완전히 빈 상태
+     → 원인: 그룹핑 로직에서 `let currentLabel = null`로 초기화 후
+             sectionLabel이 없는 첫 템플릿 처리 시 `label(null) !== currentLabel(null)` → false
+             → groups.push 미실행 → `groups[-1].items.push(t)` → TypeError: Cannot read properties of undefined
+     → LP 탭은 모든 템플릿에 sectionLabel이 있어서 첫 반복에서 항상 그룹이 생성되므로 정상 작동
+     → 해결: `let currentLabel = null` → `let currentLabel = undefined`
+             undefined는 어떤 sectionLabel 값과도 다르므로 첫 템플릿에서 반드시 그룹 생성
+     → 원칙: 조건부 그룹핑 로직(label 변경 시 새 그룹 push)에서
+             초기 currentLabel을 null로 두면 null sectionLabel(=그룹 없음)을 구분할 수 없음
+             반드시 undefined로 초기화해 "아직 아무 그룹도 없음" 상태를 명시적으로 표현할 것
 
 D-45. Supabase Storage 파일 삭제 후 DB 레퍼런스 잔류 → <img> onError fallback 필수 패턴 ✅ 정착
      → 증상: 피드백 결과 페이지에서 이미지가 깨진 채로 표시됨 (alt 텍스트 "검증 이미지" 노출)

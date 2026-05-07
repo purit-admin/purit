@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-08 (전체 반응형 CSS 클래스 일괄 추가 — 마스터디테일/차트/플랜/통계/폼/테이블 대상; Landing.jsx 배경색 개편: BG=#F8FAFC·BG2=#EDF0F4, CTA섹션=#EDF0F4, 푸터=#F8FAFC)
+최종 업데이트: 2026-05-07 (QuestionTemplates 로컬 폴백 4개 탭 전체 적용; sectionLabel 없는 탭 그룹핑 크래시 수정(currentLabel undefined 초기화); 비경고 배너 background:#fff·border:var(--border) 통일)
 ================================================================
 
 ## 기술 스택

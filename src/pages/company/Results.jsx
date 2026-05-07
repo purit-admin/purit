@@ -130,7 +130,7 @@ function MissionItem({ m, isSelected, onClick }) {
       onClick={onClick}
       style={{
         padding: '10px 12px', borderRadius: 'var(--radius)',
-        background: isSelected ? 'var(--accent-dim)' : 'var(--surface)',
+        background: 'var(--surface)',
         border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
         cursor: 'pointer', marginBottom: 6, transition: 'all 0.15s',
       }}
@@ -207,7 +207,7 @@ function CommentList({ items }) {
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {paged.map((item, i) => (
-          <div key={i} style={{ padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
+          <div key={i} style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
             {item.label && <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase' }}>{item.label}</div>}
             {item.text || <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>내용 없음</span>}
           </div>
@@ -282,7 +282,7 @@ function CustomQuestionsSection({ questions, responses }) {
                 </div>
               </div>
               {isOpen && (
-                <div style={{ padding: '14px', background: 'var(--bg-3)', borderTop: '1px solid var(--border)' }}>
+                <div style={{ padding: '14px', background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
                   {q.type === 'radio' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                       {(q.options || []).map(opt => {
@@ -443,7 +443,7 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
   return (
     <div>
       {parsedDesc.content && (
-        <div style={{ padding: '12px 14px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
+        <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>이메일 원문</div>
           <ExpandableText text={parsedDesc.content} limit={250} />
         </div>
@@ -543,7 +543,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
                   key={ann.id}
                   onClick={() => handleAnnClick(ann)}
                   style={{
-                    padding: '12px 14px', background: isActive ? 'var(--accent-dim, rgba(99,102,241,0.08))' : 'var(--bg-3)',
+                    padding: '12px 14px', background: 'var(--surface)',
                     borderRadius: 'var(--radius)', cursor: 'pointer',
                     border: isActive ? `1.5px solid ${meta.color}` : '1px solid var(--border)',
                     borderLeft: `3px solid ${meta.color}`,
@@ -638,7 +638,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
         <div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {pagedComments.map(({ panel, panelId, fbId, text, passed }) => (
-              <div key={panel} style={{ padding: '14px 16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <div key={panel} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
                   <PanelBadges panelId={panelId} profiles={panelProfiles} />
@@ -721,7 +721,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
                 const score = fb[DIM_META[dim].key] || 0;
                 const c = score >= 4 ? 'var(--green)' : score >= 3 ? 'var(--accent)' : 'var(--red)';
                 return (
-                  <div key={dim} style={{ padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div key={dim} style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-2)', textTransform: 'uppercase' }}>{DIM_META[dim].label}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -734,7 +734,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
                 );
               })}
               {fb.suggestions && (
-                <div style={{ padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                <div style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase' }}>개선 제안</div>
                     <HelpfulnessButtons refType="feedback" refId={fb.id} panelId={fb.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />

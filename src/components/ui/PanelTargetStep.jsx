@@ -143,7 +143,7 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
                 onClick={() => toggleCareer(key, proOnly)}
                 style={{
                   padding: '16px 18px', borderRadius: 'var(--radius)', textAlign: 'left',
-                  background: isSelected ? 'var(--accent-dim)' : 'var(--surface)',
+                  background: 'var(--surface)',
                   border: `2px solid ${isSelected ? 'var(--accent)' : isProLocked ? 'rgba(191,149,63,0.4)' : 'var(--border)'}`,
                   cursor: 'pointer', transition: 'all 0.15s',
                 }}

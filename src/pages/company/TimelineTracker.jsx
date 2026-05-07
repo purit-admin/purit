@@ -147,9 +147,9 @@ export default function TimelineTracker() {
           {missions.map(m => (
             <button key={m.id} onClick={() => toggleMission(m.id)} style={{
               padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
-              background: selected.includes(m.id) ? 'var(--accent-dim)' : 'var(--surface)',
+              background: 'var(--surface)',
               color: selected.includes(m.id) ? 'var(--accent)' : 'var(--text-3)',
-              border: '1px solid ' + (selected.includes(m.id) ? 'rgba(232,213,163,0.4)' : 'var(--border)'),
+              border: '1px solid ' + (selected.includes(m.id) ? 'var(--accent)' : 'var(--border)'),
               cursor: 'pointer', transition: 'all 0.15s',
             }}>
               {m.title.length > 20 ? m.title.slice(0, 20) + '…' : m.title}

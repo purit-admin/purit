@@ -86,7 +86,7 @@ export default function ICPPulse() {
             {quarters.map(q => (
               <button key={q.id} onClick={() => loadQuarterDetail(q)} style={{
                 padding: '8px 16px', borderRadius: 'var(--radius)', border: `1px solid ${selectedQ?.id === q.id ? 'var(--accent)' : 'var(--border)'}`,
-                background: selectedQ?.id === q.id ? 'var(--accent-dim)' : 'var(--surface)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
+                background: 'var(--surface)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
                 color: selectedQ?.id === q.id ? 'var(--accent)' : 'var(--text)', fontWeight: selectedQ?.id === q.id ? 700 : 400,
               }}>{q.quarter_label}</button>
             ))}

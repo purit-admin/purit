@@ -107,7 +107,7 @@ function TypedQuestionsBlock({ qs, get, set }) {
                       flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
                       background: ans === n ? 'var(--accent)' : ans > n ? 'var(--accent-dim)' : 'var(--surface-2)',
                       color: ans === n ? '#FFF' : 'var(--text-2)',
-                      border: `1px solid ${ans >= n ? 'rgba(232,213,163,0.4)' : 'var(--border)'}`,
+                      border: `1px solid ${ans >= n ? 'var(--accent)' : 'var(--border)'}`,
                       fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'all 0.15s',
                     }}>{n}</button>
                   ))}
@@ -901,7 +901,7 @@ export default function ActiveMission() {
             이미지 위를 드래그해서 영역을 지정하고, 항목별 점수와 코멘트를 달아주세요.
           </div>
         )}
-        <div style={{ padding: '14px 18px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+        <div style={{ padding: '14px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
           <strong style={{ color: 'var(--accent)' }}>보상: ₩{(mission.reward_amount || 0).toLocaleString()}</strong>
           <span style={{ color: 'var(--text-2)' }}> · Purit Filter 통과 시 자동 지급</span>
         </div>
@@ -983,7 +983,7 @@ export default function ActiveMission() {
               flex: 1, padding: '10px 0', borderRadius: 'var(--radius)',
               background: value === n ? 'var(--accent)' : value > n ? 'var(--accent-dim)' : 'var(--surface-2)',
               color: value === n ? '#FFF' : 'var(--text-2)',
-              border: `1px solid ${value >= n ? 'rgba(232,213,163,0.4)' : 'var(--border)'}`,
+              border: `1px solid ${value >= n ? 'var(--accent)' : 'var(--border)'}`,
               fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'all 0.15s',
             }}>{n}</button>
           ))}
@@ -1025,7 +1025,7 @@ export default function ActiveMission() {
             )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[['A', parsedDesc.variantA, parsedDesc.variantAImage, 'var(--blue)'], ['B', parsedDesc.variantB, parsedDesc.variantBImage, 'var(--accent)']].map(([label, text, imgUrl, color]) => (
-                <div key={label} onClick={() => setPrefChoice(label)} style={{ padding: '16px', borderRadius: 'var(--radius)', border: `2px solid ${prefChoice === label ? color : 'var(--border)'}`, background: prefChoice === label ? 'var(--accent-dim)' : 'var(--surface)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                <div key={label} onClick={() => setPrefChoice(label)} style={{ padding: '16px', borderRadius: 'var(--radius)', border: `2px solid ${prefChoice === label ? color : 'var(--border)'}`, background: 'var(--surface)', cursor: 'pointer', transition: 'all 0.15s' }}>
                   <div style={{ fontWeight: 800, fontSize: 16, color, marginBottom: 10 }}>소재 {label} {prefChoice === label ? '✓' : ''}</div>
                   {imgUrl && (
                     <img src={imgUrl} alt={`소재 ${label}`} style={{ width: '100%', borderRadius: 'var(--radius)', marginBottom: 10, objectFit: 'cover', maxHeight: 160 }} />
@@ -1345,7 +1345,7 @@ export default function ActiveMission() {
         {allDimsDone && (
           <div style={{
             marginBottom: 16, padding: '16px 18px',
-            background: 'var(--accent-dim)', border: '1.5px solid var(--accent)',
+            background: 'var(--surface)', border: '1.5px solid var(--accent)',
             borderRadius: 'var(--radius)',
           }}>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
@@ -1454,7 +1454,7 @@ export default function ActiveMission() {
                 flex: 1, padding: '14px 0', borderRadius: 'var(--radius)',
                 background: scores[sec.key] === n ? 'var(--accent)' : scores[sec.key] > n ? 'var(--accent-dim)' : 'var(--surface-2)',
                 color: scores[sec.key] === n ? '#FFFFFF' : 'var(--text-2)',
-                border: '1px solid ' + (scores[sec.key] >= n ? 'rgba(232,213,163,0.4)' : 'var(--border)'),
+                border: '1px solid ' + (scores[sec.key] >= n ? 'var(--accent)' : 'var(--border)'),
                 fontWeight: 700, fontSize: 16, transition: 'all 0.15s', cursor: 'pointer',
               }}>{n}</button>
             ))}

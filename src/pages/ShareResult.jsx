@@ -50,7 +50,7 @@ export default function ShareResult() {
       <div style={{ maxWidth: 680, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{ display: 'inline-block', padding: '4px 14px', background: 'var(--accent-dim)', borderRadius: 20, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20, border: '1px solid rgba(232,213,163,0.3)' }}>
+          <div style={{ display: 'inline-block', padding: '4px 14px', background: 'var(--surface)', borderRadius: 20, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20, border: '1px solid var(--border)' }}>
             Powered by Purity
           </div>
           <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>{data.title}</h1>

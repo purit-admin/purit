@@ -404,8 +404,8 @@ export default function PricingTest() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 16px', marginBottom: 10,
-            background: 'var(--accent-dim)', borderRadius: 'var(--radius)',
-            border: '1px solid var(--accent)',
+            background: '#fff', borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
             fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
           }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
@@ -415,8 +415,8 @@ export default function PricingTest() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '10px 16px', marginBottom: 28,
-            background: 'rgba(16,185,129,0.07)', borderRadius: 'var(--radius)',
-            border: '1px solid rgba(16,185,129,0.3)',
+            background: '#fff', borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
             fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5,
           }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>✨</span>
@@ -577,7 +577,7 @@ export default function PricingTest() {
                               return (
                                 <div key={q.id} onClick={() => !disabled && toggleQuestion(q)} style={{
                                   display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 14px',
-                                  background: isChecked ? 'rgba(232,213,163,0.07)' : 'var(--bg)',
+                                  background: 'var(--surface)',
                                   cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1,
                                   borderBottom: qi < customTemplateQs.length - 1 ? '1px solid var(--border)' : 'none',
                                 }}>
@@ -616,7 +616,7 @@ export default function PricingTest() {
                           onClick={() => setExpandedTmpl(prev => ({ ...prev, [tmpl.id]: !isOpen }))}
                           style={{
                             display: 'flex', alignItems: 'center', padding: '11px 14px',
-                            background: groupCount > 0 ? 'var(--accent-dim)' : 'var(--surface)',
+                            background: 'var(--surface)',
                             cursor: 'pointer', userSelect: 'none', gap: 10,
                           }}
                         >
@@ -639,7 +639,7 @@ export default function PricingTest() {
                                   style={{
                                     display: 'flex', gap: 10, alignItems: 'flex-start',
                                     padding: '10px 14px',
-                                    background: isChecked ? 'rgba(232,213,163,0.07)' : 'var(--bg)',
+                                    background: 'var(--surface)',
                                     cursor: disabled ? 'not-allowed' : 'pointer',
                                     opacity: disabled ? 0.4 : 1,
                                     borderBottom: qi < tmpl.questions.length - 1 ? '1px solid var(--border)' : 'none',
@@ -695,7 +695,7 @@ export default function PricingTest() {
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>질문 만들기</span>
                       {localCustomQs.length > 0 && (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '2px 8px', borderRadius: 10 }}>+{localCustomQs.length}개 추가됨</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--accent)' }}>+{localCustomQs.length}개 추가됨</span>
                       )}
                     </div>
                     <textarea value={newQText} onChange={e => setNewQText(e.target.value)} rows={2}
@@ -763,7 +763,7 @@ export default function PricingTest() {
                           <div key={q.id} style={{
                             display: 'flex', gap: 10, alignItems: 'flex-start',
                             padding: '10px 12px',
-                            background: 'var(--accent-dim)',
+                            background: 'var(--surface)',
                             borderRadius: 'var(--radius)',
                             border: '1px solid var(--accent)',
                             borderLeft: '3px solid var(--accent)',
@@ -948,7 +948,7 @@ export default function PricingTest() {
                       <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</div>
                       {isDraft && (
                         <button onClick={e => { e.stopPropagation(); openDraftOrActiveForEdit(m.id); }}
-                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: '#fef3c7', color: '#92400e', cursor: 'pointer' }}>
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: '#10367D', cursor: 'pointer' }}>
                           이어 작성하기 →
                         </button>
                       )}

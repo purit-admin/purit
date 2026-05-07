@@ -69,13 +69,21 @@ export default function QuestionTemplates() {
     if (error) console.error('[QuestionTemplates]', error.message);
     if (data) {
       const allData = [...data];
-      // lp 템플릿이 DB에 없으면 로컬 상수로 폴백 (D-31 패턴)
-      const hasLp = allData.some(t => t.category === '랜딩페이지' && t.is_default);
-      if (!hasLp) {
-        (QUESTION_TEMPLATES.lp || []).forEach(t => allData.push({
-          ...t, is_default: true, template_questions: [], use_count: 0,
-        }));
-      }
+      // DB에 없으면 로컬 상수로 폴백 (D-31 패턴) — 4개 탭 전체 적용
+      const checks = [
+        { key: 'lp',         category: '랜딩페이지' },
+        { key: 'preference', category: '광고소재'   },
+        { key: 'pricing',    category: '가격'       },
+        { key: 'email',      category: '이메일'     },
+      ];
+      checks.forEach(({ key, category }) => {
+        const hasData = allData.some(t => t.category === category && t.is_default);
+        if (!hasData) {
+          (QUESTION_TEMPLATES[key] || []).forEach(t => allData.push({
+            ...t, is_default: true, template_questions: [], use_count: 0,
+          }));
+        }
+      });
       setTemplates(allData.map(t => ({
         ...t,
         template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),
@@ -216,7 +224,7 @@ export default function QuestionTemplates() {
       {activeTab === 'custom' && (
         <div style={{ display: 'grid', gap: 20 }}>
           {/* 탭 설명 */}
-          <div style={{ background: 'var(--accent-dim)', borderRadius: 'var(--radius)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20 }}>✏️</span>
             <div>
               <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>커스텀 질문</div>
@@ -230,7 +238,7 @@ export default function QuestionTemplates() {
               <button key={c.key} onClick={() => setCustomCategory(c.key)} style={{
                 padding: '8px 16px', borderRadius: 'var(--radius)',
                 border: `1px solid ${customCategory === c.key ? 'var(--accent)' : 'var(--border)'}`,
-                background: customCategory === c.key ? 'var(--accent-dim)' : 'var(--surface)',
+                background: 'var(--surface)',
                 color: customCategory === c.key ? 'var(--accent)' : 'var(--text-2)',
                 fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
               }}>{c.label}</button>
@@ -257,7 +265,7 @@ export default function QuestionTemplates() {
                 <div key={q.id} style={{
                   display: 'flex', gap: 10, alignItems: 'flex-start',
                   padding: '12px 14px', marginBottom: 6,
-                  background: 'var(--bg-3)', borderRadius: 'var(--radius)',
+                  background: 'var(--surface)', borderRadius: 'var(--radius)',
                   border: '1px solid var(--border)',
                 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, fontSize: 12, flexShrink: 0, paddingTop: 2 }}>Q{i + 1}</span>
@@ -368,7 +376,7 @@ export default function QuestionTemplates() {
 
             {/* 서술형: 별도 입력 없음 */}
             {newQType === 'text' && (
-              <div style={{ marginBottom: 14, padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-3)' }}>
+              <div style={{ marginBottom: 14, padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-3)' }}>
                 패널이 자유롭게 텍스트로 답변합니다. (10자 이상 필수)
               </div>
             )}
@@ -388,7 +396,7 @@ export default function QuestionTemplates() {
         <>
           {/* Tab description */}
           <div style={{
-            background: 'var(--accent-dim)', borderRadius: 'var(--radius)',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
             padding: '12px 16px', marginBottom: 24,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
           }}>
@@ -420,7 +428,7 @@ export default function QuestionTemplates() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {(() => {
                   const groups = [];
-                  let currentLabel = null;
+                  let currentLabel = undefined; // undefined로 초기화 — null sectionLabel도 첫 그룹 생성 보장
                   filtered.forEach(t => {
                     const label = t.sectionLabel || null;
                     if (label !== currentLabel) {
@@ -449,7 +457,7 @@ export default function QuestionTemplates() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <div style={{
                                   width: 38, height: 38, borderRadius: 'var(--radius)',
-                                  background: 'var(--accent-dim)', display: 'flex', alignItems: 'center',
+                                  background: 'var(--bg-2)', display: 'flex', alignItems: 'center',
                                   justifyContent: 'center', fontSize: 18, color: 'var(--accent)',
                                 }}>
                                   {t.icon}
@@ -463,7 +471,9 @@ export default function QuestionTemplates() {
                             <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 14 }}>{t.description}</p>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-                                {t.template_questions?.length || 0}개 문항 · {t.use_count || 0}회 사용
+                                {(t.template_questions?.length > 0
+                                  ? t.template_questions.length
+                                  : (TEMPLATE_BY_NAME[t.name]?.questions?.length || 0))}개 문항 · {t.use_count || 0}회 사용
                               </span>
                               <Btn size="sm" variant="secondary" onClick={() => setSelected(t.id)}>
                                 미리보기
@@ -516,7 +526,7 @@ export default function QuestionTemplates() {
                           return (
                             <div key={q.id || i} style={{
                               display: 'flex', gap: 10, padding: '10px 12px',
-                              background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13,
+                              background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13,
                               alignItems: 'flex-start',
                             }}>
                               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, flexShrink: 0, paddingTop: 1 }}>
