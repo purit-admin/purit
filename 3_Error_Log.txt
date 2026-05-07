@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-06 (D-43 React Router navigate 동일 경로 리마운트 미실행 패턴)
+최종 업데이트: 2026-05-07 (D-44 반응형 그리드에서 인라인 index 기반 borderRight 함정)
 ================================================================
 
 ## 핵심 원칙
@@ -441,3 +441,14 @@ D-43. React Router navigate()를 동일 경로로 호출하면 컴포넌트 리�
              useEffect가 location.state 변화를 감지하도록 설계하거나,
              navigate 미사용하고 직접 DB 로드 + 상태 setter 호출 패턴으로 구현할 것
              동일 경로 navigate는 컴포넌트 마운트를 트리거하지 않음 — 라우터 설계상 명확한 한계
+
+D-44. 반응형 그리드에서 인라인 index 기반 borderRight는 2×2 전환 시 외곽 테두리 노출 ✅ 해결
+     → 증상: 4열 그리드에서 i < 3 조건으로 borderRight 인라인 스타일 적용 →
+             모바일(900px↓) 2×2 전환 시 index 1(짝수 위치)에 borderRight가 남아
+             그리드 오른쪽 바깥 가장자리에 테두리가 삐져나와 보임
+     → 원인: 인라인 스타일은 CSS 미디어쿼리로 오버라이드 불가 → 레이아웃이 바뀌어도 border 유지
+     → 해결: borderRight를 CSS 클래스(.stat-divider-right)로 분리 →
+             @media (max-width: 900px) { .landing-grid-4 .stat-divider-right:nth-child(2n) { border-right: none !important; } }
+             nth-child(2n)으로 2×2 레이아웃의 오른쪽 열 아이템에서 자동 제거
+     → 원칙: 그리드 열 수가 반응형으로 바뀌는 레이아웃에서 마지막 열 구분선 제거는
+             인라인 index 조건이 아니라 CSS nth-child + 미디어쿼리로 처리해야 함

@@ -192,6 +192,10 @@ input:focus, textarea:focus, select:focus {
 
 /* ─── 랜딩 그리드 ─── */
 .landing-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); }
+.stat-divider-right { border-right: 1px solid #E2E8F0; }
+@media (max-width: 900px) {
+  .landing-grid-4 .stat-divider-right:nth-child(2n) { border-right: none !important; }
+}
 .landing-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .landing-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .landing-grid-3-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }

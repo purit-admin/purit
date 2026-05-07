@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-07 (마케팅 소재 종합 진단 질문 템플릿 4섹션 24종으로 확장: 랜딩페이지·광고소재·PDP·영상숏폼)
+최종 업데이트: 2026-05-07 (이메일 검증 타입 뱃지 green→blue(진한회색) 변경; 랜딩페이지 히어로 h1 크기·스탯 섹션 구조 개선)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -36,6 +36,7 @@
      · 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리
      · 각 섹션 10개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
      · CompanyMissionCard 뱃지: LP검증 뱃지 미표시, 서브 의뢰(소재비교/가격검증/이메일검증)만 타입 뱃지 표시 ★
+       뱃지 색상: 소재비교=blue(진한회색) / 가격검증=gold / 이메일검증=blue(진한회색) ★ 이메일 green→blue 변경
      · CompanyMissionCard 상태 뱃지: active+filled=0 → "매칭 대기"(gray), active+filled≥1 → "진행 중"(green), completed → "완료"(blue) ★
      · CompanyMissionCard: 카드 클릭 시 navigate('/company/results?id=<missionId>') → Results.jsx가 해당 의뢰 즉시 선택
      · CompanyMissionCard: status='active' && filled_count=0 조건 시 "수정" 버튼 표시

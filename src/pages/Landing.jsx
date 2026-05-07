@@ -109,9 +109,9 @@ export default function Landing() {
           </div>
 
           <h1 style={{
-            fontSize: 'clamp(28px, 4vw, 44px)',
+            fontSize: 'clamp(32px, 4.5vw, 52px)',
             fontWeight: 800, letterSpacing: '-0.04em',
-            lineHeight: 1.3, color: TEXT,
+            lineHeight: 1.25, color: TEXT,
             marginBottom: 28, wordBreak: 'keep-all',
           }}>
             고객이 '뒤로 가기'를 누르는 이유,<br />
@@ -151,17 +151,16 @@ export default function Landing() {
       {/* ══════════════════════════
           3. 숫자 임팩트
       ══════════════════════════ */}
-      <section style={{ background: BG2 }}>
-        <div style={{ ...W }} ref={r2}>
-          <div className="landing-grid-4">
-            {[
+      <section style={{ background: BG2, borderBottom: '1px solid #E2E8F0' }}>
+        <div className="landing-grid-4" ref={r2}>
+          {[
               { val: '48h',   label: '피드백 수집 완료' },
               { val: '100%',  label: '검증된 응답' },
               { val: '40%',   label: '평균 전환율 개선' },
               { val: '800만원', label: '평균 절감 광고비' },
             ].map((m, i) => (
-              <div key={i} style={{
-                padding: '56px 32px', textAlign: 'center',
+              <div key={i} className={i < 3 ? 'stat-divider-right' : ''} style={{
+                padding: '48px 32px', textAlign: 'center',
               }}>
                 <div style={{
                   fontSize: 'clamp(36px, 4.5vw, 56px)',
@@ -171,7 +170,6 @@ export default function Landing() {
                 <div style={{ fontSize: 14, color: TEXT3, fontWeight: 500 }}>{m.label}</div>
               </div>
             ))}
-          </div>
         </div>
       </section>
 
