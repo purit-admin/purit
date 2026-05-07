@@ -19,6 +19,22 @@ const INDUSTRIES = [
   'HR/채용', '법률/컨설팅', '물류/배송', '환경/에너지',
 ];
 
+const PAGE_SIZE = 5;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+    </div>
+  );
+}
+
 export default function NewMission() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,6 +69,7 @@ export default function NewMission() {
   const [missions, setMissions]           = useState([]);
   const [loadingList, setLoadingList]     = useState(true);
   const [listFilter, setListFilter]       = useState('active');
+  const [listPage, setListPage]           = useState(1);
   const [savingDraft, setSavingDraft]     = useState(false);
   const [isDraftMode, setIsDraftMode]     = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
@@ -504,7 +521,7 @@ export default function NewMission() {
           </div>
           <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
             {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
-              <button key={v} onClick={() => setListFilter(v)} style={{
+              <button key={v} onClick={() => { setListFilter(v); setListPage(1); }} style={{
                 padding: '7px 14px', marginBottom: -1, fontSize: 13,
                 fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
                 color: listFilter === v ? 'var(--accent)' : 'var(--text-3)',
@@ -518,6 +535,7 @@ export default function NewMission() {
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 13 }}>로딩 중...</div>
           ) : (() => {
             const filtered = listFilter === 'all' ? missions : missions.filter(m => m.status === listFilter);
+            const paged = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
             if (missions.length === 0) return (
               <Card style={{ padding: '60px', textAlign: 'center' }}>
                 <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
@@ -533,7 +551,8 @@ export default function NewMission() {
                   <Card style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
                     해당 조건의 의뢰가 없습니다.
                   </Card>
-                ) : filtered.map(m => {
+                ) : (<>
+                  {paged.map(m => {
                   const isDraft = m.status === 'draft';
                   const filled = m.filled_count ?? 0;
                   const isLive = m.status === 'active' && filled >= 1;
@@ -604,6 +623,8 @@ export default function NewMission() {
                     </Card>
                   );
                 })}
+                  <Pagination page={listPage} total={filtered.length} onPage={setListPage} />
+                </>)}
               </div>
             );
           })()}

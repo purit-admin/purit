@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-08 (전체 테마 네이비 통일; 대시보드 차트 3열 레이아웃; 긍부정 분포 메인/서브 분리 + 4개씩 캐러셀 페이지네이션)
+최종 업데이트: 2026-05-08 (전체 테마 네이비 통일; 대시보드 차트 3열 레이아웃; 긍부정 분포 메인/서브 분리 + 4개씩 캐러셀 페이지네이션; 전체 목록 PAGE_SIZE=5 통일; Results 내부 목록 페이지네이션 추가; ImageAnnotator 깨진 이미지 fallback 추가)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -44,7 +44,7 @@
      · "진행 중인 의뢰" 별도 섹션 제거 → "전체 의뢰 현황"에 통합
      · 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 — 기본 선택: "진행" (missionFilter='active') ★
      · 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리
-     · 각 섹션 10개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
+     · 각 섹션 5개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
      · CompanyMissionCard 뱃지: LP검증 뱃지 미표시, 서브 의뢰(소재비교/가격검증/이메일검증)만 타입 뱃지 표시 ★
        뱃지 색상: 소재비교=blue(진한회색) / 가격검증=gold / 이메일검증=blue(진한회색) ★ 이메일 green→blue 변경
      · CompanyMissionCard 상태 뱃지: active+filled=0 → "매칭 대기"(gray), active+filled≥1 → "진행 중"(green), completed → "완료"(blue) ★
@@ -153,6 +153,11 @@
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
    - 좌측 패널: 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시
      · status='draft' 의뢰는 목록에서 제외 (.neq('status','draft')) ★ 신규
+   - 내부 목록 페이지네이션 (PAGE_SIZE=5): ★ 추가
+     · 차원 탭(DimTabView): 어노테이션 코멘트 목록 5개씩, 전환 시 페이지 리셋 (useRef 패턴)
+     · 종합 탭(SummaryTabView): 패널 총평 목록 5개씩
+     · 텍스트 미션(TextMissionResults): 패널 피드백 목록 5개씩 (전역 번호 유지: globalIdx)
+     · CommentList: 서브 미션 코멘트 목록 내부 5개씩
    - 도움 됨/안 됨 평가 버튼 (HelpfulnessButtons): 총평 섹션에만 표시
      · 기업이 패널의 총평 코멘트에 👍도움 됨 / 👎도움 안 됨 평가 (선택사항)
      · 낙관적 UI: 클릭 즉시 반영 + rate_panel_feedback_helpfulness RPC 호출 + 에러 시 롤백
@@ -411,7 +416,7 @@
      · "탈락 사유 보기 ▼" 토글 클릭 시 인라인 안내문 표시
      · "재작성 →" 버튼 → navigate('/panel/active?id=...&resubmit=<feedbackId>')
    - 모든 탭: 메인 미션(마케팅 소재 종합 진단) / 서브 미션(소재비교·가격검증·이메일검증) 섹션 분리
-   - 각 섹션 10개씩 페이지네이션 (MissionCard 컴포넌트, mode prop으로 탭별 버튼 분기)
+   - 각 섹션 5개씩 페이지네이션 (MissionCard 컴포넌트, mode prop으로 탭별 버튼 분기)
    - feedbackMap 구조: { [missionId]: { status, id, suggestions } } — feedback id 포함
    - 수락 확인 모달: Purit Filter 경고 3항목 포함 (ReactDOM.createPortal 기반, viewport 중앙 고정)
    - 수락 시 feedbacks INSERT(status='draft') → feedbackMap 업데이트 → /panel/active?id=... 이동
@@ -509,6 +514,7 @@
      · 지급 거절: 건수 (status='rejected', purity_passed=false) — 0건이면 기본색, 있으면 빨간색
    - 탭 3개: 정산 대기 / 정산 완료 / 지급 거절 (기존 "전체" 탭 제거)
    - 기본 탭: '정산 대기' (pending)
+   - 탭별 5개씩 페이지네이션 (Pagination 컴포넌트, 탭 전환 시 page 리셋) ★ 추가
    - [지급 거절] 항목: 재작성 버튼 없음 — "탈락 사유 보기" 텍스트(버튼) 클릭 시 인라인 사유 펼침
      · 반려 사유 안내문 + feedbacks.suggestions 원문을 mono 스타일로 표시
      · 재작성은 [미션 관리 → 수정 필요] 탭에서만 가능
@@ -549,10 +555,10 @@
    - 기본 탭: '진행' (active) — 사이드바 클릭 시 진행 중 미션으로 바로 진입
    - 탭 4개: 전체 / 진행 / 완료 / 취소
    - 모든 탭에서 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리 ★ 개편
-   - 각 섹션 10개씩 페이지네이션 (Pagination 컴포넌트, 모든 탭 공통 적용) ★ 개편
+   - 각 섹션 5개씩 페이지네이션 (Pagination 컴포넌트, 모든 탭 공통 적용) ★ 개편
    - 미션 목록에 유형 뱃지 표시: LP 검증 / 소재 비교 / 가격 검증 / 이메일 검증
    - 완료(completed) 탭에 '재진행' 버튼 추가 → missions.status = 'active'로 복원
-   - 전체(all) 탭: 메인 미션 / 서브 미션 섹션 분리, 각 섹션 10개씩 페이지네이션
+   - 전체(all) 탭: 메인 미션 / 서브 미션 섹션 분리, 각 섹션 5개씩 페이지네이션
    - 취소(cancelled) 상태 미션 영구 삭제: 확인 모달(ConfirmModal) → missions DELETE
    - ★ 크레딧 완료 처리: "완료 처리" 버튼 클릭 시 complete_mission_and_refund RPC 호출
      · purity_passed=true 패널의 experience 기반 실소비량 계산(소수, CEIL 없음) 후 잔여분 기업 계정에 자동 환불

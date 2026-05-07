@@ -8,6 +8,22 @@ import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 
+const PAGE_SIZE = 5;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+    </div>
+  );
+}
+
 const STEPS = ['이메일 입력', '질문 설정', '패널 설정', '검토'];
 
 const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', 'c-level': 'C레벨' };
@@ -61,6 +77,7 @@ export default function ColdEmailTest() {
   const [creditBalance, setCreditBalance] = useState(null);
   const [draftId, setDraftId] = useState(null);
   const [listFilter, setListFilter] = useState('active');
+  const [listPage, setListPage] = useState(1);
   const [savingDraft, setSavingDraft] = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -832,7 +849,7 @@ export default function ColdEmailTest() {
             </div>
             <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
               {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
-                <button key={v} onClick={() => setListFilter(v)} style={{
+                <button key={v} onClick={() => { setListFilter(v); setListPage(1); }} style={{
                   padding: '7px 14px', marginBottom: -1, fontSize: 13,
                   fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
                   color: listFilter === v ? 'var(--accent)' : 'var(--text-3)',
@@ -841,7 +858,11 @@ export default function ColdEmailTest() {
                 }}>{l}</button>
               ))}
             </div>
-            {(listFilter === 'all' ? missions : missions.filter(m => m.status === listFilter)).map(m => {
+            {(() => {
+              const filtered = listFilter === 'all' ? missions : missions.filter(m => m.status === listFilter);
+              const paged = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
+              return (<>
+                {paged.map(m => {
               const isDraft = m.status === 'draft';
               const filled = m.filled_count ?? 0;
               const isLive = m.status === 'active' && filled >= 1;
@@ -906,7 +927,10 @@ export default function ColdEmailTest() {
                   </div>
                 </Card>
               );
-            })}
+                })}
+                <Pagination page={listPage} total={filtered.length} onPage={setListPage} />
+              </>);
+            })()}
           </div>
         )
       )}

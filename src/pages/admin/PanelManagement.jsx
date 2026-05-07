@@ -61,6 +61,7 @@ export default function AdminPanels() {
     if (levelFilter === '10')   return lv === 10;
     return true;
   });
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const panel = selected ? panels.find(p => p.id === selected) : null;
 
@@ -101,7 +102,7 @@ export default function AdminPanels() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4 }}>
           {[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['suspended', '정지']].map(([v, l]) => (
-            <button key={v} onClick={() => setStatusFilter(v)} style={{
+            <button key={v} onClick={() => { setStatusFilter(v); setPage(1); }} style={{
               padding: '5px 12px', borderRadius: 3, fontSize: 12, fontWeight: 500,
               background: statusFilter === v ? 'var(--bg)' : 'transparent',
               color: statusFilter === v ? 'var(--text)' : 'var(--text-3)',
@@ -111,7 +112,7 @@ export default function AdminPanels() {
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
           {[['all', '전체 레벨'], ['1-3', 'Lv.1-3'], ['4-6', 'Lv.4-6'], ['7-9', 'Lv.7-9'], ['10', 'Lv.10']].map(([v, l]) => (
-            <button key={v} onClick={() => setLevelFilter(v)} style={{
+            <button key={v} onClick={() => { setLevelFilter(v); setPage(1); }} style={{
               padding: '5px 12px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500,
               background: levelFilter === v ? 'var(--accent)' : 'var(--surface)',
               color: levelFilter === v ? '#FFFFFF' : 'var(--text-3)',
@@ -141,13 +142,13 @@ export default function AdminPanels() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p, i) => {
+                {paged.map((p, i) => {
                   const status = p.status || 'active';
                   const hl     = getHonorLevel(p.honor_points ?? 0);
                   const cm     = HONOR_COLOR_META[hl.colorTier];
                   return (
                     <tr key={p.id} onClick={() => setSelected(selected === p.id ? null : p.id)} style={{
-                      borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
+                      borderBottom: i < paged.length - 1 ? '1px solid var(--border)' : 'none',
                       background: selected === p.id ? 'var(--surface-2)' : 'transparent',
                       cursor: 'pointer', transition: 'background 0.15s',
                     }}
@@ -178,6 +179,7 @@ export default function AdminPanels() {
                 })}
               </tbody>
             </table>
+            <Pagination page={page} total={filtered.length} onPage={setPage} />
           </Card>
 
           {/* Detail panel */}
