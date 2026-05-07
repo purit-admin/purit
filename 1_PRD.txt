@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-07 (QuestionTemplates 소재비교·가격·이메일 탭 렌더링 버그 수정; 비경고 배너 배경 순백색(#fff) 통일 — Dashboard NDA배너·4개 등록폼 NDA+매칭 배너)
+최종 업데이트: 2026-05-08 (PurityFilter 페이지네이션 슬라이딩 윈도우·서브 응답 사전 로드·점수 동기화; Results HelpfulnessButtons 우측 정렬·CustomQuestionsSection 점수형 인라인 뱃지+가운데 정렬 카드·ScoreCardRow 가운데 정렬)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -170,6 +170,7 @@
        - 서브미션 총 평가 코멘트: preference/pricing/email 각 총 평가 섹션 — refType=미션타입
        - 텍스트 미션: 패널 피드백 요약(TextMissionResults) — refType="feedback"
        ※ 차원 탭 어노테이션 항목에는 표시 안 함 (총평 아님)
+     · 배치 위치: 피드백 박스 헤더 우측 끝 — CommentList actions prop + justifyContent:space-between 패턴 ★
    - 우측 콘텐츠: mission.type 및 image_urls 유무에 따라 3가지 분기
      A. 이미지 미션 (image_urls 존재 && !isSubMission):
         · 6개 탭: [명확성][관련성][가치][차별화][신뢰][종합]
@@ -188,7 +189,8 @@
         · email: 이메일 원문 카드(ExpandableText, limit=250) → would_reply 비율 바 + open_intent/hook_score/clarity_score/curiosity_score 카드
         · 각 타입 공통: CustomQuestionsSection → 하단에 배치 (점수 카드 아래, 패널 코멘트 위)
           - 질문 헤더 행 (항상 표시): 타입 뱃지(옵션형/점수형/서술형) + 번호. 질문 텍스트 + 응답 수 + ▼ 토글
-          - 기본 접힘 → 클릭 시 펼쳐짐: 옵션형=비율 바, 점수형=평균 점수 카드, 서술형=답변 목록
+          - 점수형(scale) 헤더: 질문 텍스트 바로 옆에 "평균 X.X점" 인라인 뱃지 표시 (접힘 상태에서도 확인 가능) ★
+          - 기본 접힘 → 클릭 시 펼쳐짐: 옵션형=비율 바, 점수형=가운데 정렬 컴팩트 카드(최소폭 140px), 서술형=답변 목록 ★
           - custom_answers가 없는 레거시 응답은 자동 제외
         · 패널 코멘트(총 평가) 섹션: CustomQuestionsSection 아래 최하단 배치 + 도움됨 버튼
         · 질문 타입 뱃지 통일: 옵션형(radio) / 점수형(scale) / 서술형(text)
@@ -568,13 +570,19 @@
      · ₩N/건 표시 제거 (경력별 단가 상이로 의미 없음)
      · RPC 실패 시 statusError state로 에러 메시지 상단 표시
 
-4. Purity Filter (/admin/purity) — PurityFilter.jsx  ★ LP 질문 응답 표시 추가 (2026-05-02)
+4. Purity Filter (/admin/purity) — PurityFilter.jsx  ★ 페이지네이션 개선·서브 점수 동기화 (2026-05-08)
    - 피드백 품질 필터링 / purity_passed 관리
+   - 목록 페이지네이션: 슬라이딩 5-윈도우 + «/» 5페이지 점프 버튼 ★
+   - 서브 미션 점수 사전 로드(subResponseMap): 초기 load() 시 preference/pricing/email 응답 테이블 일괄 조회
+     → 좌측 목록 피드백 클릭 전에도 서브 점수 즉시 표시 (calcSubPurityScore(subResponseMap[f.id], type))
+     → 메인 의뢰: calcPurityScore(f), 서브 의뢰: calcSubPurityScore(subResponseMap[f.id], type) ★
+   - 점수 카드 컨테이너: CSS grid repeat(N, 1fr) 균등 폭 (preference/pricing=3열, email/LP=5열)
+   - 섹션 간격: marginBottom 12 통일
    - LP 메인 의뢰 피드백 상세 (isSubMission=false):
      · 상단: parseLPDesc로 briefText 표시 (미션 브리핑 요약)
      · 이미지 + 어노테이션 오버레이 (ImageAnnotator readonly, 다중 이미지 탭)
      · 텍스트: strengths / weaknesses / suggestions 원문
-     · LP 추가 질문 응답: fb.custom_answers 배열 → 질문별 문항+답변 목록 ★ 신규
+     · LP 추가 질문 응답: fb.custom_answers 배열 → 질문별 문항+답변 목록
    - 서브 미션(preference/pricing/email) 피드백: parseSubDesc 헬퍼로 하위 호환 JSON 파싱
      - preference: variantA/B 텍스트 + 이미지 표시, productDescription, customQuestions,
                    A/B 선택 + message_clarity + purchase_intent + comment

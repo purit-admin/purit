@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
@@ -81,13 +81,40 @@ const PAGE_SIZE = 5;
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
+
+  const WINDOW = 5;
+  const base = { padding: '4px 9px', borderRadius: 5, fontSize: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer' };
+
+  let winStart = Math.max(1, page - Math.floor(WINDOW / 2));
+  let winEnd   = Math.min(totalPages, winStart + WINDOW - 1);
+  if (winEnd - winStart < WINDOW - 1) winStart = Math.max(1, winEnd - WINDOW + 1);
+  const pageNums = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
+
   return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 10, justifyContent: 'center' }}>
-      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '4px 9px', borderRadius: 5, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 12 }}>이전</button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-        <button key={n} onClick={() => onPage(n)} style={{ padding: '4px 9px', borderRadius: 5, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 12, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+      {totalPages > WINDOW && (
+        <button onClick={() => onPage(Math.max(1, page - WINDOW))} disabled={page <= WINDOW}
+          style={{ ...base, opacity: page <= WINDOW ? 0.4 : 1, cursor: page <= WINDOW ? 'not-allowed' : 'pointer' }}>«</button>
+      )}
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ ...base, opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}>이전</button>
+      {winStart > 1 && <span style={{ fontSize: 12, color: 'var(--text-3)', padding: '0 2px' }}>…</span>}
+      {pageNums.map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{
+          ...base,
+          background: page === n ? 'var(--accent)' : 'var(--surface)',
+          color: page === n ? '#fff' : 'var(--text-2)',
+          borderColor: page === n ? 'var(--accent)' : 'var(--border)',
+          fontWeight: page === n ? 700 : 400,
+        }}>{n}</button>
       ))}
-      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '4px 9px', borderRadius: 5, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 12 }}>다음</button>
+      {winEnd < totalPages && <span style={{ fontSize: 12, color: 'var(--text-3)', padding: '0 2px' }}>…</span>}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ ...base, opacity: page === totalPages ? 0.4 : 1, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>다음</button>
+      {totalPages > WINDOW && (
+        <button onClick={() => onPage(Math.min(totalPages, page + WINDOW))} disabled={page > totalPages - WINDOW}
+          style={{ ...base, opacity: page > totalPages - WINDOW ? 0.4 : 1, cursor: page > totalPages - WINDOW ? 'not-allowed' : 'pointer' }}>»</button>
+      )}
     </div>
   );
 }
@@ -102,6 +129,7 @@ export default function PurityFilter() {
   const [annotations, setAnnotations] = useState([]);
   const [adminImageIdx, setAdminImageIdx] = useState(0);
   const [subResponse, setSubResponse] = useState(null);
+  const [subResponseMap, setSubResponseMap] = useState({});
 
   useEffect(() => {
     async function load() {
@@ -109,9 +137,28 @@ export default function PurityFilter() {
         .from('feedbacks')
         .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name)')
         .order('created_at', { ascending: false });
-      setFeedbacks(data || []);
-      if (data && data.length > 0) setSelected(data[0].id);
+      const fbs = data || [];
+      setFeedbacks(fbs);
+      if (fbs.length > 0) setSelected(fbs[0].id);
       setLoading(false);
+
+      // 서브 미션 응답 전체 사전 로드 → 목록 점수 즉시 표시
+      const prefIds  = [...new Set(fbs.filter(f => f.missions?.type === 'preference').map(f => f.mission_id))];
+      const priceIds = [...new Set(fbs.filter(f => f.missions?.type === 'pricing').map(f => f.mission_id))];
+      const emailIds = [...new Set(fbs.filter(f => f.missions?.type === 'email').map(f => f.mission_id))];
+      const [prefR, priceR, emailR] = await Promise.all([
+        prefIds.length  ? supabase.from('preference_responses').select('*').in('mission_id', prefIds)  : { data: [] },
+        priceIds.length ? supabase.from('pricing_responses').select('*').in('mission_id', priceIds)    : { data: [] },
+        emailIds.length ? supabase.from('email_responses').select('*').in('mission_id', emailIds)      : { data: [] },
+      ]);
+      const allResps = [...(prefR.data || []), ...(priceR.data || []), ...(emailR.data || [])];
+      const map = {};
+      fbs.forEach(f => {
+        if (!['preference', 'pricing', 'email'].includes(f.missions?.type)) return;
+        const resp = allResps.find(r => r.mission_id === f.mission_id && r.panel_id === f.panel_id);
+        if (resp) map[f.id] = resp;
+      });
+      setSubResponseMap(map);
     }
     load();
   }, []);
@@ -211,7 +258,7 @@ export default function PurityFilter() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1100, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>PURIT FILTER</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>PURIT FILTER</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>피드백 품질 검증</h1>
         <p style={{ color: 'var(--text-2)', marginTop: 6, fontSize: 14 }}>AI 생성 여부와 성의 없는 피드백을 자동 감지합니다.</p>
       </div>
@@ -236,7 +283,7 @@ export default function PurityFilter() {
         <div className="purity-layout" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
           {/* List */}
           <div>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
               {filter === 'pending' ? '검토 대기' : filter === 'approved' ? '승인됨' : filter === 'rejected' ? '반려됨' : '전체'} ({filtered.length})
             </div>
             {filtered.length === 0 ? (
@@ -246,7 +293,10 @@ export default function PurityFilter() {
             ) : (
               <div>
               {pagedList.map(f => {
-                const s = calcPurityScore(f);
+                const isFSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
+                const s = isFSub
+                  ? calcSubPurityScore(subResponseMap[f.id] || null, f.missions?.type)
+                  : calcPurityScore(f);
                 const scoreColor = s >= 70 ? 'var(--green)' : s >= 45 ? 'var(--accent)' : 'var(--red)';
                 return (
                   <div key={f.id} onClick={() => setSelected(f.id)} style={{
@@ -257,7 +307,7 @@ export default function PurityFilter() {
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{f.panels?.name || '패널'}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color: scoreColor }}>{s}</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, color: scoreColor }}>{s}</span>
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>
                       {f.missions?.title || '의뢰'}
@@ -278,8 +328,8 @@ export default function PurityFilter() {
             <div>
               <Card style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 32 }}>
                 <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Purit Score</div>
-                  <div style={{ fontSize: 56, fontWeight: 800, fontFamily: 'var(--font-mono)', lineHeight: 1, color: score >= 70 ? 'var(--green)' : score >= 45 ? 'var(--accent)' : 'var(--red)' }}>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Purit Score</div>
+                  <div style={{ fontSize: 56, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: score >= 70 ? 'var(--green)' : score >= 45 ? 'var(--accent)' : 'var(--red)' }}>
                     {score}
                   </div>
                   <Badge type={score >= 70 ? 'green' : score >= 45 ? 'gold' : 'red'} style={{ marginTop: 8 }}>
@@ -295,7 +345,7 @@ export default function PurityFilter() {
                       { label: '지표 충실도', val: Math.min(40, missionType === 'preference' ? ((subResponse?.message_clarity ? 15 : 0) + (subResponse?.purchase_intent ? 15 : 0) + (subResponse?.preference ? 10 : 0)) : missionType === 'pricing' ? ((subResponse?.price_fairness ? 15 : 0) + (subResponse?.value_perception ? 15 : 0) + (subResponse?.would_buy !== null ? 10 : 0)) : ((subResponse?.hook_score ? 8 : 0) + (subResponse?.clarity_score ? 8 : 0) + (subResponse?.open_intent ? 7 : 0) + (subResponse?.curiosity_score ? 7 : 0))), max: 40 },
                     ].map(b => (
                       <div key={b.label} style={{ marginBottom: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-sans)' }}>
                           <span>{b.label}</span><span>{Math.round(b.val)}/{b.max}</span>
                         </div>
                         <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
@@ -312,7 +362,7 @@ export default function PurityFilter() {
                       { label: 'AI 감지 패널티', val: 20, max: 20 },
                     ].map(b => (
                       <div key={b.label} style={{ marginBottom: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-sans)' }}>
                           <span>{b.label}</span><span>{Math.round(b.val)}/{b.max}</span>
                         </div>
                         <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
@@ -354,7 +404,7 @@ export default function PurityFilter() {
                             <div>
                               {d.productDescription && (
                                 <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
                                   {d.productDescription}
                                 </div>
                               )}
@@ -366,28 +416,28 @@ export default function PurityFilter() {
                                       border: `2px solid ${subResponse.preference === label ? 'var(--accent)' : 'var(--border)'}`,
                                       background: subResponse.preference === label ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
                                     }}>
-                                      <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>소재 {label}{subResponse.preference === label ? ' ★ 선택됨' : ''}</div>
+                                      <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6 }}>소재 {label}{subResponse.preference === label ? ' ★ 선택됨' : ''}</div>
                                       {imgUrl && <img src={imgUrl} alt={`소재 ${label}`} style={{ width: '100%', borderRadius: 4, marginBottom: 8, objectFit: 'cover', maxHeight: 120 }} />}
                                       <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, wordBreak: 'break-all' }}>{text || '—'}</div>
                                     </div>
                                   ))}
                                 </div>
                               )}
-                              <div style={{ display: 'flex', gap: 8, marginBottom: customQs.length ? 14 : 0 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
                                   { label: '선택', value: subResponse.preference ? `소재 ${subResponse.preference}` : '—' },
                                   { label: '메시지 명확성', value: subResponse.message_clarity ? `${subResponse.message_clarity}/5` : '—' },
                                   { label: '구매 의향', value: subResponse.purchase_intent ? `${subResponse.purchase_intent}/5` : '—' },
                                 ].map(({ label, value }) => (
-                                  <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 80 }}>
-                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                  <div key={label} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-sans)', color: 'var(--text)' }}>{value}</div>
                                   </div>
                                 ))}
                               </div>
                               {customQs.length > 0 && (
                                 <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
                                   {customQs.map((q, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 2 }}>{i + 1}. {q}</div>)}
                                 </div>
                               )}
@@ -402,33 +452,33 @@ export default function PurityFilter() {
                           return (
                             <div>
                               {(pd.content || pd.image) && (
-                                <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>가격 페이지 설명</div>
+                                <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6 }}>가격 페이지 설명</div>
                                   {pd.image && <img src={pd.image} alt="가격 페이지" style={{ width: '100%', borderRadius: 4, marginBottom: 8, objectFit: 'cover', maxHeight: 160 }} />}
                                   {pd.content && <div style={{ whiteSpace: 'pre-wrap' }}>{pd.content}</div>}
                                 </div>
                               )}
                               {pd.productDescription && (
                                 <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)' }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
                                   {pd.productDescription}
                                 </div>
                               )}
-                              <div style={{ display: 'flex', gap: 8, marginBottom: customQs.length ? 14 : 0, flexWrap: 'wrap' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
                                   { label: '구매 의향', value: subResponse.would_buy === true ? 'Yes' : subResponse.would_buy === false ? 'No' : '—' },
                                   { label: '가격 공정성', value: subResponse.price_fairness ? `${subResponse.price_fairness}/5` : '—' },
                                   { label: '가치 인식', value: subResponse.value_perception ? `${subResponse.value_perception}/5` : '—' },
                                 ].map(({ label, value }) => (
-                                  <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 80 }}>
-                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                  <div key={label} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-sans)', color: 'var(--text)' }}>{value}</div>
                                   </div>
                                 ))}
                               </div>
                               {customQs.length > 0 && (
                                 <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
                                   {customQs.map((q, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 2 }}>{i + 1}. {q}</div>)}
                                 </div>
                               )}
@@ -444,18 +494,18 @@ export default function PurityFilter() {
                           return (
                             <div>
                               {emailContent && (
-                                <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 14, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, maxHeight: 120, overflowY: 'auto', fontFamily: 'var(--font-mono)' }}>
+                                <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7, maxHeight: 120, overflowY: 'auto', fontFamily: 'var(--font-sans)' }}>
                                   <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 6, fontFamily: 'sans-serif' }}>이메일 원문</div>
                                   {emailContent}
                                 </div>
                               )}
                               {pd.productDescription && (
                                 <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)' }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>제품 설명</div>
                                   {pd.productDescription}
                                 </div>
                               )}
-                              <div style={{ display: 'flex', gap: 8, marginBottom: customQs.length ? 14 : 0, flexWrap: 'wrap' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
                                   { label: '답장 의향', value: subResponse.would_reply === true ? 'Yes' : subResponse.would_reply === false ? 'No' : '—' },
                                   { label: '후킹력', value: subResponse.hook_score ? `${subResponse.hook_score}/5` : '—' },
@@ -463,15 +513,15 @@ export default function PurityFilter() {
                                   { label: '개봉 의향', value: subResponse.open_intent ? `${subResponse.open_intent}/5` : '—' },
                                   { label: '호기심', value: subResponse.curiosity_score ? `${subResponse.curiosity_score}/5` : '—' },
                                 ].map(({ label, value }) => (
-                                  <div key={label} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
-                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
-                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
+                                  <div key={label} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-sans)', color: 'var(--text)' }}>{value}</div>
                                   </div>
                                 ))}
                               </div>
                               {customQs.length > 0 && (
                                 <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 14 }}>
-                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
+                                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6 }}>추가 질문</div>
                                   {customQs.map((q, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 2 }}>{i + 1}. {q}</div>)}
                                 </div>
                               )}
@@ -481,8 +531,8 @@ export default function PurityFilter() {
 
                         {/* Comment (공통) */}
                         {(subResponse.comment || subResponse.key_comment) && (
-                          <div style={{ padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 8 }}>
-                            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>코멘트</div>
+                          <div style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>코멘트</div>
                             <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
                               {subResponse.comment || subResponse.key_comment}
                             </p>
@@ -490,8 +540,8 @@ export default function PurityFilter() {
                         )}
                         {/* 추가 질문 응답 (custom_answers) */}
                         {Array.isArray(subResponse?.custom_answers) && subResponse.custom_answers.length > 0 && (
-                          <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>추가 질문 응답</div>
+                          <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>추가 질문 응답</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                               {subResponse.custom_answers.map((a, i) => (
                                 <div key={a.questionId || i}>
@@ -518,7 +568,7 @@ export default function PurityFilter() {
                       if (!briefText) return null;
                       return (
                         <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>브리핑</div>
+                          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>브리핑</div>
                           {briefText}
                         </div>
                       );
@@ -557,7 +607,7 @@ export default function PurityFilter() {
                           />
                         </div>
                         {annotations.length > 0 && (
-                          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
                             총 어노테이션 {annotations.length}개
                           </div>
                         )}
@@ -565,17 +615,17 @@ export default function PurityFilter() {
                     )}
 
                     {/* 5차원 점수 */}
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 16 }}>
                       {DIM.map(({ key, label }) => {
                         const val = fb[key] || 0;
                         const isSkipped = !val && fbSkippedLabels.has(label);
                         return (
-                          <div key={key} style={{ padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center', minWidth: 70 }}>
-                            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
+                          <div key={key} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                            <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
                             {isSkipped ? (
                               <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', padding: '3px 0' }}>해당 없음</div>
                             ) : (
-                              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--accent)' : 'var(--red)' }}>{val}</div>
+                              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-sans)', color: val >= 4 ? 'var(--green)' : val <= 2 ? 'var(--red)' : 'var(--text-2)' }}>{val}</div>
                             )}
                           </div>
                         );
@@ -586,10 +636,10 @@ export default function PurityFilter() {
                     {[
                       { label: '강점', content: fb.strengths, color: 'var(--green)' },
                       { label: '약점', content: fb.weaknesses, color: 'var(--red)' },
-                      { label: '개선 제안', content: fb.suggestions, color: 'var(--accent)' },
+                      { label: '개선 제안', content: fb.suggestions, color: 'var(--text-3)' },
                     ].filter(s => s.content).map(({ label, content, color }) => (
-                      <div key={label} style={{ marginBottom: 12, padding: '14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+                      <div key={label} style={{ marginBottom: 12, padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
                         <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{content}</p>
                       </div>
                     ))}
@@ -598,8 +648,8 @@ export default function PurityFilter() {
                     {Array.isArray(fb.custom_answers) && fb.custom_answers.length > 0 && (() => {
                       const { selectedQuestions: lpQs } = parseLPDesc(fb.missions?.description);
                       return (
-                        <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>추가 질문 응답</div>
+                        <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>추가 질문 응답</div>
                           {fb.custom_answers.map((a, i) => {
                             const qDef = lpQs.find(q => q.id === a.questionId);
                             return (

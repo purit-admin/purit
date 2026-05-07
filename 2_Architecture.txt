@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-07 (QuestionTemplates 로컬 폴백 4개 탭 전체 적용; sectionLabel 없는 탭 그룹핑 크래시 수정(currentLabel undefined 초기화); 비경고 배너 background:#fff·border:var(--border) 통일)
+최종 업데이트: 2026-05-08 (PurityFilter subResponseMap 사전 로드·슬라이딩 페이지네이션; Results CommentList actions prop·ScoreCardRow maxWidth 가운데 정렬·CustomQuestionsSection 점수형 인라인 뱃지)
 ================================================================
 
 ## 기술 스택
@@ -114,9 +114,19 @@ purit/
 │   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 2, "sub"), PricingTest(Step 2, "sub"), ColdEmailTest(Step 2, "sub")
 │   │   ※ pages/company/Results.jsx: 좌측 패널 미션 목록 — 타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
 │   │                ExpandableText(text, limit=200) — 텍스트 길이 초과 시 더보기/접기 토글
+│   │                ScoreCardRow: display:grid repeat(N, 1fr), maxWidth=N×220px + margin:0 auto → 아이템 수에 따라 폭 제한 후 화면 가운데 정렬 ★
+│   │                CommentList: actions prop 지원 — { label, actions, text } 구조 → 헤더 행 justifyContent:space-between (label 좌측, actions 우측) ★
+│   │                  HelpfulnessButtons: CommentList items의 actions prop으로 전달 → 피드백 박스 우측 끝 배치 ★
+│   │                CustomQuestionsSection: 점수형(scale) 질문 헤더에 "평균 X.X점" 인라인 뱃지 표시 (질문 텍스트 바로 옆) ★
+│   │                  scale 펼침 결과: 전체폭 ScoreCardRow 제거 → 가운데 정렬 컴팩트 카드(minWidth:140, padding:16px 32px) ★
 │   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
+│   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
+│   │                  prefIds/priceIds/emailIds 추출 → Promise.all 병렬 조회 → feedbackId 키 맵으로 저장
+│   │                  좌측 목록 점수: 메인=calcPurityScore(f), 서브=calcSubPurityScore(subResponseMap[f.id]||null, type)
+│   │                  Pagination: 슬라이딩 5-윈도우(WINDOW=5) + «/» 5페이지 점프 버튼
+│   │                    winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) 계산 후 pageNums 슬라이스
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
 │       ├── company/  (17개 — 라우트 목록 참조)

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, ScoreBar, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
@@ -85,7 +85,7 @@ function HelpfulnessButtons({ refType, refId, panelId, companyId, helpRatings, o
   const current = helpRatings[key] ?? null;
 
   return (
-    <span style={{ display: 'inline-flex', gap: 4, marginLeft: 8, verticalAlign: 'middle' }}>
+    <span style={{ display: 'inline-flex', gap: 4 }}>
       {[
         { label: '👍 도움 됨',    value: 'helpful'   },
         { label: '👎 도움 안 됨', value: 'unhelpful' },
@@ -144,7 +144,7 @@ function MissionItem({ m, isSelected, onClick }) {
           }}>{typeInfo.label}</span>
         </div>
       )}
-      <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--accent)' : 'var(--text)', lineHeight: 1.4 }}>
+      <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: 'var(--text)', lineHeight: 1.4 }}>
         {m.title}
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
@@ -157,14 +157,14 @@ function MissionItem({ m, isSelected, onClick }) {
 /* ─── 점수 카드 그리드 ─── */
 function ScoreCardRow({ items }) {
   return (
-    <div className="score-card-row" style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 10, marginBottom: 20 }}>
+    <div className="score-card-row" style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 10, maxWidth: `${items.length * 220}px`, margin: '0 auto 20px' }}>
       {items.map(({ label, value, color }) => {
         const num = parseFloat(value);
-        const c = color || (isNaN(num) ? 'var(--text-3)' : num >= 4 ? 'var(--green)' : num >= 3 ? 'var(--accent)' : 'var(--red)');
+        const c = color || (isNaN(num) ? 'var(--text-3)' : num >= 4 ? 'var(--green)' : num <= 2 ? 'var(--red)' : 'var(--text-2)');
         return (
           <Card key={label} style={{ padding: '16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: c, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: c, fontFamily: 'var(--font-sans)', lineHeight: 1 }}>
               {value ?? '—'}
             </div>
             {!isNaN(num) && <div style={{ marginTop: 8 }}><ScoreBar score={Math.round(num)} color={c} /></div>}
@@ -183,8 +183,8 @@ function RatioBar({ aLabel, bLabel, aCount, bCount, aColor = 'var(--accent)', bC
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-        <span>{aLabel} <span style={{ color: aColor, fontFamily: 'var(--font-mono)' }}>{aPct}%</span></span>
-        <span><span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{100 - aPct}%</span> {bLabel}</span>
+        <span>{aLabel} <span style={{ color: aColor, fontFamily: 'var(--font-sans)' }}>{aPct}%</span></span>
+        <span><span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{100 - aPct}%</span> {bLabel}</span>
       </div>
       <div style={{ height: 10, borderRadius: 5, background: 'var(--border)', overflow: 'hidden', display: 'flex' }}>
         <div style={{ width: `${aPct}%`, background: aColor, transition: 'width 0.4s', borderRadius: 5 }} />
@@ -208,7 +208,12 @@ function CommentList({ items }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {paged.map((item, i) => (
           <div key={i} style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
-            {item.label && <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase' }}>{item.label}</div>}
+            {(item.label || item.actions) && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase' }}>{item.label}</div>
+                {item.actions && <div style={{ flexShrink: 0 }}>{item.actions}</div>}
+              </div>
+            )}
             {item.text || <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>내용 없음</span>}
           </div>
         ))}
@@ -232,7 +237,7 @@ function ExpandableText({ text, limit = EXPAND_LIMIT }) {
       {isLong && (
         <button
           onClick={() => setExpanded(e => !e)}
-          style={{ marginTop: 6, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+          style={{ marginTop: 6, fontSize: 12, color: 'var(--text-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
         >
           {expanded ? '접기 ▲' : '더보기 ▼'}
         </button>
@@ -255,7 +260,7 @@ function CustomQuestionsSection({ questions, responses }) {
 
   return (
     <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>추가 질문 응답</div>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>추가 질문 응답</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {questions.map((q, qi) => {
           const key = q.id || qi;
@@ -268,16 +273,27 @@ function CustomQuestionsSection({ questions, responses }) {
                 onClick={() => toggle(key)}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: isOpen ? 'var(--surface-2)' : 'var(--surface)', cursor: 'pointer', userSelect: 'none', gap: 10 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, flexShrink: 0, background: typeBg[q.type] || typeBg.text, color: typeColorMap[q.type] || typeColorMap.text }}>
                     {typeLabelMap[q.type] || '서술'}
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.4 }}>
                     {qi + 1}. {q.text}
                   </span>
+                  {q.type === 'scale' && (() => {
+                    const valid = answers.map(Number).filter(n => !isNaN(n) && n > 0);
+                    const avg = valid.length ? (valid.reduce((s, v) => s + v, 0) / valid.length).toFixed(1) : null;
+                    const num = parseFloat(avg);
+                    const c = isNaN(num) ? 'var(--text-3)' : num >= 4 ? 'var(--green)' : num >= 3 ? 'var(--accent)' : 'var(--red)';
+                    return avg ? (
+                      <span style={{ fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-sans)', padding: '2px 8px', borderRadius: 8, background: 'var(--surface-2)', border: `1px solid ${c}55`, color: c, flexShrink: 0 }}>
+                        평균 {avg}점
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{answers.length}개</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{answers.length}개</span>
                   <span style={{ fontSize: 10, color: 'var(--text-3)', display: 'inline-block', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
                 </div>
               </div>
@@ -292,7 +308,7 @@ function CustomQuestionsSection({ questions, responses }) {
                           <div key={opt}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
                               <span style={{ color: 'var(--text-2)' }}>{opt}</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{pct}%</span>
+                              <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text)', fontWeight: 700 }}>{pct}%</span>
                             </div>
                             <div style={{ height: 7, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
                               <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 4, transition: 'width 0.4s' }} />
@@ -305,7 +321,17 @@ function CustomQuestionsSection({ questions, responses }) {
                   {q.type === 'scale' && (() => {
                     const valid = answers.map(Number).filter(n => !isNaN(n) && n > 0);
                     const avg = valid.length ? (valid.reduce((s, v) => s + v, 0) / valid.length).toFixed(1) : null;
-                    return <ScoreCardRow items={[{ label: '점수형 평균', value: avg }]} />;
+                    const num = parseFloat(avg);
+                    const c = isNaN(num) ? 'var(--text-3)' : num >= 4 ? 'var(--green)' : num >= 3 ? 'var(--accent)' : 'var(--red)';
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div style={{ textAlign: 'center', padding: '16px 32px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', minWidth: 140 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>점수형 평균</div>
+                          <div style={{ fontSize: 28, fontWeight: 800, color: c, fontFamily: 'var(--font-sans)', lineHeight: 1 }}>{avg ?? '—'}</div>
+                          {avg && <div style={{ marginTop: 8 }}><ScoreBar score={Math.round(num)} color={c} /></div>}
+                        </div>
+                      </div>
+                    );
                   })()}
                   {q.type !== 'radio' && q.type !== 'scale' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -344,17 +370,17 @@ function PreferenceResults({ responses, mission, panelProfiles, companyId, helpR
       {/* 소재 A/B 원본 */}
       {(parsedDesc.variantA || parsedDesc.variantAImage || parsedDesc.variantB || parsedDesc.variantBImage) && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>제출된 소재</div>
+          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>제출된 소재</div>
           <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 'var(--radius)' }}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 A</div>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 A</div>
               {parsedDesc.variantAImage && (
                 <img src={parsedDesc.variantAImage} alt="소재 A" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
               )}
               {parsedDesc.variantA && <ExpandableText text={parsedDesc.variantA} />}
             </div>
             <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 B</div>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 B</div>
               {parsedDesc.variantBImage && (
                 <img src={parsedDesc.variantBImage} alt="소재 B" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
               )}
@@ -365,11 +391,11 @@ function PreferenceResults({ responses, mission, panelProfiles, companyId, helpR
       )}
       {parsedDesc.productDescription && (
         <div style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
-          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase' }}>제품 설명</div>
+          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase' }}>제품 설명</div>
           <ExpandableText text={parsedDesc.productDescription} />
         </div>
       )}
-      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>A/B 선호도 결과</div>
+      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>A/B 선호도 결과</div>
       <RatioBar aLabel="소재 A" bLabel="소재 B" aCount={aCount} bCount={bCount} aColor="var(--accent)" />
       <ScoreCardRow items={[
         { label: '메시지 명확성 평균', value: calcAvg(responses, 'message_clarity') },
@@ -377,9 +403,10 @@ function PreferenceResults({ responses, mission, panelProfiles, companyId, helpR
       ]} />
       <CustomQuestionsSection questions={allTypedQs} responses={responses} />
       <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
         <CommentList items={responses.map((r, i) => ({
-          label: <span>패널 #{i + 1} · 소재 {r.preference}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /><HelpfulnessButtons refType="preference" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} /></span>,
+          label: <span>패널 #{i + 1} · 소재 {r.preference}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>,
+          actions: <HelpfulnessButtons refType="preference" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />,
           text: r.comment,
         }))} />
       </div>
@@ -404,12 +431,12 @@ function PricingResults({ responses, mission, panelProfiles, companyId, helpRati
     <div>
       {(parsedDesc.content || parsedDesc.image) && (
         <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
-          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>가격 구성</div>
+          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>가격 구성</div>
           {parsedDesc.image && <img src={parsedDesc.image} alt="가격" style={{ width: '100%', borderRadius: 'var(--radius)', marginBottom: 8, maxHeight: 200, objectFit: 'cover' }} />}
           {parsedDesc.content && <ExpandableText text={parsedDesc.content} />}
         </div>
       )}
-      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>구매 의향</div>
+      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>구매 의향</div>
       <RatioBar aLabel="구매 의향 있음" bLabel="구매 의향 없음" aCount={buyYes} bCount={buyNo} aColor="var(--green)" />
       <ScoreCardRow items={[
         { label: '가격 적절성 평균', value: calcAvg(responses, 'price_fairness') },
@@ -417,9 +444,10 @@ function PricingResults({ responses, mission, panelProfiles, companyId, helpRati
       ]} />
       <CustomQuestionsSection questions={allTypedQs} responses={responses} />
       <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
         <CommentList items={responses.map((r, i) => ({
-          label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /><HelpfulnessButtons refType="pricing" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} /></span>,
+          label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>,
+          actions: <HelpfulnessButtons refType="pricing" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />,
           text: r.key_comment,
         }))} />
       </div>
@@ -444,11 +472,11 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
     <div>
       {parsedDesc.content && (
         <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 20 }}>
-          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>이메일 원문</div>
+          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>이메일 원문</div>
           <ExpandableText text={parsedDesc.content} limit={250} />
         </div>
       )}
-      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>답장 의향</div>
+      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>답장 의향</div>
       <RatioBar aLabel="답장하겠음" bLabel="답장 안 함" aCount={replyYes} bCount={replyNo} aColor="var(--green)" />
       <ScoreCardRow items={[
         { label: '개봉 의향',    value: calcAvg(responses, 'open_intent') },
@@ -458,9 +486,10 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
       ]} />
       <CustomQuestionsSection questions={allTypedQs} responses={responses} />
       <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>총 평가 — 패널 코멘트</div>
         <CommentList items={responses.map((r, i) => ({
-          label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /><HelpfulnessButtons refType="email" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} /></span>,
+          label: <span>패널 #{i + 1}<PanelBadges panelId={r.panel_id} profiles={panelProfiles} /></span>,
+          actions: <HelpfulnessButtons refType="email" refId={r.id} panelId={r.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />,
           text: r.comment,
         }))} />
       </div>
@@ -524,7 +553,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
       {/* 어노테이션 개수 안내 */}
       <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
         <span style={{ color: meta.color, fontWeight: 700 }}>{meta.label}</span> 차원 어노테이션 {allDimAnns.length}개 (전체 이미지 합산)
-        {selectedAnnId && <span style={{ marginLeft: 8, color: 'var(--accent)', fontWeight: 600 }}>— 선택된 항목만 표시 중 (다시 클릭하면 전체 표시)</span>}
+        {selectedAnnId && <span style={{ marginLeft: 8, color: 'var(--text-3)', fontWeight: 600 }}>— 선택된 항목만 표시 중 (다시 클릭하면 전체 표시)</span>}
       </div>
 
       {/* 코멘트 목록 */}
@@ -554,7 +583,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
                     <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
                       {globalIdx + 1}
                     </span>
-                    <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{ann.score}점</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-sans)', fontWeight: 700 }}>{ann.score}점</span>
                     <span style={{ fontSize: 11, color: 'var(--text-3)' }}>이미지 {ann.image_index + 1}</span>
                     <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
                   </div>
@@ -591,7 +620,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
   return (
     <div>
       {/* 5차원 평균 점수 카드 */}
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>5차원 평균 점수</div>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>5차원 평균 점수</div>
       <div className="score-five-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 24 }}>
         {DIMS.map(dim => {
           const key = DIM_META[dim].key;
@@ -600,8 +629,8 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
           const c = isNaN(num) || !val ? 'var(--text-3)' : num >= 4 ? 'var(--green)' : num >= 3 ? 'var(--accent)' : 'var(--red)';
           return (
             <Card key={dim} style={{ padding: '16px', textAlign: 'center' }}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{DIM_META[dim].label}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: c, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{val ?? '—'}</div>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{DIM_META[dim].label}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: c, fontFamily: 'var(--font-sans)', lineHeight: 1 }}>{val ?? '—'}</div>
               {val && <div style={{ marginTop: 8 }}><ScoreBar score={Math.round(num)} color={c} /></div>}
             </Card>
           );
@@ -611,7 +640,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
       {/* 레이더 차트 */}
       {radarData.some(d => d.value > 0) && (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>방사형 차트</div>
+          <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>방사형 차트</div>
           <div style={{ height: 260, background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '16px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
@@ -627,7 +656,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
       )}
 
       {/* 총평 목록 */}
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
         패널 총평 ({overallComments.length}개)
       </div>
       {overallComments.length === 0 ? (
@@ -639,11 +668,15 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {pagedComments.map(({ panel, panelId, fbId, text, passed }) => (
               <div key={panel} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
-                  <PanelBadges panelId={panelId} profiles={panelProfiles} />
-                  {passed && <Badge type="green">Purit 통과</Badge>}
-                  <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
+                    <PanelBadges panelId={panelId} profiles={panelProfiles} />
+                    {passed && <Badge type="green">Purit 통과</Badge>}
+                  </div>
+                  <div style={{ flexShrink: 0 }}>
+                    <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
+                  </div>
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{text}</div>
               </div>
@@ -661,7 +694,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 16px' }}>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
             </div>
             <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
@@ -684,7 +717,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
     <div className="results-layout" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
       {/* 패널 목록 */}
       <div>
-        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>패널 피드백 ({feedbacks.length})</div>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>패널 피드백 ({feedbacks.length})</div>
         {pagedFeedbacks.map((f, i) => {
           const globalIdx = (panelPage - 1) * PAGE_SIZE + i;
           const overallAvg = DIMS.reduce((s, d) => s + (f[DIM_META[d].key] || 0), 0) / DIMS.length;
@@ -723,9 +756,9 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
                 return (
                   <div key={dim} style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-2)', textTransform: 'uppercase' }}>{DIM_META[dim].label}</span>
+                      <span style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', textTransform: 'uppercase' }}>{DIM_META[dim].label}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 18, fontWeight: 800, color: c, fontFamily: 'var(--font-mono)' }}>{score || '—'}</span>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: c, fontFamily: 'var(--font-sans)' }}>{score || '—'}</span>
                         {score > 0 && <span style={{ fontSize: 12, color: 'var(--text-3)' }}>/5</span>}
                       </div>
                     </div>
@@ -736,7 +769,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
               {fb.suggestions && (
                 <div style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase' }}>개선 제안</div>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase' }}>개선 제안</div>
                     <HelpfulnessButtons refType="feedback" refId={fb.id} panelId={fb.panel_id} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
                   </div>
                   <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{fb.suggestions}</p>
@@ -763,7 +796,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
         <div style={{ marginTop: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
           <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
@@ -980,7 +1013,7 @@ export default function Results() {
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1360, animation: 'fadeUp 0.5s ease both' }}>
       {/* 헤더 */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>FEEDBACK RESULTS</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>FEEDBACK RESULTS</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>피드백 결과</h1>
       </div>
 
@@ -995,7 +1028,7 @@ export default function Results() {
           <div className="results-sidebar" style={{ position: 'sticky', top: 24 }}>
             {mainMissions.length > 0 && (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>메인 의뢰</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>메인 의뢰</div>
                 {mainMissions.map(m => (
                   <MissionItem key={m.id} m={m} isSelected={selected === m.id} onClick={() => setSelected(m.id)} />
                 ))}
@@ -1003,7 +1036,7 @@ export default function Results() {
             )}
             {subMissions.length > 0 && (
               <div>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>서브 의뢰</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>서브 의뢰</div>
                 {subMissions.map(m => (
                   <MissionItem key={m.id} m={m} isSelected={selected === m.id} onClick={() => setSelected(m.id)} />
                 ))}
@@ -1025,7 +1058,7 @@ export default function Results() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                   {shareToken ? (
                     <>
-                      <span style={{ fontSize: 12, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>🔗 공유 중</span>
+                      <span style={{ fontSize: 12, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>🔗 공유 중</span>
                       <Btn size="sm" variant="outline" onClick={handleCopyShare}>{shareCopied ? '✓ 복사됨' : 'URL 복사'}</Btn>
                       <Btn size="sm" variant="ghost" onClick={handleRevokeShare} style={{ fontSize: 11, color: 'var(--text-3)' }}>공유 해제</Btn>
                     </>
