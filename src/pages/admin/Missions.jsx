@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -44,7 +44,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
             {m.type === 'email'      && <Badge type="blue">이메일 검증</Badge>}
             {(!m.type || m.type === 'landing_page') && <Badge type="gray">LP 검증</Badge>}
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)' }}>
               {m.id.slice(0, 8).toUpperCase()}
             </span>
           </div>
@@ -57,7 +57,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
           )}
         </div>
         <div className="mc-right">
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 16 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16 }}>
             {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>패널 슬롯</div>
@@ -83,7 +83,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
               <span>{`예상 ${fmtCr(m.credits_reserved)} / 사용 ${fmtCr(m.credits_consumed)} (환불 ${fmtCr(Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)))} cr)`}</span>
               {m.status !== 'cancelled' && (
                 <button onClick={() => onRecalc(m.id)} title="크레딧 재계산"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 13, padding: 0, lineHeight: 1 }}>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 13, padding: 0, lineHeight: 1 }}>
                   ↺
                 </button>
               )}
@@ -165,7 +165,7 @@ export default function AdminMissions() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 관리</h1>
       </div>
 

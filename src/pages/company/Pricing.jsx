@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -161,7 +161,7 @@ export default function PricingPage() {
         }}>{msg}</div>
       )}
       <div style={{ marginBottom: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>PRICING</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>PRICING</div>
         <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 10 }}>광고비 낭비 전에 투자하세요</h1>
         <p style={{ color: 'var(--text-2)', fontSize: 15, maxWidth: 520, margin: '0 auto 24px' }}>
           크레딧 기반 구독 — 필요한 만큼 테스트하고, 패널 등급과 규모로 인사이트 깊이를 조절하세요.
@@ -188,52 +188,52 @@ export default function PricingPage() {
             background: plan.highlight ? 'linear-gradient(160deg, var(--surface), var(--bg-3))' : 'var(--surface)',
           }}>
             {currentPlan === plan.id && (
-              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--green, #7EC8A0)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
+              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--green, #7EC8A0)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-sans)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
                 현재 플랜
               </div>
             )}
             {plan.highlight && currentPlan !== plan.id && (
-              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
+              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-sans)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
                 가장 인기
               </div>
             )}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{plan.tagline}</div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{plan.tagline}</div>
               <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>{plan.name}</div>
               <div>
-                <span style={{ fontSize: 40, fontWeight: 800, fontFamily: 'var(--font-mono)', color: plan.highlight ? 'var(--accent)' : 'var(--text)' }}>
+                <span style={{ fontSize: 40, fontWeight: 800, fontFamily: 'var(--font-sans)', color: plan.highlight ? 'var(--accent)' : 'var(--text)' }}>
                   {billing === 'annual' ? plan.price.annual : plan.price.monthly}
                 </span>
                 <span style={{ fontSize: 14, color: 'var(--text-3)', marginLeft: 4 }}>{plan.unit}</span>
               </div>
               {plan.id === 'enterprise' ? (
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>연간 계약 전용 · 협의 가능</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-sans)' }}>연간 계약 전용 · 협의 가능</div>
               ) : billing === 'annual' ? (
-                <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>{plan.annualNote}</div>
+                <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4, fontFamily: 'var(--font-sans)' }}>{plan.annualNote}</div>
               ) : (
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>무약정 · 언제든 해지 가능</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-sans)' }}>무약정 · 언제든 해지 가능</div>
               )}
             </div>
 
             {/* 핵심 스펙 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-              <div style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>월 크레딧</div>
-                <div style={{ fontWeight: 800, fontSize: 18, color: plan.highlight ? 'var(--accent)' : 'var(--text)' }}>
+              <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', marginBottom: 3 }}>월 크레딧</div>
+                <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--text)' }}>
                   {plan.credits.monthly >= 250 ? '250+' : plan.credits.monthly}
                 </div>
               </div>
-              <div style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>회당 패널</div>
+              <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', marginBottom: 3 }}>회당 패널</div>
                 <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>
                   {plan.panelMin}~{plan.panelMax ? plan.panelMax : '∞'}명
                 </div>
               </div>
             </div>
             {/* 타겟팅 등급 */}
-            <div style={{ marginBottom: 16, padding: '9px 12px', background: plan.highlight ? 'rgba(126,200,160,0.08)' : 'var(--bg-3)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${plan.highlight ? 'var(--accent)' : plan.id === 'enterprise' ? 'var(--text-3)' : 'var(--border)'}` }}>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 3 }}>타겟팅 권한</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: plan.highlight ? 'var(--accent)' : 'var(--text-2)', lineHeight: 1.4 }}>{plan.targeting}</div>
+            <div style={{ marginBottom: 16, padding: '9px 12px', background: plan.highlight ? 'rgba(126,200,160,0.08)' : 'var(--surface)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${plan.highlight ? 'var(--accent)' : plan.id === 'enterprise' ? 'var(--text-3)' : 'var(--border)'}` }}>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', marginBottom: 3 }}>타겟팅 권한</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', lineHeight: 1.4 }}>{plan.targeting}</div>
             </div>
             <div style={{ marginBottom: 24 }}>
               {plan.features.map((f, i) => (
@@ -269,7 +269,7 @@ export default function PricingPage() {
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{a.name}</div>
               <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{a.desc}</div>
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent)', fontSize: 14, flexShrink: 0 }}>{a.price}</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--text)', fontSize: 14, flexShrink: 0 }}>{a.price}</div>
           </div>
         ))}
       </div>
@@ -280,7 +280,7 @@ export default function PricingPage() {
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 36, maxWidth: 480, width: '100%', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
               <div>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Enterprise 플랜</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Enterprise 플랜</div>
                 <div style={{ fontSize: 20, fontWeight: 800 }}>영업팀 문의</div>
               </div>
               <button onClick={() => { setShowEnterpriseModal(false); setContactDone(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1 }}>✕</button>
@@ -295,7 +295,7 @@ export default function PricingPage() {
               <>
                 <div style={{ marginBottom: 20, padding: '16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 10 }}>직접 연락을 원하시면:</div>
-                  <a href="mailto:enterprise@purit.io" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>enterprise@purit.io</a>
+                  <a href="mailto:enterprise@purit.io" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text)', fontWeight: 700, textDecoration: 'none' }}>enterprise@purit.io</a>
                 </div>
                 <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600 }}>문의 내용을 남겨주세요</div>
                 <textarea

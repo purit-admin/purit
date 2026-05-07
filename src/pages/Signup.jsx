@@ -4,11 +4,11 @@ import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const ACCENT = '#10367D';
-const BG     = '#FAF9F6';
-const BORDER = '#D6CFC5';
-const T1     = '#1C1917';
-const T2     = '#57534E';
-const T3     = '#9C9489';
+const BG     = '#F8FAFC';
+const BORDER = '#E2E8F0';
+const T1     = '#0F172A';
+const T2     = '#475569';
+const T3     = '#94A3B8';
 
 const ROLES = [
   { id: 'company', label: '기업', desc: '전환 소재 검증 의뢰' },

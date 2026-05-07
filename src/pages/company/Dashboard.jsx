@@ -187,7 +187,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
                 style={{
                   padding: '6px 14px', fontSize: 11, fontWeight: 700,
                   borderRadius: 8, border: 'none',
-                  background: 'rgba(16,54,125,0.07)', color: '#10367D', cursor: 'pointer',
+                  background: 'rgba(16,54,125,0.07)', color: 'var(--text-2)', cursor: 'pointer',
                 }}
               >
                 이어 작성하기 →

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn, Stat } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -53,12 +53,12 @@ export default function ICPPulse() {
     setCreating(false);
   }
 
-  if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>데이터 로딩 중…</div>;
+  if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>데이터 로딩 중…</div>;
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>ICP PULSE</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>ICP PULSE</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>ICP Pulse</h1>
         <p style={{ color: 'var(--text-2)', fontSize: 14 }}>분기마다 타겟 고객 인사이트를 자동 수집해 시장 변화를 추적합니다.</p>
       </div>
@@ -75,7 +75,7 @@ export default function ICPPulse() {
           <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
           <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>첫 번째 분기 데이터 수집 중</div>
           <div style={{ color: 'var(--text-2)', fontSize: 13 }}>패널 조사가 완료되면 여기에 결과가 표시됩니다.</div>
-          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
             구독 시작일: {new Date(subscription.created_at).toLocaleDateString('ko-KR')} · 패널 {subscription.panel_size}명
           </div>
         </Card>
@@ -97,13 +97,13 @@ export default function ICPPulse() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
                 {selectedQ.buying_trigger && (
                   <Card>
-                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8 }}>TOP 구매 트리거</div>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8 }}>TOP 구매 트리거</div>
                     <div style={{ fontSize: 15, fontWeight: 600 }}>{selectedQ.buying_trigger}</div>
                   </Card>
                 )}
                 {selectedQ.top_channel && (
                   <Card>
-                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8 }}>TOP 유입 채널</div>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8 }}>TOP 유입 채널</div>
                     <div style={{ fontSize: 15, fontWeight: 600 }}>{selectedQ.top_channel}</div>
                   </Card>
                 )}
@@ -118,7 +118,7 @@ export default function ICPPulse() {
                         <div key={p.id} style={{ padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: '3px solid var(--red)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: 13 }}>{p.pain_text}</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--red)', fontSize: 13, marginLeft: 8 }}>{p.frequency_percent}%</span>
+                            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--red)', fontSize: 13, marginLeft: 8 }}>{p.frequency_percent}%</span>
                           </div>
                         </div>
                       ))
@@ -133,7 +133,7 @@ export default function ICPPulse() {
                         <div key={g.id} style={{ padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: '3px solid var(--green)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: 13 }}>{g.gain_text}</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--green)', fontSize: 13, marginLeft: 8 }}>{g.frequency_percent}%</span>
+                            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--green)', fontSize: 13, marginLeft: 8 }}>{g.frequency_percent}%</span>
                           </div>
                         </div>
                       ))

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn } from './index';
@@ -104,7 +104,7 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 36, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ fontSize: 36, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-sans)' }}>
             {panelCount}
           </span>
           <span style={{ fontSize: 16, color: 'var(--text-2)', marginLeft: 6 }}>명</span>
@@ -119,7 +119,7 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
             더 많은 패널이 필요하다면?{' '}
             <button
               onClick={() => setShowUpgrade(true)}
-              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontSize: 12, padding: 0 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontWeight: 700, cursor: 'pointer', fontSize: 12, padding: 0 }}
             >
               Pro로 업그레이드 →
             </button>
@@ -187,21 +187,21 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
       }}>
         {creditBalance != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               보유 크레딧
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 20, color: credits > creditBalance ? '#ef4444' : 'var(--text-1)' }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 20, color: credits > creditBalance ? '#ef4444' : 'var(--text-1)' }}>
               {creditBalance}
               <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 4, fontWeight: 400 }}>크레딧</span>
             </div>
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             최대 예상 소모
           </div>
           <div style={{ textAlign: 'right' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 32, color: (creditBalance != null && credits > creditBalance) ? '#ef4444' : 'var(--accent)' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 32, color: (creditBalance != null && credits > creditBalance) ? '#ef4444' : 'var(--accent)' }}>
               {fmtCr(credits)}
             </span>
             <span style={{ fontSize: 14, color: 'var(--text-2)', marginLeft: 6 }}>크레딧</span>

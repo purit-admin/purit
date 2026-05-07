@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Card, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -7,8 +7,8 @@ const EXPERTISE  = ['랜딩페이지 전환', '카피라이팅', '가격 전략'
 
 const TIER_META = {
   ROOKIE:  { label: 'ROOKIE',  color: 'var(--text-3)',        bg: 'var(--surface-2)', desc: '0~4개 미션 완료' },
-  PRO:     { label: 'PRO',     color: '#10367D',              bg: '#E8EEF8',          desc: '5~14개 미션 완료' },
-  EXPERT:  { label: 'EXPERT',  color: 'var(--accent)',        bg: '#fffbeb',          desc: '15~29개 미션 완료' },
+  PRO:     { label: 'PRO',     color: 'var(--text-2)',         bg: '#E8EEF8',          desc: '5~14개 미션 완료' },
+  EXPERT:  { label: 'EXPERT',  color: '#92400E',              bg: '#fffbeb',          desc: '15~29개 미션 완료' },
   ELITE:   { label: 'ELITE',   color: 'var(--green)',         bg: '#f0fdf4',          desc: '30개+ 미션 완료' },
 };
 
@@ -23,7 +23,7 @@ const BADGE_CATALOG = [
 ];
 
 const lbl    = { display: 'flex', flexDirection: 'column', gap: 8 };
-const lblTxt = { fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
+const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
 export default function PanelProfile() {
   const [panel, setPanel]       = useState(null);
@@ -144,7 +144,7 @@ export default function PanelProfile() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 800, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>PANEL · PROFILE</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>PANEL · PROFILE</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>내 프로필</h1>
       </div>
 
@@ -168,8 +168,8 @@ export default function PanelProfile() {
           </div>
           <div style={{ display: 'flex', gap: 20 }}>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>완료 미션</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{panel?.total_missions || 0}</div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>완료 미션</div>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-sans)' }}>{panel?.total_missions || 0}</div>
             </div>
           </div>
         </div>
@@ -376,9 +376,9 @@ export default function PanelProfile() {
                   { label: '이번 주 제출', value: streakCount, unit: '건' },
                   { label: '취득 뱃지', value: earnedBadges.size, unit: '개' },
                 ].map(item => (
-                  <div key={item.label} style={{ textAlign: 'center', padding: '12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
-                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{item.label}</div>
-                    <div style={{ fontSize: 28, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{item.value}<span style={{ fontSize: 14, color: 'var(--text-3)', marginLeft: 2 }}>{item.unit}</span></div>
+                  <div key={item.label} style={{ textAlign: 'center', padding: '12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{item.label}</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, fontFamily: 'var(--font-sans)', color: 'var(--text)' }}>{item.value}<span style={{ fontSize: 14, color: 'var(--text-3)', marginLeft: 2 }}>{item.unit}</span></div>
                   </div>
                 ))}
               </div>
@@ -386,7 +386,7 @@ export default function PanelProfile() {
               <div style={{ marginBottom: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>신뢰도 (Purity Filter 통과율)</span>
-                  <span style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-3)' }}>
+                  <span style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-sans)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-3)' }}>
                     {trustScore}%
                   </span>
                 </div>

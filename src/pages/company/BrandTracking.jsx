@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Stat, Badge, Btn } from '../../components/ui';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '../../lib/supabase';
@@ -46,7 +46,7 @@ export default function BrandTracking() {
     setCreating(false);
   }
 
-  if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>데이터 로딩 중…</div>;
+  if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>데이터 로딩 중…</div>;
 
   const latest = monthlyData[monthlyData.length - 1];
   const chartData = monthlyData.map(d => ({
@@ -60,7 +60,7 @@ export default function BrandTracking() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>BRAND TRACKING</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>BRAND TRACKING</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>브랜드 추적</h1>
         <p style={{ color: 'var(--text-2)', fontSize: 14 }}>매월 타겟 고객 패널을 통해 브랜드 인지도·포지셔닝 변화를 추적합니다.</p>
       </div>
@@ -123,7 +123,7 @@ export default function BrandTracking() {
                     <div style={{ flex: 1, height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{ width: `${p.agreement_percent}%`, height: '100%', background: 'var(--accent)', borderRadius: 4, transition: 'width 0.8s ease' }} />
                     </div>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, width: 44, textAlign: 'right', flexShrink: 0 }}>{p.agreement_percent}%</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, width: 44, textAlign: 'right', flexShrink: 0 }}>{p.agreement_percent}%</span>
                   </div>
                 ))}
               </div>

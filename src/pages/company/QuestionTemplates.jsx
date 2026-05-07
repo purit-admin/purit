@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -193,7 +193,7 @@ export default function QuestionTemplates() {
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>QUESTION TEMPLATES</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>QUESTION TEMPLATES</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>질문 템플릿</h1>
         <p style={{ color: 'var(--text-2)', fontSize: 14 }}>의뢰 유형별 검증된 질문 세트를 미리보기하고, 나만의 커스텀 질문을 저장·관리하세요.</p>
       </div>
@@ -227,7 +227,7 @@ export default function QuestionTemplates() {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20 }}>✏️</span>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>커스텀 질문</div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>커스텀 질문</div>
               <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>나만의 질문을 만들어 저장하면, 해당 카테고리 의뢰 등록 시 자동으로 나타납니다.</div>
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function QuestionTemplates() {
                   background: 'var(--surface)', borderRadius: 'var(--radius)',
                   border: '1px solid var(--border)',
                 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, fontSize: 12, flexShrink: 0, paddingTop: 2 }}>Q{i + 1}</span>
+                  <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-2)', fontWeight: 700, fontSize: 12, flexShrink: 0, paddingTop: 2 }}>Q{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.question_text}</div>
                     <div style={{ marginTop: 5, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -367,7 +367,7 @@ export default function QuestionTemplates() {
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{newQScaleMin || '매우 아니다'}</span>
                   {[1,2,3,4,5].map(n => (
-                    <span key={n} style={{ width: 18, height: 18, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, border: '1px solid var(--accent)', color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{n}</span>
+                    <span key={n} style={{ width: 18, height: 18, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, border: '1px solid var(--border)', color: 'var(--text-2)', fontFamily: 'var(--font-sans)' }}>{n}</span>
                   ))}
                   <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{newQScaleMax || '매우 그렇다'}</span>
                 </div>
@@ -403,7 +403,7 @@ export default function QuestionTemplates() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 20 }}>{currentTab?.icon}</span>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>{currentTab?.label}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{currentTab?.label}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{currentTab?.desc}</div>
               </div>
             </div>
@@ -414,7 +414,7 @@ export default function QuestionTemplates() {
           </div>
 
           {loading ? (
-            <div style={{ padding: '40px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>로딩 중…</div>
+            <div style={{ padding: '40px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>로딩 중…</div>
           ) : filtered.length === 0 ? (
             <Card style={{ padding: '60px', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>{currentTab?.icon}</div>
@@ -441,7 +441,7 @@ export default function QuestionTemplates() {
                     <div key={gi}>
                       {group.label && (
                         <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                          <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
                             {group.label}
                           </div>
                           <div style={{ height: 1, background: 'var(--border)' }} />
@@ -458,7 +458,7 @@ export default function QuestionTemplates() {
                                 <div style={{
                                   width: 38, height: 38, borderRadius: 'var(--radius)',
                                   background: 'var(--bg-2)', display: 'flex', alignItems: 'center',
-                                  justifyContent: 'center', fontSize: 18, color: 'var(--accent)',
+                                  justifyContent: 'center', fontSize: 18, color: 'var(--text-3)',
                                 }}>
                                   {t.icon}
                                 </div>
@@ -470,7 +470,7 @@ export default function QuestionTemplates() {
                             </div>
                             <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 14 }}>{t.description}</p>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                              <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
                                 {(t.template_questions?.length > 0
                                   ? t.template_questions.length
                                   : (TEMPLATE_BY_NAME[t.name]?.questions?.length || 0))}개 문항 · {t.use_count || 0}회 사용
@@ -529,7 +529,7 @@ export default function QuestionTemplates() {
                               background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13,
                               alignItems: 'flex-start',
                             }}>
-                              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700, flexShrink: 0, paddingTop: 1 }}>
+                              <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-2)', fontWeight: 700, flexShrink: 0, paddingTop: 1 }}>
                                 Q{i + 1}
                               </span>
                               <div style={{ flex: 1 }}>
@@ -537,7 +537,7 @@ export default function QuestionTemplates() {
                                 {qType === 'scale' && opts.length >= 2 && (
                                   <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-3)' }}>
                                     <span>{opts[0]}</span>
-                                    {[1,2,3,4,5].map(n => <span key={n} style={{ width: 14, height: 14, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, border: '1px solid var(--accent)', color: 'var(--accent)' }}>{n}</span>)}
+                                    {[1,2,3,4,5].map(n => <span key={n} style={{ width: 14, height: 14, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, border: '1px solid var(--border)', color: 'var(--text-2)' }}>{n}</span>)}
                                     <span>{opts[1]}</span>
                                   </div>
                                 )}

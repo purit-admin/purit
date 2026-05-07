@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Btn } from '../ui';
 import { supabase } from '../../lib/supabase';
@@ -73,13 +73,13 @@ export default function NotificationCenter({ role = 'company' }) {
     <div style={{ padding: '40px 48px', maxWidth: 700, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
         <div>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: roleColor, marginBottom: 8, letterSpacing: '0.1em' }}>
+          <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: roleColor, marginBottom: 8, letterSpacing: '0.1em' }}>
             NOTIFICATIONS
           </div>
           <h1 style={{ fontSize: 28, fontWeight: 800 }}>
             알림 센터
             {unread > 0 && (
-              <span style={{ marginLeft: 12, fontSize: 16, fontFamily: 'var(--font-mono)', background: 'var(--red)', color: '#fff', padding: '2px 10px', borderRadius: 20, verticalAlign: 'middle' }}>
+              <span style={{ marginLeft: 12, fontSize: 16, fontFamily: 'var(--font-sans)', background: 'var(--red)', color: '#fff', padding: '2px 10px', borderRadius: 20, verticalAlign: 'middle' }}>
                 {unread}
               </span>
             )}
@@ -91,7 +91,7 @@ export default function NotificationCenter({ role = 'company' }) {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
           로딩 중…
         </div>
       ) : notifs.length === 0 ? (
@@ -129,7 +129,7 @@ export default function NotificationCenter({ role = 'company' }) {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                   <span style={{ fontWeight: n.read ? 500 : 700, fontSize: 14 }}>{n.title}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginLeft: 12 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', flexShrink: 0, marginLeft: 12 }}>
                     {new Date(n.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 const DIMS = [
-  { key: 'clarity',         label: '명확성',  color: '#10367D', icon: '◎' },
+  { key: 'clarity',         label: '명확성',  color: '#6366F1', icon: '◎' },
   { key: 'relevance',       label: '관련성',  color: '#34D399', icon: '◆' },
   { key: 'value',           label: '가치',    color: '#E8D5A3', icon: '▲' },
   { key: 'differentiation', label: '차별화',  color: '#C084FC', icon: '◈' },
@@ -27,7 +27,7 @@ export default function ShareResult() {
   }, [token]);
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
       데이터 로딩 중…
     </div>
   );
@@ -50,7 +50,7 @@ export default function ShareResult() {
       <div style={{ maxWidth: 680, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{ display: 'inline-block', padding: '4px 14px', background: 'var(--surface)', borderRadius: 20, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20, border: '1px solid var(--border)' }}>
+          <div style={{ display: 'inline-block', padding: '4px 14px', background: 'var(--surface)', borderRadius: 20, fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20, border: '1px solid var(--border)' }}>
             Powered by Purity
           </div>
           <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>{data.title}</h1>
@@ -59,8 +59,8 @@ export default function ShareResult() {
 
         {/* Overall score */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '32px', textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>종합 전환 점수</div>
-          <div style={{ fontSize: 72, fontWeight: 800, fontFamily: 'var(--font-mono)', lineHeight: 1, color: overallAvg >= 4 ? 'var(--green)' : overallAvg >= 3 ? 'var(--accent)' : 'var(--red)', marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>종합 전환 점수</div>
+          <div style={{ fontSize: 72, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: overallAvg >= 4 ? 'var(--green)' : overallAvg <= 2 ? 'var(--red)' : 'var(--text)', marginBottom: 4 }}>
             {overallAvg.toFixed(1)}
           </div>
           <div style={{ fontSize: 14, color: 'var(--text-3)' }}>/ 5.0</div>
@@ -79,7 +79,7 @@ export default function ShareResult() {
                       <span style={{ color: d.color, fontSize: 14 }}>{d.icon}</span>
                       <span style={{ fontSize: 13, fontWeight: 600 }}>{d.label}</span>
                     </div>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 16, color: d.color }}>{score.toFixed(1)}</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16, color: d.color }}>{score.toFixed(1)}</span>
                   </div>
                   <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: d.color, borderRadius: 4, transition: 'width 1s ease' }} />
@@ -101,8 +101,8 @@ export default function ShareResult() {
                 ['경력', persona.experience],
                 ['지역', persona.region],
               ].filter(([, v]) => v).map(([label, value]) => (
-                <div key={label} style={{ padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
+                <div key={label} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
                 </div>
               ))}
@@ -113,7 +113,7 @@ export default function ShareResult() {
         {/* Footer */}
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.8 }}>
           이 결과는 <strong style={{ color: 'var(--text-2)' }}>Purity</strong> 플랫폼에서 실제 패널이 제공한 피드백을 기반으로 집계되었습니다.<br />
-          <a href="/" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Purity로 내 제품 검증받기 →</a>
+          <a href="/" style={{ color: 'var(--text-2)', textDecoration: 'none' }}>Purity로 내 제품 검증받기 →</a>
         </div>
       </div>
     </div>

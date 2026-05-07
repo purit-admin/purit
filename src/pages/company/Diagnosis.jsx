@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -59,7 +59,7 @@ const IMPROVEMENT_GUIDES = {
 const DIMENSIONS = [
   { key: 'clarity_score',         label: '명확성',   sublabel: 'Clarity',        icon: '◎', color: 'var(--blue)',   desc: '메시지를 처음 본 사람이 3초 안에 무엇을 파는지 이해하는가?', benchmark: 3.2 },
   { key: 'relevance_score',       label: '관련성',   sublabel: 'Relevance',      icon: '◆', color: 'var(--green)',  desc: '타겟 고객의 현실적인 고통과 욕구에 메시지가 정렬되어 있는가?', benchmark: 2.8 },
-  { key: 'value_score',           label: '가치',     sublabel: 'Value',          icon: '▲', color: 'var(--accent)', desc: '제품이 제공하는 가치가 가격 대비 충분히 설득력 있는가?', benchmark: 3.5 },
+  { key: 'value_score',           label: '가치',     sublabel: 'Value',          icon: '▲', color: '#6366F1', desc: '제품이 제공하는 가치가 가격 대비 충분히 설득력 있는가?', benchmark: 3.5 },
   { key: 'differentiation_score', label: '차별화',   sublabel: 'Differentiation',icon: '◈', color: '#C084FC',      desc: '경쟁사 대비 왜 이 제품을 선택해야 하는지 명확히 전달되는가?', benchmark: 2.4 },
   { key: 'trust_score',           label: '신뢰',     sublabel: 'Trust',          icon: '●', color: 'var(--green)',  desc: '처음 방문자가 브랜드와 제품을 신뢰할 수 있는 근거가 충분한가?', benchmark: 3.0 },
 ];
@@ -158,7 +158,7 @@ export default function Diagnosis() {
   }
 
   if (loading) return (
-    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>데이터 로딩 중…</div>
+    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>데이터 로딩 중…</div>
   );
 
   const scoreValues = DIMENSIONS.map(d => scores[d.key] || 0);
@@ -170,7 +170,7 @@ export default function Diagnosis() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>5-DIMENSION DIAGNOSIS</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>5-DIMENSION DIAGNOSIS</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>전환 5차원 진단</h1>
@@ -195,8 +195,8 @@ export default function Diagnosis() {
         <>
           <Card style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 40, background: 'linear-gradient(135deg, var(--surface), var(--bg-3))' }}>
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>종합 전환 점수</div>
-              <div style={{ fontSize: 64, fontWeight: 800, fontFamily: 'var(--font-mono)', lineHeight: 1, color: overallAvg >= 4 ? 'var(--green)' : overallAvg >= 3 ? 'var(--accent)' : 'var(--red)' }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>종합 전환 점수</div>
+              <div style={{ fontSize: 64, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: overallAvg >= 4 ? 'var(--green)' : overallAvg >= 3 ? 'var(--accent)' : 'var(--red)' }}>
                 {overallAvg.toFixed(1)}
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>/ 5.0</div>
@@ -233,9 +233,9 @@ export default function Diagnosis() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                           <div>
                             <span style={{ fontWeight: 700, fontSize: 15 }}>{d.label}</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>{d.sublabel}</span>
+                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>{d.sublabel}</span>
                           </div>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 22, color: d.color }}>{score.toFixed(1)}</span>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22, color: d.color }}>{score.toFixed(1)}</span>
                         </div>
                         <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
                           <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: d.color, borderRadius: 3, transition: 'width 0.8s ease' }} />
@@ -256,7 +256,7 @@ export default function Diagnosis() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                     <span style={{ fontSize: 16, color: d.color }}>{d.icon}</span>
                     <span style={{ fontWeight: 700 }}>{d.label}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: d.color }}>{(scores[d.key] || 0).toFixed(1)}/5</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: d.color }}>{(scores[d.key] || 0).toFixed(1)}/5</span>
                   </div>
                   {(comments[d.key] || []).length === 0 ? (
                     <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '12px 0' }}>코멘트 없음</div>
@@ -312,15 +312,15 @@ export default function Diagnosis() {
                   </div>
                 </Card>
                 <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>상위 10개 키워드</div>
+                  <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>상위 10개 키워드</div>
                   {keywords.slice(0, 10).map(({ word, count }, i) => (
                     <div key={word} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)', width: 20 }}>0{i + 1}</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)', width: 20 }}>0{i + 1}</span>
                       <span style={{ fontSize: 13, fontWeight: 600, width: 100 }}>{word}</span>
                       <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
                         <div style={{ width: `${(count / maxCount) * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
                       </div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-2)', width: 40, textAlign: 'right' }}>{count}회</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-2)', width: 40, textAlign: 'right' }}>{count}회</span>
                     </div>
                   ))}
                 </div>
@@ -344,7 +344,7 @@ export default function Diagnosis() {
                         <div style={{ width: `${(myScore / 5) * 100}%`, height: '100%', background: diff >= 0 ? 'var(--green)' : 'var(--red)', borderRadius: 4, transition: 'width 0.8s ease' }} />
                       </div>
                       <div style={{ width: 80, textAlign: 'right', display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14 }}>{myScore.toFixed(1)}</span>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14 }}>{myScore.toFixed(1)}</span>
                         <Badge type={diff >= 0 ? 'green' : 'red'}>{diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)}</Badge>
                       </div>
                     </div>
@@ -368,7 +368,7 @@ export default function Diagnosis() {
             <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 36, maxWidth: 540, width: '100%', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: worstDim.color, marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>개선 가이드 — {worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)}/5)</div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: worstDim.color, marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>개선 가이드 — {worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)}/5)</div>
                   <div style={{ fontSize: 20, fontWeight: 800 }}>{guide.title}</div>
                 </div>
                 <button onClick={() => setShowGuide(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1 }}>✕</button>
@@ -376,7 +376,7 @@ export default function Diagnosis() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {guide.tips.map((tip, i) => (
                   <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: `3px solid ${worstDim.color}` }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: worstDim.color, fontWeight: 700, flexShrink: 0, marginTop: 2 }}>0{i + 1}</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: worstDim.color, fontWeight: 700, flexShrink: 0, marginTop: 2 }}>0{i + 1}</span>
                     <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{tip}</span>
                   </div>
                 ))}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
@@ -20,7 +20,7 @@ const IMPACT_MAP = {
 
 function getVerdict(score) {
   if (score >= 4.0) return { text: '우수', color: 'var(--green)' };
-  if (score >= 3.0) return { text: '보통', color: 'var(--accent)' };
+  if (score >= 3.0) return { text: '보통', color: '#F59E0B' };
   return { text: '개선 필요', color: 'var(--red)' };
 }
 
@@ -172,12 +172,12 @@ export default function AIReport() {
   }
 
   if (loading) return (
-    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>리포트 로드 중…</div>
+    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>리포트 로드 중…</div>
   );
 
   if (!report) return (
     <div style={{ padding: '40px 48px', maxWidth: 880 }}>
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>AI INSIGHT REPORT</div>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>AI INSIGHT REPORT</div>
       <Card style={{ padding: '60px', textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>🤖</div>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>분석할 피드백 데이터가 없습니다</div>
@@ -189,7 +189,7 @@ export default function AIReport() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 880, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>
           AI INSIGHT REPORT{aiGenerated && <span style={{ marginLeft: 8, color: 'var(--green)' }}>✦ AI 분석 완료</span>}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -201,7 +201,7 @@ export default function AIReport() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4 }}>종합 판정</div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>종합 판정</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: report.verdictColor }}>{report.overallVerdict}</div>
             </div>
             {latestMissionId && (
@@ -217,7 +217,7 @@ export default function AIReport() {
           </div>
         </div>
         {generateError && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--red)', border: '1px solid var(--border)' }}>
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--red)', border: '1px solid var(--border)' }}>
             {generateError}
           </div>
         )}
@@ -225,7 +225,7 @@ export default function AIReport() {
 
       {/* TL;DR */}
       <Card style={{ marginBottom: 24, background: 'linear-gradient(135deg, var(--surface), var(--bg-3))', borderLeft: '3px solid var(--accent)' }}>
-        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.08em' }}>TL;DR — 핵심 요약</div>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.08em' }}>TL;DR — 핵심 요약</div>
         <p style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--text)', marginBottom: 0 }}>{report.tldr}</p>
       </Card>
 
@@ -250,7 +250,7 @@ export default function AIReport() {
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: expanded === fix.priority ? 10 : 0 }}>{fix.issue}</div>
                   {expanded === fix.priority && (
-                    <div style={{ padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
+                    <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
                       <strong>권장 액션:</strong> {fix.action}
                     </div>
                   )}

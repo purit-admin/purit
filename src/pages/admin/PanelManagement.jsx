@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Card, Badge, Btn, Stat } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
@@ -79,7 +79,7 @@ export default function AdminPanels() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1100, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN · PANEL MANAGEMENT</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN · PANEL MANAGEMENT</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>패널 관리</h1>
       </div>
 
@@ -92,8 +92,8 @@ export default function AdminPanels() {
           { label: '평균 Trust', value: String(avgTrust), accent: true },
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--surface)', padding: '20px 24px' }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{s.label}</div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: s.accent ? 'var(--accent)' : 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{s.label}</div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-sans)', lineHeight: 1 }}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -136,7 +136,7 @@ export default function AdminPanels() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   {['이름', '직군', 'Trust', '레벨', '완료', '상태', ''].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                       {h}
                     </th>
                   ))}
@@ -159,7 +159,7 @@ export default function AdminPanels() {
                       <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 13 }}>{p.name}</td>
                       <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-3)' }}>{p.industry || '—'}</td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 15, color: scoreColor(p.trust_score || 0) }}>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15, color: scoreColor(p.trust_score || 0) }}>
                           {p.trust_score || 0}
                         </span>
                       </td>
@@ -168,7 +168,7 @@ export default function AdminPanels() {
                           Lv.{hl.level}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-2)' }}>{p.total_missions || 0}</td>
+                      <td style={{ padding: '12px 16px', fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-2)' }}>{p.total_missions || 0}</td>
                       <td style={{ padding: '12px 16px' }}>
                         <Badge type={status === 'active' ? 'green' : status === 'pending' ? 'gold' : 'red'}>
                           {status === 'active' ? '활성' : status === 'pending' ? '심사중' : '정지'}
@@ -203,7 +203,7 @@ export default function AdminPanels() {
                   </div>
 
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 6, fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 6, fontFamily: 'var(--font-sans)' }}>
                       <span>TRUST SCORE</span>
                       <span style={{ color: scoreColor(panel.trust_score || 0), fontWeight: 700 }}>{panel.trust_score || 0}</span>
                     </div>
@@ -220,8 +220,8 @@ export default function AdminPanels() {
                       { label: '가입일',     value: new Date(panel.created_at).toLocaleDateString('ko-KR') },
                       { label: '상태',       value: status === 'active' ? '활성' : status === 'pending' ? '심사중' : '정지' },
                     ].map(({ label, value }) => (
-                      <div key={label} style={{ padding: '10px 12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
-                        <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
+                      <div key={label} style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                        <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
                       </div>
                     ))}
@@ -230,13 +230,13 @@ export default function AdminPanels() {
 
                 {/* 뱃지 */}
                 <Card style={{ padding: '18px 20px' }}>
-                  <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>획득 뱃지</div>
+                  <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>획득 뱃지</div>
                   {(panel.badges && panel.badges.length > 0) ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {panel.badges.map(b => (
                         <span key={b} style={{
                           padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                          background: 'var(--surface)', color: 'var(--accent)',
+                          background: 'var(--surface)', color: 'var(--text-2)',
                           border: '1px solid var(--border)',
                         }}>{b}</span>
                       ))}
@@ -253,7 +253,7 @@ export default function AdminPanels() {
 
                 {/* Actions */}
                 <Card style={{ padding: '18px 20px' }}>
-                  <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>관리 액션</div>
+                  <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>관리 액션</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {status === 'pending' && (
                       <>

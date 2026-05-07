@@ -407,12 +407,12 @@ export default function PreferenceTest() {
     }
   }
 
-  if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>로딩 중…</div>;
+  if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>로딩 중…</div>;
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>PREFERENCE TEST</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>PREFERENCE TEST</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>소재 비교 A/B</h1>
@@ -504,7 +504,7 @@ export default function PreferenceTest() {
                       ['B', variantB, setVariantB, variantBImage, setVariantBImage, uploadingB, fileInputBRef, 'var(--accent)'],
                     ].map(([label, val, setter, img, imgSetter, uploading, ref, color]) => (
                       <div key={label}>
-                        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>소재 {label}</div>
+                        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>소재 {label}</div>
                         <textarea
                           value={val}
                           onChange={e => setter(e.target.value)}
@@ -601,7 +601,7 @@ export default function PreferenceTest() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>질문 설정</div>
                     <div style={{
-                      fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                      fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 700,
                       padding: '3px 10px', borderRadius: 20,
                       background: totalSelected >= 5 ? 'var(--accent)' : 'var(--surface)',
                       color: totalSelected >= 5 ? '#fff' : 'var(--text-2)',
@@ -622,7 +622,7 @@ export default function PreferenceTest() {
                           style={{ display: 'flex', alignItems: 'center', padding: '11px 14px', background: 'var(--surface)', cursor: 'pointer', userSelect: 'none', gap: 10 }}>
                           <span style={{ fontSize: 15 }}>✏️</span>
                           <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>내 커스텀 질문</span>
-                          {custSelected.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>{custSelected.length}개 선택</span>}
+                          {custSelected.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)' }}>{custSelected.length}개 선택</span>}
                           <span style={{ color: 'var(--text-3)', fontSize: 12, transition: 'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
                         </div>
                         {isOpen && (
@@ -648,7 +648,7 @@ export default function PreferenceTest() {
                                       {q.type === 'scale' && (
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                                           <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{q.options?.[0] || '매우 아니다'}</span>
-                                          {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{n}</span>)}
+                                          {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-sans)', border: '1px solid var(--accent)', color: 'var(--text-2)' }}>{n}</span>)}
                                           <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{q.options?.[1] || '매우 그렇다'}</span>
                                         </span>
                                       )}
@@ -679,7 +679,7 @@ export default function PreferenceTest() {
                           <span style={{ fontSize: 15 }}>{tmpl.icon}</span>
                           <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{tmpl.name}</span>
                           {groupCount > 0 && (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>{groupCount}개 선택</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)' }}>{groupCount}개 선택</span>
                           )}
                           <span style={{ color: 'var(--text-3)', fontSize: 12, transition: 'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
                         </div>
@@ -727,9 +727,9 @@ export default function PreferenceTest() {
                                             <span key={n} style={{
                                               width: 16, height: 16, borderRadius: '50%',
                                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                              fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                                              fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-sans)',
                                               border: '1px solid var(--accent)',
-                                              color: 'var(--accent)',
+                                              color: 'var(--text-2)',
                                             }}>{n}</span>
                                           ))}
                                           <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{q.options?.[1] || '매우 그렇다'}</span>
@@ -751,7 +751,7 @@ export default function PreferenceTest() {
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>질문 만들기</span>
                       {localCustomQs.length > 0 && (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--accent)' }}>+{localCustomQs.length}개 추가됨</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--border)' }}>+{localCustomQs.length}개 추가됨</span>
                       )}
                     </div>
                     <textarea value={newQText} onChange={e => setNewQText(e.target.value)} rows={2}
@@ -794,7 +794,7 @@ export default function PreferenceTest() {
                           placeholder="1점 라벨 (예: 매우 아니다)"
                           style={{ flex: 1, minWidth: 140, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                          {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, border: '1px solid var(--accent)', color: 'var(--accent)' }}>{n}</span>)}
+                          {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, border: '1px solid var(--accent)', color: 'var(--text-2)' }}>{n}</span>)}
                         </span>
                         <input value={newQScaleMax} onChange={e => setNewQScaleMax(e.target.value)}
                           placeholder="5점 라벨 (예: 매우 그렇다)"
@@ -802,7 +802,7 @@ export default function PreferenceTest() {
                       </div>
                     )}
                     {newQType === 'text' && textSelected >= 2 && (
-                      <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>서술형 질문은 최대 2개까지만 추가할 수 있습니다.</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>서술형 질문은 최대 2개까지만 추가할 수 있습니다.</div>
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <Btn size="sm" onClick={handleAddLocalQ}
@@ -811,7 +811,7 @@ export default function PreferenceTest() {
                     </div>
                     {localCustomQs.length > 0 && (
                       <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 800, flexShrink: 0 }}>✓</span>
                           추가된 질문 목록
                         </div>
@@ -825,7 +825,7 @@ export default function PreferenceTest() {
                             borderLeft: '3px solid var(--accent)',
                             marginBottom: 6,
                           }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, color: '#fff', background: 'var(--accent)', borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
+                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 800, color: '#fff', background: 'var(--accent)', borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.text}</span>
                               <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -881,7 +881,7 @@ export default function PreferenceTest() {
                     <p style={{ fontSize: 13, color: 'var(--text-2)' }}>아래 내용을 확인하고 의뢰를 제출하세요. 첫 피드백 수신 후에는 수정이 불가합니다.</p>
                   </div>
                   <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.06em' }}>소재 입력</div>
+                    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.06em' }}>소재 입력</div>
                     {rows.map(r => (
                       <div key={r.label} style={{ display: 'flex', padding: '10px 16px', borderBottom: '1px solid var(--border)', gap: 12, alignItems: 'flex-start' }}>
                         <div style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 110, flexShrink: 0 }}>{r.label}</div>
@@ -894,7 +894,7 @@ export default function PreferenceTest() {
                     </div>
                   </div>
                   <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.06em' }}>패널 설정</div>
+                    <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.06em' }}>패널 설정</div>
                     {[
                       { label: '패널 수', value: `${panelSize}명` },
                       { label: '직급', value: careerLevels.map(c => CAREER_LABEL[c]).join(' · ') || '-' },
@@ -1004,7 +1004,7 @@ export default function PreferenceTest() {
                     </div>
                     <div className="mc-right">
                       <div style={{ fontSize: 11, color: 'var(--text-3)' }}>피드백 수집</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)' }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
                         {filled}<span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count || 0}</span>
                       </div>
                       <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
@@ -1013,7 +1013,7 @@ export default function PreferenceTest() {
                       <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</div>
                       {isDraft && (
                         <button onClick={e => { e.stopPropagation(); openDraftOrActiveForEdit(m.id); }}
-                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: '#10367D', cursor: 'pointer' }}>
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: 'var(--text-2)', cursor: 'pointer' }}>
                           이어 작성하기 →
                         </button>
                       )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 
 const DIFF_META = {
   easy:   { label: '쉬움',   color: 'var(--green)' },
-  normal: { label: '보통',   color: '#10367D' },
+  normal: { label: '보통',   color: 'var(--text-2)' },
   hard:   { label: '어려움', color: 'var(--red, #ef4444)' },
 };
 
@@ -63,7 +63,7 @@ function MissionCard({ m, mode, feedbackId, navigate, setModal }) {
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
             {m.type === 'email'      && <Badge type="blue">이메일 검증</Badge>}
-            <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)' }}>
               {m.id.slice(0, 8).toUpperCase()}
             </span>
           </div>
@@ -79,7 +79,7 @@ function MissionCard({ m, mode, feedbackId, navigate, setModal }) {
           {mode === 'needsRevision' && (
             <button
               onClick={() => setReasonOpen(r => !r)}
-              style={{ marginTop: 6, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+              style={{ marginTop: 6, fontSize: 12, color: 'var(--text-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
             >
               {reasonOpen ? '탈락 사유 닫기 ▲' : '탈락 사유 보기 ▼'}
             </button>
@@ -92,7 +92,7 @@ function MissionCard({ m, mode, feedbackId, navigate, setModal }) {
         </div>
         <div className="mc-right">
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>
               ₩{(m.reward_amount || 0).toLocaleString()}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>건당 보상</div>
@@ -114,7 +114,7 @@ function MissionCard({ m, mode, feedbackId, navigate, setModal }) {
               )}
             </div>
           )}
-          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
             {new Date(m.created_at).toLocaleDateString('ko-KR')}
           </div>
           {mode === 'new' && (
@@ -274,7 +274,7 @@ export default function MissionList() {
       {modal?.type === 'accept' && ReactDOM.createPortal(
         <div onClick={() => setModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 440, width: '90%', border: '1px solid var(--border)', animation: 'fadeUp 0.2s ease both' }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 10, letterSpacing: '0.1em' }}>MISSION ACCEPT</div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 10, letterSpacing: '0.1em' }}>MISSION ACCEPT</div>
             <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>미션을 수락하시겠어요?</h2>
             <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 20, fontWeight: 600 }}>{modal.mission.title}</div>
             <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -284,7 +284,7 @@ export default function MissionList() {
                 '반려된 피드백은 보상이 지급되지 않습니다.',
               ].map((t, i) => (
                 <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
-                  <span style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}>⚠</span>
+                  <span style={{ color: '#F59E0B', flexShrink: 0, marginTop: 1 }}>⚠</span>
                   <span>{t}</span>
                 </div>
               ))}
@@ -315,7 +315,7 @@ export default function MissionList() {
 
       {/* ── 헤더 ── */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>MISSION BOARD</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>MISSION BOARD</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>미션 관리</h1>
       </div>
 

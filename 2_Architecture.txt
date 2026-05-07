@@ -271,12 +271,26 @@ purit/
   ※ 패턴: className 부여 + 인라인 스타일 유지(데스크탑) + CSS !important 오버라이드(모바일) — D-38 준수
 
   ### 테마 색상 시스템 (index.css CSS 변수)
+  --bg:          #F8FAFC  (쿨그레이 배경)
+  --bg-2:        #F1F5F9
+  --bg-3:        #E2E8F0
+  --surface-2:   #F8FAFC
+  --border:      #E2E8F0
+  --border-light:#EEF2F6
   --accent:      #10367D  (네이비, 구 오렌지 #CF6A44에서 전체 통일)
   --accent-2:    #0C2A62
   --accent-dim:  rgba(16,54,125,0.10)
   --accent-dim2: rgba(16,54,125,0.05)
-  ※ 각 페이지 로컬 C 객체: C.primary = '#10367D', C.blue50 = '#E8EEF8'
-  ※ Sidebar <aside> bg: var(--bg) = #FAF9F6 / <main> bg: #F8FAFC (모든 서브페이지 통일)
+
+  ★ 텍스트 색상 원칙 (기업·어드민·패널 포털 전체):
+    - 모든 텍스트·숫자·레이블: var(--text) / var(--text-2) / var(--text-3) 사용
+    - var(--accent)(#10367D 네이비)는 버튼/뱃지 배경, 진행바 채움, 차트 fill/stroke에만 허용
+    - 텍스트에 네이비 사용 금지 — 차트 차원 색이 텍스트 레이블에도 적용될 경우 #6366F1(인디고) 대체
+    - 예외(의도적 색상 코딩): warning ⚠ → #F59E0B(amber), 중간점수 verdict → #F59E0B, EXPERT tier → #92400E
+    - 랜딩페이지(Landing.jsx)는 이 원칙 적용 제외
+
+  ※ Sidebar <aside> bg: #FFFFFF (순백) + borderRight: 1px solid #E9ECF0
+  ※ <main> bg: #F8FAFC (모든 서브페이지 통일)
   ※ Landing.jsx: PRIMARY = '#10367D', BG = '#F8FAFC', BG2 = '#EDF0F4', BG3 = '#DCDCDC'
 
 ================================================================

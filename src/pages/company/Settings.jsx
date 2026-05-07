@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -71,13 +71,13 @@ export default function AccountSettings() {
   }
 
   if (loading) return (
-    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>데이터 로딩 중…</div>
+    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>데이터 로딩 중…</div>
   );
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>SETTINGS</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>SETTINGS</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>계정 설정</h1>
       </div>
 
@@ -101,7 +101,7 @@ export default function AccountSettings() {
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>팀원 초대</div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일</div>
                 <input
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
@@ -110,7 +110,7 @@ export default function AccountSettings() {
                 />
               </div>
               <div style={{ width: 160 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>권한</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>권한</div>
                 <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
                   <option value="admin">관리자</option>
                   <option value="member">멤버</option>
@@ -139,7 +139,7 @@ export default function AccountSettings() {
                   <div style={{
                     width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-dim)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+                    fontSize: 14, fontWeight: 700, color: 'var(--text)', flexShrink: 0,
                   }}>
                     {(m.name || m.email)[0].toUpperCase()}
                   </div>
@@ -167,7 +167,7 @@ export default function AccountSettings() {
           <Card style={{ marginBottom: 20, padding: '24px', borderColor: 'var(--accent)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>현재 플랜</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>현재 플랜</div>
                 <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{company?.plan || 'Starter'} 플랜</div>
               </div>
               <Btn size="sm" variant="outline" onClick={() => navigate('/company/plans')}>플랜 변경</Btn>
@@ -181,11 +181,11 @@ export default function AccountSettings() {
               invoices.map((r, i) => (
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
                   <div>
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginRight: 12 }}>{r.invoice_date}</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 12 }}>{r.invoice_date}</span>
                     <span>{r.plan} 플랜</span>
                   </div>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>₩{Number(r.amount).toLocaleString()}</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700 }}>₩{Number(r.amount).toLocaleString()}</span>
                     <Badge type={r.status === 'paid' ? 'green' : 'red'}>{r.status === 'paid' ? '완료' : '미수금'}</Badge>
                   </div>
                 </div>

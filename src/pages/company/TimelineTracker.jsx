@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const DIMS = [
-  { key: 'clarity_score',         label: '명확성',  color: '#10367D' },
+  { key: 'clarity_score',         label: '명확성',  color: '#6366F1' },
   { key: 'relevance_score',       label: '관련성',  color: '#34D399' },
   { key: 'value_score',           label: '가치',    color: '#E8D5A3' },
   { key: 'differentiation_score', label: '차별화',  color: '#C084FC' },
@@ -122,7 +122,7 @@ export default function TimelineTracker() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>TIMELINE · SCORE EVOLUTION</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>TIMELINE · SCORE EVOLUTION</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>시계열 점수 추적</h1>
@@ -176,8 +176,8 @@ export default function TimelineTracker() {
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-3)', fontFamily: 'var(--font-mono)' }} />
-                <YAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11, fill: 'var(--text-3)', fontFamily: 'var(--font-mono)' }} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-3)', fontFamily: 'var(--font-sans)' }} />
+                <YAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11, fill: 'var(--text-3)', fontFamily: 'var(--font-sans)' }} />
                 <Tooltip
                   contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                   formatter={(value, name) => [value?.toFixed(2) ?? '—', DIMS.find(d => d.key === name)?.label || name]}
@@ -205,9 +205,9 @@ export default function TimelineTracker() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase' }}>기간/의뢰</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase' }}>기간/의뢰</th>
                   {DIMS.map(d => (
-                    <th key={d.key} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500 }}>
+                    <th key={d.key} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500 }}>
                       <span style={{ color: d.color }}>{d.label}</span>
                     </th>
                   ))}
@@ -220,7 +220,7 @@ export default function TimelineTracker() {
                     {DIMS.map(d => {
                       const val = row[d.key];
                       return (
-                        <td key={d.key} style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--accent)' : val ? 'var(--red)' : 'var(--text-3)' }}>
+                        <td key={d.key} style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 700, color: val >= 4 ? 'var(--green)' : val >= 3 ? 'var(--accent)' : val ? 'var(--red)' : 'var(--text-3)' }}>
                           {val ? val.toFixed(1) : '—'}
                         </td>
                       );

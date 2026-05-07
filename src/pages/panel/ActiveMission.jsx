@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
@@ -72,7 +72,7 @@ function TypedQuestionsBlock({ qs, get, set }) {
   const TYPE_LABEL_LOCAL = { radio: '옵션형', scale: '점수형', text: '서술형' };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 4 }}>
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
         추가 질문 ({qs.length}개)
       </div>
       {qs.map((q, idx) => {
@@ -80,7 +80,7 @@ function TypedQuestionsBlock({ qs, get, set }) {
         return (
           <div key={q.id} style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${TYPE_COLOR_LOCAL[q.type] || 'var(--accent)'}` }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>Q{idx + 1}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-2)', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>Q{idx + 1}</span>
               <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, flex: 1 }}>{q.text}</span>
               <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: (TYPE_COLOR_LOCAL[q.type] || 'var(--accent)') + '22', color: TYPE_COLOR_LOCAL[q.type] || 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
                 {TYPE_LABEL_LOCAL[q.type] || q.type}
@@ -721,7 +721,7 @@ export default function ActiveMission() {
                 <Badge type="gold">진행 중</Badge>
                 {TYPE_BADGE[m.type]}
                 {m.image_urls?.length > 0 && <Badge type="blue">이미지 {m.image_urls.length}장</Badge>}
-                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
+                <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)' }}>
                   {m.id.slice(0, 8).toUpperCase()}
                 </span>
               </div>
@@ -734,7 +734,7 @@ export default function ActiveMission() {
             </div>
             <div className="mc-right">
               <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>
                   ₩{(m.reward_amount || 0).toLocaleString()}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>건당 보상</div>
@@ -754,7 +754,7 @@ export default function ActiveMission() {
     return (
       <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
         <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSIONS</div>
+          <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSIONS</div>
           <h1 style={{ fontSize: 28, fontWeight: 800 }}>진행 중인 미션</h1>
         </div>
         {drafts.length === 0 ? (
@@ -815,7 +815,7 @@ export default function ActiveMission() {
 
   if (mission === false) return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, animation: 'fadeUp 0.4s ease both' }}>
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '48px 40px', textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>미션을 찾을 수 없어요</div>
@@ -848,7 +848,7 @@ export default function ActiveMission() {
         />
       )}
 
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>ACTIVE MISSION</div>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 24 }}>미션 브리핑</h1>
       {isResubmit && (
         <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -878,20 +878,20 @@ export default function ActiveMission() {
             const text = parsed.productDescription || '';
             if (!text) return null;
             return (
-              <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
+              <div style={{ padding: '16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
                 <strong style={{ color: 'var(--text)' }}>제품/타겟 설명:</strong><br />{text}
               </div>
             );
           }
           return (
-            <div style={{ padding: '16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
+            <div style={{ padding: '16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
               <strong style={{ color: 'var(--text)' }}>브리핑:</strong><br />{lpParsed ? lpParsed.briefText : mission.description}
             </div>
           );
         })()}
         {mission.target_url && (
           <a href={mission.target_url} target="_blank" rel="noreferrer"
-            style={{ fontSize: 13, color: 'var(--accent)', display: 'inline-block', marginBottom: 16 }}>
+            style={{ fontSize: 13, color: 'var(--text-2)', display: 'inline-block', marginBottom: 16 }}>
             🔗 랜딩페이지 보기 →
           </a>
         )}
@@ -902,7 +902,7 @@ export default function ActiveMission() {
           </div>
         )}
         <div style={{ padding: '14px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
-          <strong style={{ color: 'var(--accent)' }}>보상: ₩{(mission.reward_amount || 0).toLocaleString()}</strong>
+          <strong style={{ color: 'var(--text)' }}>보상: ₩{(mission.reward_amount || 0).toLocaleString()}</strong>
           <span style={{ color: 'var(--text-2)' }}> · Purit Filter 통과 시 자동 지급</span>
         </div>
       </Card>
@@ -976,7 +976,7 @@ export default function ActiveMission() {
 
     const ScoreRow = ({ label, value, setter }) => (
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {[1, 2, 3, 4, 5].map(n => (
             <button key={n} onClick={() => setter(n)} style={{
@@ -1008,7 +1008,7 @@ export default function ActiveMission() {
       <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.4s ease both' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>FEEDBACK</div>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>FEEDBACK</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>{mission.title}</h1>
           </div>
           <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
@@ -1019,7 +1019,7 @@ export default function ActiveMission() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {parsedDesc.productDescription && (
               <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
                 {parsedDesc.productDescription}
               </div>
             )}
@@ -1041,8 +1041,8 @@ export default function ActiveMission() {
             </Card>
             {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
             <Card>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>선택 이유 및 개선 의견</div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>선택 이유 및 개선 의견</div>
               <textarea value={prefComment} onChange={e => setPrefComment(e.target.value)} rows={4} placeholder="어떤 이유로 해당 소재를 선택했는지, 개선할 점은 무엇인지 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
             </Card>
           </div>
@@ -1052,8 +1052,8 @@ export default function ActiveMission() {
         {missionType === 'pricing' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {(parsedDesc.content || parsedDesc.image) && (
-              <div style={{ padding: '16px 20px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>가격 구성</div>
+              <div style={{ padding: '16px 20px', background: 'var(--surface)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>가격 구성</div>
                 {parsedDesc.image && (
                   <img src={parsedDesc.image} alt="가격 페이지" style={{ width: '100%', borderRadius: 'var(--radius)', marginBottom: 10, objectFit: 'cover', maxHeight: 240 }} />
                 )}
@@ -1062,14 +1062,14 @@ export default function ActiveMission() {
             )}
             {parsedDesc.productDescription && (
               <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
                 {parsedDesc.productDescription}
               </div>
             )}
             <Card>
               <ScoreRow label="가격 적절성 (시장 대비)" value={priceFairness} setter={setPriceFairness} />
               <ScoreRow label="가격 대비 가치 인식" value={priceValue} setter={setPriceValue} />
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>구매 의향</div>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>구매 의향</div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 {[['있음', true], ['없음', false]].map(([label, val]) => (
                   <button key={label} onClick={() => setPriceWouldBuy(val)} style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius)', border: `1.5px solid ${priceWouldBuy === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`, background: priceWouldBuy === val ? (val ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.08)') : 'var(--surface)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s', color: priceWouldBuy === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--text-2)' }}>
@@ -1080,8 +1080,8 @@ export default function ActiveMission() {
             </Card>
             {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
             <Card>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>가격 피드백 (구매 장벽, 개선점)</div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>가격 피드백 (구매 장벽, 개선점)</div>
               <textarea value={priceComment} onChange={e => setPriceComment(e.target.value)} rows={4} placeholder="가격에서 망설여지는 부분, 더 합리적이라고 느끼기 위해 필요한 것 등을 구체적으로 적어주세요." style={{ resize: 'vertical' }} />
             </Card>
           </div>
@@ -1090,13 +1090,13 @@ export default function ActiveMission() {
         {/* 이메일 */}
         {missionType === 'email' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ padding: '16px 20px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.8, whiteSpace: 'pre-wrap', border: '1px solid var(--border)', fontFamily: 'inherit', maxHeight: 280, overflowY: 'auto' }}>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>이메일 원문</div>
+            <div style={{ padding: '16px 20px', background: 'var(--surface)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.8, whiteSpace: 'pre-wrap', border: '1px solid var(--border)', fontFamily: 'inherit', maxHeight: 280, overflowY: 'auto' }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>이메일 원문</div>
               {parsedDesc.content || mission.description}
             </div>
             {parsedDesc.productDescription && (
               <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
                 {parsedDesc.productDescription}
               </div>
             )}
@@ -1105,7 +1105,7 @@ export default function ActiveMission() {
               <ScoreRow label="훅 강도 (첫 문장)" value={emailHook} setter={setEmailHook} />
               <ScoreRow label="메시지 명확성" value={emailClarity} setter={setEmailClarity} />
               <ScoreRow label="호기심/답장 욕구" value={emailCuriosity} setter={setEmailCuriosity} />
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>답장 의향</div>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>답장 의향</div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 {[['답장하겠음', true], ['답장 안 함', false]].map(([label, val]) => (
                   <button key={label} onClick={() => setEmailWouldReply(val)} style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius)', border: `1.5px solid ${emailWouldReply === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`, background: emailWouldReply === val ? (val ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.08)') : 'var(--surface)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s', color: emailWouldReply === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--text-2)' }}>
@@ -1116,8 +1116,8 @@ export default function ActiveMission() {
             </Card>
             {allTypedQs.length > 0 && <TypedQuestionsBlock qs={allTypedQs} get={getCustomAnswer} set={setCustomAnswer} />}
             <Card>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일 피드백</div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일 피드백</div>
               <textarea value={emailComment} onChange={e => setEmailComment(e.target.value)} rows={4} placeholder="가장 인상적인 부분과 개선이 필요한 부분을 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
             </Card>
           </div>
@@ -1154,14 +1154,14 @@ export default function ActiveMission() {
       <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>이미지 어노테이션</h1>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
               차원 탭을 클릭하고 해당 영역을 드래그하세요 · 5개 차원 모두 완료 후 총평 작성
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: Object.values(dimDone).filter(Boolean).length === 5 ? 'var(--green)' : 'var(--accent)' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-sans)', color: Object.values(dimDone).filter(Boolean).length === 5 ? 'var(--green)' : 'var(--accent)' }}>
               {Object.values(dimDone).filter(Boolean).length}/5
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)' }}>차원 완료</div>
@@ -1276,7 +1276,7 @@ export default function ActiveMission() {
         {/* 코멘트 박스 — 현재 이미지의 어노테이션별 */}
         {curAnns.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
               코멘트 작성 ({curAnns.length}개 영역)
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1296,7 +1296,7 @@ export default function ActiveMission() {
                         {meta.short}{seqNum}
                       </span>
                       <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600 }}>{meta.label}</span>
-                      <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{ann.score}점</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-sans)' }}>{ann.score}점</span>
                     </div>
                     <textarea
                       value={ann.comment || ''}
@@ -1348,7 +1348,7 @@ export default function ActiveMission() {
             background: 'var(--surface)', border: '1.5px solid var(--accent)',
             borderRadius: 'var(--radius)',
           }}>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
               ✓ 모든 차원 평가 완료 — 총평 작성 (필수)
             </div>
             <textarea
@@ -1438,16 +1438,16 @@ export default function ActiveMission() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{step} / {SECTIONS.length}</div>
-        {autoSaving && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>저장 중...</div>}
-        {!autoSaving && draftId && <div style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>✓ 자동 저장됨</div>}
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)' }}>{step} / {SECTIONS.length}</div>
+        {autoSaving && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>저장 중...</div>}
+        {!autoSaving && draftId && <div style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>✓ 자동 저장됨</div>}
       </div>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{sec.label}</h1>
       <p style={{ color: 'var(--text-2)', marginBottom: 28 }}>{sec.desc}</p>
 
       <Card style={{ marginBottom: 20 }}>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>점수 (1~5)</div>
+          <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>점수 (1~5)</div>
           <div style={{ display: 'flex', gap: 8 }}>
             {[1, 2, 3, 4, 5].map(n => (
               <button key={n} onClick={() => setScores(s => ({ ...s, [sec.key]: n }))} style={{
@@ -1464,7 +1464,7 @@ export default function ActiveMission() {
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>구체적 피드백</div>
+          <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>구체적 피드백</div>
           <textarea
             value={comments[sec.key]}
             onChange={e => { setComments(c => ({ ...c, [sec.key]: e.target.value })); checkPurity(e.target.value); }}

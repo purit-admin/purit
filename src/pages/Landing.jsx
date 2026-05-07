@@ -7,9 +7,9 @@ const BG      = '#F8FAFC';
 const BG2     = '#EDF0F4';
 const BG3     = '#DCDCDC';
 const PRIMARY = '#10367D';
-const TEXT    = '#1C1917';
-const TEXT2   = '#57534E';
-const TEXT3   = '#9C9489';
+const TEXT    = '#0F172A';
+const TEXT2   = '#475569';
+const TEXT3   = '#94A3B8';
 const SUCCESS = '#16A34A';
 const DANGER  = '#DC2626';
 

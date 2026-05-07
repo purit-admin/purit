@@ -184,7 +184,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                     <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
                       {seqNum}
                     </span>
-                    <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{ann.score}점</span>
+                    <span style={{ color: 'var(--text-2)', fontWeight: 700 }}>{ann.score}점</span>
                     <span
                       style={{ marginLeft: 'auto', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }}
                       onClick={() => setSelectedAnn(null)}

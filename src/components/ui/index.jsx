@@ -1,4 +1,4 @@
-import { clsx } from 'clsx';
+﻿import { clsx } from 'clsx';
 import ReactDOM from 'react-dom';
 
 export const Btn = ({ children, variant = 'primary', size = 'md', onClick, disabled, style, className }) => {
@@ -87,7 +87,7 @@ export const ScoreBar = ({ score, max = 5, color = 'var(--text)' }) => (
         transition: 'background 0.25s',
       }} />
     ))}
-    <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 6, fontFamily: 'var(--font-mono)' }}>{score}/{max}</span>
+    <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 6, fontFamily: 'var(--font-sans)' }}>{score}/{max}</span>
   </div>
 );
 

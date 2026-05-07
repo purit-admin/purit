@@ -35,7 +35,7 @@ function Pagination({ page, total, onPage }) {
 
 const TYPE_INFO = {
   landing_page: { label: 'LP검증',    color: 'var(--accent)' },
-  preference:   { label: '소재비교',  color: '#10367D' },
+  preference:   { label: '소재비교',  color: '#64748B' },
   pricing:      { label: '가격검증',  color: '#f59e0b' },
   email:        { label: '이메일검증', color: '#34C759' },
 };
@@ -131,7 +131,7 @@ function MissionItem({ m, isSelected, onClick }) {
       style={{
         padding: '10px 12px', borderRadius: 'var(--radius)',
         background: 'var(--surface)',
-        border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+        border: `1px solid ${isSelected ? 'var(--text)' : 'var(--border)'}`,
         cursor: 'pointer', marginBottom: 6, transition: 'all 0.15s',
       }}
     >
@@ -255,7 +255,7 @@ function CustomQuestionsSection({ questions, responses }) {
 
   const toggle = key => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
   const typeLabelMap = { radio: '옵션형', scale: '점수형', text: '서술형' };
-  const typeColorMap = { radio: '#10367D', scale: 'var(--accent)', text: '#34C759' };
+  const typeColorMap = { radio: 'var(--text-2)', scale: 'var(--text-2)', text: '#34C759' };
   const typeBg = { radio: 'rgba(16,54,125,0.12)', scale: 'rgba(99,102,241,0.15)', text: 'rgba(52,199,89,0.15)' };
 
   return (

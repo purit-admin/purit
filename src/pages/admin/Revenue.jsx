@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Stat, Badge, Btn } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid } from 'recharts';
 import { supabase } from '../../lib/supabase';
@@ -54,7 +54,7 @@ export default function RevenueManagement() {
   }
 
   if (loading) return (
-    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
       데이터 로딩 중…
     </div>
   );
@@ -75,7 +75,7 @@ export default function RevenueManagement() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN · REVENUE</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>ADMIN · REVENUE</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>수익 & 정산 관리</h1>
       </div>
 
@@ -162,7 +162,7 @@ export default function RevenueManagement() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 14, color: 'var(--text-2)' }}>
-              정산 대기 <strong style={{ color: 'var(--accent)' }}>₩{(pendingAmt / 10000).toFixed(1)}만</strong> · {settlements.filter(s => s.status === 'pending').length}건
+              정산 대기 <strong style={{ color: 'var(--text)' }}>₩{(pendingAmt / 10000).toFixed(1)}만</strong> · {settlements.filter(s => s.status === 'pending').length}건
             </div>
             <Btn size="sm" onClick={handleSettleAll}>일괄 정산 처리</Btn>
           </div>
@@ -175,7 +175,7 @@ export default function RevenueManagement() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['패널', '등급', '미션', '정산액', '마감일', '상태', ''].map(h => (
-                      <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                      <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -184,18 +184,18 @@ export default function RevenueManagement() {
                     <tr key={s.id} style={{ borderBottom: i < settlements.length - 1 ? '1px solid var(--border)' : 'none' }}>
                       <td style={{ padding: '12px 18px', fontWeight: 600, fontSize: 13 }}>{s.panel_name}</td>
                       <td style={{ padding: '12px 18px' }}><Badge type={s.tier === 'EXPERT' ? 'gold' : 'blue'}>{s.tier}</Badge></td>
-                      <td style={{ padding: '12px 18px', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-2)' }}>{s.missions_count}건</td>
+                      <td style={{ padding: '12px 18px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-2)' }}>{s.missions_count}건</td>
                       <td style={{ padding: '12px 18px' }}>
                         {s.status === 'rejected' ? (
                           <span style={{ color: 'var(--text-3)', fontWeight: 700 }}>—</span>
                         ) : (
                           <div style={{ lineHeight: 1 }}>
                             <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
-                            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: s.status === 'paid' ? 'var(--green)' : 'var(--accent)' }}>{Number(s.amount).toLocaleString()}</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-sans)', color: s.status === 'paid' ? 'var(--green)' : 'var(--accent)' }}>{Number(s.amount).toLocaleString()}</div>
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: '12px 18px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{s.due_date}</td>
+                      <td style={{ padding: '12px 18px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{s.due_date}</td>
                       <td style={{ padding: '12px 18px' }}>
                         <Badge type={s.status === 'paid' ? 'green' : s.status === 'pending' ? 'gold' : 'red'}>
                           {s.status === 'paid' ? '정산완료' : s.status === 'pending' ? '대기중' : '반려'}
@@ -228,7 +228,7 @@ export default function RevenueManagement() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['기업', '플랜', '청구액', '청구일', '상태', ''].map(h => (
-                      <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                      <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -240,10 +240,10 @@ export default function RevenueManagement() {
                       <td style={{ padding: '12px 18px' }}>
                         <div style={{ lineHeight: 1 }}>
                           <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{Number(inv.amount).toLocaleString()}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-sans)', color: 'var(--text)' }}>{Number(inv.amount).toLocaleString()}</div>
                         </div>
                       </td>
-                      <td style={{ padding: '12px 18px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{inv.invoice_date}</td>
+                      <td style={{ padding: '12px 18px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{inv.invoice_date}</td>
                       <td style={{ padding: '12px 18px' }}>
                         <Badge type={inv.status === 'paid' ? 'green' : 'red'}>
                           {inv.status === 'paid' ? '수납완료' : '미수금'}

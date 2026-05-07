@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ReactDOM from 'react-dom';
 import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
@@ -489,7 +489,7 @@ export default function NewMission() {
       {view === 'list' && (
         <div>
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>MAIN MISSION</div>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>MAIN MISSION</div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>마케팅 소재 종합 진단</h1>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7 }}>
               랜딩페이지, 광고 소재, 배너 등을 실제 타겟 패널이 종합적으로 진단합니다.
@@ -585,7 +585,7 @@ export default function NewMission() {
                         </div>
                         <div className="mc-right">
                           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>피드백 수집</div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)' }}>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
                             {filled}<span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count || 0}</span>
                           </div>
                           <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
@@ -596,7 +596,7 @@ export default function NewMission() {
                           </div>
                           {isDraft && (
                             <button onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
-                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: '#10367D', cursor: 'pointer' }}>
+                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: 'var(--text-2)', cursor: 'pointer' }}>
                               이어 작성하기 →
                             </button>
                           )}
@@ -635,7 +635,7 @@ export default function NewMission() {
       {view === 'form' && (
         <>
           <div style={{ marginBottom: 36 }}>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>{isEditMode ? 'EDIT MISSION' : 'NEW MISSION'}</div>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>{isEditMode ? 'EDIT MISSION' : 'NEW MISSION'}</div>
             <h1 style={{ fontSize: 28, fontWeight: 800 }}>{isEditMode ? '의뢰 수정' : '마케팅 소재 종합 진단 등록'}</h1>
           </div>
 
@@ -896,7 +896,7 @@ export default function NewMission() {
                   </div>
                   <div style={{
                     flexShrink: 0,
-                    fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                    fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 700,
                     padding: '4px 12px', borderRadius: 20,
                     background: totalLPSelected >= 5 ? 'var(--accent)' : 'var(--surface)',
                     color: totalLPSelected >= 5 ? '#fff' : 'var(--text-2)',
@@ -930,7 +930,7 @@ export default function NewMission() {
                           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>질문 템플릿 페이지에서 저장한 마케팅 소재 종합 진단용 질문</div>
                         </div>
                         {custSelected.length > 0 && (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', marginRight: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', marginRight: 4 }}>
                             {custSelected.length}개 선택
                           </span>
                         )}
@@ -999,7 +999,7 @@ export default function NewMission() {
                     <div key={gi}>
                       {group.label && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: gi === 0 ? 0 : 10, marginBottom: 8 }}>
-                          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                             {group.label}
                           </div>
                           <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -1025,7 +1025,7 @@ export default function NewMission() {
                           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{tmpl.description}</div>
                         </div>
                         {selectedInTmpl.length > 0 && (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', marginRight: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', marginRight: 4 }}>
                             {selectedInTmpl.length}개 선택
                           </span>
                         )}
@@ -1101,7 +1101,7 @@ export default function NewMission() {
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span>질문 만들기</span>
                     {localCustomQs.length > 0 && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--accent)' }}>+{localCustomQs.length}개 추가됨</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', background: 'var(--surface)', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--border)' }}>+{localCustomQs.length}개 추가됨</span>
                     )}
                   </div>
                   <textarea value={newQText} onChange={e => setNewQText(e.target.value)} rows={2}
@@ -1144,7 +1144,7 @@ export default function NewMission() {
                         placeholder="1점 라벨 (예: 매우 아니다)"
                         style={{ flex: 1, minWidth: 140, fontFamily: 'inherit', fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)' }} />
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                        {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, border: '1px solid var(--accent)', color: 'var(--accent)' }}>{n}</span>)}
+                        {[1,2,3,4,5].map(n => <span key={n} style={{ width: 16, height: 16, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, border: '1px solid var(--accent)', color: 'var(--text-2)' }}>{n}</span>)}
                       </span>
                       <input value={newQScaleMax} onChange={e => setNewQScaleMax(e.target.value)}
                         placeholder="5점 라벨 (예: 매우 그렇다)"
@@ -1152,7 +1152,7 @@ export default function NewMission() {
                     </div>
                   )}
                   {newQType === 'text' && textLPSelected >= 2 && (
-                    <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>서술형 질문은 최대 2개까지만 추가할 수 있습니다.</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>서술형 질문은 최대 2개까지만 추가할 수 있습니다.</div>
                   )}
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <Btn size="sm" onClick={handleAddLocalQ}
@@ -1161,7 +1161,7 @@ export default function NewMission() {
                   </div>
                   {localCustomQs.length > 0 && (
                     <div style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 800, flexShrink: 0 }}>✓</span>
                         추가된 질문 목록
                       </div>
@@ -1172,7 +1172,7 @@ export default function NewMission() {
                           borderRadius: 'var(--radius)', border: '1px solid var(--accent)',
                           borderLeft: '3px solid var(--accent)', marginBottom: 6,
                         }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, color: '#fff', background: 'var(--accent)', borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 800, color: '#fff', background: 'var(--accent)', borderRadius: 4, padding: '2px 6px', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.text}</span>
                             <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1192,11 +1192,11 @@ export default function NewMission() {
                 {/* 선택된 질문 미리보기 */}
                 {allLPSelected.length > 0 && (
                   <div style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 10, letterSpacing: '0.05em' }}>선택된 질문 ({allLPSelected.length}개)</div>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 10, letterSpacing: '0.05em' }}>선택된 질문 ({allLPSelected.length}개)</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {allLPSelected.map((q, i) => (
                         <div key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', flexShrink: 0, marginTop: 2 }}>Q{i + 1}</span>
                           <span style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, flex: 1 }}>{q.text}</span>
                           <span style={{
                             fontSize: 10, padding: '1px 6px', borderRadius: 4, fontWeight: 600, flexShrink: 0,
@@ -1380,4 +1380,4 @@ export default function NewMission() {
 }
 
 const lbl = { display: 'flex', flexDirection: 'column', gap: 8 };
-const lblTxt = { fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
+const lblTxt = { fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };

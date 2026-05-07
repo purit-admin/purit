@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const lbl = { display: 'flex', flexDirection: 'column', gap: 8 };
-const lblTxt = { fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
+const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
 export default function CompanyAccount() {
   const [tab, setTab] = useState('profile');
@@ -74,7 +74,7 @@ export default function CompanyAccount() {
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, letterSpacing: '0.1em' }}>COMPANY · ACCOUNT</div>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>COMPANY · ACCOUNT</div>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>내 계정</h1>
       </div>
 
