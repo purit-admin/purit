@@ -706,7 +706,7 @@ export default function ActiveMission() {
     const TYPE_BADGE = {
       preference: <Badge type="blue">소재 비교</Badge>,
       pricing:    <Badge type="gold">가격 검증</Badge>,
-      email:      <Badge type="green">이메일 검증</Badge>,
+      email:      <Badge type="blue">이메일 검증</Badge>,
     };
 
     const renderDraftCard = (fb) => {

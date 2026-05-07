@@ -965,8 +965,27 @@ export default function NewMission() {
                   );
                 })()}
 
-                {/* 템플릿 아코디언 */}
-                {lpTemplates.map(tmpl => {
+                {/* 템플릿 아코디언 (섹션 구분) */}
+                {(() => {
+                  const groups = [];
+                  let curLabel = null;
+                  lpTemplates.forEach(tmpl => {
+                    const label = tmpl.sectionLabel || null;
+                    if (label !== curLabel) { curLabel = label; groups.push({ label, items: [] }); }
+                    groups[groups.length - 1].items.push(tmpl);
+                  });
+                  return groups.map((group, gi) => (
+                    <div key={gi}>
+                      {group.label && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: gi === 0 ? 0 : 10, marginBottom: 8 }}>
+                          <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                            {group.label}
+                          </div>
+                          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {group.items.map(tmpl => {
                   const isOpen = !!expandedTmpl[tmpl.id];
                   const selectedInTmpl = tmpl.questions.filter(q => selectedQuestions.some(s => s.id === q.id));
                   return (
@@ -1051,6 +1070,10 @@ export default function NewMission() {
                     </div>
                   );
                 })}
+                      </div>
+                    </div>
+                  ));
+                })()}
 
                 {/* 질문 만들기 */}
                 <div style={{ marginTop: 14, border: `1px solid ${localCustomQs.length > 0 ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '14px 14px 10px', transition: 'border-color 0.2s' }}>

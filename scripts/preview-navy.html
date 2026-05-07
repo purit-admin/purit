@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PURIT — 딥 네이비 테마 미리보기</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: #F0F4F8;
+    color: #0D1B2A;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  :root {
+    --primary:   #0F2D5A;   /* 딥 네이비 */
+    --primary-2: #1A3F7A;
+    --primary-3: #0A1F3D;
+    --accent:    #F59E0B;   /* 앰버/골드 */
+    --accent-2:  #D97706;
+    --accent-lt: #FEF3C7;
+
+    --bg:        #FFFFFF;
+    --bg2:       #F0F4F8;
+    --bg3:       #E8EDF4;
+    --bg-dark:   #0A1F3D;
+
+    --text:      #0D1B2A;
+    --text2:     #334155;
+    --text3:     #94A3B8;
+
+    --green:     #10B981;
+    --red:       #EF4444;
+  }
+
+  .w { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+  .section { padding: 80px 0; }
+  .label-chip {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-2); background: var(--accent-lt);
+    border-radius: 6px; padding: 5px 12px; margin-bottom: 18px;
+  }
+  h2 { font-size: clamp(24px, 3vw, 36px); font-weight: 800; letter-spacing: -0.04em; color: var(--text); }
+
+  /* ── NAV ── */
+  header {
+    position: sticky; top: 0; z-index: 200;
+    background: rgba(10,31,61,0.97);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(245,158,11,0.15);
+  }
+  .nav-inner {
+    max-width: 1100px; margin: 0 auto; padding: 0 32px;
+    height: 60px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { font-size: 20px; font-weight: 900; letter-spacing: -0.05em; color: #FFF; cursor: pointer; }
+  .logo em { font-style: normal; color: var(--accent); }
+  .btn-login { padding: 9px 18px; border-radius: 8px; background: none; color: rgba(255,255,255,0.65); font-size: 14px; font-weight: 500; border: none; cursor: pointer; }
+  .btn-cta {
+    padding: 10px 20px; border-radius: 8px;
+    background: var(--accent); color: var(--primary-3);
+    font-size: 14px; font-weight: 800; border: none; cursor: pointer;
+    box-shadow: 0 2px 12px rgba(245,158,11,0.35);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(160deg, #0A1F3D 0%, #0F2D5A 50%, #071529 100%);
+    padding: 100px 0 80px; text-align: center; position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,158,11,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  /* 골드 라인 장식 */
+  .hero::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 100px; padding: 7px 18px;
+    font-size: 13px; color: var(--accent); margin-bottom: 36px; font-weight: 600;
+  }
+  .hero-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
+  .hero h1 { font-size: clamp(28px, 4.5vw, 52px); font-weight: 900; letter-spacing: -0.05em; line-height: 1.25; color: #FFF; margin-bottom: 28px; word-break: keep-all; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { font-size: 17px; color: rgba(255,255,255,0.55); line-height: 1.8; max-width: 540px; margin: 0 auto 44px; }
+  .hero-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 16px 36px; border-radius: 14px;
+    background: var(--accent); color: #0A1F3D;
+    font-size: 16px; font-weight: 900; border: none; cursor: pointer;
+    box-shadow: 0 8px 32px rgba(245,158,11,0.40);
+    letter-spacing: -0.01em;
+  }
+  .hero-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 18px; }
+  .hero-sub strong { color: rgba(255,255,255,0.55); }
+
+  /* ── STATS ── */
+  .stats-bar { background: #071529; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .stat-item { padding: 48px 32px; text-align: center; border-right: 1px solid rgba(245,158,11,0.08); }
+  .stat-item:last-child { border-right: none; }
+  .stat-val { font-size: clamp(32px, 4vw, 52px); font-weight: 900; letter-spacing: -0.05em; color: var(--accent); line-height: 1; margin-bottom: 10px; }
+  .stat-label { font-size: 13px; color: rgba(255,255,255,0.35); font-weight: 500; }
+
+  /* ── PAIN ── */
+  .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .pain-card {
+    background: var(--bg); border-radius: 16px; padding: 24px;
+    display: flex; align-items: flex-start; gap: 14px;
+    border: 1px solid var(--bg3);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-left: 3px solid var(--accent);
+    transition: all 0.2s;
+  }
+  .pain-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(15,45,90,0.10); }
+  .pain-icon { font-size: 24px; flex-shrink: 0; line-height: 1.4; }
+  .pain-text { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.6; letter-spacing: -0.01em; }
+
+  /* ── SOLUTION ── */
+  .solution-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .solution-card {
+    background: var(--bg); border-radius: 16px; padding: 28px;
+    display: flex; gap: 20px; align-items: flex-start;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--bg3);
+    transition: all 0.2s;
+  }
+  .solution-card:hover { border-color: var(--accent); box-shadow: 0 8px 32px rgba(245,158,11,0.10); transform: translateY(-2px); }
+  .sol-icon { width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0; background: var(--accent-lt); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .sol-tag { display: inline-flex; align-items: center; background: var(--accent-lt); border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700; color: var(--accent-2); letter-spacing: 0.06em; margin-bottom: 10px; }
+  .sol-title { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; margin-bottom: 10px; line-height: 1.4; }
+  .sol-point { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .sol-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .sol-pt-text { font-size: 14px; color: var(--text2); }
+
+  /* ── HOW ── */
+  .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .step-num {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--primary); color: var(--accent);
+    font-size: 18px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 24px;
+    border: 2px solid var(--accent);
+    box-shadow: 0 4px 16px rgba(15,45,90,0.20);
+  }
+  .step-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 10px; letter-spacing: -0.02em; }
+  .step-desc { font-size: 15px; color: var(--text2); line-height: 1.75; margin-bottom: 16px; }
+  .step-chip { display: inline-flex; background: var(--accent-lt); border-radius: 100px; padding: 5px 14px; font-size: 12px; font-weight: 700; color: var(--accent-2); }
+
+  /* ── COMPARE ── */
+  .cmp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .cmp-card { background: var(--bg); border-radius: 16px; padding: 32px 28px; border: 1px solid var(--bg3); }
+  .cmp-card.featured { background: var(--primary); border: 2px solid var(--accent); box-shadow: 0 4px 20px rgba(15,45,90,0.20); }
+  .cmp-header { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 24px; color: #9CA3AF; }
+  .cmp-card.featured .cmp-header { color: var(--accent); }
+  .cmp-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .check { color: var(--green); font-weight: 700; }
+  .cross { color: var(--red); font-weight: 700; }
+  .cmp-text { font-size: 15px; color: var(--text2); }
+  .cmp-card.featured .cmp-text { color: rgba(255,255,255,0.85); font-weight: 500; }
+
+  /* ── CTA ── */
+  .cta-section { background: linear-gradient(135deg, #0F2D5A, #071529); padding: 80px 0; text-align: center; position: relative; overflow: hidden; }
+  .cta-section::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23F59E0B' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+  .cta-section h2 { color: #FFF; margin-bottom: 14px; position: relative; }
+  .cta-section p { color: rgba(255,255,255,0.55); font-size: 16px; margin-bottom: 40px; position: relative; }
+  .cta-btn { display: inline-flex; align-items: center; gap: 8px; padding: 16px 40px; border-radius: 14px; background: var(--accent); color: #0A1F3D; font-size: 16px; font-weight: 900; border: none; cursor: pointer; box-shadow: 0 8px 32px rgba(245,158,11,0.40); position: relative; }
+
+  /* ── DASHBOARD ── */
+  .dash-wrap {
+    background: var(--bg2); min-height: 480px;
+    border-radius: 20px; overflow: hidden;
+    border: 2px solid rgba(15,45,90,0.12);
+    box-shadow: 0 12px 48px rgba(15,45,90,0.12);
+  }
+  .dash-topbar {
+    background: var(--bg-dark); padding: 16px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 2px solid rgba(245,158,11,0.15);
+  }
+  .dash-logo { font-size: 16px; font-weight: 900; letter-spacing: -0.04em; color: #FFF; }
+  .dash-logo em { font-style: normal; color: var(--accent); }
+  .dash-user { display: flex; align-items: center; gap: 10px; }
+  .dash-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: var(--primary-3); font-size: 13px; font-weight: 900; }
+  .dash-user-name { font-size: 14px; color: rgba(255,255,255,0.65); font-weight: 500; }
+
+  .dash-body { display: flex; }
+  .dash-sidebar {
+    width: 200px; flex-shrink: 0;
+    background: #071529;
+    padding: 20px 12px;
+    border-right: 1px solid rgba(245,158,11,0.08);
+  }
+  .sb-group-label { font-size: 10px; font-weight: 700; letter-spacing: 0.10em; color: rgba(245,158,11,0.35); text-transform: uppercase; padding: 8px 10px 4px; }
+  .sb-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.45); font-weight: 500; margin-bottom: 1px; transition: all 0.15s; }
+  .sb-item.active { background: rgba(245,158,11,0.12); color: var(--accent); font-weight: 700; border-left: 2px solid var(--accent); padding-left: 8px; }
+  .sb-icon { font-size: 15px; }
+
+  .dash-content { flex: 1; padding: 24px 28px; overflow: auto; background: var(--bg2); }
+  .dash-greeting { font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; margin-bottom: 4px; }
+  .dash-sub { font-size: 13px; color: var(--text3); margin-bottom: 20px; }
+
+  .stat-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--bg); border-radius: 12px; padding: 16px 18px;
+    border: 1px solid var(--bg3);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .stat-card-label { font-size: 11px; color: var(--text3); font-weight: 500; margin-bottom: 8px; }
+  .stat-card-val { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.04em; }
+  .stat-card-val.accent { color: var(--primary); }
+  .stat-card-plan { font-size: 10px; color: var(--accent-2); font-weight: 700; margin-top: 3px; }
+
+  .dash-row { display: grid; grid-template-columns: 1fr 260px; gap: 16px; margin-bottom: 16px; }
+  .chart-card { background: var(--bg); border-radius: 12px; padding: 20px; border: 1px solid var(--bg3); }
+  .chart-card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+
+  .radar-mock { display: flex; align-items: center; justify-content: center; height: 160px; position: relative; }
+
+  .mission-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+  .mtab { padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; background: var(--bg3); color: var(--text2); }
+  .mtab.active { background: var(--primary); color: #FFF; }
+  .mission-card { background: var(--bg); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--bg3); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .mc-left { display: flex; flex-direction: column; gap: 4px; }
+  .mc-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  .mc-meta { font-size: 11px; color: var(--text3); }
+  .badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 700; }
+  .badge-green { background: rgba(16,185,129,0.10); color: #065F46; }
+  .badge-gray { background: #F3F4F6; color: #6B7280; }
+  .progress-bar { height: 4px; background: var(--bg3); border-radius: 100px; margin-top: 6px; width: 100%; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #1A3F7A); border-radius: 100px; }
+
+  /* gold accent progress */
+  .progress-fill-gold { background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+
+  .theme-label { position: fixed; top: 16px; right: 16px; z-index: 999; background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: var(--accent); padding: 8px 18px; border-radius: 100px; font-size: 13px; font-weight: 700; letter-spacing: -0.01em; box-shadow: 0 4px 16px rgba(15,45,90,0.30); border: 1px solid rgba(245,158,11,0.3); }
+
+  footer { background: var(--bg-dark); color: rgba(255,255,255,0.25); font-size: 13px; text-align: center; padding: 28px 32px; border-top: 1px solid rgba(245,158,11,0.1); }
+</style>
+</head>
+<body>
+
+<div class="theme-label">🌊 딥 네이비 테마</div>
+
+<!-- NAV -->
+<header>
+  <div class="nav-inner">
+    <span class="logo">PUR<em>IT</em></span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn-login">로그인</button>
+      <button class="btn-cta">무료로 시작하기</button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div style="max-width:800px;margin:0 auto;position:relative;z-index:1;">
+    <div class="hero-badge"><span class="hero-dot"></span>실시간 검증 진행 중</div>
+    <h1>고객이 '뒤로 가기'를 누르는 이유,<br/><em>마케터 30명에게 물어보세요.</em></h1>
+    <p>타겟 분야의 마케팅 전문가 패널이 여러분의 마케팅 소재를 직접 평가하고,<br/>전환율을 높이는 피드백을 48시간 안에 줍니다.</p>
+    <button class="hero-cta">무료로 시작해보세요 →</button>
+    <div class="hero-sub">현재 <strong>312개</strong> 기업이 사용 중입니다</div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stats-grid">
+    <div class="stat-item"><div class="stat-val">48h</div><div class="stat-label">피드백 수집 완료</div></div>
+    <div class="stat-item"><div class="stat-val">100%</div><div class="stat-label">검증된 응답</div></div>
+    <div class="stat-item"><div class="stat-val">40%</div><div class="stat-label">평균 전환율 개선</div></div>
+    <div class="stat-item" style="border-right:none;"><div class="stat-val">800만원</div><div class="stat-label">평균 절감 광고비</div></div>
+  </div>
+</div>
+
+<!-- PAIN -->
+<section class="section" style="background:#FFF;">
+  <div class="w">
+    <div style="text-align:center;margin-bottom:40px;">
+      <div class="label-chip">고충</div>
+      <h2>혹시 이런 상황이지 않나요?</h2>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card"><span class="pain-icon">📉</span><span class="pain-text">"광고비를 쏟아부었는데 전환율이 왜 이런지 모르겠다"</span></div>
+      <div class="pain-card"><span class="pain-icon">😶</span><span class="pain-text">"내부에서는 좋다고 했는데 막상 시장 반응이 없다"</span></div>
+      <div class="pain-card"><span class="pain-icon">⏳</span><span class="pain-text">"A/B 테스트 할 시간도 예산도 없다"</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUTION -->
+<section class="section" style="background:var(--bg2);">
+  <div class="w">
+    <div style="text-align:center;margin-bottom:56px;">
+      <div class="label-chip">솔루션</div>
+      <h2>PURIT이 이렇게 해결해 드립니다</h2>
+    </div>
+    <div class="solution-grid">
+      <div class="solution-card"><div class="sol-icon">🔍</div><div><div class="sol-tag">사전 검증</div><div class="sol-title">전환 결함을 집행 전에 잡는다</div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">랜딩페이지·카피·가격 페이지 검증</span></div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">이탈 요소 사전 식별</span></div></div></div>
+      <div class="solution-card"><div class="sol-icon">📐</div><div><div class="sol-tag">5차원 진단</div><div class="sol-title">어디서 막히는지 정확히 안다</div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">명확성·관련성·가치·차별화·신뢰 분석</span></div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">정량 데이터 기반 진단</span></div></div></div>
+      <div class="solution-card"><div class="sol-icon">⚡</div><div><div class="sol-tag">AI 리포트</div><div class="sol-title">읽자마자 바로 실행 가능하다</div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">우선순위별 개선 액션 자동 생성</span></div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">추측 없이 데이터로만</span></div></div></div>
+      <div class="solution-card"><div class="sol-icon">🎯</div><div><div class="sol-tag">ICP 리서치</div><div class="sol-title">타겟의 언어로 메시지를 맞춘다</div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">고객의 고통점·구매 트리거 파악</span></div><div class="sol-point"><div class="sol-dot"></div><span class="sol-pt-text">광고 집행 전 메시지 정렬</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="section" style="background:#FFF;">
+  <div class="w">
+    <div style="text-align:center;margin-bottom:64px;">
+      <div class="label-chip">작동 방식</div>
+      <h2>5분 등록, 48시간 안에 결과</h2>
+    </div>
+    <div class="steps-grid">
+      <div><div class="step-num">1</div><div class="step-title">의뢰 등록</div><div class="step-desc">타겟 페르소나와 검증할 소재를 업로드합니다. 5분이면 충분합니다.</div><div class="step-chip">약 5분</div></div>
+      <div><div class="step-num">2</div><div class="step-title">전문가 매칭</div><div class="step-desc">Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.</div><div class="step-chip">자동 처리</div></div>
+      <div><div class="step-num">3</div><div class="step-title">결과 수령</div><div class="step-desc">피드백 결과와 함께 개선 우선순위를 48시간 내에 확인합니다.</div><div class="step-chip">48시간 내</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section class="section" style="background:var(--bg2);">
+  <div class="w">
+    <div style="text-align:center;margin-bottom:56px;">
+      <div class="label-chip">차별화</div>
+      <h2>기존 방식과 무엇이 다른가요?</h2>
+    </div>
+    <div class="cmp-grid">
+      <div class="cmp-card"><div class="cmp-header">일반 설문 서비스</div><div class="cmp-row"><span class="cross">✕</span><span class="cmp-text">무작위 응답자</span></div><div class="cmp-row"><span class="cross">✕</span><span class="cmp-text">데이터 품질 보장 없음</span></div><div class="cmp-row"><span class="cross">✕</span><span class="cmp-text">수율 1% 미만</span></div><div class="cmp-row"><span class="cross">✕</span><span class="cmp-text">결과까지 2~4주</span></div></div>
+      <div class="cmp-card"><div class="cmp-header">마케팅 에이전시</div><div class="cmp-row"><span class="cross">✕</span><span class="cmp-text">내부 팀의 주관적 판단</span></div><div class="cmp-row"><span class="cross">✕</span><span class="cmp-text">비용 수천만 원</span></div><div class="cmp-row"><span class="cross">✕</span><span class="cmp-text">실제 타겟 검증 없음</span></div></div>
+      <div class="cmp-card featured"><div class="cmp-header">PURIT</div><div class="cmp-row"><span class="check">✓</span><span class="cmp-text">동일 페르소나 전문가 패널</span></div><div class="cmp-row"><span class="check">✓</span><span class="cmp-text">Purit Filter 품질 보장</span></div><div class="cmp-row"><span class="check">✓</span><span class="cmp-text">수율 100%</span></div><div class="cmp-row"><span class="check">✓</span><span class="cmp-text">48시간 결과</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="w" style="position:relative;">
+    <h2>지금 바로 첫 의뢰를 등록해보세요</h2>
+    <p>신용카드 없이 무료로 시작할 수 있습니다. 48시간 안에 결과를 받아보세요.</p>
+    <button class="cta-btn">무료로 시작하기 →</button>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="section" style="background:var(--bg2);">
+  <div class="w">
+    <div style="text-align:center;margin-bottom:40px;">
+      <div class="label-chip">대시보드 미리보기</div>
+      <h2>기업 포털 대시보드</h2>
+      <p style="color:var(--text2);font-size:15px;margin-top:12px;">실제 앱 UI를 색상 테마로 재현한 모형입니다.</p>
+    </div>
+    <div class="dash-wrap">
+      <div class="dash-topbar">
+        <div class="dash-logo">PUR<em>IT</em></div>
+        <div class="dash-user">
+          <div class="dash-avatar">김</div>
+          <span class="dash-user-name">김대표 · Starter 플랜</span>
+        </div>
+      </div>
+      <div class="dash-body">
+        <div class="dash-sidebar">
+          <div class="sb-group-label">메인</div>
+          <div class="sb-item active"><span class="sb-icon">🏠</span>개요</div>
+          <div class="sb-group-label" style="margin-top:12px;">의뢰</div>
+          <div class="sb-item"><span class="sb-icon">📋</span>의뢰 등록</div>
+          <div class="sb-group-label" style="margin-top:12px;">서브 의뢰</div>
+          <div class="sb-item"><span class="sb-icon">🔀</span>소재 비교</div>
+          <div class="sb-item"><span class="sb-icon">💰</span>가격 검증</div>
+          <div class="sb-item"><span class="sb-icon">✉️</span>이메일 검증</div>
+          <div class="sb-group-label" style="margin-top:12px;">자산</div>
+          <div class="sb-item"><span class="sb-icon">📊</span>피드백 결과</div>
+          <div class="sb-item"><span class="sb-icon">🔬</span>5차원 진단</div>
+        </div>
+        <div class="dash-content">
+          <div class="dash-greeting">안녕하세요, 김대표님 👋</div>
+          <div class="dash-sub">오늘도 Purit과 함께 전환율을 높여보세요.</div>
+          <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.20);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--accent-2);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+            🔒 Purit의 피드백 패널은 기업의 정보를 발설할 수 없습니다.
+          </div>
+          <div class="stat-cards">
+            <div class="stat-card"><div class="stat-card-label">잔여 크레딧</div><div class="stat-card-val" style="color:var(--accent-2);">42</div><div class="stat-card-plan">STARTER</div></div>
+            <div class="stat-card"><div class="stat-card-label">전체 의뢰</div><div class="stat-card-val">7</div></div>
+            <div class="stat-card"><div class="stat-card-label">진행 중</div><div class="stat-card-val">2</div></div>
+            <div class="stat-card"><div class="stat-card-label">완료</div><div class="stat-card-val">4</div></div>
+            <div class="stat-card"><div class="stat-card-label">수집 피드백</div><div class="stat-card-val">68</div></div>
+          </div>
+          <div class="dash-row">
+            <div class="chart-card">
+              <div class="chart-card-title">5차원 레이더 — 내 점수 vs 벤치마크</div>
+              <div class="radar-mock">
+                <svg width="220" height="160" viewBox="0 0 220 160">
+                  <polygon points="110,18 192,72 162,152 58,152 28,72" fill="none" stroke="rgba(15,45,90,0.08)" stroke-width="1"/>
+                  <polygon points="110,40 168,81 147,132 73,132 52,81" fill="none" stroke="rgba(15,45,90,0.08)" stroke-width="1"/>
+                  <polygon points="110,62 144,90 132,112 88,112 76,90" fill="none" stroke="rgba(15,45,90,0.08)" stroke-width="1"/>
+                  <polygon points="110,48 158,78 140,124 80,124 62,78" fill="rgba(245,158,11,0.08)" stroke="rgba(245,158,11,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+                  <polygon points="110,32 172,75 148,144 72,144 48,75" fill="rgba(15,45,90,0.10)" stroke="var(--primary)" stroke-width="2"/>
+                  <text x="110" y="12" text-anchor="middle" font-size="10" fill="#9CA3AF">명확성</text>
+                  <text x="200" y="76" text-anchor="start" font-size="10" fill="#9CA3AF">관련성</text>
+                  <text x="168" y="158" text-anchor="middle" font-size="10" fill="#9CA3AF">가치</text>
+                  <text x="52" y="158" text-anchor="middle" font-size="10" fill="#9CA3AF">차별성</text>
+                  <text x="14" y="76" text-anchor="middle" font-size="10" fill="#9CA3AF">신뢰도</text>
+                </svg>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card-title">KPI 달성률</div>
+              <div style="display:flex;align-items:center;justify-content:center;height:140px;">
+                <svg width="160" height="90" viewBox="0 0 160 90">
+                  <path d="M 20 80 A 60 60 0 0 1 140 80" fill="none" stroke="var(--bg3)" stroke-width="14" stroke-linecap="round"/>
+                  <path d="M 20 80 A 60 60 0 0 1 116 34" fill="none" stroke="var(--accent)" stroke-width="14" stroke-linecap="round"/>
+                  <text x="80" y="74" text-anchor="middle" font-size="22" font-weight="900" fill="var(--primary)">72%</text>
+                  <text x="80" y="86" text-anchor="middle" font-size="10" fill="#9CA3AF">KPI 달성률</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-card-title">전체 의뢰 현황</div>
+            <div class="mission-tabs">
+              <div class="mtab">전체</div>
+              <div class="mtab active">진행</div>
+              <div class="mtab">완료</div>
+              <div class="mtab">임시저장</div>
+              <div class="mtab">취소</div>
+            </div>
+            <div class="mission-card">
+              <div class="mc-left">
+                <div class="mc-title">그린카트 여름 시즌 랜딩페이지</div>
+                <div class="mc-meta">등록일 2026-05-03</div>
+                <div style="margin-top:6px;"><div class="progress-bar"><div class="progress-fill" style="width:60%;"></div></div></div>
+                <div class="mc-meta" style="margin-top:4px;">피드백 6 / 10</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+                <span class="badge badge-green">진행 중</span>
+                <button style="font-size:11px;color:var(--accent-2);background:var(--accent-lt);border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:700;">조기 종료</button>
+              </div>
+            </div>
+            <div class="mission-card">
+              <div class="mc-left">
+                <div class="mc-title">프라임몰 가격 검증 테스트</div>
+                <div class="mc-meta">등록일 2026-05-05</div>
+                <div style="margin-top:6px;"><div class="progress-bar"><div class="progress-fill" style="width:0%;"></div></div></div>
+                <div class="mc-meta" style="margin-top:4px;">피드백 0 / 10</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+                <span class="badge badge-gray">매칭 대기</span>
+                <button style="font-size:11px;color:var(--primary);background:var(--bg3);border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:700;">수정</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>PURIT — 딥 네이비 테마 컨셉 미리보기 (실제 구현 전 디자인 검토용)</footer>
+</body>
+</html>

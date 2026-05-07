@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-06 (서브 의뢰 폼 단계 통합: PreferenceTest 4단계·PricingTest 4단계·ColdEmailTest 4단계; 뱃지 색 통일: 매칭대기→gray·완료→blue; admin/Missions.jsx MissionCard 동적 뱃지)
+최종 업데이트: 2026-05-07 (LP 템플릿 sectionLabel 섹션 그룹핑; 마케팅 소재 종합 진단 4섹션 12종 확장)
 ================================================================
 
 ## 기술 스택
@@ -26,7 +26,9 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 3종, TYPE_LABEL, TYPE_COLOR)
+│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
+│   │              lp 템플릿 sectionLabel 필드: '랜딩페이지 진단'(3종)·'광고 소재 진단'(3종)·'제품 상세 페이지 진단'(3종)·'영상/숏폼 광고 진단'(3종)
+│   │              QuestionTemplates.jsx·NewMission.jsx: sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링 (category='랜딩페이지' 유지 — 기존 필터 로직 불변)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getPanelReward·fmtWon·fmtKRW 헬퍼)
 │   │              navigationGuard.js (싱글톤 — register(config)/unregister()/intercept(path); 폼 페이지가 register, Sidebar가 intercept 호출)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)

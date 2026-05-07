@@ -861,7 +861,7 @@ export default function ColdEmailTest() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
                         <Badge type={statusBadgeType}>{statusBadgeLabel}</Badge>
-                        <Badge type="green">이메일 검증</Badge>
+                        <Badge type="blue">이메일 검증</Badge>
                         {isLive && <span style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.08)', borderRadius: 4, padding: '1px 6px', fontWeight: 700 }}>🔒 수정 잠금</span>}
                       </div>
                       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '이메일 검증'}</div>

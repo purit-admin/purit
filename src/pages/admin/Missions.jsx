@@ -42,7 +42,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
             </Badge>
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
-            {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
+            {m.type === 'email'      && <Badge type="blue">이메일 검증</Badge>}
             {(!m.type || m.type === 'landing_page') && <Badge type="gray">LP 검증</Badge>}
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-3)' }}>
               {m.id.slice(0, 8).toUpperCase()}

@@ -140,7 +140,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
             )}
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
-            {m.type === 'email'      && <Badge type="green">이메일 검증</Badge>}
+            {m.type === 'email'      && <Badge type="blue">이메일 검증</Badge>}
             <span style={{ fontSize: 11, color: C.text3 }}>
               {m.id.slice(0, 8).toUpperCase()}
             </span>

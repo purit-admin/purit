@@ -8,7 +8,7 @@ const TABS = [
   { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지', badge: 'blue',  icon: null, path: '/company/new',         desc: '랜딩페이지·광고 소재 등 마케팅 소재를 5차원으로 종합 진단' },
   { key: 'preference', label: '소재 비교 A/B',  category: '광고소재',  badge: 'blue',  icon: null, path: '/company/preference',    desc: '두 소재 중 어떤 것이 더 전환율 높은지 실 패널로 검증' },
   { key: 'pricing',    label: '가격 페이지',     category: '가격',     badge: 'gold',  icon: null, path: '/company/pricing-test',  desc: '가격 구성·플랜 명확성·WTP를 정밀 측정' },
-  { key: 'email',      label: '이메일 검증',     category: '이메일',   badge: 'green', icon: null, path: '/company/email-test',    desc: '제목줄·개봉 의향·CTA 효과를 패널 피드백으로 진단' },
+  { key: 'email',      label: '이메일 검증',     category: '이메일',   badge: 'blue',  icon: null, path: '/company/email-test',    desc: '제목줄·개봉 의향·CTA 효과를 패널 피드백으로 진단' },
   { key: 'custom',     label: '커스텀 질문',     category: null,       badge: null,    icon: '➕', path: null,                    desc: '나만의 질문을 직접 만들어 의뢰에 자동 포함하세요' },
 ];
 
@@ -19,7 +19,7 @@ const CUSTOM_CAT_TABS = [
   { key: 'email',      label: '이메일 검증',    category: '이메일' },
 ];
 
-const BADGE_COLORS = { 랜딩페이지: 'blue', 광고소재: 'blue', 가격: 'gold', 이메일: 'green', LP검증: 'blue', LP: 'blue' };
+const BADGE_COLORS = { 랜딩페이지: 'blue', 광고소재: 'blue', 가격: 'gold', 이메일: 'blue', LP검증: 'blue', LP: 'blue' };
 const TYPE_BG = { radio: 'rgba(59,130,246,0.13)', scale: 'rgba(99,102,241,0.13)', text: 'rgba(52,199,89,0.13)' };
 const TYPE_COL = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
 
@@ -416,39 +416,65 @@ export default function QuestionTemplates() {
             </Card>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 20 }}>
-              {/* 템플릿 카드 그리드 */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, alignContent: 'start' }}>
-                {filtered.map(t => (
-                  <Card
-                    key={t.id}
-                    style={{ transition: 'all 0.15s', borderColor: selected === t.id ? 'var(--accent)' : undefined }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{
-                          width: 38, height: 38, borderRadius: 'var(--radius)',
-                          background: 'var(--accent-dim)', display: 'flex', alignItems: 'center',
-                          justifyContent: 'center', fontSize: 18, color: 'var(--accent)',
-                        }}>
-                          {t.icon}
+              {/* 템플릿 카드 그리드 (섹션 구분 렌더링) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {(() => {
+                  const groups = [];
+                  let currentLabel = null;
+                  filtered.forEach(t => {
+                    const label = t.sectionLabel || null;
+                    if (label !== currentLabel) {
+                      currentLabel = label;
+                      groups.push({ label, items: [] });
+                    }
+                    groups[groups.length - 1].items.push(t);
+                  });
+                  return groups.map((group, gi) => (
+                    <div key={gi}>
+                      {group.label && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                            {group.label}
+                          </div>
+                          <div style={{ height: 1, background: 'var(--border)' }} />
                         </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 14 }}>{t.name}</div>
-                          <Badge type={BADGE_COLORS[t.category] || 'gray'} style={{ marginTop: 4 }}>{t.category}</Badge>
-                        </div>
+                      )}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                        {group.items.map(t => (
+                          <Card
+                            key={t.id}
+                            style={{ transition: 'all 0.15s', borderColor: selected === t.id ? 'var(--accent)' : undefined }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                  width: 38, height: 38, borderRadius: 'var(--radius)',
+                                  background: 'var(--accent-dim)', display: 'flex', alignItems: 'center',
+                                  justifyContent: 'center', fontSize: 18, color: 'var(--accent)',
+                                }}>
+                                  {t.icon}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, fontSize: 14 }}>{t.name}</div>
+                                  <Badge type={BADGE_COLORS[t.category] || 'gray'} style={{ marginTop: 4 }}>{t.category}</Badge>
+                                </div>
+                              </div>
+                            </div>
+                            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 14 }}>{t.description}</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+                                {t.template_questions?.length || 0}개 문항 · {t.use_count || 0}회 사용
+                              </span>
+                              <Btn size="sm" variant="secondary" onClick={() => setSelected(t.id)}>
+                                미리보기
+                              </Btn>
+                            </div>
+                          </Card>
+                        ))}
                       </div>
                     </div>
-                    <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 14 }}>{t.description}</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-                        {t.template_questions?.length || 0}개 문항 · {t.use_count || 0}회 사용
-                      </span>
-                      <Btn size="sm" variant="secondary" onClick={() => setSelected(t.id)}>
-                        미리보기
-                      </Btn>
-                    </div>
-                  </Card>
-                ))}
+                  ));
+                })()}
               </div>
 
               {/* 우측 사이드 패널 */}
