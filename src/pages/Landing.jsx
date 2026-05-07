@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, X } from 'lucide-react';
 
 /* ─── 색상 토큰 (Claude 팔레트) ───────── */
-const BG      = '#FAF9F6';
-const BG2     = '#EBEBEB';
+const BG      = '#F8FAFC';
+const BG2     = '#EDF0F4';
 const BG3     = '#DCDCDC';
 const PRIMARY = '#10367D';
 const TEXT    = '#1C1917';
@@ -450,7 +450,7 @@ export default function Landing() {
       {/* ══════════════════════════
           9. 하단 CTA
       ══════════════════════════ */}
-      <section className="landing-section" style={{ background: BG3 }}>
+      <section className="landing-section" style={{ background: '#EDF0F4' }}>
         <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{
             fontSize: 'clamp(26px, 4vw, 48px)',
@@ -483,7 +483,7 @@ export default function Landing() {
       {/* ══════════════════════════
           푸터
       ══════════════════════════ */}
-      <footer style={{ background: BG2 }}>
+      <footer style={{ background: '#F8FAFC' }}>
         <div className="landing-footer-inner">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40, flexWrap: 'wrap', gap: 40 }}>
             <div>
