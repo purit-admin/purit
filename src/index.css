@@ -10,8 +10,8 @@
   --border-light: #EEF2F6;
 
   --text: #0F172A;
-  --text-2: #475569;
-  --text-3: #94A3B8;
+  --text-2: #4B556D;
+  --text-3: #8598AA;
 
   --accent: #10367D;
   --accent-2: #0C2A62;
@@ -258,6 +258,35 @@ input:focus, textarea:focus, select:focus {
 }
 @media (max-width: 480px) {
   .dash-stat-grid-3 { grid-template-columns: 1fr !important; }
+}
+
+/* ─── DimTabView 좌우 분할 (이미지 고정 / 코멘트 스크롤) ─── */
+.dim-tab-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.dim-tab-left {
+  flex: 1;
+  min-width: 0;
+  position: sticky;
+  top: 24px;
+}
+.dim-tab-right {
+  width: 320px;
+  flex-shrink: 0;
+}
+@media (max-width: 900px) {
+  .dim-tab-layout {
+    flex-direction: column !important;
+  }
+  .dim-tab-left {
+    position: static !important;
+    width: 100% !important;
+  }
+  .dim-tab-right {
+    width: 100% !important;
+  }
 }
 
 /* ─── 마스터-디테일 레이아웃 (Results, PurityFilter) ─── */

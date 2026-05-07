@@ -146,7 +146,7 @@ export default function ColdEmailTest() {
     setLoading(false);
   }
 
-  const shouldBlockNav = view === 'create' && Boolean(emailText);
+  const shouldBlockNav = view === 'create' && Boolean(emailText || productDescription || industry);
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -444,7 +444,7 @@ export default function ColdEmailTest() {
                     />
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군 (선택)</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군</div>
                     <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
                       <button type="button" onClick={() => setIndustryOpen(o => !o)} style={{
                         width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',

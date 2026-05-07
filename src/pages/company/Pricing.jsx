@@ -193,7 +193,7 @@ export default function PricingPage() {
               </div>
             )}
             {plan.highlight && currentPlan !== plan.id && (
-              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-sans)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
+              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-sans)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
                 가장 인기
               </div>
             )}
@@ -209,7 +209,9 @@ export default function PricingPage() {
               {plan.id === 'enterprise' ? (
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-sans)' }}>연간 계약 전용 · 협의 가능</div>
               ) : billing === 'annual' ? (
-                <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4, fontFamily: 'var(--font-sans)' }}>{plan.annualNote}</div>
+                <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600, marginTop: 4, fontFamily: 'var(--font-sans)' }}>
+                  연간 결제 시 {Math.round((plan.price.monthly - plan.price.annual) / plan.price.monthly * 100)}% 절감
+                </div>
               ) : (
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4, fontFamily: 'var(--font-sans)' }}>무약정 · 언제든 해지 가능</div>
               )}
@@ -220,7 +222,7 @@ export default function PricingPage() {
               <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
                 <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', marginBottom: 3 }}>월 크레딧</div>
                 <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--text)' }}>
-                  {plan.credits.monthly >= 250 ? '250+' : plan.credits.monthly}
+                  {plan.id === 'enterprise' ? '400+' : plan.credits.monthly}
                 </div>
               </div>
               <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
@@ -318,7 +320,7 @@ export default function PricingPage() {
       <div style={{ marginTop: 48, padding: '28px', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>자주 묻는 질문</div>
         {[
-          ['크레딧이란 무엇인가요?', '1 크레딧 = 패널 1명의 피드백 1건입니다. 패널 15명에게 검증 요청하면 15크레딧이 차감됩니다. 월간 크레딧은 다음 달로 이월되지 않습니다.'],
+          ['크레딧이란 무엇인가요?', '크레딧은 패널 피드백 1건 단위로 차감되는 통화입니다. 패널 직급에 따라 가중치가 다르게 적용되며(주니어 1×, 미들 1.5×, 시니어 2×, C레벨 3×), 실제 매칭된 직급 비율에 따라 소모량이 달라집니다. 월간 크레딧은 다음 달로 이월되지 않습니다.'],
           ['추가 크레딧 가격이 어떻게 되나요?', 'Starter 플랜은 추가 충전 시 1크레딧당 25,000원(정가)이 적용됩니다. Pro 플랜은 14% 할인된 1크레딧당 21,600원에 충전할 수 있습니다.'],
           ['결과는 얼마 만에 나오나요?', '패널 매칭 후 평균 24~48시간 내에 피드백이 취합됩니다. Enterprise는 전담 CSM이 일정을 조율합니다.'],
         ].map(([q, a], i) => (

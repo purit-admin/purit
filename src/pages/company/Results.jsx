@@ -22,13 +22,22 @@ const PAGE_SIZE = 5;
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
+  const base = { padding: '3px 7px', borderRadius: 5, fontSize: 11, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer' };
   return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
-      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
+    <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ ...base, opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}>‹</button>
       {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+        <button key={n} onClick={() => onPage(n)} style={{
+          ...base,
+          background: page === n ? 'var(--accent)' : 'var(--surface)',
+          color: page === n ? '#fff' : 'var(--text-2)',
+          borderColor: page === n ? 'var(--accent)' : 'var(--border)',
+          fontWeight: page === n ? 700 : 400,
+        }}>{n}</button>
       ))}
-      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ ...base, opacity: page === totalPages ? 0.4 : 1, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>›</button>
     </div>
   );
 }
@@ -207,18 +216,44 @@ function CommentList({ items }) {
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {paged.map((item, i) => (
-          <div key={i} style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
+          <div key={i} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             {(item.label || item.actions) && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase' }}>{item.label}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600 }}>{item.label}</div>
                 {item.actions && <div style={{ flexShrink: 0 }}>{item.actions}</div>}
               </div>
             )}
-            {item.text || <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>내용 없음</span>}
+            <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>
+              {item.text || <span style={{ fontStyle: 'italic', color: 'var(--text-3)', fontWeight: 400, fontSize: 13 }}>내용 없음</span>}
+            </div>
           </div>
         ))}
       </div>
       <Pagination page={page} total={items.length} onPage={setPage} />
+    </div>
+  );
+}
+
+/* ─── 어노테이션 코멘트 1줄 더보기 (DOM overflow 감지) ─── */
+function TruncatedComment({ text }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) setOverflows(ref.current.scrollWidth > ref.current.clientWidth);
+  }, [text]);
+  return (
+    <div>
+      <div ref={ref} style={{
+        fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6,
+        ...(expanded ? { whiteSpace: 'pre-wrap' } : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
+      }}>{text}</div>
+      {overflows && (
+        <button onClick={e => { e.stopPropagation(); setExpanded(v => !v); }} style={{
+          marginTop: 3, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none',
+          cursor: 'pointer', padding: 0, fontWeight: 600,
+        }}>{expanded ? '접기 ▲' : '더보기 ▼'}</button>
+      )}
     </div>
   );
 }
@@ -367,23 +402,18 @@ function PreferenceResults({ responses, mission, panelProfiles, companyId, helpR
 
   return (
     <div>
-      {/* 소재 A/B 원본 */}
       {(parsedDesc.variantA || parsedDesc.variantAImage || parsedDesc.variantB || parsedDesc.variantBImage) && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>제출된 소재</div>
           <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 'var(--radius)' }}>
               <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 A</div>
-              {parsedDesc.variantAImage && (
-                <img src={parsedDesc.variantAImage} alt="소재 A" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
-              )}
+              {parsedDesc.variantAImage && <img src={parsedDesc.variantAImage} alt="소재 A" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />}
               {parsedDesc.variantA && <ExpandableText text={parsedDesc.variantA} />}
             </div>
             <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
               <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 B</div>
-              {parsedDesc.variantBImage && (
-                <img src={parsedDesc.variantBImage} alt="소재 B" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />
-              )}
+              {parsedDesc.variantBImage && <img src={parsedDesc.variantBImage} alt="소재 B" style={{ width: '100%', borderRadius: 6, marginBottom: 8, maxHeight: 160, objectFit: 'cover' }} />}
               {parsedDesc.variantB && <ExpandableText text={parsedDesc.variantB} />}
             </div>
           </div>
@@ -517,88 +547,98 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
   };
 
   return (
-    <div>
-      {/* 이미지 탭 */}
-      {imageUrls.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-          {imageUrls.map((_, i) => {
-            const cnt = allAnnotations.filter(a => a.dimension === dim && a.image_index === i).length;
-            return (
-              <button key={i} onClick={() => { setCurrentImageIdx(i); setSelectedAnnId(null); }} style={{
-                padding: '5px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                border: `1.5px solid ${currentImageIdx === i ? 'var(--accent)' : 'var(--border)'}`,
-                background: currentImageIdx === i ? 'var(--accent)' : 'var(--surface)',
-                color: currentImageIdx === i ? '#fff' : 'var(--text-2)',
-              }}>
-                이미지 {i + 1}
-                {cnt > 0 && <span style={{ marginLeft: 5, opacity: 0.8 }}>({cnt})</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
+    <div className="dim-tab-layout">
 
-      {/* 이미지 + 어노테이션 오버레이 */}
-      <div style={{ border: `1px solid ${meta.color}44`, borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 16 }}>
-        <ImageAnnotator
-          imageUrl={imageUrls[currentImageIdx]}
-          imageIndex={currentImageIdx}
-          annotations={imgAnns}
-          seqPool={allDimAnns}
-          highlightedId={selectedAnnId}
-          readonly
-        />
-      </div>
-
-      {/* 어노테이션 개수 안내 */}
-      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
-        <span style={{ color: meta.color, fontWeight: 700 }}>{meta.label}</span> 차원 어노테이션 {allDimAnns.length}개 (전체 이미지 합산)
-        {selectedAnnId && <span style={{ marginLeft: 8, color: 'var(--text-3)', fontWeight: 600 }}>— 선택된 항목만 표시 중 (다시 클릭하면 전체 표시)</span>}
-      </div>
-
-      {/* 코멘트 목록 */}
-      {allDimAnns.length === 0 ? (
-        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          이 차원에 남겨진 어노테이션이 없습니다.
-        </div>
-      ) : (
-        <div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {pagedAnns.map((ann, i) => {
-              const globalIdx = (annPage - 1) * PAGE_SIZE + i;
-              const isActive = selectedAnnId === ann.id;
+      {/* ── 왼쪽: 이미지 (sticky 고정) ── */}
+      <div className="dim-tab-left">
+        {/* 이미지 탭 */}
+        {imageUrls.length > 1 && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {imageUrls.map((_, i) => {
+              const cnt = allAnnotations.filter(a => a.dimension === dim && a.image_index === i).length;
               return (
-                <div
-                  key={ann.id}
-                  onClick={() => handleAnnClick(ann)}
-                  style={{
-                    padding: '12px 14px', background: 'var(--surface)',
-                    borderRadius: 'var(--radius)', cursor: 'pointer',
-                    border: isActive ? `1.5px solid ${meta.color}` : '1px solid var(--border)',
-                    borderLeft: `3px solid ${meta.color}`,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: ann.comment ? 8 : 0, flexWrap: 'wrap' }}>
-                    <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
-                      {globalIdx + 1}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-sans)', fontWeight: 700 }}>{ann.score}점</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>이미지 {ann.image_index + 1}</span>
-                    <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
-                  </div>
-                  {ann.comment ? (
-                    <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>{ann.comment}</div>
-                  ) : (
-                    <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
-                  )}
-                </div>
+                <button key={i} onClick={() => { setCurrentImageIdx(i); setSelectedAnnId(null); }} style={{
+                  padding: '5px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: `1.5px solid ${currentImageIdx === i ? 'var(--accent)' : 'var(--border)'}`,
+                  background: currentImageIdx === i ? 'var(--accent)' : 'var(--surface)',
+                  color: currentImageIdx === i ? '#fff' : 'var(--text-2)',
+                }}>
+                  이미지 {i + 1}
+                  {cnt > 0 && <span style={{ marginLeft: 5, opacity: 0.8 }}>({cnt})</span>}
+                </button>
               );
             })}
           </div>
-          <Pagination page={annPage} total={allDimAnns.length} onPage={setAnnPage} />
+        )}
+
+        {/* 이미지 + 어노테이션 오버레이 */}
+        <div style={{ border: `1px solid ${meta.color}44`, borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 10 }}>
+          <ImageAnnotator
+            imageUrl={imageUrls[currentImageIdx]}
+            imageIndex={currentImageIdx}
+            annotations={imgAnns}
+            seqPool={allDimAnns}
+            highlightedId={selectedAnnId}
+            readonly
+          />
         </div>
-      )}
+
+      </div>
+
+      {/* ── 오른쪽: 코멘트 목록 ── */}
+      <div className="dim-tab-right">
+        {(() => {
+          const scores = allDimAnns.map(a => a.score).filter(s => s != null && !isNaN(s));
+          const avg = scores.length ? (scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(1) : null;
+          return (
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 10, fontWeight: 600 }}>
+              코멘트 {allDimAnns.length}개{avg ? <span style={{ marginLeft: 6 }}>· 평균 {avg}점</span> : null}
+            </div>
+          );
+        })()}
+        {allDimAnns.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            이 차원에 남겨진 어노테이션이 없습니다.
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pagedAnns.map((ann, i) => {
+                const globalIdx = (annPage - 1) * PAGE_SIZE + i;
+                const isActive = selectedAnnId === ann.id;
+                return (
+                  <div
+                    key={ann.id}
+                    onClick={() => handleAnnClick(ann)}
+                    style={{
+                      padding: '10px 12px', background: 'var(--surface)',
+                      borderRadius: 'var(--radius)', cursor: 'pointer',
+                      border: isActive ? `1.5px solid ${meta.color}` : '1px solid var(--border)',
+                      borderLeft: `3px solid ${meta.color}`,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: ann.comment ? 6 : 0, flexWrap: 'wrap' }}>
+                      <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 6px', fontSize: 11, fontWeight: 700 }}>
+                        {globalIdx + 1}
+                      </span>
+                      <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-sans)', fontWeight: 700 }}>{ann.score}점</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>이미지 {ann.image_index + 1}</span>
+                      <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
+                    </div>
+                    {ann.comment
+                      ? <TruncatedComment text={ann.comment} />
+                      : <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
+                    }
+                  </div>
+                );
+              })}
+            </div>
+            <Pagination page={annPage} total={allDimAnns.length} onPage={setAnnPage} />
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
@@ -655,8 +695,24 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
         </div>
       )}
 
+      {/* LP 추가 질문 집계 */}
+      {(() => {
+        const { selectedQuestions: lpQs } = parseLPDesc(mission?.description);
+        if (!lpQs.length) return null;
+        return (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 16px' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            </div>
+            <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
+          </>
+        );
+      })()}
+
       {/* 총평 목록 */}
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, marginTop: 28 }}>
         패널 총평 ({overallComments.length}개)
       </div>
       {overallComments.length === 0 ? (
@@ -678,29 +734,13 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
                     <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
                   </div>
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{text}</div>
+                <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
               </div>
             ))}
           </div>
           <Pagination page={commentPage} total={overallComments.length} onPage={setCommentPage} />
         </div>
       )}
-
-      {/* LP 추가 질문 집계 */}
-      {(() => {
-        const { selectedQuestions: lpQs } = parseLPDesc(mission?.description);
-        if (!lpQs.length) return null;
-        return (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 16px' }}>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            </div>
-            <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
-          </>
-        );
-      })()}
     </div>
   );
 }
@@ -828,6 +868,8 @@ export default function Results() {
   const [companyId, setCompanyId]         = useState(null);
   const [helpRatings, setHelpRatings]     = useState({});
   const [ratingInFlight, setRatingInFlight] = useState(new Set());
+  const [mainPage, setMainPage]           = useState(1);
+  const [subPage, setSubPage]             = useState(1);
 
   // 미션 목록 로드
   useEffect(() => {
@@ -845,6 +887,13 @@ export default function Results() {
         const target = initialMission || ms[0];
         setSelected(target.id);
         setShareToken(target.share_token || null);
+        // 초기 선택 미션이 속한 페이지로 이동
+        const mains = ms.filter(m => !m.type || m.type === 'landing_page');
+        const subs  = ms.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+        const mIdx = mains.findIndex(m => m.id === target.id);
+        if (mIdx >= 0) setMainPage(Math.floor(mIdx / PAGE_SIZE) + 1);
+        const sIdx = subs.findIndex(m => m.id === target.id);
+        if (sIdx >= 0) setSubPage(Math.floor(sIdx / PAGE_SIZE) + 1);
       }
       setLoading(false);
     }
@@ -1006,6 +1055,8 @@ export default function Results() {
   const hasImages     = mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0 && !isSubMission;
   const mainMissions  = missions.filter(m => !m.type || m.type === 'landing_page');
   const subMissions   = missions.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+  const pagedMain     = mainMissions.slice((mainPage - 1) * PAGE_SIZE, mainPage * PAGE_SIZE);
+  const pagedSub      = subMissions.slice((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE);
 
   const DIM_TABS = [...DIMS, 'summary'];
 
@@ -1029,17 +1080,19 @@ export default function Results() {
             {mainMissions.length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>메인 의뢰</div>
-                {mainMissions.map(m => (
+                {pagedMain.map(m => (
                   <MissionItem key={m.id} m={m} isSelected={selected === m.id} onClick={() => setSelected(m.id)} />
                 ))}
+                <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
               </div>
             )}
             {subMissions.length > 0 && (
               <div>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>서브 의뢰</div>
-                {subMissions.map(m => (
+                {pagedSub.map(m => (
                   <MissionItem key={m.id} m={m} isSelected={selected === m.id} onClick={() => setSelected(m.id)} />
                 ))}
+                <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
               </div>
             )}
           </div>

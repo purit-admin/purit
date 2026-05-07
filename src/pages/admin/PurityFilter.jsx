@@ -623,7 +623,7 @@ export default function PurityFilter() {
                           <div key={key} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
                             <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
                             {isSkipped ? (
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', padding: '3px 0' }}>해당 없음</div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', padding: '3px 0' }}>해당 없음</div>
                             ) : (
                               <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-sans)', color: val >= 4 ? 'var(--green)' : val <= 2 ? 'var(--red)' : 'var(--text-2)' }}>{val}</div>
                             )}

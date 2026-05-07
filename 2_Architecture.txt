@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-08 (PurityFilter subResponseMap 사전 로드·슬라이딩 페이지네이션; Results CommentList actions prop·ScoreCardRow maxWidth 가운데 정렬·CustomQuestionsSection 점수형 인라인 뱃지)
+최종 업데이트: 2026-05-09 (Results.jsx DimTabView 좌우 분할·TruncatedComment·좌측패널 페이지네이션·SummaryTabView 질문/총평 순서 교체·총평 텍스트 강화; CommentList 서브의뢰 총평 스타일 통일; CSS 텍스트 변수 가독성 개선)
 ================================================================
 
 ## 기술 스택
@@ -113,10 +113,22 @@ purit/
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
 │   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 2, "sub"), PricingTest(Step 2, "sub"), ColdEmailTest(Step 2, "sub")
 │   │   ※ pages/company/Results.jsx: 좌측 패널 미션 목록 — 타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
+│   │                좌측 패널 페이지네이션: mainPage/subPage state, PAGE_SIZE=5, ‹ › 화살표 버튼 ★
+│   │                  URL ?id 파라미터 진입 시 해당 미션이 속한 페이지로 자동 이동 (auto-page 로직)
 │   │                ExpandableText(text, limit=200) — 텍스트 길이 초과 시 더보기/접기 토글
+│   │                TruncatedComment — 어노테이션 코멘트 1줄 표시 + DOM overflow 감지(scrollWidth>clientWidth) → 더보기/접기 토글 ★
 │   │                ScoreCardRow: display:grid repeat(N, 1fr), maxWidth=N×220px + margin:0 auto → 아이템 수에 따라 폭 제한 후 화면 가운데 정렬 ★
-│   │                CommentList: actions prop 지원 — { label, actions, text } 구조 → 헤더 행 justifyContent:space-between (label 좌측, actions 우측) ★
-│   │                  HelpfulnessButtons: CommentList items의 actions prop으로 전달 → 피드백 박스 우측 끝 배치 ★
+│   │                CommentList: { label, actions, text } 구조, 카드 padding:14px 16px ★
+│   │                  헤더: justifyContent:space-between, gap:8, marginBottom:8
+│   │                  label: fontSize:12, fontWeight:600 (패널 번호·뱃지 포함)
+│   │                  text: fontSize:14, color:var(--text), lineHeight:1.75, fontWeight:500 ★ (메인/서브 통일)
+│   │                  HelpfulnessButtons: actions prop으로 전달 → 헤더 우측 끝 배치
+│   │                DimTabView (이미지 미션 차원 탭): .dim-tab-layout 좌우 분할 ★
+│   │                  .dim-tab-left (flex:1, sticky top:24px): 이미지 어노테이터 — 어노테이션 수 카운트 제거
+│   │                  .dim-tab-right (width:320px): 코멘트 목록 + 헤더 "코멘트 N개 · 평균 X.X점"
+│   │                  900px↓: flex-direction:column, sticky 해제 (index.css .dim-tab-* 미디어쿼리)
+│   │                SummaryTabView (종합 탭): LP 추가 질문(CustomQuestionsSection) → 패널 총평 순서 ★
+│   │                  총평 텍스트: fontSize:14, color:var(--text), lineHeight:1.75, fontWeight:500 ★
 │   │                CustomQuestionsSection: 점수형(scale) 질문 헤더에 "평균 X.X점" 인라인 뱃지 표시 (질문 텍스트 바로 옆) ★
 │   │                  scale 펼침 결과: 전체폭 ScoreCardRow 제거 → 가운데 정렬 컴팩트 카드(minWidth:140, padding:16px 32px) ★
 │   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
@@ -281,6 +293,9 @@ purit/
   --accent-2:    #0C2A62
   --accent-dim:  rgba(16,54,125,0.10)
   --accent-dim2: rgba(16,54,125,0.05)
+  --text:        #0F172A  (주 텍스트)
+  --text-2:      #4B556D  (보조 텍스트, 구 #475569에서 가독성 개선)
+  --text-3:      #8598AA  (3차 텍스트·레이블, 구 #94A3B8에서 가독성 개선)
 
   ★ 텍스트 색상 원칙 (기업·어드민·패널 포털 전체):
     - 모든 텍스트·숫자·레이블: var(--text) / var(--text-2) / var(--text-3) 사용

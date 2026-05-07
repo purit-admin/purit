@@ -307,7 +307,8 @@ export default function NewMission() {
 
   const shouldBlockNav = view === 'form'
     && (!isEditMode || isDraftMode)
-    && Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0);
+    && Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0
+      || form.industry || form.personaAge || form.personaIncome || form.personaRole || form.personaContext);
 
 
   useEffect(() => {
@@ -663,14 +664,16 @@ export default function NewMission() {
           </div>
 
           {/* Step indicator */}
-          <div style={{ display: 'flex', gap: 0, marginBottom: 40, position: 'relative' }}>
+          <div style={{ display: 'flex', gap: 0, marginBottom: 32 }}>
             {STEPS.map((s, i) => (
-              <div key={s} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: i === 0 ? 'flex-start' : i === STEPS.length - 1 ? 'flex-end' : 'center', gap: 8 }}>
+              <div key={s} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: i === 0 ? 'flex-start' : i === STEPS.length - 1 ? 'flex-end' : 'center', gap: 6 }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: i < step ? 'var(--green)' : i === step ? 'var(--accent)' : 'var(--surface-2)',
-                  color: i < step ? '#FFFFFF' : i === step ? '#FFFFFF' : 'var(--text-3)',
-                  fontSize: 12, fontWeight: 700, transition: 'all 0.3s',
+                  width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: i < step ? 'var(--green)' : i === step ? 'var(--accent)' : 'var(--surface)',
+                  color: i <= step ? '#fff' : 'var(--text-3)',
+                  fontSize: 11, fontWeight: 700, border: '1px solid',
+                  borderColor: i < step ? 'var(--green)' : i === step ? 'var(--accent)' : 'var(--border)',
+                  transition: 'all 0.2s',
                 }}>
                   {i < step ? '✓' : i + 1}
                 </div>
