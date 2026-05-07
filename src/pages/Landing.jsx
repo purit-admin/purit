@@ -2,16 +2,16 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, X } from 'lucide-react';
 
-/* ─── 색상 토큰 ──────────────────────── */
-const BG      = '#FFFFFF';
-const BG2     = '#F8FAFC';
-const BG3     = '#EFF6FF';   // blue-50
-const PRIMARY = '#2563EB';   // blue-600 — 단일 CTA
-const TEXT    = '#0F172A';   // slate-900
-const TEXT2   = '#475569';   // slate-500
-const TEXT3   = '#94A3B8';   // slate-400
-const SUCCESS = '#22C55E';
-const DANGER  = '#EF4444';
+/* ─── 색상 토큰 (Claude 팔레트) ───────── */
+const BG      = '#FAF9F6';
+const BG2     = '#EBEBEB';
+const BG3     = '#DCDCDC';
+const PRIMARY = '#10367D';
+const TEXT    = '#1C1917';
+const TEXT2   = '#57534E';
+const TEXT3   = '#9C9489';
+const SUCCESS = '#16A34A';
+const DANGER  = '#DC2626';
 
 /* ─── 스크롤 페이드인 훅 ─────────────── */
 function useFadeIn(delay = 0) {
@@ -52,7 +52,7 @@ export default function Landing() {
   return (
     <div style={{
       background: BG, color: TEXT,
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif",
+      fontFamily: "'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif",
       overflowX: 'hidden', lineHeight: 1.6,
     }}>
 
@@ -66,8 +66,10 @@ export default function Landing() {
       }}>
         <div className="landing-nav-inner">
           <span onClick={() => navigate('/')} style={{
-            fontSize: 20, fontWeight: 800, letterSpacing: '-0.04em', color: TEXT, cursor: 'pointer',
-          }}>PURIT</span>
+            fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em',
+            fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic',
+            color: TEXT, cursor: 'pointer',
+          }}>Purit</span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={() => navigate('/login')} style={{
@@ -152,24 +154,26 @@ export default function Landing() {
           3. 숫자 임팩트
       ══════════════════════════ */}
       <section style={{ background: BG2, borderBottom: '1px solid #E2E8F0' }}>
+        <div style={{ ...W }}>
         <div className="landing-grid-4" ref={r2}>
           {[
               { val: '48h',   label: '피드백 수집 완료' },
               { val: '100%',  label: '검증된 응답' },
               { val: '40%',   label: '평균 전환율 개선' },
-              { val: '800만원', label: '평균 절감 광고비' },
+              { val: '800만 원', label: '평균 절감 광고비' },
             ].map((m, i) => (
               <div key={i} className={i < 3 ? 'stat-divider-right' : ''} style={{
                 padding: '48px 32px', textAlign: 'center',
               }}>
                 <div style={{
-                  fontSize: 'clamp(36px, 4.5vw, 56px)',
+                  fontSize: 'clamp(28px, 3.2vw, 46px)',
                   fontWeight: 800, letterSpacing: '-0.04em',
                   color: PRIMARY, lineHeight: 1, marginBottom: 12,
                 }}>{m.val}</div>
                 <div style={{ fontSize: 14, color: TEXT3, fontWeight: 500 }}>{m.label}</div>
               </div>
             ))}
+        </div>
         </div>
       </section>
 

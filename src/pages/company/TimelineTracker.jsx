@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const DIMS = [
-  { key: 'clarity_score',         label: '명확성',  color: '#60A5FA' },
+  { key: 'clarity_score',         label: '명확성',  color: '#10367D' },
   { key: 'relevance_score',       label: '관련성',  color: '#34D399' },
   { key: 'value_score',           label: '가치',    color: '#E8D5A3' },
   { key: 'differentiation_score', label: '차별화',  color: '#C084FC' },

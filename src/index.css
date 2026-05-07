@@ -1,41 +1,41 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #FFFFFF;
-  --bg-2: #F5F5F7;
-  --bg-3: #EBEBED;
+  --bg: #FAF9F6;
+  --bg-2: #F0EBE3;
+  --bg-3: #E6DFD5;
   --surface: #FFFFFF;
-  --surface-2: #F5F5F7;
-  --border: #D2D2D7;
-  --border-light: #E5E5EA;
+  --surface-2: #F5F1EB;
+  --border: #D6CFC5;
+  --border-light: #E3DDD5;
 
-  --text: #1D1D1F;
-  --text-2: #3A3A3C;
-  --text-3: #86868B;
+  --text: #1C1917;
+  --text-2: #44403C;
+  --text-3: #8C8580;
 
-  --accent: #1D1D1F;
-  --accent-2: #3A3A3C;
-  --accent-dim: rgba(29,29,31,0.06);
-  --accent-dim2: rgba(29,29,31,0.03);
+  --accent: #10367D;
+  --accent-2: #0C2A62;
+  --accent-dim: rgba(16,54,125,0.10);
+  --accent-dim2: rgba(16,54,125,0.05);
 
-  --green: #34C759;
-  --green-dim: rgba(52,199,89,0.10);
-  --red: #FF3B30;
-  --red-dim: rgba(255,59,48,0.10);
-  --blue: #636366;
-  --blue-dim: rgba(99,99,102,0.10);
+  --green: #16A34A;
+  --green-dim: rgba(22,163,74,0.10);
+  --red: #DC2626;
+  --red-dim: rgba(220,38,38,0.10);
+  --blue: #4F6B8F;
+  --blue-dim: rgba(79,107,143,0.10);
 
-  --radius: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 
-  --font-display: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
-  --font-ui: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
-  --font-mono: 'Consolas', 'Menlo', 'Monaco', monospace;
+  --font-display: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ui: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
 
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04);
-  --shadow-lg: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  --shadow: 0 1px 3px rgba(28,25,23,0.07), 0 4px 16px rgba(28,25,23,0.04);
+  --shadow-lg: 0 4px 24px rgba(28,25,23,0.09), 0 1px 4px rgba(28,25,23,0.05);
 }
 
 html { scroll-behavior: smooth; }
@@ -44,9 +44,11 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14.5px;
+  line-height: 1.58;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
 
@@ -56,7 +58,7 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
 /* Typography */
-h1,h2,h3,h4 { font-family: var(--font-ui); font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
+h1,h2,h3,h4 { font-family: var(--font-ui); font-weight: 600; line-height: 1.25; letter-spacing: -0.026em; }
 
 a { color: inherit; text-decoration: none; }
 
@@ -75,8 +77,8 @@ input, textarea, select {
   width: 100%;
 }
 input:focus, textarea:focus, select:focus {
-  border-color: var(--text-3);
-  box-shadow: 0 0 0 3px rgba(29,29,31,0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(16,54,125,0.12);
 }
 
 /* Animations */
@@ -192,7 +194,7 @@ input:focus, textarea:focus, select:focus {
 
 /* ─── 랜딩 그리드 ─── */
 .landing-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); }
-.stat-divider-right { border-right: 1px solid #E2E8F0; }
+.stat-divider-right { border-right: 1px solid #C8C8C8; }
 @media (max-width: 900px) {
   .landing-grid-4 .stat-divider-right:nth-child(2n) { border-right: none !important; }
 }

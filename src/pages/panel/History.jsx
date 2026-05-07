@@ -20,10 +20,27 @@ const TABS = [
   { key: 'rejected', label: '지급 거절' },
 ];
 
+const PAGE_SIZE = 5;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 16, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+    </div>
+  );
+}
+
 export default function History() {
   const [feedbacks, setFeedbacks]     = useState([]);
   const [loading, setLoading]         = useState(true);
   const [tab, setTab]                 = useState('pending');
+  const [page, setPage]               = useState(1);
   const [openReasonId, setOpenReasonId] = useState(null);
 
   useEffect(() => {
@@ -68,6 +85,7 @@ export default function History() {
   const filtered = tab === 'pending'  ? pending
     : tab === 'approved' ? approved
     : rejected;
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
@@ -108,7 +126,7 @@ export default function History() {
         <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)' }}>현황</h2>
         <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4 }}>
           {TABS.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); setOpenReasonId(null); }} style={{
+            <button key={t.key} onClick={() => { setTab(t.key); setPage(1); setOpenReasonId(null); }} style={{
               padding: '5px 14px', borderRadius: 4, fontSize: 12, fontWeight: 500,
               background: tab === t.key ? 'var(--bg)' : 'transparent',
               color: tab === t.key ? 'var(--text)' : 'var(--text-3)',
@@ -124,7 +142,7 @@ export default function History() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map((f) => {
+          {paged.map((f) => {
             const statusKey    = getStatusKey(f);
             const isRejected   = statusKey === 'rejected';
             const reward       = f.missions?.reward_amount || 0;
@@ -183,6 +201,7 @@ export default function History() {
               </div>
             );
           })}
+          <Pagination page={page} total={filtered.length} onPage={setPage} />
         </div>
       )}
 

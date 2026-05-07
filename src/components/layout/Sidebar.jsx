@@ -183,7 +183,7 @@ export default function Layout({ role, children }) {
 
       <aside className={`sidebar-drawer${mobileOpen ? ' is-open' : ''}`} style={{
         width: collapsed ? 60 : 220, flexShrink: 0,
-        background: 'var(--bg-2)',
+        background: 'var(--bg)',
         borderRight: '1px solid var(--border)',
         display: 'flex', flexDirection: 'column',
         transition: 'width 0.22s cubic-bezier(0.22,1,0.36,1)',
@@ -198,7 +198,7 @@ export default function Layout({ role, children }) {
         }}>
           {!collapsed && (
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1 }}>PURIT</div>
+              <div style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.01em', fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', color: 'var(--text)', lineHeight: 1 }}>Purit</div>
               <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{ROLE_LABEL[role]} 포털</div>
             </div>
           )}
@@ -379,10 +379,10 @@ export default function Layout({ role, children }) {
           >
             <Menu size={22} />
           </button>
-          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)' }}>PURIT</span>
+          <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em', fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', color: 'var(--text)' }}>Purit</span>
           <div style={{ width: 34 }} />
         </div>
-        <main style={{ flex: 1 }}>{children}</main>
+        <main style={{ flex: 1, background: '#F8FAFC' }}>{children}</main>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 const DIMS = [
-  { key: 'clarity',         label: '명확성',  color: '#60A5FA', icon: '◎' },
+  { key: 'clarity',         label: '명확성',  color: '#10367D', icon: '◎' },
   { key: 'relevance',       label: '관련성',  color: '#34D399', icon: '◆' },
   { key: 'value',           label: '가치',    color: '#E8D5A3', icon: '▲' },
   { key: 'differentiation', label: '차별화',  color: '#C084FC', icon: '◈' },

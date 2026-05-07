@@ -76,12 +76,29 @@ function getSkippedLabels(suggestions = '') {
   return skipped;
 }
 
+const PAGE_SIZE = 5;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 10, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '4px 9px', borderRadius: 5, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 12 }}>이전</button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ padding: '4px 9px', borderRadius: 5, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 12, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '4px 9px', borderRadius: 5, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 12 }}>다음</button>
+    </div>
+  );
+}
+
 export default function PurityFilter() {
   const [feedbacks, setFeedbacks]     = useState([]);
   const [selected, setSelected]       = useState(null);
   const [loading, setLoading]         = useState(true);
   const [acting, setActing]           = useState(false);
   const [filter, setFilter]           = useState('pending');
+  const [listPage, setListPage]       = useState(1);
   const [annotations, setAnnotations] = useState([]);
   const [adminImageIdx, setAdminImageIdx] = useState(0);
   const [subResponse, setSubResponse] = useState(null);
@@ -179,6 +196,7 @@ export default function PurityFilter() {
     : filter === 'pending' ? feedbacks.filter(f => !f.purity_passed && f.status === 'submitted')
     : filter === 'approved' ? feedbacks.filter(f => f.purity_passed)
     : feedbacks.filter(f => f.status === 'rejected');
+  const pagedList = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
 
   const fb = filtered.find(f => f.id === selected);
   const fbSkippedLabels = fb ? getSkippedLabels(fb.suggestions) : new Set();
@@ -201,7 +219,7 @@ export default function PurityFilter() {
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['pending', '검토 대기'], ['approved', '승인됨'], ['rejected', '반려됨'], ['all', '전체']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setSelected(null); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -226,7 +244,8 @@ export default function PurityFilter() {
                 없음
               </div>
             ) : (
-              filtered.map(f => {
+              <div>
+              {pagedList.map(f => {
                 const s = calcPurityScore(f);
                 const scoreColor = s >= 70 ? 'var(--green)' : s >= 45 ? 'var(--accent)' : 'var(--red)';
                 return (
@@ -248,7 +267,9 @@ export default function PurityFilter() {
                     </div>
                   </div>
                 );
-              })
+              })}
+              <Pagination page={listPage} total={filtered.length} onPage={setListPage} />
+              </div>
             )}
           </div>
 

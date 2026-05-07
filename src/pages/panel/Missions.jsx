@@ -6,11 +6,11 @@ import { supabase } from '../../lib/supabase';
 
 const DIFF_META = {
   easy:   { label: '쉬움',   color: 'var(--green)' },
-  normal: { label: '보통',   color: '#3b82f6' },
+  normal: { label: '보통',   color: '#10367D' },
   hard:   { label: '어려움', color: 'var(--red, #ef4444)' },
 };
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 const TABS = [
   { key: 'new',          label: '새로운 미션' },

@@ -7,7 +7,7 @@ const EXPERTISE  = ['랜딩페이지 전환', '카피라이팅', '가격 전략'
 
 const TIER_META = {
   ROOKIE:  { label: 'ROOKIE',  color: 'var(--text-3)',        bg: 'var(--surface-2)', desc: '0~4개 미션 완료' },
-  PRO:     { label: 'PRO',     color: '#3b82f6',              bg: '#eff6ff',          desc: '5~14개 미션 완료' },
+  PRO:     { label: 'PRO',     color: '#10367D',              bg: '#E8EEF8',          desc: '5~14개 미션 완료' },
   EXPERT:  { label: 'EXPERT',  color: 'var(--accent)',        bg: '#fffbeb',          desc: '15~29개 미션 완료' },
   ELITE:   { label: 'ELITE',   color: 'var(--green)',         bg: '#f0fdf4',          desc: '30개+ 미션 완료' },
 };

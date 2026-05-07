@@ -5,11 +5,28 @@ import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
 
 const scoreColor = (s) => s >= 80 ? 'var(--green)' : s >= 60 ? 'var(--accent)' : 'var(--red)';
 
+const PAGE_SIZE = 5;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '12px 16px', justifyContent: 'center', borderTop: '1px solid var(--border)' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+    </div>
+  );
+}
+
 export default function AdminPanels() {
   const [panels, setPanels]       = useState([]);
   const [selected, setSelected]   = useState(null);
   const [loading, setLoading]     = useState(true);
   const [acting, setActing]       = useState(false);
+  const [page, setPage]           = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
   const [levelFilter, setLevelFilter]   = useState('all');
 

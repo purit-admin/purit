@@ -24,6 +24,9 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
   const [popup, setPopup]             = useState(null);
   const [popupForm, setPopupForm]     = useState({ dimension: 'clarity', score: 3 });
   const [selectedAnn, setSelectedAnn] = useState(null);
+  const [imgError, setImgError]       = useState(false);
+
+  useEffect(() => { setImgError(false); }, [imageUrl]);
 
   const getRelativePct = useCallback((clientX, clientY) => {
     const rect = containerRef.current.getBoundingClientRect();
@@ -100,24 +103,37 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
       {/* 이미지 + 드래그 레이어 */}
       <div
         ref={containerRef}
-        onMouseDown={handleMouseDown}
+        onMouseDown={imgError ? undefined : handleMouseDown}
         style={{
           position: 'relative',
           display: 'block',
           width: '100%',
-          cursor: (readonly || dragDisabled) ? 'default' : 'crosshair',
+          cursor: (readonly || dragDisabled || imgError) ? 'default' : 'crosshair',
           userSelect: 'none',
         }}
       >
-        <img
-          src={imageUrl}
-          alt="검증 이미지"
-          draggable={false}
-          style={{ display: 'block', width: '100%', pointerEvents: 'none' }}
-        />
+        {imgError ? (
+          <div style={{
+            width: '100%', minHeight: 240, background: 'var(--bg-2, #f4f4f5)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 8, color: 'var(--text-3, #9ca3af)', fontSize: 13,
+          }}>
+            <span style={{ fontSize: 32 }}>🖼️</span>
+            <span>이미지를 불러올 수 없습니다</span>
+            <span style={{ fontSize: 11, opacity: 0.7, maxWidth: 300, textAlign: 'center', wordBreak: 'break-all' }}>{imageUrl}</span>
+          </div>
+        ) : (
+          <img
+            src={imageUrl}
+            alt="검증 이미지"
+            draggable={false}
+            onError={() => setImgError(true)}
+            style={{ display: 'block', width: '100%', pointerEvents: 'none' }}
+          />
+        )}
 
         {/* 기존 어노테이션 오버레이 */}
-        {annotations.map(ann => {
+        {!imgError && annotations.map(ann => {
           const meta = dimMeta[ann.dimension];
           const seqNum = getDimSeq(seqPool || annotations, ann);
           const isSelected = selectedAnn === ann.id;

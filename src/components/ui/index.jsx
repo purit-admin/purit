@@ -16,24 +16,24 @@ export const Btn = ({ children, variant = 'primary', size = 'md', onClick, disab
     lg: { padding: '13px 28px', fontSize: '15px' },
   };
   const variants = {
-    primary:   { background: '#1D1D1F', color: '#FFFFFF', borderColor: '#1D1D1F' },
+    primary:   { background: '#10367D', color: '#FFFFFF', borderColor: '#10367D' },
     secondary: { background: 'var(--bg-2)', color: 'var(--text)', borderColor: 'var(--border)' },
     ghost:     { background: 'transparent', color: 'var(--text-2)', borderColor: 'transparent' },
-    danger:    { background: 'var(--red-dim)', color: 'var(--red)', borderColor: 'rgba(255,59,48,0.25)' },
+    danger:    { background: 'var(--red-dim)', color: 'var(--red)', borderColor: 'rgba(220,38,38,0.25)' },
     outline:   { background: 'transparent', color: 'var(--text)', borderColor: 'var(--border)' },
   };
   const hovers = {
-    primary:   { background: '#3A3A3C', borderColor: '#3A3A3C', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', transform: 'translateY(-1px)' },
-    secondary: { background: '#EBEBED', borderColor: '#AEAEB2', boxShadow: 'none', transform: 'none' },
-    ghost:     { background: 'rgba(29,29,31,0.06)', color: 'var(--text)', borderColor: 'transparent', boxShadow: 'none', transform: 'none' },
-    danger:    { background: 'rgba(255,59,48,0.18)', borderColor: 'rgba(255,59,48,0.4)', boxShadow: 'none', transform: 'none' },
-    outline:   { background: '#F5F5F7', borderColor: '#AEAEB2', boxShadow: 'none', transform: 'none' },
+    primary:   { background: '#0C2A62', borderColor: '#0C2A62', boxShadow: '0 2px 8px rgba(16,54,125,0.30)', transform: 'translateY(-1px)' },
+    secondary: { background: 'var(--bg-3)', borderColor: 'var(--text-3)', boxShadow: 'none', transform: 'none' },
+    ghost:     { background: 'var(--accent-dim)', color: 'var(--text)', borderColor: 'transparent', boxShadow: 'none', transform: 'none' },
+    danger:    { background: 'rgba(220,38,38,0.14)', borderColor: 'rgba(220,38,38,0.4)', boxShadow: 'none', transform: 'none' },
+    outline:   { background: 'var(--bg-2)', borderColor: 'var(--text-3)', boxShadow: 'none', transform: 'none' },
   };
   const resets = {
-    primary:   { background: '#1D1D1F', borderColor: '#1D1D1F', boxShadow: 'none', transform: 'none', color: '#FFFFFF' },
+    primary:   { background: '#10367D', borderColor: '#10367D', boxShadow: 'none', transform: 'none', color: '#FFFFFF' },
     secondary: { background: 'var(--bg-2)', borderColor: 'var(--border)', boxShadow: 'none', transform: 'none' },
     ghost:     { background: 'transparent', color: 'var(--text-2)', borderColor: 'transparent', boxShadow: 'none', transform: 'none' },
-    danger:    { background: 'var(--red-dim)', borderColor: 'rgba(255,59,48,0.25)', boxShadow: 'none', transform: 'none' },
+    danger:    { background: 'var(--red-dim)', borderColor: 'rgba(220,38,38,0.25)', boxShadow: 'none', transform: 'none' },
     outline:   { background: 'transparent', borderColor: 'var(--border)', boxShadow: 'none', transform: 'none' },
   };
   return (

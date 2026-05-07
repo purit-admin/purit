@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, ScoreBar, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
@@ -17,9 +17,25 @@ const DIM_META = {
 };
 const DIMS = ['clarity', 'relevance', 'value', 'differentiation', 'trust'];
 
+const PAGE_SIZE = 5;
+
+function Pagination({ page, total, onPage }) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      ))}
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+    </div>
+  );
+}
+
 const TYPE_INFO = {
   landing_page: { label: 'LP검증',    color: 'var(--accent)' },
-  preference:   { label: '소재비교',  color: '#3b82f6' },
+  preference:   { label: '소재비교',  color: '#10367D' },
   pricing:      { label: '가격검증',  color: '#f59e0b' },
   email:        { label: '이메일검증', color: '#34C759' },
 };
@@ -182,17 +198,22 @@ function RatioBar({ aLabel, bLabel, aCount, bCount, aColor = 'var(--accent)', bC
 
 /* ─── 코멘트 목록 ─── */
 function CommentList({ items }) {
+  const [page, setPage] = useState(1);
   if (!items?.length) return (
     <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>코멘트가 없습니다</div>
   );
+  const paged = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {items.map((item, i) => (
-        <div key={i} style={{ padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
-          {item.label && <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase' }}>{item.label}</div>}
-          {item.text || <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>내용 없음</span>}
-        </div>
-      ))}
+    <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {paged.map((item, i) => (
+          <div key={i} style={{ padding: '12px 14px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
+            {item.label && <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase' }}>{item.label}</div>}
+            {item.text || <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>내용 없음</span>}
+          </div>
+        ))}
+      </div>
+      <Pagination page={page} total={items.length} onPage={setPage} />
     </div>
   );
 }
@@ -229,8 +250,8 @@ function CustomQuestionsSection({ questions, responses }) {
 
   const toggle = key => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
   const typeLabelMap = { radio: '옵션형', scale: '점수형', text: '서술형' };
-  const typeColorMap = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
-  const typeBg = { radio: 'rgba(59,130,246,0.15)', scale: 'rgba(99,102,241,0.15)', text: 'rgba(52,199,89,0.15)' };
+  const typeColorMap = { radio: '#10367D', scale: 'var(--accent)', text: '#34C759' };
+  const typeBg = { radio: 'rgba(16,54,125,0.12)', scale: 'rgba(99,102,241,0.15)', text: 'rgba(52,199,89,0.15)' };
 
   return (
     <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
@@ -450,9 +471,15 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
 /* ─── 이미지 미션: 차원 탭 뷰 ─── */
 function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAnnotations, panelProfiles }) {
   const [selectedAnnId, setSelectedAnnId] = useState(null);
+  const [annPage, setAnnPage] = useState(1);
   const meta = DIM_META[dim];
   const imgAnns = allAnnotations.filter(a => a.dimension === dim && a.image_index === currentImageIdx);
   const allDimAnns = allAnnotations.filter(a => a.dimension === dim);
+  const pagedAnns = allDimAnns.slice((annPage - 1) * PAGE_SIZE, annPage * PAGE_SIZE);
+
+  // dim 변경 시 페이지 초기화
+  const prevDim = useRef(dim);
+  if (prevDim.current !== dim) { prevDim.current = dim; if (annPage !== 1) setAnnPage(1); }
 
   const handleAnnClick = (ann) => {
     const next = selectedAnnId === ann.id ? null : ann.id;
@@ -506,37 +533,41 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
           이 차원에 남겨진 어노테이션이 없습니다.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {allDimAnns.map((ann, i) => {
-            const isActive = selectedAnnId === ann.id;
-            return (
-              <div
-                key={ann.id}
-                onClick={() => handleAnnClick(ann)}
-                style={{
-                  padding: '12px 14px', background: isActive ? 'var(--accent-dim, rgba(99,102,241,0.08))' : 'var(--bg-3)',
-                  borderRadius: 'var(--radius)', cursor: 'pointer',
-                  border: isActive ? `1.5px solid ${meta.color}` : '1px solid var(--border)',
-                  borderLeft: `3px solid ${meta.color}`,
-                  transition: 'all 0.15s',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: ann.comment ? 8 : 0, flexWrap: 'wrap' }}>
-                  <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
-                    {i + 1}
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{ann.score}점</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>이미지 {ann.image_index + 1}</span>
-                  <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
+        <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pagedAnns.map((ann, i) => {
+              const globalIdx = (annPage - 1) * PAGE_SIZE + i;
+              const isActive = selectedAnnId === ann.id;
+              return (
+                <div
+                  key={ann.id}
+                  onClick={() => handleAnnClick(ann)}
+                  style={{
+                    padding: '12px 14px', background: isActive ? 'var(--accent-dim, rgba(99,102,241,0.08))' : 'var(--bg-3)',
+                    borderRadius: 'var(--radius)', cursor: 'pointer',
+                    border: isActive ? `1.5px solid ${meta.color}` : '1px solid var(--border)',
+                    borderLeft: `3px solid ${meta.color}`,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: ann.comment ? 8 : 0, flexWrap: 'wrap' }}>
+                    <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 }}>
+                      {globalIdx + 1}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{ann.score}점</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>이미지 {ann.image_index + 1}</span>
+                    <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
+                  </div>
+                  {ann.comment ? (
+                    <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>{ann.comment}</div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
+                  )}
                 </div>
-                {ann.comment ? (
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>{ann.comment}</div>
-                ) : (
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          <Pagination page={annPage} total={allDimAnns.length} onPage={setAnnPage} />
         </div>
       )}
     </div>
@@ -545,6 +576,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
 
 /* ─── 이미지 미션: 종합 탭 ─── */
 function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
+  const [commentPage, setCommentPage] = useState(1);
   const radarData = DIMS.map(dim => {
     const key = DIM_META[dim].key;
     const val = calcAvg(feedbacks, key);
@@ -554,6 +586,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
   const overallComments = feedbacks
     .map((fb, i) => ({ panel: i + 1, panelId: fb.panel_id, fbId: fb.id, text: extractOverallComment(fb.suggestions), passed: fb.purity_passed }))
     .filter(c => c.text);
+  const pagedComments = overallComments.slice((commentPage - 1) * PAGE_SIZE, commentPage * PAGE_SIZE);
 
   return (
     <div>
@@ -602,18 +635,21 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
           총평 데이터가 없습니다.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {overallComments.map(({ panel, panelId, fbId, text, passed }) => (
-            <div key={panel} style={{ padding: '14px 16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
-                <PanelBadges panelId={panelId} profiles={panelProfiles} />
-                {passed && <Badge type="green">Purit 통과</Badge>}
-                <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
+        <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {pagedComments.map(({ panel, panelId, fbId, text, passed }) => (
+              <div key={panel} style={{ padding: '14px 16px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
+                  <PanelBadges panelId={panelId} profiles={panelProfiles} />
+                  {passed && <Badge type="green">Purit 통과</Badge>}
+                  <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{text}</div>
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{text}</div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <Pagination page={commentPage} total={overallComments.length} onPage={setCommentPage} />
         </div>
       )}
 
@@ -639,7 +675,9 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
 /* ─── 텍스트 미션 결과 (이미지 없는 구형 미션) ─── */
 function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
   const [activeFb, setActiveFb] = useState(feedbacks[0]?.id || null);
+  const [panelPage, setPanelPage] = useState(1);
   const fb = feedbacks.find(f => f.id === activeFb) || null;
+  const pagedFeedbacks = feedbacks.slice((panelPage - 1) * PAGE_SIZE, panelPage * PAGE_SIZE);
 
   return (
     <div>
@@ -647,7 +685,8 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
       {/* 패널 목록 */}
       <div>
         <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>패널 피드백 ({feedbacks.length})</div>
-        {feedbacks.map((f, i) => {
+        {pagedFeedbacks.map((f, i) => {
+          const globalIdx = (panelPage - 1) * PAGE_SIZE + i;
           const overallAvg = DIMS.reduce((s, d) => s + (f[DIM_META[d].key] || 0), 0) / DIMS.length;
           return (
             <div key={f.id} onClick={() => setActiveFb(f.id)} style={{
@@ -657,7 +696,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>패널 #{i + 1}</span>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>패널 #{globalIdx + 1}</span>
                   <PanelBadges panelId={f.panel_id} profiles={panelProfiles} />
                 </div>
                 <Badge type={f.purity_passed ? 'green' : 'gray'}>{f.purity_passed ? '통과' : '검토 중'}</Badge>
@@ -666,6 +705,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
             </div>
           );
         })}
+        <Pagination page={panelPage} total={feedbacks.length} onPage={setPanelPage} />
       </div>
 
       {/* 상세 */}

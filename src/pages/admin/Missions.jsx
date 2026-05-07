@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 
 const STATUS_LABEL = { draft: '초안', active: '진행', in_review: '검토중', completed: '완료', cancelled: '취소' };
 const STATUS_TYPE  = { draft: 'gray', active: 'green', in_review: 'blue', completed: 'blue', cancelled: 'red' };
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 function fmtCr(n) { return parseFloat((n ?? 0).toFixed(2)); }
 

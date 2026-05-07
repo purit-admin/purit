@@ -10,7 +10,7 @@ import {
 const C = {
   pageBg:  '#F8FAFC',
   cardBg:  '#FFFFFF',
-  primary: '#2563EB',
+  primary: '#10367D',
   text:    '#0F172A',
   text2:   '#475569',
   text3:   '#94A3B8',

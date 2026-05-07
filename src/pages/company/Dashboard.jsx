@@ -6,18 +6,18 @@ import { motion } from 'framer-motion';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   RadialBarChart, RadialBar,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  Legend,
   ResponsiveContainer,
 } from 'recharts';
 
 const C = {
   pageBg:  '#F8FAFC',
   cardBg:  '#FFFFFF',
-  primary: '#2563EB',
+  primary: '#10367D',
   text:    '#0F172A',
   text2:   '#475569',
   text3:   '#94A3B8',
-  blue50:  '#EFF6FF',
+  blue50:  '#E8EEF8',
   shadow:  '0 1px 3px rgba(0,0,0,0.06)',
 };
 
@@ -52,16 +52,47 @@ function computeRadar(fbs) {
 }
 
 function computeSentiment(missions, fbs) {
-  return missions.slice(0, 5).map(m => {
+  const mainMissions = missions.filter(m => !m.type || m.type === 'landing_page');
+  return mainMissions.map(m => {
     const mFbs = fbs.filter(f => f.mission_id === m.id);
-    if (!mFbs.length) return { name: m.title?.slice(0, 7), positive: 0, negative: 0 };
+    if (!mFbs.length) return { name: m.title?.slice(0, 8), positive: 0, hasData: false };
     const posCount = mFbs.filter(f => {
       const scores = SCORE_KEYS.map(k => f[k]).filter(v => v != null && v > 0);
       const a = scores.length ? scores.reduce((s, v) => s + v, 0) / scores.length : 0;
       return a >= 3.5;
     }).length;
     const positive = Math.round((posCount / mFbs.length) * 100);
-    return { name: m.title?.slice(0, 7), positive, negative: 100 - positive };
+    return { name: m.title?.slice(0, 8), positive, hasData: true };
+  });
+}
+
+function computeSubSentiment(missions, prefResps, priceResps, emailResps) {
+  const subMissions = missions.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+  return subMissions.map(m => {
+    let perPanelAvgs = [];
+    if (m.type === 'preference') {
+      const resps = prefResps.filter(r => r.mission_id === m.id);
+      perPanelAvgs = resps.map(r => {
+        const vals = [r.message_clarity, r.purchase_intent].filter(v => v != null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      }).filter(v => v != null);
+    } else if (m.type === 'pricing') {
+      const resps = priceResps.filter(r => r.mission_id === m.id);
+      perPanelAvgs = resps.map(r => {
+        const vals = [r.price_fairness, r.value_perception].filter(v => v != null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      }).filter(v => v != null);
+    } else if (m.type === 'email') {
+      const resps = emailResps.filter(r => r.mission_id === m.id);
+      perPanelAvgs = resps.map(r => {
+        const vals = [r.open_intent, r.hook_score, r.clarity_score, r.curiosity_score].filter(v => v != null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      }).filter(v => v != null);
+    }
+    if (!perPanelAvgs.length) return { name: m.title?.slice(0, 8), positive: 0, hasData: false };
+    const posCount = perPanelAvgs.filter(s => s >= 3.5).length;
+    const positive = Math.round((posCount / perPanelAvgs.length) * 100);
+    return { name: m.title?.slice(0, 8), positive, hasData: true };
   });
 }
 
@@ -74,7 +105,7 @@ function isBannerDismissed() {
   } catch { return false; }
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -242,6 +273,11 @@ export default function CompanyDashboard() {
   const [showBanner, setShowBanner] = useState(() => !isBannerDismissed());
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [prefResps, setPrefResps]   = useState([]);
+  const [priceResps, setPriceResps] = useState([]);
+  const [emailResps, setEmailResps] = useState([]);
+  const [mainSentPage, setMainSentPage] = useState(1);
+  const [subSentPage, setSubSentPage]   = useState(1);
 
   const dismissBanner = () => {
     localStorage.setItem(NDA_KEY, String(Date.now()));
@@ -294,6 +330,28 @@ export default function CompanyDashboard() {
             .eq('status', 'submitted')
             .in('mission_id', ms.map(m => m.id));
           setFeedbacks(fb || []);
+
+          const prefIds  = ms.filter(m => m.type === 'preference').map(m => m.id);
+          const priceIds = ms.filter(m => m.type === 'pricing').map(m => m.id);
+          const emailIds = ms.filter(m => m.type === 'email').map(m => m.id);
+          if (prefIds.length) {
+            const { data: pr } = await supabase.from('preference_responses')
+              .select('mission_id, message_clarity, purchase_intent')
+              .in('mission_id', prefIds);
+            setPrefResps(pr || []);
+          }
+          if (priceIds.length) {
+            const { data: pr } = await supabase.from('pricing_responses')
+              .select('mission_id, price_fairness, value_perception')
+              .in('mission_id', priceIds);
+            setPriceResps(pr || []);
+          }
+          if (emailIds.length) {
+            const { data: er } = await supabase.from('email_responses')
+              .select('mission_id, open_intent, hook_score, clarity_score, curiosity_score')
+              .in('mission_id', emailIds);
+            setEmailResps(er || []);
+          }
         }
       }
       setLoading(false);
@@ -313,7 +371,11 @@ export default function CompanyDashboard() {
   const overallScore  = radarData.reduce((acc, d) => acc + d.score, 0) / radarData.length;
   const gaugeValue    = feedbacks.length > 0 ? Math.round((overallScore / 5) * 100) : 0;
   const gaugeData     = [{ name: '전환 지수', value: gaugeValue, fill: '#6366f1' }];
-  const sentimentData = computeSentiment(missions, feedbacks);
+  const mainSentiment = computeSentiment(missions, feedbacks);
+  const subSentiment  = computeSubSentiment(missions, prefResps, priceResps, emailResps);
+  const SENT_SIZE = 4;
+  const mainSentSlice = mainSentiment.slice((mainSentPage - 1) * SENT_SIZE, mainSentPage * SENT_SIZE);
+  const subSentSlice  = subSentiment.slice((subSentPage - 1) * SENT_SIZE, subSentPage * SENT_SIZE);
 
   if (loading) return (
     <div style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', color: C.text3, fontSize: 14 }}>불러오는 중...</div>
@@ -375,23 +437,23 @@ export default function CompanyDashboard() {
         ))}
       </motion.div>
 
-      {/* Chart Row 1: 레이더 + KPI 게이지 */}
-      <motion.div {...fadeUp(0.1)} className="dash-chart-row">
+      {/* Chart Row: 레이더 + KPI + 긍부정 3열 */}
+      <motion.div {...fadeUp(0.1)} style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 24 }}>
 
         {/* 5차원 레이더 차트 */}
         <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow }}>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>전환 메시지 5차원 진단</div>
             <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>
               {feedbacks.length > 0 ? `패널 ${feedbacks.length}명 제출 기준 · 플랫폼 벤치마크 비교` : '피드백 수집 시 실데이터로 업데이트됩니다'}
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
-            <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+          <ResponsiveContainer width="100%" height={220}>
+            <RadarChart data={radarData} margin={{ top: 10, right: 28, bottom: 10, left: 28 }}>
               <PolarGrid stroke="#E2E8F0" />
-              <PolarAngleAxis dataKey="dimension" tick={{ fill: C.text2, fontSize: 12, fontWeight: 600 }} />
+              <PolarAngleAxis dataKey="dimension" tick={{ fill: C.text2, fontSize: 11, fontWeight: 600 }} />
               <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} axisLine={false} />
-              <Radar name="내 점수" dataKey="score" stroke="#2563EB" fill="#2563EB" fillOpacity={0.2} strokeWidth={2} isAnimationActive animationDuration={1000} />
+              <Radar name="내 점수" dataKey="score" stroke="#10367D" fill="#10367D" fillOpacity={0.2} strokeWidth={2} isAnimationActive animationDuration={1000} />
               <Radar name="벤치마크" dataKey="benchmark" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.1} strokeWidth={1.5} strokeDasharray="4 3" isAnimationActive animationDuration={1000} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: C.text2, paddingTop: 8 }} />
             </RadarChart>
@@ -400,42 +462,42 @@ export default function CompanyDashboard() {
 
         {/* KPI 게이지 */}
         <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>전환 지수 달성률</div>
             <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>5개 축 종합 퍼포먼스</div>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ResponsiveContainer width="100%" height={190}>
+            <ResponsiveContainer width="100%" height={160}>
               <RadialBarChart
-                data={[{ name: '전환 지수', value: gaugeValue, fill: '#2563EB' }]}
+                data={[{ name: '전환 지수', value: gaugeValue, fill: '#10367D' }]}
                 innerRadius="55%"
                 outerRadius="85%"
                 startAngle={180}
                 endAngle={0}
-                barSize={18}
+                barSize={14}
               >
                 <RadialBar background={{ fill: '#E2E8F0' }} dataKey="value" cornerRadius={10} isAnimationActive animationDuration={1200} />
               </RadialBarChart>
             </ResponsiveContainer>
-            <div style={{ position: 'absolute', bottom: 14, textAlign: 'center' }}>
-              <div style={{ fontSize: 40, fontWeight: 900, color: feedbacks.length > 0 ? C.primary : C.text3, lineHeight: 1 }}>
+            <div style={{ position: 'absolute', bottom: 10, textAlign: 'center' }}>
+              <div style={{ fontSize: 34, fontWeight: 900, color: feedbacks.length > 0 ? C.primary : C.text3, lineHeight: 1 }}>
                 {feedbacks.length > 0 ? gaugeValue : '—'}
               </div>
-              <div style={{ fontSize: 13, color: C.text3, marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: C.text3, marginTop: 3 }}>
                 {feedbacks.length > 0 ? '/ 100점' : '데이터 없음'}
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 4 }}>
             {radarData.map(d => (
               <div key={d.dimension} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 11, color: C.text2, width: 44, flexShrink: 0 }}>{d.dimension}</div>
-                <div style={{ flex: 1, height: 5, background: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ fontSize: 11, color: C.text2, width: 40, flexShrink: 0 }}>{d.dimension}</div>
+                <div style={{ flex: 1, height: 4, background: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(d.score / 5) * 100}%` }}
                     transition={{ duration: 0.9, ease: 'easeOut', delay: 0.3 }}
-                    style={{ height: '100%', background: '#2563EB', borderRadius: 3 }}
+                    style={{ height: '100%', background: '#10367D', borderRadius: 3 }}
                   />
                 </div>
                 <div style={{ fontSize: 11, color: C.text2, width: 24, textAlign: 'right' }}>
@@ -445,41 +507,78 @@ export default function CompanyDashboard() {
             ))}
           </div>
         </div>
-      </motion.div>
 
-      {/* Chart Row 2: 긍/부정 스택 바 */}
-      <motion.div {...fadeUp(0.2)} style={{ background: C.cardBg, borderRadius: 16, padding: '24px', marginBottom: 24, boxShadow: C.shadow }}>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>패널별 긍/부정 반응 분포</div>
-          <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>
-            {feedbacks.length > 0 ? '평균 점수 3.5 이상 = 긍정 반응 기준' : '피드백 수집 시 실데이터로 업데이트됩니다'}
+        {/* 긍/부정 반응 분포 */}
+        <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>패널별 긍/부정 반응 분포</div>
+            <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>평균 점수 3.5 이상 = 긍정 반응 기준</div>
+          </div>
+
+          {/* 메인 의뢰 섹션 */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 8, letterSpacing: '0.04em', textTransform: 'uppercase' }}>메인 의뢰</div>
+            {mainSentSlice.length > 0 ? (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {mainSentSlice.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontSize: 10, color: C.text2, width: 62, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+                      <div style={{ flex: 1, height: 5, background: '#E8EEF8', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${d.positive}%`, height: '100%', background: '#10367D', borderRadius: 3, transition: 'width 0.7s ease' }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: d.hasData ? C.text2 : C.text3, width: 28, textAlign: 'right', fontWeight: 600 }}>{d.hasData ? `${d.positive}%` : '—'}</div>
+                    </div>
+                  ))}
+                </div>
+                {mainSentiment.length > SENT_SIZE && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                    <button onClick={() => setMainSentPage(p => Math.max(1, p - 1))} disabled={mainSentPage === 1}
+                      style={{ padding: '2px 8px', borderRadius: 4, background: mainSentPage === 1 ? '#F1F5F9' : C.blue50, color: mainSentPage === 1 ? C.text3 : C.primary, border: 'none', cursor: mainSentPage === 1 ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, opacity: mainSentPage === 1 ? 0.45 : 1 }}>‹</button>
+                    <span style={{ fontSize: 10, color: C.text3 }}>{mainSentPage} / {Math.ceil(mainSentiment.length / SENT_SIZE)}</span>
+                    <button onClick={() => setMainSentPage(p => Math.min(Math.ceil(mainSentiment.length / SENT_SIZE), p + 1))} disabled={mainSentPage * SENT_SIZE >= mainSentiment.length}
+                      style={{ padding: '2px 8px', borderRadius: 4, background: mainSentPage * SENT_SIZE >= mainSentiment.length ? '#F1F5F9' : C.blue50, color: mainSentPage * SENT_SIZE >= mainSentiment.length ? C.text3 : C.primary, border: 'none', cursor: mainSentPage * SENT_SIZE >= mainSentiment.length ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, opacity: mainSentPage * SENT_SIZE >= mainSentiment.length ? 0.45 : 1 }}>›</button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: C.text3, padding: '6px 0' }}>피드백 수집 시 표시됩니다.</div>
+            )}
+          </div>
+
+          <div style={{ borderTop: '1px solid #F1F5F9', marginBottom: 14 }} />
+
+          {/* 서브 의뢰 섹션 */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginBottom: 8, letterSpacing: '0.04em', textTransform: 'uppercase' }}>서브 의뢰</div>
+            {subSentSlice.length > 0 ? (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {subSentSlice.map((d, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontSize: 10, color: C.text2, width: 62, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+                      <div style={{ flex: 1, height: 5, background: '#E8EEF8', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${d.positive}%`, height: '100%', background: '#10367D', borderRadius: 3, transition: 'width 0.7s ease' }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: d.hasData ? C.text2 : C.text3, width: 28, textAlign: 'right', fontWeight: 600 }}>{d.hasData ? `${d.positive}%` : '—'}</div>
+                    </div>
+                  ))}
+                </div>
+                {subSentiment.length > SENT_SIZE && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                    <button onClick={() => setSubSentPage(p => Math.max(1, p - 1))} disabled={subSentPage === 1}
+                      style={{ padding: '2px 8px', borderRadius: 4, background: subSentPage === 1 ? '#F1F5F9' : C.blue50, color: subSentPage === 1 ? C.text3 : C.primary, border: 'none', cursor: subSentPage === 1 ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, opacity: subSentPage === 1 ? 0.45 : 1 }}>‹</button>
+                    <span style={{ fontSize: 10, color: C.text3 }}>{subSentPage} / {Math.ceil(subSentiment.length / SENT_SIZE)}</span>
+                    <button onClick={() => setSubSentPage(p => Math.min(Math.ceil(subSentiment.length / SENT_SIZE), p + 1))} disabled={subSentPage * SENT_SIZE >= subSentiment.length}
+                      style={{ padding: '2px 8px', borderRadius: 4, background: subSentPage * SENT_SIZE >= subSentiment.length ? '#F1F5F9' : C.blue50, color: subSentPage * SENT_SIZE >= subSentiment.length ? C.text3 : C.primary, border: 'none', cursor: subSentPage * SENT_SIZE >= subSentiment.length ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, opacity: subSentPage * SENT_SIZE >= subSentiment.length ? 0.45 : 1 }}>›</button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: C.text3, padding: '6px 0' }}>피드백 수집 시 표시됩니다.</div>
+            )}
           </div>
         </div>
-        {sentimentData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={Math.max(160, sentimentData.length * 34)}>
-            <BarChart data={sentimentData} layout="vertical" barSize={16} margin={{ top: 0, right: 24, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tick={{ fill: C.text3, fontSize: 11 }} tickFormatter={v => `${v}%`} />
-              <YAxis type="category" dataKey="name" tick={{ fill: C.text2, fontSize: 12, fontWeight: 600 }} width={88} />
-              <Tooltip
-                formatter={(value, name) => [`${value}%`, name === 'positive' ? '긍정' : '부정']}
-                contentStyle={{ background: C.cardBg, border: 'none', borderRadius: 8, fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.10)' }}
-              />
-              <Legend
-                iconType="circle"
-                iconSize={8}
-                formatter={v => v === 'positive' ? '긍정 반응' : '부정 반응'}
-                wrapperStyle={{ fontSize: 12, color: C.text2 }}
-              />
-              <Bar dataKey="positive" stackId="a" fill="#2563EB" isAnimationActive animationDuration={1000} />
-              <Bar dataKey="negative" stackId="a" fill="#f87171" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1000} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.text3, fontSize: 14 }}>
-            의뢰를 등록하고 피드백이 수집되면 차트가 표시됩니다.
-          </div>
-        )}
       </motion.div>
 
       {/* 전체 미션 현황 (통합) */}

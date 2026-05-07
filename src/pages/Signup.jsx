@@ -3,12 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const NAVY  = '#0A2540';
-const BG    = '#F7F9FB';
-const BORDER= '#E8ECF0';
-const T1    = '#1A1A1A';
-const T2    = '#4A5568';
-const T3    = '#94A3B8';
+const ACCENT = '#10367D';
+const BG     = '#FAF9F6';
+const BORDER = '#D6CFC5';
+const T1     = '#1C1917';
+const T2     = '#57534E';
+const T3     = '#9C9489';
 
 const ROLES = [
   { id: 'company', label: '기업', desc: '전환 소재 검증 의뢰' },
@@ -58,14 +58,14 @@ export default function Signup() {
     fontFamily: 'inherit', outline: 'none',
     transition: 'border-color 0.15s, box-shadow 0.15s',
   };
-  const focusStyle = (e) => { e.target.style.borderColor = NAVY; e.target.style.boxShadow = `0 0 0 3px rgba(10,37,64,0.08)`; };
+  const focusStyle = (e) => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = `0 0 0 3px rgba(16,54,125,0.12)`; };
   const blurStyle  = (e) => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; };
 
   return (
     <div style={{
       minHeight: '100vh', background: BG,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24, fontFamily: "-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif",
+      padding: 24, fontFamily: "'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif",
     }}>
       <Link to="/" style={{
         position: 'fixed', top: 24, left: 28,
@@ -86,8 +86,8 @@ export default function Signup() {
         animation: 'fadeUp 0.35s cubic-bezier(0.22,1,0.36,1) both',
       }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.05em', color: NAVY, marginBottom: 6 }}>
-            PURIT
+          <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.01em', fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', color: T1, marginBottom: 6 }}>
+            Purit
           </div>
           <div style={{ fontSize: 15, color: T2 }}>회원가입</div>
         </div>
@@ -99,11 +99,11 @@ export default function Signup() {
             {ROLES.map(r => (
               <button key={r.id} type="button" onClick={() => setRole(r.id)} style={{
                 padding: '14px 12px', borderRadius: 12, cursor: 'pointer',
-                border: role === r.id ? `2px solid ${NAVY}` : `1.5px solid ${BORDER}`,
-                background: role === r.id ? 'rgba(10,37,64,0.04)' : '#fff',
+                border: role === r.id ? `2px solid ${ACCENT}` : `1.5px solid ${BORDER}`,
+                background: role === r.id ? 'rgba(16,54,125,0.06)' : '#fff',
                 textAlign: 'center', transition: 'all 0.15s', fontFamily: 'inherit',
               }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: role === r.id ? NAVY : T1, marginBottom: 4 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: role === r.id ? ACCENT : T1, marginBottom: 4 }}>
                   {r.label}
                 </div>
                 <div style={{ fontSize: 12, color: T3 }}>{r.desc}</div>
@@ -174,7 +174,7 @@ export default function Signup() {
           {/* 가입 버튼 */}
           <button type="submit" disabled={loading} style={{
             marginTop: 20, width: '100%', padding: '14px 0', borderRadius: 10,
-            background: loading ? '#94A3B8' : NAVY,
+            background: loading ? T3 : ACCENT,
             color: '#fff', fontSize: 15, fontWeight: 700, border: 'none',
             cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit', transition: 'opacity 0.15s',
@@ -192,7 +192,7 @@ export default function Signup() {
           textAlign: 'center', fontSize: 14, color: T2,
         }}>
           이미 계정이 있으신가요?{' '}
-          <Link to="/login" style={{ color: NAVY, fontWeight: 700, textDecoration: 'none' }}>
+          <Link to="/login" style={{ color: ACCENT, fontWeight: 600, textDecoration: 'none' }}>
             로그인
           </Link>
         </div>

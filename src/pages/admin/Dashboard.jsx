@@ -7,11 +7,11 @@ import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
 const C = {
   pageBg:  '#F8FAFC',
   cardBg:  '#FFFFFF',
-  primary: '#2563EB',
+  primary: '#10367D',
   text:    '#0F172A',
   text2:   '#475569',
   text3:   '#94A3B8',
-  blue50:  '#EFF6FF',
+  blue50:  '#E8EEF8',
   shadow:  '0 1px 3px rgba(0,0,0,0.06)',
 };
 

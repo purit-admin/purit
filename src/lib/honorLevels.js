@@ -13,7 +13,7 @@ export const HONOR_LEVELS = [
 
 export const HONOR_COLOR_META = {
   gray:   { color: 'var(--text-3)',          bg: 'var(--surface-2)',      label: '브론즈' },
-  blue:   { color: '#3b82f6',                bg: '#eff6ff',               label: '실버'   },
+  blue:   { color: '#10367D',                bg: '#E8EEF8',               label: '실버'   },
   gold:   { color: 'var(--accent)',          bg: 'var(--accent-dim)',     label: '골드'   },
   purple: { color: '#a855f7',                bg: 'rgba(168,85,247,0.1)', label: '다이아' },
 };

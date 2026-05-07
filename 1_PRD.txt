@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-07 (이메일 검증 타입 뱃지 green→blue(진한회색) 변경; 랜딩페이지 히어로 h1 크기·스탯 섹션 구조 개선)
+최종 업데이트: 2026-05-08 (전체 테마 네이비 통일; 대시보드 차트 3열 레이아웃; 긍부정 분포 메인/서브 분리 + 4개씩 캐러셀 페이지네이션)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -26,10 +26,20 @@
    - Stats 카드 5개: 잔여 크레딧(현재 플랜 표시) / 전체 의뢰 / 진행 중 / 완료 / 수집 피드백(제출 완료 건수)
      · 잔여 크레딧 카드: company.credit_balance 표시, 서브타이틀에 현재 플랜명(STARTER/PRO 등) 표시
      · credit_balance = 0 이면 기본 색, > 0 이면 accent 색으로 강조
-   - 5차원 레이더 차트: feedbacks 실데이터 집계 → 내 점수 vs 플랫폼 벤치마크 비교
-     (피드백 미수집 시 0점 표시, 수집 시 자동 반영)
-   - KPI 달성률 게이지: 5축 평균을 100점 환산한 반원형 RadialBarChart
-   - 패널별 긍/부정 스택 바 차트: 의뢰별 평균점수 ≥3.5 → 긍정 비율 수평 바 (최대 5개 의뢰)
+   - 차트 섹션: 가로 3열 그리드 (equal-height stretch), 각 카드 동일 높이 자동 맞춤 ★ 개편
+     · 1열 — 5차원 레이더 차트: feedbacks 실데이터 집계 → 내 점수 vs 플랫폼 벤치마크 비교
+     · 2열 — KPI 달성률 게이지: 5축 평균을 100점 환산한 반원형 RadialBarChart + 5축 미니 바
+     · 3열 — 패널별 긍/부정 반응 분포 ★ 개편
+       - 메인 의뢰 섹션: feedbacks 5개 score 컬럼 평균 ≥3.5 → 긍정 비율 수평 바
+         computeSentiment(missions, fbs): 전체 메인 의뢰 대상 (슬라이스 없음)
+       - 서브 의뢰 섹션: 타입별 응답 테이블 점수 평균 ≥3.5 → 긍정 비율 수평 바
+         computeSubSentiment(missions, prefResps, priceResps, emailResps):
+           preference → message_clarity + purchase_intent 평균
+           pricing    → price_fairness + value_perception 평균
+           email      → open_intent + hook_score + clarity_score + curiosity_score 평균
+       - 메인/서브 각 섹션 4개씩 캐러셀 (‹ › 화살표 버튼, 5개 이상 시만 표시)
+       - 상태 변수: mainSentPage / subSentPage / prefResps / priceResps / emailResps
+       - 피드백 없는 의뢰: '—' 표시 (hasData=false)
    - 전체 의뢰 현황 (통합 섹션): ★ 개편
      · "진행 중인 의뢰" 별도 섹션 제거 → "전체 의뢰 현황"에 통합
      · 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 — 기본 선택: "진행" (missionFilter='active') ★
@@ -51,9 +61,10 @@
      · CompanyMissionCard: status='completed' 카드 우측 하단에 "삭제" 버튼 표시
        클릭 시 ConfirmModal(danger) 확인 → missions DELETE + 카드 즉시 제거 (복구 불가)
    - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
-   ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') 실시간 집계
+   ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') + 서브 응답 테이블 실시간 집계
      - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지
-     - computeSentiment(missions, fbs): 의뢰별 평균 ≥3.5 비율 → 스택 바
+     - computeSentiment(missions, fbs): 메인 의뢰 전체 대상 긍정 비율
+     - computeSubSentiment(missions, prefResps, priceResps, emailResps): 서브 의뢰 타입별 긍정 비율
 
 ### [검증 도구]
 2. 의뢰 등록/수정 (/company/new) — NewMission.jsx  ★ 소개 페이지 + Step 개편 + 임시 저장 (2026-05-06)

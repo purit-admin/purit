@@ -20,8 +20,8 @@ const CUSTOM_CAT_TABS = [
 ];
 
 const BADGE_COLORS = { 랜딩페이지: 'blue', 광고소재: 'blue', 가격: 'gold', 이메일: 'blue', LP검증: 'blue', LP: 'blue' };
-const TYPE_BG = { radio: 'rgba(59,130,246,0.13)', scale: 'rgba(99,102,241,0.13)', text: 'rgba(52,199,89,0.13)' };
-const TYPE_COL = { radio: '#3b82f6', scale: 'var(--accent)', text: '#34C759' };
+const TYPE_BG = { radio: 'rgba(16,54,125,0.12)', scale: 'rgba(99,102,241,0.13)', text: 'rgba(52,199,89,0.13)' };
+const TYPE_COL = { radio: '#10367D', scale: 'var(--accent)', text: '#34C759' };
 
 export default function QuestionTemplates() {
   const navigate = useNavigate();
