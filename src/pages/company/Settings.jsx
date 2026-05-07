@@ -88,7 +88,8 @@ export default function AccountSettings() {
             padding: '10px 20px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',
             color: activeTab === v ? 'var(--text)' : 'var(--text-3)',
-            borderBottom: `2px solid ${activeTab === v ? 'var(--accent)' : 'transparent'}`,
+            fontWeight: activeTab === v ? 700 : 500,
+            borderBottom: `2px solid ${activeTab === v ? 'var(--text)' : 'transparent'}`,
             marginBottom: -1, transition: 'all 0.15s',
           }}>{l}</button>
         ))}

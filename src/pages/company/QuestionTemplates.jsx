@@ -207,9 +207,9 @@ export default function QuestionTemplates() {
             style={{
               padding: '10px 18px',
               fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
-              color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-3)',
+              color: activeTab === tab.key ? 'var(--text)' : 'var(--text-3)',
               background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
+              borderBottom: activeTab === tab.key ? '2px solid var(--text)' : '2px solid transparent',
               marginBottom: -1, transition: 'all 0.15s',
               display: 'flex', alignItems: 'center', gap: 6,
             }}

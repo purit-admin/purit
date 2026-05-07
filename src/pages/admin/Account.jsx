@@ -88,7 +88,8 @@ export default function AdminAccount() {
             padding: '10px 18px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',
             color: tab === v ? 'var(--text)' : 'var(--text-3)',
-            borderBottom: `2px solid ${tab === v ? 'var(--accent)' : 'transparent'}`,
+            fontWeight: tab === v ? 700 : 500,
+            borderBottom: `2px solid ${tab === v ? 'var(--text)' : 'transparent'}`,
             marginBottom: -1, transition: 'all 0.15s',
           }}>{l}</button>
         ))}

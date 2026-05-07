@@ -852,8 +852,8 @@ export default function ColdEmailTest() {
                 <button key={v} onClick={() => { setListFilter(v); setListPage(1); }} style={{
                   padding: '7px 14px', marginBottom: -1, fontSize: 13,
                   fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
-                  color: listFilter === v ? 'var(--accent)' : 'var(--text-3)',
-                  borderBottom: listFilter === v ? '2px solid var(--accent)' : '2px solid transparent',
+                  color: listFilter === v ? 'var(--text)' : 'var(--text-3)',
+                  borderBottom: listFilter === v ? '2px solid var(--text)' : '2px solid transparent',
                   border: 'none', borderRadius: 0, cursor: 'pointer',
                 }}>{l}</button>
               ))}

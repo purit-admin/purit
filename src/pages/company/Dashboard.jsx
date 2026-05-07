@@ -591,8 +591,8 @@ export default function CompanyDashboard() {
             <button key={v} onClick={() => { setMissionFilter(v); setMainMissionPage(1); setSubMissionPage(1); }} style={{
               padding: '8px 16px', marginBottom: -1, fontSize: 14, fontWeight: missionFilter === v ? 700 : 500,
               background: 'transparent',
-              color: missionFilter === v ? C.primary : C.text3,
-              borderBottom: missionFilter === v ? `2px solid ${C.primary}` : '2px solid transparent',
+              color: missionFilter === v ? C.text : C.text3,
+              borderBottom: missionFilter === v ? `2px solid ${C.text}` : '2px solid transparent',
               border: 'none', borderRadius: 0,
               transition: 'all 0.15s', cursor: 'pointer',
             }}>{l}</button>

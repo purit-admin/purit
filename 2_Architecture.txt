@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-09 (Results.jsx DimTabView 좌우 분할·TruncatedComment·좌측패널 페이지네이션·SummaryTabView 질문/총평 순서 교체·총평 텍스트 강화; CommentList 서브의뢰 총평 스타일 통일; CSS 텍스트 변수 가독성 개선)
+최종 업데이트: 2026-05-09 (탭 활성 색상 var(--text) 전면 통일 9개 파일; Pricing.jsx 연간 절감 % 동적 표시·Enterprise 크레딧 '400+'·"가장 인기" 뱃지 흰색 글자·FAQ 직급 가중치 설명)
 ================================================================
 
 ## 기술 스택
@@ -301,6 +301,9 @@ purit/
     - 모든 텍스트·숫자·레이블: var(--text) / var(--text-2) / var(--text-3) 사용
     - var(--accent)(#10367D 네이비)는 버튼/뱃지 배경, 진행바 채움, 차트 fill/stroke에만 허용
     - 텍스트에 네이비 사용 금지 — 차트 차원 색이 텍스트 레이블에도 적용될 경우 #6366F1(인디고) 대체
+    - 탭 활성 글자·밑줄: var(--text) 사용 (var(--accent) 금지) — 9개 파일 일괄 적용 완료
+      적용 대상: QuestionTemplates·NewMission·ColdEmailTest·PreferenceTest·PricingTest·
+                company/Account·admin/Account·company/Settings·company/Dashboard
     - 예외(의도적 색상 코딩): warning ⚠ → #F59E0B(amber), 중간점수 verdict → #F59E0B, EXPERT tier → #92400E
     - 랜딩페이지(Landing.jsx)는 이 원칙 적용 제외
 
