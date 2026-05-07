@@ -179,7 +179,7 @@ export default function PricingPage() {
       </div>
 
       {/* Plans */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 40 }}>
+      <div className="plans-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 40 }}>
         {PLANS.map(plan => (
           <Card key={plan.id} style={{
             padding: '28px 24px',

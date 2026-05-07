@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-08 (전체 accent #CF6A44→#10367D 네이비 통일; Sidebar main bg #F8FAFC; 대시보드 3열 차트 그리드; 긍부정 분포 메인/서브 분리 캐러셀; 전체 목록 PAGE_SIZE=5; Results 내부 목록 페이지네이션; ImageAnnotator imgError 상태 fallback)
+최종 업데이트: 2026-05-08 (전체 반응형 CSS 클래스 일괄 추가 — 마스터디테일/차트/플랜/통계/폼/테이블 대상)
 ================================================================
 
 ## 기술 스택
@@ -238,11 +238,27 @@ purit/
   .dash-stat-grid-5     — 5열 통계 카드 (768px↓: 2열) — company/Dashboard
   .dash-stat-grid-3     — 3열 통계 카드 (768px↓: 2열, 480px↓: 1열) — panel/Dashboard
   .dash-two-col         — 1fr+300px 2열 (768px↓: 1열) — admin/Dashboard
-  ※ company/Dashboard 차트 섹션: repeat(3, 1fr) 인라인 그리드, alignItems 없음(기본 stretch → equal height)
+  ※ company/Dashboard 차트 섹션: className="chart-three-col" + 인라인 repeat(3, 1fr)
     - 3열: 레이더 / KPI 게이지+5축 바 / 긍부정 분포(메인+서브 섹션)
     - 긍부정 분포: mainSentPage·subSentPage state, SENT_SIZE=4, ‹ › 화살표 캐러셀
     - DB 추가 fetch: preference_responses·pricing_responses·email_responses (서브 의뢰 긍정 비율용)
   ※ 전체 페이지(28개): className="page-wrap" 적용 완료 → 모바일 패딩 자동 축소
+
+  ### 반응형 레이아웃 클래스 (★ 2026-05-08 추가)
+  .results-layout       — 마스터-디테일 230px 1fr 그리드 (768px↓: 1fr) — Results.jsx, TextMission
+  .results-sidebar      — sticky 좌측 패널 (768px↓: static + 스크롤 박스)
+  .purity-layout        — PurityFilter 260px 1fr 그리드 (768px↓: 1fr)
+  .panel-mgmt-layout    — PanelManagement 조건부 그리드 (768px↓: 1fr)
+  .chart-three-col      — company/Dashboard 차트 3열 (900px↓: 2열, 640px↓: 1열)
+  .plans-grid           — Pricing.jsx 플랜 카드 3열 (900px↓: 2열, 640px↓: 1열)
+  .stat-inline-three    — border 트릭 3열 통계 (640px↓: 2열, 400px↓: 1열) — History.jsx
+  .stat-inline-four     — border 트릭 4열 통계 (768px↓: 2열) — PanelManagement.jsx
+  .form-two-col         — 2열 폼 그리드 (640px↓: 1열) — NewMission 페르소나, PreferenceTest A/B, Results 소재
+  .score-card-row       — 동적 점수 카드 행 (640px↓: 2열) — ScoreCardRow 컴포넌트
+  .score-five-col       — 5차원 평균 점수 (768px↓: 3열, 480px↓: 2열) — Results.jsx 종합탭
+  .table-scroll         — 테이블 가로 스크롤 래퍼 — admin/Dashboard, PanelManagement, Revenue, TimelineTracker
+  .confirm-modal-inner  — ConfirmModal 내부 박스 (480px↓: 88vw, padding 축소)
+  ※ 패턴: className 부여 + 인라인 스타일 유지(데스크탑) + CSS !important 오버라이드(모바일) — D-38 준수
 
   ### 테마 색상 시스템 (index.css CSS 변수)
   --accent:      #10367D  (네이비, 구 오렌지 #CF6A44에서 전체 통일)
@@ -251,7 +267,7 @@ purit/
   --accent-dim2: rgba(16,54,125,0.05)
   ※ 각 페이지 로컬 C 객체: C.primary = '#10367D', C.blue50 = '#E8EEF8'
   ※ Sidebar <aside> bg: var(--bg) = #FAF9F6 / <main> bg: #F8FAFC (모든 서브페이지 통일)
-  ※ Landing.jsx: PRIMARY = '#10367D', BG2 = '#EBEBEB', BG3 = '#DCDCDC'
+  ※ Landing.jsx: PRIMARY = '#10367D', BG = '#F8FAFC', BG2 = '#EDF0F4', BG3 = '#DCDCDC'
 
 ================================================================
 ## 환경 변수 (.env)

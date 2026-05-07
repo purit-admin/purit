@@ -498,7 +498,7 @@ export default function PreferenceTest() {
                 {/* 소재 A/B 입력 */}
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>소재 A / B 입력</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     {[
                       ['A', variantA, setVariantA, variantAImage, setVariantAImage, uploadingA, fileInputARef, 'var(--blue)'],
                       ['B', variantB, setVariantB, variantBImage, setVariantBImage, uploadingB, fileInputBRef, 'var(--accent)'],
@@ -1013,7 +1013,7 @@ export default function PreferenceTest() {
                       <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</div>
                       {isDraft && (
                         <button onClick={e => { e.stopPropagation(); openDraftOrActiveForEdit(m.id); }}
-                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: '#fef3c7', color: '#92400e', cursor: 'pointer' }}>
+                          style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: '#10367D', cursor: 'pointer' }}>
                           이어 작성하기 →
                         </button>
                       )}

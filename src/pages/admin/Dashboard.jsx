@@ -135,6 +135,7 @@ export default function AdminDashboard() {
         </div>
       ) : (
         <div style={{ background: C.cardBg, borderRadius: 16, overflow: 'hidden', boxShadow: C.shadow }}>
+          <div className="table-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
@@ -178,6 +179,7 @@ export default function AdminDashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

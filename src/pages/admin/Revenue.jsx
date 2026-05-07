@@ -170,6 +170,7 @@ export default function RevenueManagement() {
             <Card><div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>정산 데이터 없음</div></Card>
           ) : (
             <Card style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="table-scroll">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -207,6 +208,7 @@ export default function RevenueManagement() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </Card>
           )}
         </div>
@@ -221,6 +223,7 @@ export default function RevenueManagement() {
             <Card><div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>청구 데이터 없음</div></Card>
           ) : (
             <Card style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="table-scroll">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -255,6 +258,7 @@ export default function RevenueManagement() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </Card>
           )}
         </div>

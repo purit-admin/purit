@@ -201,6 +201,7 @@ export default function TimelineTracker() {
 
           {/* Summary table */}
           <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="table-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
@@ -228,6 +229,7 @@ export default function TimelineTracker() {
                 ))}
               </tbody>
             </table>
+            </div>
           </Card>
         </>
       )}

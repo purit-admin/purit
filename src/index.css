@@ -1,13 +1,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #FAF9F6;
-  --bg-2: #F0EBE3;
-  --bg-3: #E6DFD5;
+  --bg: #F8FAFC;
+  --bg-2: #F1F5F9;
+  --bg-3: #E2E8F0;
   --surface: #FFFFFF;
-  --surface-2: #F5F1EB;
-  --border: #D6CFC5;
-  --border-light: #E3DDD5;
+  --surface-2: #F8FAFC;
+  --border: #E2E8F0;
+  --border-light: #EEF2F6;
 
   --text: #1C1917;
   --text-2: #44403C;
@@ -258,4 +258,169 @@ input:focus, textarea:focus, select:focus {
 }
 @media (max-width: 480px) {
   .dash-stat-grid-3 { grid-template-columns: 1fr !important; }
+}
+
+/* ─── 마스터-디테일 레이아웃 (Results, PurityFilter) ─── */
+.results-layout {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 20px;
+  align-items: flex-start;
+}
+.results-sidebar {
+  position: sticky;
+  top: 24px;
+}
+@media (max-width: 768px) {
+  .results-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .results-sidebar {
+    position: static !important;
+    top: auto !important;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    background: var(--surface);
+    margin-bottom: 4px;
+  }
+}
+
+.purity-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .purity-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.panel-mgmt-layout {
+  display: grid;
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .panel-mgmt-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── 3열 차트 그리드 (company/Dashboard) ─── */
+.chart-three-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 900px) {
+  .chart-three-col {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+@media (max-width: 640px) {
+  .chart-three-col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── 플랜 카드 3열 (Pricing.jsx) ─── */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .plans-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+@media (max-width: 640px) {
+  .plans-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── 통계 border 트릭 3열 (History.jsx 등) ─── */
+.stat-inline-three {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 640px) {
+  .stat-inline-three {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+@media (max-width: 400px) {
+  .stat-inline-three {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── 통계 border 트릭 4열 (PanelManagement.jsx 등) ─── */
+.stat-inline-four {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 768px) {
+  .stat-inline-four {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ─── 2열 폼 그리드 (페르소나, A/B 입력 등) ─── */
+.form-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .form-two-col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── 테이블 가로 스크롤 ─── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── 동적 점수 카드 행 (ScoreCardRow) ─── */
+.score-card-row {
+  display: grid;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .score-card-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ─── 5열 점수 그리드 (Results.jsx 5차원) ─── */
+.score-five-col {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+@media (max-width: 768px) {
+  .score-five-col {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+@media (max-width: 480px) {
+  .score-five-col {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ─── ConfirmModal 모바일 반응형 ─── */
+@media (max-width: 480px) {
+  .confirm-modal-inner {
+    width: 88vw !important;
+    max-width: 88vw !important;
+    padding: 24px 16px !important;
+  }
 }

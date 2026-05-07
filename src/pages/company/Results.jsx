@@ -157,7 +157,7 @@ function MissionItem({ m, isSelected, onClick }) {
 /* ─── 점수 카드 그리드 ─── */
 function ScoreCardRow({ items }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 10, marginBottom: 20 }}>
+    <div className="score-card-row" style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 10, marginBottom: 20 }}>
       {items.map(({ label, value, color }) => {
         const num = parseFloat(value);
         const c = color || (isNaN(num) ? 'var(--text-3)' : num >= 4 ? 'var(--green)' : num >= 3 ? 'var(--accent)' : 'var(--red)');
@@ -345,7 +345,7 @@ function PreferenceResults({ responses, mission, panelProfiles, companyId, helpR
       {(parsedDesc.variantA || parsedDesc.variantAImage || parsedDesc.variantB || parsedDesc.variantBImage) && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>제출된 소재</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 'var(--radius)' }}>
               <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>소재 A</div>
               {parsedDesc.variantAImage && (
@@ -592,7 +592,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
     <div>
       {/* 5차원 평균 점수 카드 */}
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>5차원 평균 점수</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 24 }}>
+      <div className="score-five-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 24 }}>
         {DIMS.map(dim => {
           const key = DIM_META[dim].key;
           const val = calcAvg(feedbacks, key);
@@ -681,7 +681,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
 
   return (
     <div>
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
+    <div className="results-layout" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
       {/* 패널 목록 */}
       <div>
         <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>패널 피드백 ({feedbacks.length})</div>
@@ -989,10 +989,10 @@ export default function Results() {
           등록된 의뢰가 없습니다.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, alignItems: 'flex-start' }}>
+        <div className="results-layout" style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, alignItems: 'flex-start' }}>
 
           {/* 좌측: 미션 선택 패널 */}
-          <div style={{ position: 'sticky', top: 24 }}>
+          <div className="results-sidebar" style={{ position: 'sticky', top: 24 }}>
             {mainMissions.length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>메인 의뢰</div>

@@ -596,7 +596,7 @@ export default function NewMission() {
                           </div>
                           {isDraft && (
                             <button onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
-                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: '#fef3c7', color: '#92400e', cursor: 'pointer' }}>
+                              style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: '#10367D', cursor: 'pointer' }}>
                               이어 작성하기 →
                             </button>
                           )}
@@ -766,7 +766,7 @@ export default function NewMission() {
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: 'var(--text-2)' }}>타겟 페르소나</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                       <label style={lbl}>
                         <span style={lblTxt}>연령대</span>
                         <input value={form.personaAge} onChange={e => set('personaAge', e.target.value)} placeholder="35-45세" />

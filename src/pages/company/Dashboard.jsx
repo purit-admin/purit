@@ -438,7 +438,7 @@ export default function CompanyDashboard() {
       </motion.div>
 
       {/* Chart Row: 레이더 + KPI + 긍부정 3열 */}
-      <motion.div {...fadeUp(0.1)} style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 24 }}>
+      <motion.div {...fadeUp(0.1)} className="chart-three-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 24 }}>
 
         {/* 5차원 레이더 차트 */}
         <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow }}>

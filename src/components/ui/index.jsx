@@ -115,6 +115,7 @@ export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="confirm-modal-inner"
         style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '28px 32px', width: 380, textAlign: 'center', animation: 'fadeUp 0.18s ease both' }}
       >
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{title}</div>

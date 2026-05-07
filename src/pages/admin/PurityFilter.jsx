@@ -233,7 +233,7 @@ export default function PurityFilter() {
           제출된 피드백이 없습니다.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
+        <div className="purity-layout" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
           {/* List */}
           <div>
             <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>

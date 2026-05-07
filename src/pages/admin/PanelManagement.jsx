@@ -84,7 +84,7 @@ export default function AdminPanels() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 28 }}>
+      <div className="stat-inline-four" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 28 }}>
         {[
           { label: '전체 패널',  value: String(panels.length) },
           { label: '활성',       value: String(activeCount) },
@@ -128,9 +128,10 @@ export default function AdminPanels() {
           등록된 패널이 없습니다.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 360px' : '1fr', gap: 20 }}>
+        <div className="panel-mgmt-layout" style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 360px' : '1fr', gap: 20 }}>
           {/* Table */}
           <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="table-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -179,6 +180,7 @@ export default function AdminPanels() {
                 })}
               </tbody>
             </table>
+            </div>
             <Pagination page={page} total={filtered.length} onPage={setPage} />
           </Card>
 
