@@ -214,6 +214,19 @@ input:focus, textarea:focus, select:focus {
   .landing-grid-3-steps { grid-template-columns: 1fr !important; }
 }
 
+/* ─── ExpertPanelCloud ─── */
+.expert-tag       { white-space: nowrap; font-size: 17px; }
+.expert-cloud-box { height: 300px; }
+
+@media (max-width: 640px) {
+  .expert-tag {
+    font-size: 12px !important;
+    padding: 4px 10px !important;
+    white-space: nowrap !important;
+  }
+  .expert-cloud-box { height: 240px !important; }
+}
+
 /* ─── 랜딩 섹션 패딩 ─── */
 .landing-section { padding: 100px 32px; }
 .landing-hero    { padding: 120px 32px 100px; }

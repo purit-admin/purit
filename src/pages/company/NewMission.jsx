@@ -1231,6 +1231,8 @@ export default function NewMission() {
                 onCareerLevels={setCareerLevels}
                 missionType="main"
                 creditBalance={creditBalance}
+                companyId={companyId}
+                onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
               />
             )}
 

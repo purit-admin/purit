@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-08 (D-47 동일 목록에서 미션 타입별 다른 점수 함수 혼용 시 점수 불일치 패턴)
+최종 업데이트: 2026-05-08 (D-48 staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 드리프트로 동기화 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -487,3 +487,18 @@ D-45. Supabase Storage 파일 삭제 후 DB 레퍼런스 잔류 → <img> onErro
      → 원칙: Supabase Storage URL을 <img src>에 바인딩할 때는 반드시 onError 핸들러를 달 것
              URL이 유효해 보여도 파일이 실제로 없을 수 있음 — graceful fallback 없으면 사용자 혼란
              디버깅용으로 fallback UI에 깨진 URL을 표시해두면 원인 파악에 도움됨
+
+D-48. staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 드리프트로 일괄 동기화 ✅ 해결
+     → 증상: 20개 태그가 개별 setTimeout으로 각자 사이클을 돌리면 처음엔 엇갈리다가
+             시간이 지나면서 오차가 누적되어 결국 여러 개가 동시에 나타났다 사라지는 배치 현상 발생
+     → 원인: setTimeout은 정밀도 보장이 없음 (브라우저 throttle, 탭 비활성 등으로 수십~수백ms 지연 가능)
+             각 태그가 독립 setTimeout 체인으로 동작하면 사이클마다 오차가 누적되어 결국 동기화됨
+     → 해결: requestAnimationFrame 단일 루프 + 수식 기반 phase 계산으로 교체
+             phase = ((elapsed - i*STAGGER - pausedMs) % T_CYCLE + T_CYCLE) % T_CYCLE
+             - elapsed: 공유 시작시각 기준 경과 시간 (드리프트 없음)
+             - i*STAGGER: 태그별 고정 오프셋 (비율로 균등 분배)
+             - pausedMs: 호버 일시정지 누적 시간 (hoverStartRef + totalPauseRef 패턴)
+             → 모든 태그가 동일 클락을 공유하므로 영구적으로 균등 간격 보장
+     → 원칙: 여러 요소가 균등한 시간차로 반복 애니메이션해야 할 때 setTimeout 체인은 절대 사용 금지
+             단일 rAF + 수식 계산 패턴만이 드리프트 없이 항상 정확한 동시 노출 수를 보장함
+             React state 대신 DOM 직접 조작(el.style.opacity)으로 리렌더 없이 60fps 유지

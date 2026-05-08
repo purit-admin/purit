@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-09 (탭 활성 색상 var(--text) 전면 통일 9개 파일; Pricing.jsx 연간 절감 % 동적 표시·Enterprise 크레딧 '400+'·"가장 인기" 뱃지 흰색 글자·FAQ 직급 가중치 설명)
+최종 업데이트: 2026-05-08 (ExpertPanelCloud.jsx 신규 — rAF 단일 루프 플로팅 애니메이션 컴포넌트; .expert-tag/.expert-cloud-box CSS 클래스 추가)
 ================================================================
 
 ## 기술 스택
@@ -42,6 +42,14 @@ purit/
 │   │                  어노테이션 뱃지: 한국어 접두사 없이 숫자만 표시 (색상으로 차원 구분)
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
+│   │                ExpertPanelCloud.jsx (Landing.jsx 섹션 6.5 전용 — 전문가 경력 플로팅 애니메이션) ★ 신규
+│   │                  단일 requestAnimationFrame 루프가 20개 태그를 구동 (React state 업데이트 없이 DOM 직접 조작)
+│   │                  phase = ((elapsed - i*STAGGER - pausedMs) % T_CYCLE + T_CYCLE) % T_CYCLE 수식으로 각 태그 위치 계산
+│   │                  T_CYCLE=20s, T_IN=1s, T_HOLD=1.8s, T_OUT=1.2s, STAGGER=1s → 항상 정확히 4개 동시 노출
+│   │                  호버: hoverStartRef/pausedMsRef로 누적 정지시간 추적 → phase 계산 시 차감 (드리프트 없는 일시정지)
+│   │                  위치: 4×5 격자 + Math.sin/cos 결정론적 jitter (POSITIONS 모듈 레벨 상수)
+│   │                  CSS: .expert-tag (font-size:17px, white-space:nowrap) / .expert-cloud-box (height:300px)
+│   │                       모바일 ≤640px: font-size:12px, height:240px
 │   │   ※ pages/company/NewMission.jsx: view state('list'|'form') — editMode 시 form 직접 진입
 │   │                list 뷰: missions .or('type.is.null,type.eq.landing_page') 로드 (cancelled 포함, .neq 제거), 탭 5개(전체/진행/완료/임시저장/취소)
 │   │                  listFilter state로 탭별 필터링, draft 카드 클릭 시 navigate(editMode) 진입
@@ -253,6 +261,8 @@ purit/
   .landing-grid-2       — 2열 → 모바일 1열 (900px↓: 1열)
   .landing-grid-3-steps — 3열 스텝 → 모바일 1열 (900px↓: 2열, 600px↓: 1열)
   ※ 이전 Landing.jsx의 <style> 태그(.purit-grid-*)는 JSX에 연결되지 않아 무효였음 → 삭제 후 교체
+  .expert-tag       — ExpertPanelCloud 플로팅 태그 (font-size:17px, white-space:nowrap; 모바일: 12px)
+  .expert-cloud-box — ExpertPanelCloud 박스 컨테이너 (height:300px; 모바일: 240px)
 
   ### 대시보드 그리드 (3개 Dashboard.jsx)
   .dash-header-row      — 헤더 flex row (모바일: flex-wrap)

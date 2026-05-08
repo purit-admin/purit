@@ -754,6 +754,8 @@ export default function ColdEmailTest() {
                 onCareerLevels={setCareerLevels}
                 missionType="sub"
                 creditBalance={creditBalance}
+                companyId={companyId}
+                onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
               />
             )}
 

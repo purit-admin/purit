@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, X } from 'lucide-react';
+import ExpertPanelCloud from '../components/ui/ExpertPanelCloud';
 
 /* ─── 색상 토큰 (Claude 팔레트) ───────── */
 const BG      = '#F8FAFC';
@@ -326,6 +327,11 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ══════════════════════════
+          6.5 전문가 패널 소개
+      ══════════════════════════ */}
+      <ExpertPanelCloud />
 
       {/* ══════════════════════════
           7. 비교 섹션

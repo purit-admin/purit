@@ -1,7 +1,8 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn } from './index';
+import { supabase } from '../../lib/supabase';
 
 export const CAREER_LEVELS = [
   { key: 'junior', label: '주니어',       sub: '1–3년차',    multiplier: 1.0, proOnly: false },
@@ -10,9 +11,6 @@ export const CAREER_LEVELS = [
   { key: 'clevel', label: 'C레벨/임원진', sub: '',           multiplier: 3.0, proOnly: true  },
 ];
 
-// 패널 정산금 기준단가 (주니어 1.0× 기준)
-// 메인: 주니어 8,000 / 미들 12,000 / 시니어 16,000 / C레벨 24,000
-// 서브: 주니어 4,500 / 미들 6,750 / 시니어 9,000 / C레벨 13,500
 export const MAIN_BASE_PAYOUT = 8000;
 export const SUB_BASE_PAYOUT  = 4500;
 
@@ -20,14 +18,15 @@ const SLIDER_MIN  = 10;
 const SLIDER_MAX  = 30;
 const STARTER_MAX = 15;
 
+const CREDIT_BUNDLES = [10, 30, 50, 100];
+
 function getFinalWeight(careerLevels) {
   const active = CAREER_LEVELS.filter(c => careerLevels.includes(c.key));
   if (active.length === 0) return 1.0;
   if (active.length <= 2) return Math.max(...active.map(c => c.multiplier));
-  return 1.8; // 3~4개 혼합 상한
+  return 1.8;
 }
 
-// missionType: 'main'(1.5×) | 'sub'(1.0×)
 export function calcCredits(panelCount, careerLevels, missionType = 'sub') {
   const finalWeight  = getFinalWeight(careerLevels);
   const missionFactor = missionType === 'main' ? 1.5 : 1.0;
@@ -38,19 +37,41 @@ function fmtCr(n) {
   return parseFloat((n ?? 0).toFixed(2));
 }
 
-// 패널 1인당 예상 정산금 (reward_amount DB 저장용)
+function fmtKRW(n) {
+  return n.toLocaleString('ko-KR') + '원';
+}
+
 export function calcPanelPayout(careerLevels, missionType = 'sub') {
   const finalWeight = getFinalWeight(careerLevels);
   const base = missionType === 'main' ? MAIN_BASE_PAYOUT : SUB_BASE_PAYOUT;
   return Math.round(base * finalWeight);
 }
 
-export default function PanelTargetStep({ plan, panelCount, onPanelCount, careerLevels, onCareerLevels, missionType = 'sub', creditBalance = null }) {
+export default function PanelTargetStep({
+  plan,
+  panelCount,
+  onPanelCount,
+  careerLevels,
+  onCareerLevels,
+  missionType = 'sub',
+  creditBalance = null,
+  companyId = null,
+  onCreditBalanceUpdate = null,
+}) {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [selectedBundle, setSelectedBundle] = useState(null);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState('');
+  const [purchaseDone, setPurchaseDone] = useState(false);
 
   const isStarter = !plan || plan === 'starter';
+  const isPro     = plan === 'pro';
   const credits   = calcCredits(panelCount, careerLevels, missionType);
+  const isShort   = creditBalance != null && credits > creditBalance;
+
+  const unitPrice = isStarter ? 25000 : 21600;
 
   const handleSliderChange = (e) => onPanelCount(Number(e.target.value));
   const handleSliderCommit = () => {
@@ -68,6 +89,37 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
     if (next.length === 0) return;
     onCareerLevels(next);
   };
+
+  function openCreditModal() {
+    setSelectedBundle(null);
+    setPurchaseError('');
+    setPurchaseDone(false);
+    setShowCreditModal(true);
+  }
+
+  async function handlePurchase() {
+    if (!selectedBundle || !companyId) return;
+    setPurchasing(true);
+    setPurchaseError('');
+    const newBalance = (creditBalance ?? 0) + selectedBundle;
+    const { error } = await supabase
+      .from('companies')
+      .update({ credit_balance: newBalance })
+      .eq('id', companyId);
+    if (error) {
+      setPurchaseError('결제 처리 중 오류가 발생했습니다: ' + error.message);
+      setPurchasing(false);
+      return;
+    }
+    onCreditBalanceUpdate?.(newBalance);
+    setPurchaseDone(true);
+    setPurchasing(false);
+    setTimeout(() => {
+      setShowCreditModal(false);
+      setPurchaseDone(false);
+      setSelectedBundle(null);
+    }, 1800);
+  }
 
   if (!plan) return (
     <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
@@ -190,7 +242,7 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
             <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               보유 크레딧
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 20, color: credits > creditBalance ? '#ef4444' : 'var(--text-1)' }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 20, color: isShort ? '#ef4444' : 'var(--text-1)' }}>
               {creditBalance}
               <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 4, fontWeight: 400 }}>크레딧</span>
             </div>
@@ -201,23 +253,38 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
             최대 예상 소모
           </div>
           <div style={{ textAlign: 'right' }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 32, color: (creditBalance != null && credits > creditBalance) ? '#ef4444' : 'var(--accent)' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 32, color: isShort ? '#ef4444' : 'var(--accent)' }}>
               {fmtCr(credits)}
             </span>
             <span style={{ fontSize: 14, color: 'var(--text-2)', marginLeft: 6 }}>크레딧</span>
           </div>
         </div>
-        {creditBalance != null && credits > creditBalance && (
-          <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 6 }}>
-            ⚠ 크레딧이 부족합니다. 요금제 페이지에서 플랜을 선택하거나 크레딧을 충전하세요.
+
+        {isShort && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8, padding: '10px 14px', background: 'rgba(239,68,68,0.07)', borderRadius: 'var(--radius)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>
+              ⚠ 크레딧이 {fmtCr(credits - creditBalance)}만큼 부족합니다.
+            </div>
+            <button
+              onClick={openCreditModal}
+              style={{
+                flexShrink: 0, padding: '6px 14px', borderRadius: 'var(--radius)',
+                background: 'var(--accent)', color: '#fff',
+                border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              충전하기 →
+            </button>
           </div>
         )}
+
         <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
           실제 매칭된 패널의 직급 비율에 따라 소모량은 줄어들 수 있으며, 사용되지 않은 차액 크레딧은 테스트 완료 후 즉시 환불(Refund)됩니다.
         </div>
       </div>
 
-      {/* ── 업그레이드 팝업 ── */}
+      {/* ── 업그레이드 팝업 (슬라이더/직급 트리거) ── */}
       {showUpgrade && ReactDOM.createPortal(
         <div
           onClick={() => setShowUpgrade(false)}
@@ -251,6 +318,175 @@ export default function PanelTargetStep({ plan, panelCount, onPanelCount, career
                 Pro 플랜 전환하기 →
               </Btn>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── 크레딧 충전 / 업그레이드 모달 ── */}
+      {showCreditModal && ReactDOM.createPortal(
+        <div
+          onClick={() => { if (!purchasing) setShowCreditModal(false); }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)', borderRadius: 'var(--radius)',
+              padding: '32px 28px', maxWidth: isStarter ? 520 : 440, width: '100%',
+              border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
+            }}
+          >
+            {/* 헤더 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+                  {isStarter ? '크레딧 부족' : '크레딧 충전'}
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800 }}>
+                  {isStarter ? '플랜 업그레이드 또는 추가 충전' : '추가 크레딧 충전'}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreditModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1, padding: 4 }}
+              >✕</button>
+            </div>
+
+            {/* 현재 상태 요약 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 24 }}>
+              {[
+                { label: '보유 크레딧', value: `${creditBalance ?? 0}cr`, color: 'var(--text)' },
+                { label: '필요 크레딧', value: `${fmtCr(credits)}cr`, color: 'var(--text)' },
+                { label: '부족량', value: `${fmtCr(credits - (creditBalance ?? 0))}cr`, color: '#ef4444' },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {purchaseDone ? (
+              <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>충전 완료!</div>
+                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                  {selectedBundle}크레딧이 충전됐습니다. 새 잔액: {(creditBalance ?? 0) + selectedBundle}cr
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Starter: 업그레이드 섹션 */}
+                {isStarter && (
+                  <>
+                    <div style={{ padding: '18px 20px', borderRadius: 'var(--radius)', border: '1px solid rgba(191,149,63,0.4)', background: 'rgba(191,149,63,0.05)', marginBottom: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                        <div>
+                          <span style={{
+                            fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
+                            background: 'linear-gradient(90deg, #bf953f, #fcf6ba, #b38728)',
+                            color: '#1D1D1F', letterSpacing: '0.05em', marginRight: 8,
+                          }}>PRO</span>
+                          <span style={{ fontSize: 14, fontWeight: 700 }}>플랜으로 업그레이드</span>
+                        </div>
+                      </div>
+                      <ul style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 2, margin: '0 0 14px 0', paddingLeft: 16 }}>
+                        <li>시니어·C레벨 패널 매칭 오픈</li>
+                        <li>최대 30명 패널 슬롯</li>
+                        <li>추가 크레딧 14% 할인 (1cr = 21,600원)</li>
+                        <li>월 165 크레딧 제공</li>
+                      </ul>
+                      <Btn
+                        size="sm"
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        onClick={() => { setShowCreditModal(false); navigate('/company/plans'); }}
+                      >
+                        Pro 플랜 전환하기 →
+                      </Btn>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                      <span style={{ fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>또는 추가 크레딧 충전</span>
+                      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                    </div>
+                  </>
+                )}
+
+                {/* 크레딧 충전 섹션 */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>충전량 선택</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 12 }}>
+                    1크레딧 = {fmtKRW(unitPrice)}
+                    {isPro && <span style={{ marginLeft: 6, color: '#16a34a', fontWeight: 600 }}>· Pro 14% 할인 적용</span>}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 18 }}>
+                    {CREDIT_BUNDLES.map(amount => {
+                      const isSelected = selectedBundle === amount;
+                      const totalPrice = amount * unitPrice;
+                      return (
+                        <button
+                          key={amount}
+                          onClick={() => setSelectedBundle(amount)}
+                          style={{
+                            padding: '12px 8px', borderRadius: 'var(--radius)', textAlign: 'center',
+                            border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                            background: isSelected ? 'var(--accent-dim)' : 'var(--surface)',
+                            cursor: 'pointer', transition: 'all 0.15s',
+                          }}
+                        >
+                          <div style={{ fontWeight: 800, fontSize: 16, color: isSelected ? 'var(--accent)' : 'var(--text)' }}>
+                            {amount}
+                            <span style={{ fontSize: 10, fontWeight: 500, marginLeft: 2 }}>cr</span>
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 3 }}>
+                            {(totalPrice / 10000).toLocaleString('ko-KR')}만원
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedBundle && (
+                    <div style={{ padding: '12px 16px', background: 'var(--bg-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                        <span style={{ color: 'var(--text-2)' }}>충전 후 잔액</span>
+                        <span style={{ fontWeight: 700 }}>{(creditBalance ?? 0) + selectedBundle} 크레딧</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                        <span style={{ color: 'var(--text-2)' }}>결제 금액</span>
+                        <span style={{ fontWeight: 800, color: 'var(--accent)', fontSize: 16 }}>
+                          {fmtKRW(selectedBundle * unitPrice)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {purchaseError && (
+                    <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 10 }}>{purchaseError}</div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <Btn variant="secondary" size="sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowCreditModal(false)} disabled={purchasing}>
+                      취소
+                    </Btn>
+                    <Btn
+                      size="sm"
+                      style={{ flex: 2, justifyContent: 'center' }}
+                      disabled={!selectedBundle || purchasing || !companyId}
+                      onClick={handlePurchase}
+                    >
+                      {purchasing ? '처리 중…' : selectedBundle ? `${fmtKRW(selectedBundle * unitPrice)} 결제하기` : '충전량을 선택하세요'}
+                    </Btn>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>,
         document.body
