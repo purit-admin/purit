@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-09 (PurityFilter 일괄처리·65점 서브필터 + Dashboard 로딩 버그 수정)
+최종 업데이트: 2026-05-09 (Landing 작동방식 섹션 StepAnimations.jsx 루핑 애니메이션 추가)
 ================================================================
 
 ## 기술 스택
@@ -43,6 +43,13 @@ purit/
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
 │   │                ExpertPanelCloud.jsx (Landing.jsx 섹션 6.5 전용 — 전문가 경력 플로팅 애니메이션) ★ 신규
+│   ├── landing/
+│   │                StepAnimations.jsx (Landing.jsx 작동방식 섹션 6 전용 — Step1/2/3 루핑 CSS 애니메이션)
+│   │                  exports: Step1Animation(의뢰 등록 폼 목업) / Step2Animation(패널 매칭) / Step3Animation(결과 대시보드)
+│   │                  구현: usePhases(durations) 커스텀 훅 — setTimeout 체인 기반 페이즈 상태머신 (D1 8단계/D2 10단계/D3 7단계)
+│   │                  CSS keyframes: s1_chipPop·s1_fadeIn·s1_blink·s1_btnPulse / s2_slideIn·s2_checkPop·s2_counterPop / s3_fillBar·s3_drawR·s3_slideUp·s3_fadeIn
+│   │                  스코어 바 fillBar: CSS 변수 --tw 패턴 (keyframe to{width:var(--tw)}) + phase < 3 시 inline width:'0%' 리셋
+│   │                  레이더 재시작: <polygon key={phase<2?'r':'a'}> — key 교체로 강제 리마운트 → stroke-dashoffset 애니메이션 재시작 (D-51)
 │   │                  단일 requestAnimationFrame 루프가 20개 태그를 구동 (React state 업데이트 없이 DOM 직접 조작)
 │   │                  phase = ((elapsed - i*STAGGER - pausedMs) % T_CYCLE + T_CYCLE) % T_CYCLE 수식으로 각 태그 위치 계산
 │   │                  T_CYCLE=20s, T_IN=1s, T_HOLD=1.8s, T_OUT=1.2s, STAGGER=1s → 항상 정확히 4개 동시 노출

@@ -167,18 +167,45 @@ const COMMENTS = {
   },
 };
 
-const OVERALL_COMMENTS = [
+// commentStyle → quality 매핑
+// high: positive/enthusiast/brand → 키워드 풍부 ~85~95점
+// low:  critical/skeptic          → AI 패널티 ~30점
+// mid:  그 외                     → 키워드 절제 ~50~70점
+const QUALITY_BY_STYLE = {
+  positive: 'high', enthusiast: 'high', brand: 'high',
+  critical: 'low',  skeptic:    'low',
+  neutral:  'mid',  practical:  'mid',  design: 'mid', data: 'mid', marketer: 'mid',
+};
+
+const OVERALL_HIGH = [
   '전체적으로 깔끔하고 타겟에게 적합한 메시지를 전달하고 있습니다. 히어로 섹션 카피를 좀 더 결과 중심으로 바꾸고 구체적인 수치를 상단에 배치하면 첫인상이 크게 개선될 것입니다. 신뢰 요소 보강이 가장 시급해 보입니다.',
   '서비스의 핵심 가치가 명확하게 전달됩니다. CTA 버튼이 스크롤 없이 상단에서도 보이면 전환율이 올라갈 것 같습니다. 특히 패널 검증 프로세스 설명이 신뢰도를 높이는 데 효과적이었습니다.',
-  '처음 랜딩했을 때 서비스가 나의 문제를 어떻게 해결해주는지 5초 안에 파악하기가 약간 어렵습니다. 헤드라인을 고객 언어로 바꾸고 결과물 샘플을 추가하면 체류 시간이 늘어날 것 같습니다.',
-  '방법론이 페이지 전반에 일관되게 표현되어 있고 가격 플랜 비교 테이블이 명확해 의사결정을 돕습니다. 무료 체험이나 파일럿 제안이 추가되면 도입 장벽을 낮출 수 있을 것입니다.',
-  '가장 잘 된 부분은 독자적인 방법론 소개입니다. 반면 가격 가치 전달이 약해서 ROI 계산 섹션이 추가되면 전환율이 높아질 것입니다.',
-  '모바일 최적화가 잘 되어 있으며 스크롤 경험이 자연스럽습니다. 실제 사용 화면 스크린샷이나 데모 영상이 있다면 제품 이해도와 신뢰도가 동시에 올라갈 것입니다.',
-  '전반적으로 전문적인 디자인입니다. 플랜 간 차이가 명확하게 표현되어 있어 구독 플랜 선택이 어렵지 않습니다. 실 고객 인터뷰 영상이나 짧은 사용 데모가 추가되면 좋겠습니다.',
-  '"의뢰 등록 → 패널 매칭 → 피드백 수집 → 리포트"처럼 단계별 안내가 없습니다. 이 흐름이 가시화되면 서비스 이해도와 신뢰도가 동시에 올라갈 것입니다.',
-  '핵심 차별화인 실제 타겟 패널의 전문성이 잘 전달됩니다. 페이지 중반 이후 콘텐츠 밀도가 높아지므로 여백 활용으로 가독성을 높이면 좋겠습니다.',
+  '가장 잘 된 부분은 독자적인 방법론 소개입니다. 가격 가치 전달이 약해서 ROI 계산 섹션이 추가되면 전환율이 높아질 것입니다.',
   '타겟 고객의 언어를 잘 사용하고 있으며 CTA 문구가 명확합니다. 도입 기업 구체 사례와 30일 무료 체험 제안이 추가되면 최종 전환에 결정적인 역할을 할 것입니다.',
 ];
+
+// actionable 1~2개 수준 → dim 기여분 포함 시 50~70점대 형성
+const OVERALL_MID = [
+  '서비스의 방향성은 이해되지만 방문자가 즉시 가치를 체감하기에는 설명이 다소 부족합니다. 고객 도입 사례나 효과 데이터가 보강되면 설득력이 올라갈 것 같습니다.',
+  '전반적인 구성은 무난하지만 경쟁 서비스 대비 차별점이 더 강조될 필요가 있습니다. 각 섹션 메시지를 명확하게 수정하면 방문자 이탈을 줄이는 데 도움이 될 것입니다.',
+  '서비스의 특징은 파악되지만 처음 방문한 사람이 왜 이 서비스를 선택해야 하는지 설득이 약합니다. 고객 후기나 비교 정보를 추가하면 의사결정에 도움이 될 것입니다.',
+  '랜딩페이지의 첫인상은 좋지만 핵심 가치 메시지가 더 앞에 배치될 필요가 있습니다. 전환을 유도하는 요소를 상단으로 올리면 체류 시간이 늘어날 것입니다.',
+  '서비스 컨셉과 기능은 이해됩니다. 다만 방문자가 즉각적으로 기억할 만한 핵심 메시지가 좀 더 강조되면 좋겠다는 느낌을 받았습니다.',
+];
+
+// AI 패널티 문구 포함 → -15점 → ~30점대 형성
+const OVERALL_LOW = [
+  '랜딩페이지를 전반적으로 살펴봤는데 크게 문제될 부분은 없어 보입니다. 서비스의 방향성이 잘 잡혀 있다고 생각됩니다.',
+  '전체적인 구성이 깔끔하게 정리되어 있어서 보기에 좋습니다. 방문자에게 서비스가 무난하게 전달될 것이라 판단됩니다.',
+  '서비스 소개가 기본적인 역할은 충분히 하고 있습니다. 전체적으로 무난하게 잘 되어있다고 생각됩니다.',
+];
+
+function pickOverallByStyle(style, panelIdx) {
+  const q = QUALITY_BY_STYLE[style] || 'mid';
+  if (q === 'low')  return OVERALL_LOW[panelIdx % OVERALL_LOW.length];
+  if (q === 'high') return OVERALL_HIGH[panelIdx % OVERALL_HIGH.length];
+  return OVERALL_MID[panelIdx % OVERALL_MID.length];
+}
 
 // ── 서브 미션 코멘트 풀 ──────────────────────────────────────────────────────
 
@@ -381,7 +408,7 @@ async function submitMainFeedback(mission, panel, panelIdx) {
     const anns = annotations.filter(a => a.dimension === dim);
     return `[${DIM_LABELS[dim]}]\n${anns.map(a => a.comment).join('\n')}`;
   });
-  lines.push(`[총평]\n${OVERALL_COMMENTS[panelIdx]}`);
+  lines.push(`[총평]\n${pickOverallByStyle(profile.commentStyle, panelIdx)}`);
 
   // custom_answers (LP 추가 질문)
   let customAnswers = null;

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, X } from 'lucide-react';
 import ExpertPanelCloud from '../components/ui/ExpertPanelCloud';
+import { Step1Animation, Step2Animation, Step3Animation } from '../components/landing/StepAnimations';
 
 /* ─── 색상 토큰 (Claude 팔레트) ───────── */
 const BG      = '#F8FAFC';
@@ -307,11 +308,20 @@ export default function Landing() {
 
           <div className="landing-grid-3-steps">
             {[
-              { n: '1', step: '의뢰 등록', desc: '타겟 페르소나와 검증할 소재를 업로드합니다. 5분이면 충분합니다.', tag: '약 5분' },
-              { n: '2', step: '전문가 매칭', desc: 'Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
-              { n: '3', step: '결과 수령', desc: '피드백 결과와 함께 개선 우선순위를 48시간 내에 확인합니다.', tag: '48시간 내' },
+              { n: '1', Anim: Step1Animation, step: '의뢰 등록', desc: '타겟 페르소나와 검증할 소재를 업로드합니다. 5분이면 충분합니다.', tag: '약 5분' },
+              { n: '2', Anim: Step2Animation, step: '전문가 매칭', desc: 'Purit Filter를 통과한 동일 페르소나 전문가가 자동으로 매칭됩니다.', tag: '자동 처리' },
+              { n: '3', Anim: Step3Animation, step: '결과 수령', desc: '피드백 결과와 함께 개선 우선순위를 48시간 내에 확인합니다.', tag: '48시간 내' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '0 8px' }}>
+                {/* 애니메이션 목업 프레임 */}
+                <div style={{
+                  width: '100%', height: 220, borderRadius: 16,
+                  border: '1px solid #E2E8F0', overflow: 'hidden',
+                  marginBottom: 28, position: 'relative',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                }}>
+                  <s.Anim />
+                </div>
                 <div style={{
                   width: 48, height: 48, borderRadius: '50%',
                   background: PRIMARY, color: BG,

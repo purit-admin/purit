@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-09 (D-49 모듈 레벨 state 참조 ReferenceError 앱 전체 흰 화면 / D-50 async useEffect cleanup 미실행 패턴)
+최종 업데이트: 2026-05-09 (D-51 CSS 키프레임 애니메이션 루프 재시작 시 React key 교체 필요)
 ================================================================
 
 ## 핵심 원칙
@@ -570,3 +570,14 @@ D-48. staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 �
      → 원칙: 여러 요소가 균등한 시간차로 반복 애니메이션해야 할 때 setTimeout 체인은 절대 사용 금지
              단일 rAF + 수식 계산 패턴만이 드리프트 없이 항상 정확한 동시 노출 수를 보장함
              React state 대신 DOM 직접 조작(el.style.opacity)으로 리렌더 없이 60fps 유지
+
+D-51. CSS 키프레임 애니메이션을 루프에서 재시작하려면 React key 교체로 강제 리마운트 필요 ✅ 해결
+     → 증상: 루핑 phase 머신에서 phase가 0으로 리셋될 때 SVG stroke-dashoffset 애니메이션이 처음부터 재실행되지 않음
+     → 원인: 동일 DOM 요소에 animation 속성을 'none'으로 변경 후 다시 설정해도 브라우저가 새 애니메이션으로 인식하지 않는 경우가 있음
+             (animationName 변경 없이 animation 프로퍼티만 토글 시 브라우저가 같은 애니메이션으로 간주 → 재시작 미실행)
+     → 해결: 애니메이션 대상 요소에 `key={phase < N ? 'reset' : 'active'}` 부여
+             key 변경 → React가 요소를 언마운트 후 새로 마운트 → 브라우저가 애니메이션을 항상 첫 프레임부터 실행
+             예) `<polygon key={phase < 2 ? 'r' : 'a'} style={{ animation: phase >= 2 ? 's3_drawR 1.1s ease forwards' : 'none' }} />`
+     → 원칙: CSS keyframe 애니메이션을 React 루프/페이즈 머신에서 반복 재시작해야 할 때
+             animation 속성 토글만으로는 신뢰할 수 없음 — React key 교체로 강제 리마운트가 유일하게 확실한 방법
+             key 교체 대상은 애니메이션 요소 자체여야 하며, 상위 컨테이너에 붙이면 의도치 않게 전체 레이아웃을 재계산함
