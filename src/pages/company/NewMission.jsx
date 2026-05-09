@@ -19,6 +19,178 @@ const INDUSTRIES = [
   'HR/채용', '법률/컨설팅', '물류/배송', '환경/에너지',
 ];
 
+const INDUSTRY_PLACEHOLDERS = {
+  '헬스/피트니스': {
+    product: '프리미엄 러닝화 LP',
+    personaAge: '35-45세',
+    personaIncome: '500만 원 이상',
+    personaRole: '직장인 러너, 마케터 등',
+    personaContext: '제품: 기능성 러닝화\n퇴근 후 운동하는 30-40대 직장인. 러닝화에 10만 원 이상 지출 경험 있음',
+    briefText: '이 LP는 러닝화 첫 구매자를 타겟으로 합니다. 스크롤 흐름과 CTA 전환 가능성을 중심으로 피드백 부탁드립니다.',
+  },
+  '뷰티/코스메틱': {
+    product: '비건 스킨케어 브랜드 LP',
+    personaAge: '25-35세',
+    personaIncome: '300-500만 원',
+    personaRole: '뷰티에 관심 있는 직장 여성',
+    personaContext: '제품: 비건 세럼 라인\n피부 트러블로 화학 성분에 민감한 20-30대 여성. 스킨케어에 월 5만 원 이상 지출',
+    briefText: '비건 세럼 LP입니다. 성분 신뢰도와 첫인상 전환력을 중심으로 피드백 부탁드립니다.',
+  },
+  '식품/음료': {
+    product: '건강 도시락 구독 서비스 LP',
+    personaAge: '28-40세',
+    personaIncome: '350-600만 원',
+    personaRole: '바쁜 직장인, 건강 관심 1인 가구',
+    personaContext: '제품: 주 5회 저칼로리 도시락 배송\n점심 식비 절약과 건강을 동시에 챙기고 싶은 직장인. 구독 서비스 이용 경험 있음',
+    briefText: '건강 도시락 구독 LP입니다. 메뉴 신뢰감과 구독 가치 전달력 위주로 피드백 부탁드립니다.',
+  },
+  '패션/의류': {
+    product: '스트릿 캐주얼 브랜드 LP',
+    personaAge: '20-30세',
+    personaIncome: '200-400만 원',
+    personaRole: '트렌드에 민감한 MZ세대',
+    personaContext: '제품: 오버핏 캐주얼 의류 라인\n트렌드에 민감하고 온라인 쇼핑을 즐기는 20대. 월 의류비 10만 원 이상 지출',
+    briefText: '스트릿 패션 브랜드 LP입니다. 브랜드 감성 전달과 구매 욕구 유발 포인트 위주로 피드백 부탁드립니다.',
+  },
+  'SaaS/소프트웨어': {
+    product: 'B2B 마케팅 자동화 툴 LP',
+    personaAge: '28-42세',
+    personaIncome: '500만 원 이상',
+    personaRole: '마케터, 그로스 담당자, 스타트업 팀장',
+    personaContext: '제품: 리드 너처링 자동화 SaaS\n마케팅 ROI 개선이 필요한 스타트업~중소기업 마케터. 유료 툴 도입 결정권 있음',
+    briefText: '마케팅 자동화 SaaS LP입니다. 가치 제안 명확성과 전환 CTA 효과 위주로 피드백 부탁드립니다.',
+  },
+  '교육/에듀테크': {
+    product: 'AI 영어 회화 앱 LP',
+    personaAge: '22-35세',
+    personaIncome: '250-450만 원',
+    personaRole: '취준생, 영어 실력 향상 원하는 직장인',
+    personaContext: '제품: 1일 10분 AI 튜터 영어 앱\n영어 울렁증 있는 20-30대. 기존 학원/앱 경험 있으나 꾸준히 못 했음',
+    briefText: 'AI 영어 앱 LP입니다. 차별점 전달과 지속 동기 유발 요소 위주로 피드백 부탁드립니다.',
+  },
+  '금융/핀테크': {
+    product: '소액 투자 플랫폼 LP',
+    personaAge: '25-38세',
+    personaIncome: '300-500만 원',
+    personaRole: '재테크 초보 직장인, 투자 입문자',
+    personaContext: '제품: 월 1만 원부터 시작하는 ETF 투자 앱\n투자에 관심 있지만 복잡해 보여 시작 못 한 20-30대 직장인',
+    briefText: '소액 투자 앱 LP입니다. 신뢰감과 진입 장벽 해소 메시지 위주로 피드백 부탁드립니다.',
+  },
+  '여행/숙박': {
+    product: '국내 감성 숙소 예약 플랫폼 LP',
+    personaAge: '25-40세',
+    personaIncome: '300-600만 원',
+    personaRole: '여행 좋아하는 커플, 소규모 가족',
+    personaContext: '제품: 독채 펜션·글램핑 특화 예약 서비스\n주말 여행을 즐기는 2-4인. 에어비앤비·야놀자 이용 경험 있음',
+    briefText: '감성 숙소 예약 LP입니다. 차별화 포인트와 예약 전환 유도 메시지 위주로 피드백 부탁드립니다.',
+  },
+  '부동산/인테리어': {
+    product: '셀프 인테리어 큐레이션 서비스 LP',
+    personaAge: '28-45세',
+    personaIncome: '400-700만 원',
+    personaRole: '신혼부부, 이사 준비 중인 30-40대',
+    personaContext: '제품: 평수·예산별 인테리어 패키지 서비스\n이사 또는 리모델링 계획 중인 30대. 어디서 시작할지 모르는 인테리어 초심자',
+    briefText: '셀프 인테리어 서비스 LP입니다. 신뢰감과 의사결정 편의성 위주로 피드백 부탁드립니다.',
+  },
+  '의료/헬스케어': {
+    product: '비대면 심리 상담 서비스 LP',
+    personaAge: '25-40세',
+    personaIncome: '300-500만 원',
+    personaRole: '번아웃·스트레스로 상담 고려 중인 직장인',
+    personaContext: '제품: 앱 기반 심리 상담 구독\n정신건강에 관심 있으나 오프라인 상담에 거부감 있는 20-30대. 보험 적용 여부 관심',
+    briefText: '비대면 심리 상담 LP입니다. 신뢰감 형성과 첫 상담 진입 장벽 해소 메시지 위주로 피드백 부탁드립니다.',
+  },
+  '반려동물': {
+    product: '반려견 맞춤 사료 구독 LP',
+    personaAge: '25-40세',
+    personaIncome: '350-550만 원',
+    personaRole: '반려견 키우는 1-2인 가구',
+    personaContext: '제품: 견종·나이별 맞춤 생식 사료\n강아지 건강에 신경 쓰는 집사. 기존 사료 부작용 경험 있거나 성분에 민감',
+    briefText: '맞춤 반려견 사료 LP입니다. 원료 신뢰감과 맞춤화 가치 전달 위주로 피드백 부탁드립니다.',
+  },
+  '게임/엔터테인먼트': {
+    product: '모바일 RPG 신작 사전예약 LP',
+    personaAge: '18-32세',
+    personaIncome: '100-350만 원',
+    personaRole: '모바일 게이머, 장르 팬',
+    personaContext: '제품: 판타지 수집형 RPG\n하루 1-2시간 모바일 게임 즐기는 10-20대. 아이템 과금 경험 있음',
+    briefText: '모바일 RPG 사전예약 LP입니다. 게임 첫인상과 플레이 욕구 유발 요소 위주로 피드백 부탁드립니다.',
+  },
+  '이커머스/리테일': {
+    product: '프리미엄 원두 이커머스 LP',
+    personaAge: '25-40세',
+    personaIncome: '300-550만 원',
+    personaRole: '커피 좋아하는 직장인, 홈카페 족',
+    personaContext: '제품: 산지 직수입 스페셜티 원두 정기배송\n커피에 월 3만 원 이상 지출하는 커피 애호가. 홈카페 장비 보유',
+    briefText: '스페셜티 원두 LP입니다. 상품 신뢰도와 구독 가치 전달 위주로 피드백 부탁드립니다.',
+  },
+  '자동차/모빌리티': {
+    product: '전기차 리스 비교 플랫폼 LP',
+    personaAge: '30-50세',
+    personaIncome: '500만 원 이상',
+    personaRole: '차량 교체 고려 중인 직장인, 사업자',
+    personaContext: '제품: 전기차 리스·할부 비교 서비스\n내연기관에서 전기차로 전환 고려 중인 30-40대. 보조금·유지비에 관심',
+    briefText: '전기차 리스 비교 LP입니다. 정보 신뢰성과 의사결정 전환 포인트 위주로 피드백 부탁드립니다.',
+  },
+  '미디어/콘텐츠': {
+    product: '직장인 재테크 뉴스레터 LP',
+    personaAge: '25-40세',
+    personaIncome: '300-550만 원',
+    personaRole: '경제 뉴스에 관심 있는 직장인',
+    personaContext: '제품: 주 3회 발행 재테크·경제 뉴스레터\n재테크에 관심 있지만 복잡한 정보 소화가 어려운 20-30대 직장인',
+    briefText: '재테크 뉴스레터 LP입니다. 구독 가치 전달과 개봉 동기 유발 요소 위주로 피드백 부탁드립니다.',
+  },
+  'B2B 서비스': {
+    product: '스타트업 법인 세무 대행 서비스 LP',
+    personaAge: '28-45세',
+    personaIncome: '500만 원 이상',
+    personaRole: '스타트업 대표, CFO, 재무 담당자',
+    personaContext: '제품: 스타트업 특화 세무·회계 월정액 서비스\n법인 설립 1-3년 차 스타트업. 세무 처리 직접 하기 어렵고 비용 최적화 필요',
+    briefText: 'B2B 세무 서비스 LP입니다. 신뢰감과 도입 결정 전환 포인트 위주로 피드백 부탁드립니다.',
+  },
+  'HR/채용': {
+    product: '기술 직군 채용 플랫폼 LP',
+    personaAge: '28-45세',
+    personaIncome: '500만 원 이상',
+    personaRole: '채용 담당자, HR 팀장, 스타트업 CTO',
+    personaContext: '제품: 개발자·디자이너 특화 채용 SaaS\n채용 속도와 퀄리티에 고민 있는 HR 담당. 기존 플랫폼 대비 비용 민감',
+    briefText: '기술 직군 채용 플랫폼 LP입니다. 차별점 명확성과 도입 설득력 위주로 피드백 부탁드립니다.',
+  },
+  '법률/컨설팅': {
+    product: '개인 소송 법률 지원 서비스 LP',
+    personaAge: '30-55세',
+    personaIncome: '350-600만 원',
+    personaRole: '법적 분쟁에 처한 일반인, 소상공인',
+    personaContext: '제품: 비대면 법률 상담 및 서류 작성 지원\n변호사 선임이 부담스러운 일반인. 계약 분쟁·부동산·이혼 등 다양한 사례',
+    briefText: '법률 지원 서비스 LP입니다. 신뢰감과 진입 장벽 해소 메시지 위주로 피드백 부탁드립니다.',
+  },
+  '물류/배송': {
+    product: '소규모 셀러 당일 출고 풀필먼트 LP',
+    personaAge: '28-45세',
+    personaIncome: '500만 원 이상',
+    personaRole: '온라인 셀러, 소규모 이커머스 운영자',
+    personaContext: '제품: 소규모 셀러 대상 당일 출고 풀필먼트\n하루 50건 이상 주문 처리하는 인스타그램·스마트스토어 셀러. 배송 지연 CS 부담',
+    briefText: '풀필먼트 서비스 LP입니다. 비용 대비 가치와 신뢰감 전달 위주로 피드백 부탁드립니다.',
+  },
+  '환경/에너지': {
+    product: '가정용 태양광 패널 설치 서비스 LP',
+    personaAge: '35-55세',
+    personaIncome: '500만 원 이상',
+    personaRole: '자가 주택 보유자, 에너지 절감 관심층',
+    personaContext: '제품: 가정용 태양광 패널 설치 + 모니터링 앱\n전기요금 절감에 관심 있는 30-50대 자가 주택 보유자. 초기 투자 대비 회수 기간 관심',
+    briefText: '가정용 태양광 설치 LP입니다. 절감 효과 신뢰도와 설치 불안감 해소 메시지 위주로 피드백 부탁드립니다.',
+  },
+};
+
+const DEFAULT_PLACEHOLDERS = {
+  product: '검증할 서비스명을 입력하세요',
+  personaAge: '예) 35-45세',
+  personaIncome: '예) 500만 원 이상',
+  personaRole: '예) 직장인, 마케터 등',
+  personaContext: '예) 제품명과 타겟 고객의 특징을 간단히 적어주세요',
+  briefText: '이 LP의 핵심 타겟과 검증받고 싶은 포인트를 적어주세요.',
+};
+
 const PAGE_SIZE = 5;
 
 function Pagination({ page, total, onPage }) {
@@ -688,10 +860,6 @@ export default function NewMission() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>서비스 정보 & 타겟 페르소나</h2>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>검증할 서비스와 서비스 타겟에 대해 설정합니다.</p>
-                <label style={lbl}>
-                  <span style={lblTxt}>검증할 서비스명(의뢰명)</span>
-                  <input value={form.product} onChange={e => set('product', e.target.value)} placeholder="프리미엄 러닝화 LP" />
-                </label>
                 {/* 산업군 선택 */}
                 <div>
                   <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>산업군</span>
@@ -763,6 +931,10 @@ export default function NewMission() {
                   </div>
                 </div>
                 <label style={lbl}>
+                  <span style={lblTxt}>검증할 서비스명(의뢰명)</span>
+                  <input value={form.product} onChange={e => set('product', e.target.value)} placeholder={ph.product} />
+                </label>
+                <label style={lbl}>
                   <span style={lblTxt}>랜딩페이지 URL (선택)</span>
                   <input value={form.lpUrl} onChange={e => set('lpUrl', e.target.value)} placeholder="https://your-landing-page.com" />
                 </label>
@@ -772,21 +944,21 @@ export default function NewMission() {
                     <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                       <label style={lbl}>
                         <span style={lblTxt}>연령대</span>
-                        <input value={form.personaAge} onChange={e => set('personaAge', e.target.value)} placeholder="35-45세" />
+                        <input value={form.personaAge} onChange={e => set('personaAge', e.target.value)} placeholder={ph.personaAge} />
                       </label>
                       <label style={lbl}>
                         <span style={lblTxt}>월 소득 수준</span>
-                        <input value={form.personaIncome} onChange={e => set('personaIncome', e.target.value)} placeholder="500만 원 이상" />
+                        <input value={form.personaIncome} onChange={e => set('personaIncome', e.target.value)} placeholder={ph.personaIncome} />
                       </label>
                     </div>
                     <label style={lbl}>
                       <span style={lblTxt}>직군/역할</span>
-                      <input value={form.personaRole} onChange={e => set('personaRole', e.target.value)} placeholder="직장인 러너, 마케터 등" />
+                      <input value={form.personaRole} onChange={e => set('personaRole', e.target.value)} placeholder={ph.personaRole} />
                     </label>
                     <label style={lbl}>
                       <span style={lblTxt}>타겟 상세 (선택)</span>
                       <textarea value={form.personaContext} onChange={e => set('personaContext', e.target.value)}
-                        placeholder={"제품: 기능성 러닝화\n퇴근 후 운동하는 30-40대 직장인. 러닝화에 10만 원 이상 지출 경험 있음"}
+                        placeholder={ph.personaContext}
                         rows={3} style={{ resize: 'vertical' }} />
                     </label>
                   </div>
@@ -881,7 +1053,7 @@ export default function NewMission() {
                 <label style={lbl}>
                   <span style={lblTxt}>패널에게 전달할 브리핑</span>
                   <textarea value={form.briefText} onChange={e => set('briefText', e.target.value)}
-                    placeholder="이 LP는 러닝화 첫 구매자를 타겟으로 합니다. 스크롤 흐름과 CTA 전환 가능성을 중심으로 피드백 부탁드립니다."
+                    placeholder={ph.briefText}
                     rows={4} style={{ resize: 'vertical' }} />
                 </label>
               </div>
@@ -1385,4 +1557,5 @@ export default function NewMission() {
 }
 
 const lbl = { display: 'flex', flexDirection: 'column', gap: 8 };
+  const ph = INDUSTRY_PLACEHOLDERS[form.industry] || DEFAULT_PLACEHOLDERS;
 const lblTxt = { fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };

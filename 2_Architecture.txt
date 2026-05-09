@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-08 (ExpertPanelCloud.jsx 신규 — rAF 단일 루프 플로팅 애니메이션 컴포넌트; .expert-tag/.expert-cloud-box CSS 클래스 추가)
+최종 업데이트: 2026-05-09 (NewMission Step 0 필드 순서 변경 + INDUSTRY_PLACEHOLDERS 상수 추가)
 ================================================================
 
 ## 기술 스택
@@ -65,7 +65,10 @@ purit/
 │   │                Step 0 레이블: '검증할 서비스명(의뢰명)', 산업군(필수, (선택) 없음), '랜딩페이지 URL (선택)'
 │   │                Step 2 레이블: '질문 설정' (선택 제거)
 │   │                폼 상단: ※ 조기 종료 시 사용된 크레딧은 환불되지 않습니다. (red 12px, NDA 배너 아래)
-│   │                Step 0: 서비스명 → 산업군 선택(▼ 드롭다운) → LP URL 순 배치, 페르소나 필드 아래, 부제 "검증할 서비스와 서비스 타겟에 대해 설정합니다."
+│   │                Step 0: 산업군 선택(▼ 드롭다운) → 서비스명 → LP URL 순 배치 ★ 순서 변경 (2026-05-09), 페르소나 필드 아래, 부제 "검증할 서비스와 서비스 타겟에 대해 설정합니다."
+│   │                INDUSTRY_PLACEHOLDERS 상수 (모듈 레벨): 20개 산업군 → { product, personaAge, personaIncome, personaRole, personaContext, briefText } 매핑
+│   │                  DEFAULT_PLACEHOLDERS: 산업군 미선택 시 중립 안내 문구 / ph = INDUSTRY_PLACEHOLDERS[form.industry] || DEFAULT_PLACEHOLDERS
+│   │                  적용 범위: Step 0 서비스명·연령대·월소득·직군·타겟상세 + Step 1 브리핑 placeholder 동적 교체
 │   │                  산업군 드롭다운: INDUSTRIES 칩 grid + "✏️ 직접 쓰기" 토글 → 텍스트 입력 + 확인 버튼 (Enter 키 지원)
 │   │                  buildDescription(): industry 포함 → description JSON / persona 문자열에도 "산업군: XXX" 포함
 │   │                폼 상단 배너: 🔒 NDA(accent-dim) + ✨ 매칭(rgba(16,185,129,0.07)) 2개 항상 표시
