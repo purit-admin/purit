@@ -533,6 +533,29 @@ D-50. useEffect cleanup을 async 함수 내부에서 return하면 cleanup이 절
              반드시 async 함수 밖 useEffect 콜백 최상단에서 return해야 한다
              async 함수 안의 return은 useEffect cleanup으로 전달되지 않는다
 
+D-51. async load() 내 early return 또는 예외 발생 시 setLoading(false) 미호출로 로딩 영구 걸림 ✅ 해결
+     → 증상: 기업 대시보드가 "불러오는 중..." 상태에서 영원히 멈춤
+     → 원인 1: `if (!user) return;` 이 setLoading(false) 없이 함수 탈출
+     → 원인 2: load() 내부 쿼리에서 예외 발생 시 setLoading(false)를 건너뜀
+               (load()는 fire-and-forget으로 호출되므로 rejected Promise가 조용히 무시됨)
+     → 해결: load() 전체를 try-catch로 감싸고, catch + early return 모두 setLoading(false) 호출
+             ```js
+             async function load() {
+               try {
+                 const { data: { user } } = await supabase.auth.getUser();
+                 if (!user) { setLoading(false); return; }  // ← early return에도 setLoading 필수
+                 // ... 나머지 쿼리 ...
+                 setLoading(false);
+               } catch (err) {
+                 console.error('[load error]', err);
+                 setLoading(false);  // ← 예외 시에도 반드시 해제
+               }
+             }
+             ```
+     → 원칙: useEffect 내 async load() 패턴에서 setLoading(false)는 모든 exit path에 있어야 함
+             early return이 하나라도 있으면 그 앞에도 setLoading(false) 추가
+             전체를 try-catch로 감싸는 것이 가장 안전한 보호막
+
 D-48. staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 드리프트로 일괄 동기화 ✅ 해결
      → 증상: 20개 태그가 개별 setTimeout으로 각자 사이클을 돌리면 처음엔 엇갈리다가
              시간이 지나면서 오차가 누적되어 결국 여러 개가 동시에 나타났다 사라지는 배치 현상 발생

@@ -307,31 +307,32 @@ export default function CompanyDashboard() {
     let sub = null;
 
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setLoading(false); return; }
 
-      const { data: co } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      setCompany(co);
-
-      if (co) {
-        const { data: ms } = await supabase
-          .from('missions')
+        const { data: co } = await supabase
+          .from('companies')
           .select('*')
-          .eq('company_id', co.id)
-          .order('created_at', { ascending: false });
-        setMissions(ms || []);
+          .eq('user_id', user.id)
+          .single();
+        setCompany(co);
 
-        if (ms?.length) {
-          const { data: fb } = await supabase
-            .from('feedbacks')
-            .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,mission_id')
-            .eq('status', 'submitted')
-            .in('mission_id', ms.map(m => m.id));
-          setFeedbacks(fb || []);
+        if (co) {
+          const { data: ms } = await supabase
+            .from('missions')
+            .select('*')
+            .eq('company_id', co.id)
+            .order('created_at', { ascending: false });
+          setMissions(ms || []);
+
+          if (ms?.length) {
+            const { data: fb } = await supabase
+              .from('feedbacks')
+              .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,mission_id')
+              .in('status', ['submitted', 'approved'])
+              .in('mission_id', ms.map(m => m.id));
+            setFeedbacks(fb || []);
 
           const prefIds  = ms.filter(m => m.type === 'preference').map(m => m.id);
           const priceIds = ms.filter(m => m.type === 'pricing').map(m => m.id);
@@ -365,8 +366,12 @@ export default function CompanyDashboard() {
             setMissions(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
           })
           .subscribe();
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error('[Dashboard] load error:', err);
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     load();

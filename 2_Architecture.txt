@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-09 (Realtime 구독 cleanup 버그 수정 + 명예 포인트 RPC 보안 마이그레이션 020 추가)
+최종 업데이트: 2026-05-09 (PurityFilter 일괄처리·65점 서브필터 + Dashboard 로딩 버그 수정)
 ================================================================
 
 ## 기술 스택
@@ -147,7 +147,13 @@ purit/
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
 │   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
 │   │                  prefIds/priceIds/emailIds 추출 → Promise.all 병렬 조회 → feedbackId 키 맵으로 저장
-│   │                  좌측 목록 점수: 메인=calcPurityScore(f), 서브=calcSubPurityScore(subResponseMap[f.id]||null, type)
+│   │                  getScore(f) 헬퍼: 타입 분기 → 메인=calcPurityScore(f), 서브=calcSubPurityScore(subResponseMap[f.id]||null, type)
+│   │                  calcPurityScore: base20 + 길이(max20) + 섹션균형(max10) + 구체성키워드(×4,max25) + 실행(×5,max25) + AI패널티(×-12,min-30)
+│   │                  calcSubPurityScore: base15 + 코멘트길이(단계적,max30) + 구체성키워드(×3,max10) + 지표충실도(max45)
+│   │                  65점 기준: 승인권장(≥65) / 검토(45~64) / 반려권장(<45) — 뱃지/색상/목록 라벨 통일
+│   │                  pendingSubFilter: 'all'|'above65'|'below65' — 검토 대기 탭 서브필터 버튼
+│   │                  checkedIds Set + bulkApprove/bulkReject/toggleCheck/toggleAll — 일괄 처리 패턴
+│   │                  pendingPageIds/allPageChecked/toggleAll: pagedList 선언 이후에 배치 (D-51 참조)
 │   │                  Pagination: 슬라이딩 5-윈도우(WINDOW=5) + «/» 5페이지 점프 버튼
 │   │                    winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) 계산 후 pageNums 슬라이스
 │   └── pages/

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-09 (NewMission Step 0 필드 순서 변경 + 산업군별 동적 placeholder 추가)
+최종 업데이트: 2026-05-09 (PurityFilter 일괄 승인/반려 + 65점 서브필터 + Dashboard 로딩 버그 수정)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -61,7 +61,8 @@
      · CompanyMissionCard: status='completed' 카드 우측 하단에 "삭제" 버튼 표시
        클릭 시 ConfirmModal(danger) 확인 → missions DELETE + 카드 즉시 제거 (복구 불가)
    - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
-   ※ 차트 데이터 소스: feedbacks 테이블(status='submitted') + 서브 응답 테이블 실시간 집계
+   ※ 차트 데이터 소스: feedbacks 테이블(status IN ['submitted','approved']) + 서브 응답 테이블 실시간 집계
+     ※ 승인된(approved) 피드백도 차트 집계에 포함 — PurityFilter 승인 후에도 레이더/게이지 반영 ★
      - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지
      - computeSentiment(missions, fbs): 메인 의뢰 전체 대상 긍정 비율
      - computeSubSentiment(missions, prefResps, priceResps, emailResps): 서브 의뢰 타입별 긍정 비율
@@ -576,14 +577,27 @@
      · ₩N/건 표시 제거 (경력별 단가 상이로 의미 없음)
      · RPC 실패 시 statusError state로 에러 메시지 상단 표시
 
-4. Purity Filter (/admin/purity) — PurityFilter.jsx  ★ 페이지네이션 개선·서브 점수 동기화 (2026-05-08)
+4. Purity Filter (/admin/purity) — PurityFilter.jsx  ★ 일괄 처리 + 65점 서브필터 + 점수 공식 개선 (2026-05-09)
    - 피드백 품질 필터링 / purity_passed 관리
-   - 목록 페이지네이션: 슬라이딩 5-윈도우 + «/» 5페이지 점프 버튼 ★
+   - 목록 페이지네이션: 슬라이딩 5-윈도우 + «/» 5페이지 점프 버튼
    - 서브 미션 점수 사전 로드(subResponseMap): 초기 load() 시 preference/pricing/email 응답 테이블 일괄 조회
-     → 좌측 목록 피드백 클릭 전에도 서브 점수 즉시 표시 (calcSubPurityScore(subResponseMap[f.id], type))
-     → 메인 의뢰: calcPurityScore(f), 서브 의뢰: calcSubPurityScore(subResponseMap[f.id], type) ★
-   - 점수 카드 컨테이너: CSS grid repeat(N, 1fr) 균등 폭 (preference/pricing=3열, email/LP=5열)
-   - 섹션 간격: marginBottom 12 통일
+     → 좌측 목록 피드백 클릭 전에도 서브 점수 즉시 표시
+     → 메인 의뢰: calcPurityScore(f), 서브 의뢰: calcSubPurityScore(subResponseMap[f.id], type)
+   - calcPurityScore 개선 공식 (LP 메인 의뢰): ★
+     base 20 + 텍스트길이(max 20) + 섹션균형(3섹션=10/2섹션=4/1=0) + 구체성키워드(×4, max 25)
+     + 실행가능성키워드(×5, max 25) + AI패턴패널티(×-12, min -30) → 합산 0~100
+   - calcSubPurityScore 개선 공식 (서브 의뢰): ★
+     base 15 + 코멘트길이(100+→30/50+→20/20+→10/5+→4) + 구체성키워드(×3, max 10)
+     + 지표충실도(preference/pricing/email 각 항목별 15~5점, max 45) → 합산 0~100
+   - 65점 기준: 승인 권장(≥65 초록) / 검토(45~64 네이비) / 반려 권장(<45 빨강) ★ 기존 70→65 변경
+   - 검토 대기 탭 65점 서브필터: 전체 / 65점 이상 / 65점 미만 버튼 (건수 실시간 표시) ★ 신규
+   - 일괄 처리 (검토 대기 탭): ★ 신규
+     · 카드에 체크박스 표시 (pending 항목만)
+     · 목록 헤더 "전체 선택" 체크박스 (현재 페이지 일괄 선택/해제)
+     · 일괄 처리 바: "N개 선택됨" + "✓ 일괄 승인" / "✕ 일괄 반려" / "선택 해제" 버튼
+     · 일괄 처리 후 recalc_mission_consumed RPC 호출 (미션별 그룹)
+   - 목록 카드 레이블: "승인 권장" / "검토" / "반려 권장" 인라인 텍스트 표시 ★ 신규
+   - 점수 분해 바: LP(기본/텍스트길이/섹션균형/구체성/실행가능성/AI패널티) + 서브(기본/코멘트길이/구체성/지표충실도)로 각각 재정비 ★
    - LP 메인 의뢰 피드백 상세 (isSubMission=false):
      · 상단: parseLPDesc로 briefText 표시 (미션 브리핑 요약)
      · 이미지 + 어노테이션 오버레이 (ImageAnnotator readonly, 다중 이미지 탭)
@@ -596,7 +610,7 @@
                 would_buy + price_fairness + value_perception + key_comment
      - email: 이메일 원문(content) + productDescription + customQuestions,
               would_reply + hook/clarity/open_intent/curiosity 점수 + comment
-   - Purit Score: 서브 미션은 calcSubPurityScore (코멘트 충실도 + 지표 충실도 기반)
+   - 점수 카드 컨테이너: CSS grid repeat(N, 1fr) 균등 폭 (preference/pricing=3열, email/LP=5열)
    - 승인/반려: feedbacks.status 업데이트 (서브 미션도 동일)
    - 승인/반려/초기화 직후: recalc_mission_consumed RPC 호출 → 해당 미션의 credits_consumed 자동 재계산
    - 승인/반려 시 패널 + 기업 양쪽에 알림 자동 발송 (sendNotification 사용)

@@ -14,35 +14,45 @@ const DIM = [
 
 function calcSubPurityScore(sub, type) {
   if (!sub) return 0;
-  let score = 20;
-  const comment = sub.comment || sub.key_comment || '';
-  if (comment.length > 10)  score += 25;
-  if (comment.length > 50)  score += 15;
+  const comment = (sub.comment || sub.key_comment || '').trim();
+  let score = 15;
+  // 코멘트 길이 (최대 30 — 단계적)
+  score += comment.length >= 100 ? 30 : comment.length >= 50 ? 20 : comment.length >= 20 ? 10 : comment.length >= 5 ? 4 : 0;
+  // 코멘트 내 구체적 키워드 (최대 10)
+  const specKw = comment.match(/가격|비용|디자인|메시지|CTA|전환|클릭|레이아웃|색상|브랜드|기능|혜택|경쟁사|수치|ROI/gi) || [];
+  score += Math.min(specKw.length * 3, 10);
+  // 지표 충실도 (최대 45)
   if (type === 'preference') {
-    if (sub.preference)       score += 10;
+    if (sub.preference)       score += 15;
     if (sub.message_clarity)  score += 15;
     if (sub.purchase_intent)  score += 15;
   } else if (type === 'pricing') {
-    if (sub.would_buy !== null && sub.would_buy !== undefined) score += 10;
+    if (sub.would_buy !== null && sub.would_buy !== undefined) score += 15;
     if (sub.price_fairness)   score += 15;
     if (sub.value_perception) score += 15;
   } else if (type === 'email') {
-    if (sub.would_reply !== null && sub.would_reply !== undefined) score += 10;
-    if (sub.hook_score)       score += 8;
+    if (sub.would_reply !== null && sub.would_reply !== undefined) score += 12;
+    if (sub.hook_score)       score += 12;
     if (sub.clarity_score)    score += 8;
-    if (sub.open_intent)      score += 7;
-    if (sub.curiosity_score)  score += 7;
+    if (sub.open_intent)      score += 8;
+    if (sub.curiosity_score)  score += 5;
   }
   return Math.min(100, score);
 }
 
 function calcPurityScore(fb) {
-  const texts = [fb.strengths || '', fb.weaknesses || '', fb.suggestions || ''].join(' ');
-  const length     = Math.min(texts.length / 8, 25);
-  const specific   = Math.min((texts.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피/gi)?.length || 0) * 5, 30);
-  const actionable = Math.min((texts.match(/추천|바꿔|교체|추가|필요|개선|수정|변경/gi)?.length || 0) * 8, 25);
-  const aiPenalty  = (texts.match(/중요합니다|생각됩니다|분석됩니다|판단됩니다/gi)?.length || 0) * -15;
-  return Math.max(0, Math.min(100, Math.round(length + specific + actionable + aiPenalty + 20)));
+  const all = [fb.strengths || '', fb.weaknesses || '', fb.suggestions || ''].join(' ');
+  const base     = 20;
+  const length   = Math.min(all.length / 8, 20);
+  const sectionFill = [fb.strengths, fb.weaknesses, fb.suggestions].filter(s => (s || '').trim().length >= 10).length;
+  const balance  = sectionFill === 3 ? 10 : sectionFill === 2 ? 4 : 0;
+  const specKw   = all.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피|CTR|CVR|ROAS|노출|세션|바운스|히트맵|UX|UI|fold|above|below/gi) || [];
+  const specific = Math.min(specKw.length * 4, 25);
+  const actKw    = all.match(/추천|바꿔|교체|추가|필요|개선|수정|변경|강화|재배치|삭제|줄여|늘려|이동|배치|고려|적용|테스트|실험|보완/gi) || [];
+  const actionable = Math.min(actKw.length * 5, 25);
+  const aiKw     = all.match(/중요합니다|생각됩니다|분석됩니다|판단됩니다|여겨집니다|사료됩니다|향상될 것|효과적일 것|효율적일 것/gi) || [];
+  const aiPenalty = Math.max(-30, aiKw.length * -12);
+  return Math.max(0, Math.min(100, Math.round(base + length + balance + specific + actionable + aiPenalty)));
 }
 
 function parseSubDesc(desc, type) {
@@ -120,16 +130,20 @@ function Pagination({ page, total, onPage }) {
 }
 
 export default function PurityFilter() {
-  const [feedbacks, setFeedbacks]     = useState([]);
-  const [selected, setSelected]       = useState(null);
-  const [loading, setLoading]         = useState(true);
-  const [acting, setActing]           = useState(false);
-  const [filter, setFilter]           = useState('pending');
-  const [listPage, setListPage]       = useState(1);
-  const [annotations, setAnnotations] = useState([]);
+  const [feedbacks, setFeedbacks]         = useState([]);
+  const [selected, setSelected]           = useState(null);
+  const [loading, setLoading]             = useState(true);
+  const [acting, setActing]               = useState(false);
+  const [bulkActing, setBulkActing]       = useState(false);
+  const [filter, setFilter]               = useState('pending');
+  const [pendingSubFilter, setPendingSubFilter] = useState('all'); // 'all'|'above65'|'below65'
+  const [checkedIds, setCheckedIds]       = useState(new Set());
+  const [listPage, setListPage]           = useState(1);
+  const [annotations, setAnnotations]     = useState([]);
   const [adminImageIdx, setAdminImageIdx] = useState(0);
-  const [subResponse, setSubResponse] = useState(null);
+  const [subResponse, setSubResponse]     = useState(null);
   const [subResponseMap, setSubResponseMap] = useState({});
+  const [statusError, setStatusError]     = useState('');
 
   useEffect(() => {
     async function load() {
@@ -240,11 +254,63 @@ export default function PurityFilter() {
     setActing(false);
   };
 
-  const filtered = filter === 'all' ? feedbacks
+  const bulkApprove = async () => {
+    if (checkedIds.size === 0 || bulkActing) return;
+    setBulkActing(true); setStatusError('');
+    const ids = [...checkedIds];
+    const { error } = await supabase.from('feedbacks')
+      .update({ purity_passed: true, status: 'approved' }).in('id', ids);
+    if (error) { setStatusError('일괄 승인 실패: ' + error.message); setBulkActing(false); return; }
+    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved' } : f));
+    const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
+    mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
+    setCheckedIds(new Set()); setBulkActing(false);
+  };
+
+  const bulkReject = async () => {
+    if (checkedIds.size === 0 || bulkActing) return;
+    setBulkActing(true); setStatusError('');
+    const ids = [...checkedIds];
+    const { error } = await supabase.from('feedbacks')
+      .update({ purity_passed: false, status: 'rejected' }).in('id', ids);
+    if (error) { setStatusError('일괄 반려 실패: ' + error.message); setBulkActing(false); return; }
+    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected' } : f));
+    const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
+    mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
+    setCheckedIds(new Set()); setBulkActing(false);
+  };
+
+  const toggleCheck = (id) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const getScore = (f) => {
+    const isFSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
+    return isFSub ? calcSubPurityScore(subResponseMap[f.id] || null, f.missions?.type) : calcPurityScore(f);
+  };
+  const filteredBase = filter === 'all' ? feedbacks
     : filter === 'pending' ? feedbacks.filter(f => !f.purity_passed && f.status === 'submitted')
     : filter === 'approved' ? feedbacks.filter(f => f.purity_passed)
     : feedbacks.filter(f => f.status === 'rejected');
+  const filtered = (filter === 'pending' && pendingSubFilter !== 'all')
+    ? filteredBase.filter(f => pendingSubFilter === 'above65' ? getScore(f) >= 65 : getScore(f) < 65)
+    : filteredBase;
   const pagedList = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
+
+  const pendingPageIds = pagedList.filter(f => f.status === 'submitted' && !f.purity_passed).map(f => f.id);
+  const allPageChecked = pendingPageIds.length > 0 && pendingPageIds.every(id => checkedIds.has(id));
+  const toggleAll = () => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      if (allPageChecked) pendingPageIds.forEach(id => next.delete(id));
+      else pendingPageIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
 
   const fb = filtered.find(f => f.id === selected);
   const fbSkippedLabels = fb ? getSkippedLabels(fb.suggestions) : new Set();
@@ -267,7 +333,7 @@ export default function PurityFilter() {
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['pending', '검토 대기'], ['approved', '승인됨'], ['rejected', '반려됨'], ['all', '전체']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -275,6 +341,34 @@ export default function PurityFilter() {
           }}>{l}</button>
         ))}
       </div>
+
+      {/* 65점 기준 서브 필터 — 검토 대기 탭에서만 표시 */}
+      {filter === 'pending' && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 2 }}>점수 기준:</span>
+          {[
+            ['all', '전체', null],
+            ['above65', '65점 이상', filteredBase.filter(f => getScore(f) >= 65).length],
+            ['below65', '65점 미만', filteredBase.filter(f => getScore(f) < 65).length],
+          ].map(([v, l, cnt]) => (
+            <button key={v} onClick={() => { setPendingSubFilter(v); setListPage(1); setCheckedIds(new Set()); }} style={{
+              padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer', border: '1px solid',
+              background: pendingSubFilter === v ? 'var(--accent)' : 'transparent',
+              color: pendingSubFilter === v ? '#fff' : 'var(--text-2)',
+              borderColor: pendingSubFilter === v ? 'var(--accent)' : 'var(--border)',
+            }}>
+              {l}{cnt !== null ? ` (${cnt})` : ` (${filteredBase.length})`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* statusError */}
+      {statusError && (
+        <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', color: '#dc2626', fontSize: 13, marginBottom: 16 }}>
+          {statusError}
+        </div>
+      )}
 
       {feedbacks.length === 0 ? (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
@@ -284,9 +378,34 @@ export default function PurityFilter() {
         <div className="purity-layout" style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
           {/* List */}
           <div>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-              {filter === 'pending' ? '검토 대기' : filter === 'approved' ? '승인됨' : filter === 'rejected' ? '반려됨' : '전체'} ({filtered.length})
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {filter === 'pending' ? '검토 대기' : filter === 'approved' ? '승인됨' : filter === 'rejected' ? '반려됨' : '전체'} ({filtered.length})
+              </span>
+              {filter === 'pending' && pendingPageIds.length > 0 && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 11, color: 'var(--text-3)' }}>
+                  <input type="checkbox" checked={allPageChecked} onChange={toggleAll}
+                    style={{ accentColor: 'var(--accent)', cursor: 'pointer', width: 13, height: 13 }} />
+                  전체 선택
+                </label>
+              )}
             </div>
+
+            {/* 일괄 처리 바 */}
+            {filter === 'pending' && checkedIds.size > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', marginBottom: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', flex: 1 }}>{checkedIds.size}개 선택됨</span>
+                <button disabled={bulkActing} onClick={bulkApprove} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#16a34a', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>
+                  {bulkActing ? '처리 중...' : '✓ 일괄 승인'}
+                </button>
+                <button disabled={bulkActing} onClick={bulkReject} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#dc2626', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>
+                  {bulkActing ? '처리 중...' : '✕ 일괄 반려'}
+                </button>
+                <button onClick={() => setCheckedIds(new Set())} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer' }}>
+                  선택 해제
+                </button>
+              </div>
+            )}
             {filtered.length === 0 ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                 없음
@@ -294,27 +413,39 @@ export default function PurityFilter() {
             ) : (
               <div>
               {pagedList.map(f => {
-                const isFSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
-                const s = isFSub
-                  ? calcSubPurityScore(subResponseMap[f.id] || null, f.missions?.type)
-                  : calcPurityScore(f);
-                const scoreColor = s >= 70 ? 'var(--green)' : s >= 45 ? 'var(--accent)' : 'var(--red)';
+                const s = getScore(f);
+                const scoreColor = s >= 65 ? '#16a34a' : s >= 45 ? 'var(--accent)' : '#dc2626';
+                const isPending = f.status === 'submitted' && !f.purity_passed;
                 return (
-                  <div key={f.id} onClick={() => setSelected(f.id)} style={{
-                    padding: '14px 16px', marginBottom: 8,
-                    background: selected === f.id ? 'var(--surface-2)' : 'var(--surface)',
-                    borderRadius: 'var(--radius)', border: '1px solid ' + (selected === f.id ? 'var(--border-light)' : 'var(--border)'),
-                    cursor: 'pointer', transition: 'all 0.15s',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{f.panels?.name || '패널'}</span>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, color: scoreColor }}>{s}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>
-                      {f.missions?.title || '의뢰'}
-                    </div>
-                    <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ width: `${s}%`, height: '100%', background: scoreColor, borderRadius: 2 }} />
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 8 }}>
+                    {filter === 'pending' && isPending && (
+                      <div style={{ paddingTop: 15, flexShrink: 0 }}>
+                        <input type="checkbox" checked={checkedIds.has(f.id)} onChange={() => toggleCheck(f.id)}
+                          style={{ accentColor: 'var(--accent)', cursor: 'pointer', width: 14, height: 14 }} />
+                      </div>
+                    )}
+                    <div onClick={() => setSelected(f.id)} style={{
+                      flex: 1, padding: '14px 16px',
+                      background: selected === f.id ? 'var(--accent-dim2)' : 'var(--surface)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid ' + (selected === f.id ? 'var(--accent)' : checkedIds.has(f.id) ? 'var(--accent-dim)' : 'var(--border)'),
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{f.panels?.name || '패널'}</span>
+                        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, color: scoreColor }}>{s}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>
+                        {f.missions?.title || '의뢰'}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <div style={{ flex: 1, height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${s}%`, height: '100%', background: scoreColor, borderRadius: 2 }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: s >= 65 ? '#16a34a' : s >= 45 ? 'var(--accent)' : '#dc2626', fontWeight: 600 }}>
+                          {s >= 65 ? '승인 권장' : s >= 45 ? '검토' : '반려 권장'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -330,45 +461,75 @@ export default function PurityFilter() {
               <Card style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 32 }}>
                 <div style={{ textAlign: 'center', flexShrink: 0 }}>
                   <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Purit Score</div>
-                  <div style={{ fontSize: 56, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: score >= 70 ? 'var(--green)' : score >= 45 ? 'var(--accent)' : 'var(--red)' }}>
+                  <div style={{ fontSize: 56, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: score >= 65 ? '#16a34a' : score >= 45 ? 'var(--accent)' : '#dc2626' }}>
                     {score}
                   </div>
-                  <Badge type={score >= 70 ? 'green' : score >= 45 ? 'gold' : 'red'} style={{ marginTop: 8 }}>
-                    {score >= 70 ? '통과 권장' : score >= 45 ? '검토 필요' : '반려 권장'}
+                  <Badge type={score >= 65 ? 'green' : score >= 45 ? 'gold' : 'red'} style={{ marginTop: 8 }}>
+                    {score >= 65 ? '통과 권장' : score >= 45 ? '검토 필요' : '반려 권장'}
                   </Badge>
                 </div>
                 <div style={{ flex: 1 }}>
                   {isSubMission ? (
-                    // 서브 미션 점수 분해
-                    [
-                      { label: '기본 응답', val: 20, max: 20 },
-                      { label: '코멘트 충실도', val: Math.min(40, ((subResponse?.comment || subResponse?.key_comment || '').length > 50 ? 40 : (subResponse?.comment || subResponse?.key_comment || '').length > 10 ? 25 : 0)), max: 40 },
-                      { label: '지표 충실도', val: Math.min(40, missionType === 'preference' ? ((subResponse?.message_clarity ? 15 : 0) + (subResponse?.purchase_intent ? 15 : 0) + (subResponse?.preference ? 10 : 0)) : missionType === 'pricing' ? ((subResponse?.price_fairness ? 15 : 0) + (subResponse?.value_perception ? 15 : 0) + (subResponse?.would_buy !== null ? 10 : 0)) : ((subResponse?.hook_score ? 8 : 0) + (subResponse?.clarity_score ? 8 : 0) + (subResponse?.open_intent ? 7 : 0) + (subResponse?.curiosity_score ? 7 : 0))), max: 40 },
-                    ].map(b => (
+                    // 서브 미션 점수 분해 (calcSubPurityScore와 동일 공식)
+                    (() => {
+                      const cmt = (subResponse?.comment || subResponse?.key_comment || '').trim();
+                      const cLen = cmt.length >= 100 ? 30 : cmt.length >= 50 ? 20 : cmt.length >= 20 ? 10 : cmt.length >= 5 ? 4 : 0;
+                      const specKw = cmt.match(/가격|비용|디자인|메시지|CTA|전환|클릭|레이아웃|색상|브랜드|기능|혜택|경쟁사|수치|ROI/gi) || [];
+                      const kwScore = Math.min(specKw.length * 3, 10);
+                      const metricScore = missionType === 'preference'
+                        ? (subResponse?.preference ? 15 : 0) + (subResponse?.message_clarity ? 15 : 0) + (subResponse?.purchase_intent ? 15 : 0)
+                        : missionType === 'pricing'
+                        ? (subResponse?.would_buy !== null ? 15 : 0) + (subResponse?.price_fairness ? 15 : 0) + (subResponse?.value_perception ? 15 : 0)
+                        : (subResponse?.would_reply !== null ? 12 : 0) + (subResponse?.hook_score ? 12 : 0) + (subResponse?.clarity_score ? 8 : 0) + (subResponse?.open_intent ? 8 : 0) + (subResponse?.curiosity_score ? 5 : 0);
+                      return [
+                        { label: '기본 점수',     val: 15,       max: 15 },
+                        { label: '코멘트 길이',   val: cLen,     max: 30 },
+                        { label: '코멘트 구체성', val: kwScore,  max: 10 },
+                        { label: '지표 충실도',   val: Math.min(metricScore, 45), max: 45 },
+                      ];
+                    })().map(b => (
                       <div key={b.label} style={{ marginBottom: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-sans)' }}>
                           <span>{b.label}</span><span>{Math.round(b.val)}/{b.max}</span>
                         </div>
                         <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ width: `${(b.val/b.max)*100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                          <div style={{ width: `${b.max > 0 ? (b.val/b.max)*100 : 0}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
                         </div>
                       </div>
                     ))
                   ) : (
-                    // 기존 LP 피드백 점수 분해
-                    [
-                      { label: '텍스트 길이', val: Math.min(25, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').length / 8)), max: 25 },
-                      { label: '구체성 지수',  val: Math.min(30, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').match(/\d+|%|CTA|클릭|전환/gi)?.length||0)*5), max: 30 },
-                      { label: '실행 가능성', val: Math.min(25, ([fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ').match(/추천|바꿔|교체|추가|필요|개선/gi)?.length||0)*8), max: 25 },
-                      { label: 'AI 감지 패널티', val: 20, max: 20 },
-                    ].map(b => (
+                    // LP 피드백 점수 분해 (calcPurityScore와 동일 공식)
+                    (() => {
+                      const all = [fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ');
+                      const sectionFill = [fb.strengths, fb.weaknesses, fb.suggestions].filter(s => (s||'').trim().length >= 10).length;
+                      const specKw = all.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피|CTR|CVR|ROAS|노출|세션|바운스|히트맵|UX|UI|fold|above|below/gi) || [];
+                      const actKw  = all.match(/추천|바꿔|교체|추가|필요|개선|수정|변경|강화|재배치|삭제|줄여|늘려|이동|배치|고려|적용|테스트|실험|보완/gi) || [];
+                      const aiKw   = all.match(/중요합니다|생각됩니다|분석됩니다|판단됩니다|여겨집니다|사료됩니다|향상될 것|효과적일 것|효율적일 것/gi) || [];
+                      return [
+                        { label: '기본 점수',   val: 20, max: 20 },
+                        { label: '텍스트 길이', val: Math.min(all.length / 8, 20), max: 20 },
+                        { label: '섹션 균형',   val: sectionFill === 3 ? 10 : sectionFill === 2 ? 4 : 0, max: 10 },
+                        { label: '구체성 지수', val: Math.min(specKw.length * 4, 25), max: 25 },
+                        { label: '실행 가능성', val: Math.min(actKw.length * 5, 25), max: 25 },
+                        { label: 'AI 패턴 패널티', val: Math.max(-30, aiKw.length * -12), max: 0, negative: true },
+                      ];
+                    })().map(b => (
                       <div key={b.label} style={{ marginBottom: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-sans)' }}>
-                          <span>{b.label}</span><span>{Math.round(b.val)}/{b.max}</span>
+                          <span>{b.label}</span>
+                          <span style={{ color: b.negative && b.val < 0 ? '#dc2626' : 'var(--text-3)' }}>
+                            {b.negative ? (b.val < 0 ? b.val : '—') : `${Math.round(b.val)}/${b.max}`}
+                          </span>
                         </div>
-                        <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ width: `${(b.val/b.max)*100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
-                        </div>
+                        {!b.negative ? (
+                          <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ width: `${b.max > 0 ? (b.val/b.max)*100 : 0}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+                          </div>
+                        ) : (
+                          <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.abs(b.val)/30*100}%`, height: '100%', background: '#dc2626', borderRadius: 2 }} />
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
