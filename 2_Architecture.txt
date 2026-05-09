@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-09 (NewMission Step 0 필드 순서 변경 + INDUSTRY_PLACEHOLDERS 상수 추가)
+최종 업데이트: 2026-05-09 (Realtime 구독 cleanup 버그 수정 + 명예 포인트 RPC 보안 마이그레이션 020 추가)
 ================================================================
 
 ## 기술 스택
@@ -170,6 +170,7 @@ purit/
 │   │                016(credit_system: companies.credit_balance, missions.credits_reserved·credits_consumed, RPC 3개: grant_plan_credits·reserve_mission_credits·complete_mission_and_refund)
 │   │                017(recalc_mission_consumed: 초기 버전 — 018로 대체됨)
 │   │                018(credits_numeric: 크레딧 컬럼 INTEGER→NUMERIC(10,2), CEIL 제거, recalc_mission_consumed·reserve_mission_credits·complete_mission_and_refund 재정의)
+│   │                020(honor_points_security: add_panel_honor_points·apply_honor_decay·rate_panel_feedback_helpfulness RPC에 호출자 검증 추가 — 본인 or admin만 허용)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 

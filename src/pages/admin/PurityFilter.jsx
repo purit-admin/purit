@@ -215,6 +215,7 @@ export default function PurityFilter() {
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected' } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
+    if (fb?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 }).then(({ error }) => { if (error) console.warn('[honor_penalty]', error.message); });
 
     const panelUserId = fb?.panels?.user_id;
     const companyUserId = fb?.missions?.companies?.user_id;

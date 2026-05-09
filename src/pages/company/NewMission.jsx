@@ -655,6 +655,8 @@ export default function NewMission() {
     }
   };
 
+  const ph = INDUSTRY_PLACEHOLDERS[form.industry] || DEFAULT_PLACEHOLDERS;
+
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.5s ease both' }}>
 
@@ -1557,5 +1559,4 @@ export default function NewMission() {
 }
 
 const lbl = { display: 'flex', flexDirection: 'column', gap: 8 };
-  const ph = INDUSTRY_PLACEHOLDERS[form.industry] || DEFAULT_PLACEHOLDERS;
 const lblTxt = { fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };

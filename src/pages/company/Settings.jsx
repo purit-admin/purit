@@ -85,7 +85,7 @@ export default function AccountSettings() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {[['team', '팀 관리'], ['plan', '플랜 & 결제'], ['notifications', '알림 설정']].map(([v, l]) => (
           <button key={v} onClick={() => setActiveTab(v)} style={{
-            padding: '10px 20px', fontSize: 13, fontWeight: 500,
+            padding: '10px 20px', fontSize: 13,
             background: 'none', border: 'none', cursor: 'pointer',
             color: activeTab === v ? 'var(--text)' : 'var(--text-3)',
             fontWeight: activeTab === v ? 700 : 500,

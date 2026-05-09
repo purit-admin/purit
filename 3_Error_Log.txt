@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-08 (D-48 staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 드리프트로 동기화 패턴)
+최종 업데이트: 2026-05-09 (D-49 모듈 레벨 state 참조 ReferenceError 앱 전체 흰 화면 / D-50 async useEffect cleanup 미실행 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -487,6 +487,51 @@ D-45. Supabase Storage 파일 삭제 후 DB 레퍼런스 잔류 → <img> onErro
      → 원칙: Supabase Storage URL을 <img src>에 바인딩할 때는 반드시 onError 핸들러를 달 것
              URL이 유효해 보여도 파일이 실제로 없을 수 있음 — graceful fallback 없으면 사용자 혼란
              디버깅용으로 fallback UI에 깨진 URL을 표시해두면 원인 파악에 도움됨
+
+D-49. 컴포넌트 state를 참조하는 변수가 모듈 레벨에 선언되면 앱 전체 흰 화면 ✅ 해결
+     → 증상: localhost:5173 접속 시 모든 라우트(/ 포함)에서 흰 화면 + 콘솔 "ReferenceError: form is not defined"
+     → 원인: NewMission.jsx 컴포넌트 함수 닫는 } 뒤에
+             `const ph = INDUSTRY_PLACEHOLDERS[form.industry] || DEFAULT_PLACEHOLDERS;` 가 남아있었음
+             form은 컴포넌트 내 useState로 선언된 state — 모듈 레벨에서는 undefined
+             → 모듈 초기화 중 ReferenceError → App.jsx가 NewMission을 import하므로 앱 전체 초기화 실패
+             → React가 아예 마운트되지 못해 /company/new 뿐 아니라 /, /login 등 모든 라우트가 흰 화면
+     → 해결: ph 선언을 컴포넌트 함수 내 return() 바로 위로 이동, 모듈 레벨 잔재 삭제
+     → 원칙: 컴포넌트 파일을 수정할 때 컴포넌트 함수의 닫는 } 위치를 반드시 확인할 것
+             state/props/hook을 참조하는 변수가 컴포넌트 밖에 있으면 해당 라우트가 아닌
+             앱 전체가 초기화 단계에서 크래시한다 — 증상(전체 흰 화면)과 원인(특정 컴포넌트 모듈 에러)이
+             직관적으로 연결되지 않아 DevTools Console을 반드시 먼저 확인해야 함
+
+D-50. useEffect cleanup을 async 함수 내부에서 return하면 cleanup이 절대 실행되지 않음 ✅ 해결
+     → 증상: Supabase Realtime 구독이 컴포넌트 언마운트 후에도 살아있어 메모리 누수 + 경고 발생
+     → 원인: async 함수는 항상 Promise를 반환하므로, async 함수 안에서 `return () => cleanup()`을 써도
+             useEffect는 cleanup 함수를 받지 못함 (Promise를 받음 — 무효)
+             ```js
+             useEffect(() => {
+               async function load() {
+                 // ...
+                 const sub = supabase.channel(...).subscribe();
+                 return () => supabase.removeChannel(sub); // ← 이 return은 load()의 return (Promise 내부)
+               }
+               load(); // load()의 반환값(Promise)을 무시 → useEffect cleanup 없음
+             }, []);
+             ```
+     → 해결: let sub = null 을 async 함수 밖(useEffect 콜백 최상단)에 선언,
+             async 함수 내부에서 sub에 할당만 하고,
+             cleanup return은 useEffect 콜백 최상단에서 직접 반환
+             ```js
+             useEffect(() => {
+               let sub = null;
+               async function load() {
+                 // ...
+                 sub = supabase.channel(...).subscribe();
+               }
+               load();
+               return () => { if (sub) supabase.removeChannel(sub); }; // ← useEffect가 이걸 cleanup으로 받음
+             }, []);
+             ```
+     → 원칙: useEffect 내에서 async 함수를 호출할 때, cleanup(구독 해제·타이머 취소 등)은
+             반드시 async 함수 밖 useEffect 콜백 최상단에서 return해야 한다
+             async 함수 안의 return은 useEffect cleanup으로 전달되지 않는다
 
 D-48. staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 드리프트로 일괄 동기화 ✅ 해결
      → 증상: 20개 태그가 개별 setTimeout으로 각자 사이클을 돌리면 처음엔 엇갈리다가

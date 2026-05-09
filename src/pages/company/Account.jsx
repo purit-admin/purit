@@ -98,7 +98,7 @@ export default function CompanyAccount() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
         {[['profile', '기업 프로필'], ['password', '비밀번호 변경']].map(([v, l]) => (
           <button key={v} onClick={() => { setTab(v); setMsg(''); setPwMsg(''); }} style={{
-            padding: '10px 18px', fontSize: 13, fontWeight: 500,
+            padding: '10px 18px', fontSize: 13,
             background: 'none', border: 'none', cursor: 'pointer',
             color: tab === v ? 'var(--text)' : 'var(--text-3)',
             fontWeight: tab === v ? 700 : 500,

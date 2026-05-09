@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { sendNotification } from '../../lib/notify';
 
 const DIFF_META = {
   easy:   { label: '쉬움',   color: 'var(--green)' },
@@ -153,6 +154,8 @@ export default function MissionList() {
   const [subPage, setSubPage]         = useState(1);
 
   useEffect(() => {
+    let sub = null;
+
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -175,8 +178,19 @@ export default function MissionList() {
       setFeedbackMap(map);
       setMissions(ms || []);
       setLoading(false);
+
+      sub = supabase
+        .channel(`panel-missions-realtime-${p.id}`)
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'missions',
+        }, (payload) => {
+          setMissions(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
+        })
+        .subscribe();
     }
+
     load();
+    return () => { if (sub) supabase.removeChannel(sub); };
   }, []);
 
   const handleConfirmAccept = async () => {
@@ -236,6 +250,17 @@ export default function MissionList() {
       delete newMap[modal.mission.id];
       setFeedbackMap(newMap);
       setModal(null);
+      if (modal.mission.company_id) {
+        supabase.from('companies').select('user_id').eq('id', modal.mission.company_id).single()
+          .then(({ data: co }) => {
+            if (co?.user_id) sendNotification(co.user_id, {
+              type: 'info', icon: '👤',
+              title: '패널 참여 취소',
+              body: `[${modal.mission.title}] 패널이 미션 참여를 취소했습니다.`,
+              actionUrl: '/company/results',
+            });
+          });
+      }
     }
   };
 

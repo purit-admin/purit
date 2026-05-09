@@ -445,7 +445,11 @@ export default function ActiveMission() {
     if (!panel?.id) return;
     if (!resubmitMode) {
       await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
-      await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 });
+    }
+    await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 });
+    if (resubmitMode && mission?.id) {
+      supabase.rpc('recalc_mission_consumed', { p_mission_id: mission.id })
+        .then(({ error }) => { if (error) console.warn('[recalc_consumed]', error.message); });
     }
     if (mission?.company_id) {
       const { data: company } = await supabase
@@ -469,6 +473,17 @@ export default function ActiveMission() {
     const { error } = await supabase.rpc('cancel_panel_feedback', { p_mission_id: mission.id });
     setCancelConfirming(false);
     if (error) { alert('취소 중 오류: ' + error.message); return; }
+    if (mission?.company_id) {
+      supabase.from('companies').select('user_id').eq('id', mission.company_id).single()
+        .then(({ data: co }) => {
+          if (co?.user_id) sendNotification(co.user_id, {
+            type: 'info', icon: '👤',
+            title: '패널 참여 취소',
+            body: `[${mission.title}] 패널이 미션 참여를 취소했습니다.`,
+            actionUrl: '/company/results',
+          });
+        });
+    }
     navigate('/panel/missions');
   };
 

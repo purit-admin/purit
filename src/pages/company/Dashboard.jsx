@@ -304,6 +304,8 @@ export default function CompanyDashboard() {
   };
 
   useEffect(() => {
+    let sub = null;
+
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -353,10 +355,22 @@ export default function CompanyDashboard() {
             setEmailResps(er || []);
           }
         }
+
+        sub = supabase
+          .channel(`company-dashboard-missions-${co.id}`)
+          .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'missions',
+            filter: `company_id=eq.${co.id}`,
+          }, (payload) => {
+            setMissions(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
+          })
+          .subscribe();
       }
       setLoading(false);
     }
+
     load();
+    return () => { if (sub) supabase.removeChannel(sub); };
   }, []);
 
   const missionFiltered = missionFilter === 'all'

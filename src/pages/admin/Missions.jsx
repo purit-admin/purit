@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { sendNotification } from '../../lib/notify';
 
 const STATUS_LABEL = { draft: '초안', active: '진행', in_review: '검토중', completed: '완료', cancelled: '취소' };
 const STATUS_TYPE  = { draft: 'gray', active: 'green', in_review: 'blue', completed: 'blue', cancelled: 'red' };
@@ -111,7 +112,7 @@ export default function AdminMissions() {
     async function load() {
       const { data, error } = await supabase
         .from('missions')
-        .select('*, companies(name), feedbacks(id)')
+        .select('*, companies(name, user_id), feedbacks(id)')
         .order('created_at', { ascending: false });
       if (error) console.error('[AdminMissions]', error.message);
       setMissions(data || []);
@@ -132,6 +133,15 @@ export default function AdminMissions() {
         ? { ...m, status: 'completed', credits_consumed: data.credits_consumed }
         : m
       ));
+      const completedMission = missions.find(m => m.id === id);
+      if (completedMission?.companies?.user_id) {
+        sendNotification(completedMission.companies.user_id, {
+          type: 'success', icon: '🏁',
+          title: '의뢰 완료',
+          body: `[${completedMission.title}] 의뢰가 완료 처리되었습니다. 잔여 크레딧이 환불되었습니다.`,
+          actionUrl: '/company/results',
+        });
+      }
     } else {
       await supabase.from('missions').update({ status: newStatus }).eq('id', id);
       setMissions(ms => ms.map(m => m.id === id ? { ...m, status: newStatus } : m));
