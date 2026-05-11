@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-11 (패널 뱃지 시스템 v2 — 12개 계층형 뱃지, 대표 뱃지, 경력 바 선택)
+최종 업데이트: 2026-05-11 (버그 신고 시스템 + 패널 관리 고도화)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -576,12 +576,27 @@
    - 사이드바 상단 포털 전환 버튼(어드민/기업/패널) 표시
 
 1. 플랫폼 대시보드 (/admin) — Dashboard.jsx
-2. 패널 관리 (/admin/panels) — PanelManagement.jsx  ★ 명예 레벨 시스템 적용 (2026-05-02)
-   - 통계 카드: 전체 패널 / 활성 / 심사 대기 / 평균 Trust
-   - 레벨 필터: 전체 / Lv.1-3 / Lv.4-6 / Lv.7-9 / Lv.10 (honor_points 기반 getHonorLevel() 계산)
-   - 테이블: 이름 / 직군 / Trust / 레벨(Lv.X 뱃지, HONOR_COLOR_META 스타일) / 완료 / 상태
-   - 패널 상세 카드: Lv.X · XXXpts 뱃지 + 명예 포인트 항목 포함
-   - 등급 수동 조정 버튼 없음 (honor_points 자동 계산 방식으로 대체됨)
+2. 패널 관리 (/admin/panels) — PanelManagement.jsx  ★ 고도화 (2026-05-11)
+   - 통계 카드 4개: 전체 패널 / 활성 / ⚠️ 위험 패널(빨강, >0 강조) / ⭐ 우수 패널(초록, >0 강조)
+   - 위험/우수 분류 기준 (getFlag):
+     · ⚠️ 위험: trust_score < 40 OR (기간 내 제출 ≥3 AND 반려율 > 50%)
+     · ⭐ 우수: trust_score ≥ 80 AND 기간 내 제출 ≥3 AND 통과율 ≥ 80%
+   - 필터 바:
+     · 상태 FilterGroup: 전체 / 활성 / 심사대기 / 정지
+     · 기간 FilterGroup: 전체 기간 / 오늘 / 1주일 / 1개월 — feedbacks 집계 기간 변경
+     · 분류 버튼: 전체 / ⚠️ 위험 / ⭐ 우수
+     · 레벨 버튼: 전체 레벨 / Lv.1-3 / Lv.4-6 / Lv.7-9 / Lv.10
+     · 정렬 select(marginLeft:auto): 최근활동/제출많은순/적은순/통과율높은순/낮은순/Trust높은순/레벨높은순
+   - 테이블 컬럼: ⚠️/⭐ 아이콘, 이름, 직군/경력, Trust, 레벨(Lv.X 뱃지), 기간제출 수, 통과율(미니 바), 최근활동(relativeTime), 상태
+   - feedbackStats: loadStats(period) — feedbacks 단일 쿼리 후 클라이언트 집계 { total, passed, rejected, passRate, lastAt }
+   - 테이블 행 클릭 → 우측 PanelDetail 패널 토글
+   - PanelDetail (우측 360px):
+     · 기본 정보 Card: 이름 + ⚠️/⭐ + 레벨 뱃지, Trust 게이지, 메타 그리드(완료미션/가입일/최근활동/상태)
+     · 활동 통계 Card: 기간 내 제출/통과/반려 카드 + PURITY PASS RATE 바 + 위험/우수 안내 메시지
+     · 최근 피드백 5건 Card: missions(title, type) join, 제출일/통과여부 뱃지
+     · 관리 액션 Card: 상태 정지(→suspended) / 활성화(→active) 버튼
+   - PAGE_SIZE: 10
+   - 서브 컴포넌트: FilterGroup(탭형 버튼 그룹), PanelDetail(우측 상세 패널)
 3. 미션 관리 (/admin/missions) — Missions.jsx  ★ 크레딧 연동 추가 (2026-05-04)
    - 기본 탭: '진행' (active) — 사이드바 클릭 시 진행 중 미션으로 바로 진입
    - 탭 4개: 전체 / 진행 / 완료 / 취소
@@ -639,7 +654,13 @@
    - 반려 알림: 패널에게 actionUrl='/panel/history' 로 발송 → 재작성 버튼으로 바로 이동 유도
    - 패널 재제출 시: feedbacks.status 'rejected' → 'submitted' 자동 전환 → "검토 대기" 탭에 노출
 5. 수익 & 정산 (/admin/revenue) — Revenue.jsx
-6. 내 계정 (/admin/account) — Account.jsx  ★ 신규
+6. 버그 리포트 (/admin/reports) — BugReports.jsx  ★ 신규
+   - 탭 4개: 미처리 / 처리 중 / 해결됨 / 기각 (색상 카운트 뱃지 포함)
+   - 좌측 목록: 유형 뱃지(버그/UX/데이터/기능제안/기타) + 역할 뱃지 + 제목 + 날짜 + 메모 미리보기
+   - 우측 상세: 유형·제목·작성자역할·페이지URL·날짜 메타 + 전체 설명 + 스크린샷("원본 보기" 링크) + 어드민 메모 textarea + 상태 변경 버튼
+   - handleStatusChange(): 상태 UPDATE + 메모 저장 → 현재 탭 목록에서 즉시 제거, counts 갱신
+   - 페이지네이션: PAGE_SIZE=10, 이전/다음 버튼
+7. 내 계정 (/admin/account) — Account.jsx  ★ 신규
    - 탭 관리자 정보: 이름 → supabase.auth.updateUser({ data: { name } }) / 이메일 읽기전용
    - 탭 비밀번호 변경: signInWithPassword 검증 → supabase.auth.updateUser({ password })
 
@@ -654,6 +675,20 @@
 - 세션: getSession() 초기 로드 + onAuthStateChange 실시간 구독
 - 접근 제어: RoleRoute 컴포넌트 — 비인증 시 /login 리다이렉트,
              역할 불일치 시 해당 역할 홈으로 리다이렉트
+
+================================================================
+## 공용 기능 (포털 공통)
+================================================================
+
+### 버그/불편 신고 시스템 ★ 신규
+- 사이드바 하단(로그아웃 버튼 위)에 "버그/불편 신고" 버튼 — 전체 포털(기업/패널/어드민) 공통
+- BugReportModal (ReactDOM.createPortal): pageUrl(현재 pathname) prop
+  · 유형 5종: 🐛 버그/오류 / 😕 UX 불편 / 📊 데이터 이상 / 💡 기능 제안 / 기타
+  · 제목 input + 상세 내용 textarea + 스크린샷 업로드(PNG/JPG, 5MB, bug-screenshots 버킷)
+  · 스크린샷 업로드 실패 시 screenshot_url=null으로 graceful fallback — 신고 자체는 정상 제출
+  · 제출 성공 → "리포트가 제출되었습니다!" 완료 화면 2.2초 후 자동 닫힘
+- DB: bug_reports 테이블 + DB 트리거(on_bug_report_insert) → 어드민 전체 자동 알림
+- Sidebar.jsx NAV (어드민 '운영' 그룹): '버그 리포트' 메뉴 추가 → /admin/reports
 
 ================================================================
 ## 공용 라우트

@@ -39,6 +39,7 @@ import AdminMissions from './pages/admin/Missions';
 import PurityFilter from './pages/admin/PurityFilter';
 import PanelManagement from './pages/admin/PanelManagement';
 import RevenueManagement from './pages/admin/Revenue';
+import BugReports from './pages/admin/BugReports';
 
 const CL = ({ children }) => <Layout role="company">{children}</Layout>;
 const PL = ({ children }) => <Layout role="panel">{children}</Layout>;
@@ -101,6 +102,7 @@ function AppRoutes() {
       <Route path="/admin/missions" element={<RoleRoute role="admin"><AL><AdminMissions /></AL></RoleRoute>} />
       <Route path="/admin/purity" element={<RoleRoute role="admin"><AL><PurityFilter /></AL></RoleRoute>} />
       <Route path="/admin/revenue" element={<RoleRoute role="admin"><AL><RevenueManagement /></AL></RoleRoute>} />
+      <Route path="/admin/reports" element={<RoleRoute role="admin"><AL><BugReports /></AL></RoleRoute>} />
       <Route path="/admin/account" element={<RoleRoute role="admin"><AL><AdminAccount /></AL></RoleRoute>} />
     </Routes>
   );

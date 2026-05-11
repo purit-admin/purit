@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-02 (015_honor_level_system — panels HP 컬럼, feedback_helpfulness_ratings 테이블, RPC 3개)
+최종 업데이트: 2026-05-11 (022_bug_reports — bug_reports 테이블 + DB 트리거)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -306,6 +306,31 @@
   brand_tracking_campaigns:  id, company_id, panel_size, status, created_at
   brand_tracking_monthly:    id, campaign_id, month_label, awareness_percent, clarity_score, differentiation_score, nps_score
   brand_perception_items:    id, campaign_id, statement, agreement_percent
+
+---
+
+### [bug_reports] — 버그/불편 신고 (022_bug_reports.sql)  ★ 신규
+  id              UUID        PK  DEFAULT gen_random_uuid()
+  created_at      TIMESTAMPTZ DEFAULT now()
+  user_id         UUID        FK → auth.users.id  ON DELETE CASCADE
+  role            TEXT        NOT NULL  ('company'|'panel'|'admin')
+  type            TEXT        NOT NULL  ('bug'|'ux'|'data'|'feature'|'other')
+  page_url        TEXT        NOT NULL DEFAULT ''
+  title           TEXT        NOT NULL
+  description     TEXT        NOT NULL
+  screenshot_url  TEXT        (Storage public URL, NULL 허용)
+  status          TEXT        NOT NULL DEFAULT 'pending'  ('pending'|'in_progress'|'resolved'|'dismissed')
+  admin_memo      TEXT        DEFAULT ''
+
+  ※ RLS:
+    - INSERT: auth.uid() = user_id (본인만 신고 가능)
+    - SELECT: auth.uid() = user_id OR role = 'admin' (본인 또는 어드민)
+    - UPDATE: role = 'admin' (어드민만 상태·메모 수정 가능)
+  ※ DB 트리거: on_bug_report_insert AFTER INSERT
+    → notify_admin_on_bug_report() SECURITY DEFINER
+    → auth.users WHERE raw_user_meta_data->>'role' = 'admin' 루프
+    → 각 어드민에게 notifications INSERT (type='warning', icon='🐛', action_url='/admin/reports')
+  ※ Storage 버킷: bug-screenshots (공개 버킷, 수동 생성 필요)
 
 ---
 

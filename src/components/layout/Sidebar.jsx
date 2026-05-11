@@ -5,11 +5,12 @@ import {
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
   Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
-  LogOut, Menu, X as CloseIcon,
+  LogOut, Menu, X as CloseIcon, Flag,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { navigationGuard } from '../../lib/navigationGuard';
+import BugReportModal from '../ui/BugReportModal';
 
 const NAV = {
   company: [
@@ -97,6 +98,7 @@ const NAV = {
         { path: '/admin/missions', label: '미션 관리', icon: ClipboardList },
         { path: '/admin/purity', label: 'Purit Filter', icon: ShieldCheck },
         { path: '/admin/revenue', label: '수익 & 정산', icon: PieChart },
+        { path: '/admin/reports', label: '버그 리포트', icon: Flag },
       ],
     },
     {
@@ -119,6 +121,7 @@ export default function Layout({ role, children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -344,6 +347,25 @@ export default function Layout({ role, children }) {
               {user.user_metadata?.name || user.email}
             </div>
           )}
+          {/* 버그/불편 신고 버튼 */}
+          <button
+            onClick={() => setShowBugReport(true)}
+            title={collapsed ? '버그 / 불편 신고' : undefined}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              gap: 8, padding: collapsed ? '9px 0' : '8px 10px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              background: 'none', color: 'var(--text-3)',
+              borderRadius: 8, fontSize: 13, fontWeight: 500,
+              border: 'none', cursor: 'pointer', transition: 'background 0.15s',
+              marginBottom: 2,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.04)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <Flag size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
+            {!collapsed && '버그 / 불편 신고'}
+          </button>
           <button
             onClick={handleSignOut}
             title={collapsed ? '로그아웃' : undefined}
@@ -364,6 +386,13 @@ export default function Layout({ role, children }) {
         </div>
 
       </aside>
+
+      {showBugReport && (
+        <BugReportModal
+          pageUrl={location.pathname}
+          onClose={() => setShowBugReport(false)}
+        />
+      )}
 
       <div style={{ flex: 1, minHeight: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
         {/* 모바일 탑바 — 데스크탑에서는 CSS로 숨김 */}
