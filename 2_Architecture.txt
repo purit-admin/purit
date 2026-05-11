@@ -30,6 +30,8 @@ purit/
 │   │              lp 템플릿 sectionLabel 필드: '랜딩페이지 진단'(3종)·'광고 소재 진단'(3종)·'제품 상세 페이지 진단'(3종)·'영상/숏폼 광고 진단'(3종)
 │   │              QuestionTemplates.jsx·NewMission.jsx: sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링 (category='랜딩페이지' 유지 — 기존 필터 로직 불변)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getPanelReward·fmtWon·fmtKRW 헬퍼)
+│   │                getPanelReward(honorPoints, experience): 레벨 baseReward × getExperienceMultiplier(experience) → 패널 1인당 동적 미션비
+│   │                Missions.jsx MissionCard: missions.reward_amount(고정) 대신 getPanelReward로 동적 계산 표시 (서브미션 × 4500/8000 비율 스케일)
 │   │              navigationGuard.js (싱글톤 — register(config)/unregister()/intercept(path); 폼 페이지가 register, Sidebar가 intercept 호출)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/

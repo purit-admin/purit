@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { getPanelReward } from '../../lib/honorLevels';
 import { sendNotification } from '../../lib/notify';
 
 const DIFF_META = {
@@ -48,10 +49,13 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function MissionCard({ m, mode, feedbackId, navigate, setModal }) {
+function MissionCard({ m, mode, feedbackId, navigate, setModal, panelHonorPoints = 0, panelExperience = '' }) {
   const [reasonOpen, setReasonOpen] = useState(false);
   const slots  = m.panel_count  || 0;
   const filled = m.filled_count || 0;
+  const isSubMission = ['preference', 'pricing', 'email'].includes(m.type);
+  const baseReward = getPanelReward(panelHonorPoints, panelExperience);
+  const displayReward = isSubMission ? Math.round(baseReward * 4500 / 8000) : baseReward;
 
   return (
     <Card>
@@ -94,7 +98,7 @@ function MissionCard({ m, mode, feedbackId, navigate, setModal }) {
         <div className="mc-right">
           <div>
             <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>
-              ₩{(m.reward_amount || 0).toLocaleString()}
+              ₩{displayReward.toLocaleString()}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>건당 보상</div>
           </div>
@@ -144,8 +148,10 @@ export default function MissionList() {
   const [missions, setMissions]       = useState([]);
   // feedbackMap: { [missionId]: { status, id, suggestions } }
   const [feedbackMap, setFeedbackMap] = useState({});
-  const [panelId, setPanelId]         = useState(null);
-  const [panelTier, setPanelTier]     = useState('ROOKIE');
+  const [panelId, setPanelId]               = useState(null);
+  const [panelTier, setPanelTier]           = useState('ROOKIE');
+  const [panelHonorPoints, setPanelHonorPoints] = useState(0);
+  const [panelExperience, setPanelExperience]   = useState('');
   const [loading, setLoading]         = useState(true);
   const [filter, setFilter]           = useState('new');
   const [modal, setModal]             = useState(null);
@@ -161,10 +167,12 @@ export default function MissionList() {
       if (!user) return;
 
       const { data: p } = await supabase
-        .from('panels').select('id, tier').eq('user_id', user.id).single();
+        .from('panels').select('id, tier, honor_points, experience').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
       setPanelTier(p.tier || 'ROOKIE');
+      setPanelHonorPoints(p.honor_points ?? 0);
+      setPanelExperience(p.experience || '');
 
       const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
         supabase.from('feedbacks').select('mission_id, status, id, suggestions').eq('panel_id', p.id),
@@ -407,6 +415,8 @@ export default function MissionList() {
                       feedbackId={feedbackMap[m.id]?.id}
                       navigate={navigate}
                       setModal={setModal}
+                      panelHonorPoints={panelHonorPoints}
+                      panelExperience={panelExperience}
                     />
                   ))}
                 </div>
@@ -436,6 +446,8 @@ export default function MissionList() {
                       feedbackId={feedbackMap[m.id]?.id}
                       navigate={navigate}
                       setModal={setModal}
+                      panelHonorPoints={panelHonorPoints}
+                      panelExperience={panelExperience}
                     />
                   ))}
                 </div>

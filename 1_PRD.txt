@@ -551,10 +551,16 @@
        - ELITE (3개): 제로 데펙트, 크리티컬 샷, 트렌드 오라클
        - MASTER (3개): 절대 영도, 픽셀 아키텍트, 에이펙스 노드
        - HIDDEN (3개): 마이크로스코프, 퀵 타겟팅, 블랙 스완 (미달성 시 🔒 ???)
-     · TIER_STYLES: rookie=회색, elite=인디고, master=다크네이비, hidden=다크(이탤릭) 텍스트 태그
-     · 미달성: dashed 투명 테두리 / hidden 미달성: solid 연회색 배경
-     · ⓘ 아이콘 호버 → 검은 툴팁 박스 (hidden 미달성: "조건 숨김" 문구)
+     · TIER_STYLES 색상:
+       rookie earned: 연회색 배경 #F1F5F9 + 다크슬레이트 텍스트 #334155
+       elite  earned: 인디고 배경 #EEF2FF + 인디고 텍스트 #1E40AF
+       master earned: 순수블랙 배경 #0A0A0A + 쿨화이트 텍스트 #F1F5F9 + 다크챠콜 테두리 #3D3D3D
+       hidden earned: 딥네이비 배경 #0D1B2A + 아이스블루 텍스트 #BAE6FD + 스카이 테두리 #38BDF8 (이탤릭)
+     · 미달성: dashed 투명 테두리 / hidden 미달성: 극연 하늘 배경 + 연청 테두리 (다이아몬드 느낌)
+     · ⓘ 아이콘 호버 → 검은 툴팁 박스 (left:0 고정, wordBreak:'keep-all' — 사이드바 겹침·세로 찢김 방지)
+       hidden 미달성 툴팁: "이 뱃지의 달성 조건은 숨겨져 있습니다"
      · 획득 뱃지 호버 → "대표 뱃지로 설정" 버튼 / 재클릭 → null 해제 / 파란 outline 강조
+   - 프로필 헤더: 대표 뱃지 설정 시 이름 옆에 tier 색상 태그 표시 / 미설정 시 아무것도 표시 안 함 (ACTIVE 제거) ★
    - 패널 대시보드 헤더: panel.selected_badge + 획득 여부 확인 → 이름 옆 11px 소형 태그 표시 ★
    - 뱃지 자동 달성: 피드백 제출 후 및 도움됨 평가 후 check_and_award_badges RPC fire-and-forget ★
 

@@ -313,15 +313,6 @@ export default function Landing() {
               { n: '3', Anim: Step3Animation, step: '결과 수령', desc: '피드백 결과와 함께 개선 우선순위를 48시간 내에 확인합니다.', tag: '48시간 내' },
             ].map((s, i) => (
               <div key={i} style={{ padding: '0 8px' }}>
-                {/* 애니메이션 목업 프레임 */}
-                <div style={{
-                  width: '100%', height: 220, borderRadius: 16,
-                  border: '1px solid #E2E8F0', overflow: 'hidden',
-                  marginBottom: 28, position: 'relative',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                }}>
-                  <s.Anim />
-                </div>
                 <div style={{
                   width: 48, height: 48, borderRadius: '50%',
                   background: PRIMARY, color: BG,
@@ -331,7 +322,16 @@ export default function Landing() {
                 }}>{s.n}</div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: TEXT, marginBottom: 10, letterSpacing: '-0.02em' }}>{s.step}</div>
                 <div style={{ fontSize: 15, color: TEXT2, lineHeight: 1.75, marginBottom: 16 }}>{s.desc}</div>
-                <div style={{ display: 'inline-flex', background: BG3, borderRadius: 100, padding: '5px 14px', fontSize: 12, fontWeight: 700, color: PRIMARY }}>{s.tag}</div>
+                <div style={{ display: 'inline-flex', background: BG3, borderRadius: 100, padding: '5px 14px', fontSize: 12, fontWeight: 700, color: PRIMARY, marginBottom: 28 }}>{s.tag}</div>
+                {/* 애니메이션 목업 프레임 */}
+                <div style={{
+                  width: '100%', height: 220, borderRadius: 16,
+                  border: '1px solid #E2E8F0', overflow: 'hidden',
+                  position: 'relative',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                }}>
+                  <s.Anim />
+                </div>
               </div>
             ))}
           </div>

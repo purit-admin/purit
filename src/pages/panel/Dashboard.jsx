@@ -25,8 +25,8 @@ const BADGE_CATALOG_DASH = [
 const DASH_TIER_STYLES = {
   rookie: { background: '#F1F5F9', color: '#334155', border: '1px solid #CBD5E1' },
   elite:  { background: '#EEF2FF', color: '#1E40AF', border: '1px solid #BFDBFE' },
-  master: { background: '#0F172A', color: '#FFFFFF', border: '1px solid #0F172A' },
-  hidden: { background: '#1E293B', color: '#FFFFFF', border: '1px solid #1E293B', fontStyle: 'italic' },
+  master: { background: '#0A0A0A', color: '#F1F5F9', border: '1px solid #3D3D3D' },
+  hidden: { background: '#0D1B2A', color: '#BAE6FD', border: '1px solid #38BDF8', fontStyle: 'italic' },
 };
 
 const C = {

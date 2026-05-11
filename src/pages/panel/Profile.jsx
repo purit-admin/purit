@@ -37,12 +37,12 @@ const TIER_STYLES = {
     unearned: { background: 'transparent', color: '#CBD5E1', border: '1px dashed #E2E8F0' },
   },
   master: {
-    earned:   { background: '#0F172A', color: '#FFFFFF', border: '1px solid #0F172A' },
+    earned:   { background: '#0A0A0A', color: '#F1F5F9', border: '1px solid #3D3D3D' },
     unearned: { background: 'transparent', color: '#CBD5E1', border: '1px dashed #E2E8F0' },
   },
   hidden: {
-    earned:   { background: '#1E293B', color: '#FFFFFF', border: '1px solid #1E293B', fontStyle: 'italic' },
-    unearned: { background: '#F8FAFC', color: '#94A3B8', border: '1px solid #E2E8F0' },
+    earned:   { background: '#0D1B2A', color: '#BAE6FD', border: '1px solid #38BDF8', fontStyle: 'italic' },
+    unearned: { background: '#F0F9FF', color: '#7DD3FC', border: '1px solid #BAE6FD' },
   },
 };
 
@@ -80,10 +80,11 @@ function BadgeTag({ badge, earned, isSelected, onSelect }) {
 
       {showTooltip && (
         <div style={{
-          position: 'absolute', bottom: '100%', left: '50%',
-          transform: 'translateX(-50%)', marginBottom: 6,
+          position: 'absolute', bottom: '100%', left: 0,
+          marginBottom: 6,
           background: '#0F172A', color: '#fff', fontSize: 12, lineHeight: 1.6,
-          padding: '8px 12px', borderRadius: 8, maxWidth: 220, whiteSpace: 'normal',
+          padding: '8px 12px', borderRadius: 8,
+          width: 'max-content', maxWidth: 260, whiteSpace: 'normal', wordBreak: 'keep-all',
           zIndex: 100, pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
         }}>
           {(!earned && badge.hidden)
@@ -298,7 +299,21 @@ export default function PanelProfile() {
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <span style={{ fontSize: 22, fontWeight: 800 }}>{name || '—'}</span>
-            <Badge type="green">ACTIVE</Badge>
+            {(() => {
+              const earnedSet = new Set(panel?.badges || []);
+              const meta = selectedBadge && earnedSet.has(selectedBadge)
+                ? BADGE_CATALOG.find(b => b.key === selectedBadge)
+                : null;
+              if (meta) {
+                const s = TIER_STYLES[meta.tier].earned;
+                return (
+                  <span style={{ ...s, padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                    {meta.name}
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </div>
           <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 10 }}>
             {industry || '직군 미설정'}{experience ? ` · ${experience} 경력` : ''}

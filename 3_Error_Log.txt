@@ -581,3 +581,39 @@ D-51. CSS 키프레임 애니메이션을 루프에서 재시작하려면 React 
      → 원칙: CSS keyframe 애니메이션을 React 루프/페이즈 머신에서 반복 재시작해야 할 때
              animation 속성 토글만으로는 신뢰할 수 없음 — React key 교체로 강제 리마운트가 유일하게 확실한 방법
              key 교체 대상은 애니메이션 요소 자체여야 하며, 상위 컨테이너에 붙이면 의도치 않게 전체 레이아웃을 재계산함
+
+D-52. React map() 내부에 useState 선언 시 Rules of Hooks 위반 — 컴포넌트 추출 필수 ✅ 해결
+     → 증상: Achievement 탭 뱃지 렌더링 시 "React Hook 'useState' cannot be called inside a callback" 런타임 에러
+     → 원인: badges.map(badge => { const [showTooltip, setShowTooltip] = useState(false); ... }) 패턴
+             map()은 콜백 함수 — Hooks는 컴포넌트 최상위 레벨에서만 호출 가능, 콜백 내부는 불가
+     → 해결: map() 내 로직을 별도 컴포넌트 `function BadgeTag({ badge, earned, ... })` 로 추출
+             useState를 BadgeTag 컴포넌트 최상위에 선언 → 각 뱃지 인스턴스가 독립 state 보유
+     → 원칙: map() 안에서 hoveredId, showTooltip 등 개별 아이템별 로컬 상태가 필요하면
+             반드시 별도 컴포넌트로 추출할 것 — 인라인 배열 콜백 안의 Hook은 항상 에러
+             단순히 부모 state로 관리(hoveredId === badge.key)하면 Hook 없이도 가능하지만
+             독립 state가 필요하면 컴포넌트 추출이 유일한 해결책
+
+D-53. 한국어 툴팁 텍스트 세로 찢어짐 방지 패턴 ✅ 정착
+     → 증상: 툴팁 박스가 좁게 렌더되어 "3가지 / 이상 / 의뢰 / 유형에..." 처럼 한 단어씩 세로로 쌓임
+     → 원인 1: 툴팁 컨테이너에 width/maxWidth 제약이 없을 때, position:absolute 박스가
+              부모보다 넓어질 수 없어 부모 너비(=뱃지 태그 너비, ~60px)로 줄어들며 줄바꿈 폭발
+     → 원인 2: wordBreak:'normal'(기본값)이면 브라우저가 빈 공간 없을 때 글자 단위로 줄바꿈
+              한국어는 모든 글자 사이에 잠재적 줄바꿈 포인트가 있어 특히 취약
+     → 해결: { width: 'max-content', maxWidth: 260, wordBreak: 'keep-all', whiteSpace: 'normal' }
+             - width:'max-content' → 텍스트가 한 줄로 들어갈 수 있으면 박스를 텍스트 너비까지 확장
+             - maxWidth:260 → 너무 길어지는 것 방지 (260px 이후엔 줄바꿈 허용)
+             - wordBreak:'keep-all' → 한국어에서 단어(어절) 단위로만 줄바꿈, 음절 단위 분리 방지
+     → 원칙: position:absolute 툴팁에 한국어 텍스트를 넣을 때는 세 속성 세트를 기본으로 적용할 것
+             width:'max-content' 없이 maxWidth만 있으면 여전히 부모 너비 이하로 잘릴 수 있음
+
+D-54. 사이드바 인접 요소의 position:absolute 툴팁 좌측 잘림 방지 패턴 ✅ 정착
+     → 증상: 좌측 사이드바 바로 오른쪽 첫 번째 뱃지들의 툴팁이 사이드바에 의해 왼쪽이 잘려 보임
+     → 원인: 툴팁 `left:'50%', transform:'translateX(-50%)'` 패턴은 부모 요소를 중심으로 좌우 대칭 배치
+             좌측 첫 번째 뱃지는 부모 중앙이 화면 왼쪽 끝에 가까워 툴팁 왼쪽 절반이 사이드바 뒤로 숨음
+             overflow:hidden이 상위 컨테이너에 있거나 z-index 계층 문제로 실제 클리핑 발생
+     → 해결: 좌측 정렬 `left: 0` (툴팁 왼쪽 끝 = 뱃지 왼쪽 끝에 정렬)
+             화면 왼쪽 가장자리 뱃지도 툴팁이 오른쪽 방향으로만 확장되어 클리핑 없음
+     → 대안: 툴팁 위치를 hover된 뱃지의 getBoundingClientRect()로 동적 계산하면 모든 위치에서 정확하지만
+             구현 복잡도 증가 — 콘텐츠가 항상 좌→우로 시작하는 레이아웃에서는 `left:0` 단순 패턴으로 충분
+     → 원칙: 사이드바처럼 왼쪽에 고정 요소가 있는 레이아웃에서 첫 번째 열 요소의 툴팁은
+             center 정렬 대신 left:0 또는 right:0으로 한쪽 끝 정렬을 기본으로 선택할 것
