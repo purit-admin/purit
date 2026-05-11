@@ -13,17 +13,152 @@ const TIER_META = {
 };
 
 const BADGE_CATALOG = [
-  { key: '첫 미션',    emoji: '🚀', name: '첫 미션',    desc: '첫 번째 미션을 완료하세요' },
-  { key: '5회 완료',   emoji: '⭐', name: '5회 완료',   desc: '5개 미션을 완료하세요' },
-  { key: '10회 완료',  emoji: '🏅', name: '10회 완료',  desc: '10개 미션을 완료하세요' },
-  { key: '30회 완료',  emoji: '🏆', name: '30회 완료',  desc: '30개 미션을 완료하세요' },
-  { key: '품질 검증자', emoji: '✅', name: '품질 검증자', desc: 'Purit Filter 5회 이상 통과' },
-  { key: '연속 3회',   emoji: '🔥', name: '연속 3회',   desc: '7일 내 3건 이상 제출' },
-  { key: '연속 7회',   emoji: '💎', name: '연속 7회',   desc: '7일 내 7건 이상 제출' },
+  { key: '영점_조준',    name: '영점 조준',    tier: 'rookie', hidden: false, desc: 'Purit Filter를 처음으로 통과했습니다.' },
+  { key: '유효_타격',    name: '유효 타격',    tier: 'rookie', hidden: false, desc: '기업에게 "도움 됨" 평가를 처음 받았습니다.' },
+  { key: '데이터_스캐너', name: '데이터 스캐너', tier: 'rookie', hidden: false, desc: '3가지 이상 의뢰 유형에 모두 참여했습니다.' },
+  { key: '제로_데펙트',  name: '제로 데펙트',  tier: 'elite',  hidden: false, desc: '반려 없이 Purit Filter를 연속 10회 통과했습니다.' },
+  { key: '크리티컬_샷',  name: '크리티컬 샷',  tier: 'elite',  hidden: false, desc: '30일 이내 "도움 됨"을 10회 이상 받았습니다.' },
+  { key: '트렌드_오라클', name: '트렌드 오라클', tier: 'elite',  hidden: false, desc: 'A/B 소재에서 최다 선택 소재를 연속 10회 맞혔습니다.' },
+  { key: '절대_영도',    name: '절대 영도',    tier: 'master', hidden: false, desc: '미션 50회 이상 + "도움 됨" 비율 상위 1%.' },
+  { key: '픽셀_아키텍트', name: '픽셀 아키텍트', tier: 'master', hidden: false, desc: '이미지 기반 피드백으로 "도움 됨" 30회 이상.' },
+  { key: '에이펙스_노드', name: '에이펙스 노드', tier: 'master', hidden: false, desc: '프리미엄 기업 의뢰에서 "도움 됨"을 3회 이상 받았습니다.' },
+  { key: '마이크로스코프', name: '마이크로스코프', tier: 'hidden', hidden: true,  desc: '...조건이 숨겨져 있습니다.' },
+  { key: '퀵_타겟팅',    name: '퀵 타겟팅',   tier: 'hidden', hidden: true,  desc: '...조건이 숨겨져 있습니다.' },
+  { key: '블랙_스완',    name: '블랙 스완',   tier: 'hidden', hidden: true,  desc: '...조건이 숨겨져 있습니다.' },
 ];
+
+const TIER_STYLES = {
+  rookie: {
+    earned:   { background: '#F1F5F9', color: '#334155', border: '1px solid #CBD5E1' },
+    unearned: { background: 'transparent', color: '#CBD5E1', border: '1px dashed #E2E8F0' },
+  },
+  elite: {
+    earned:   { background: '#EEF2FF', color: '#1E40AF', border: '1px solid #BFDBFE' },
+    unearned: { background: 'transparent', color: '#CBD5E1', border: '1px dashed #E2E8F0' },
+  },
+  master: {
+    earned:   { background: '#0F172A', color: '#FFFFFF', border: '1px solid #0F172A' },
+    unearned: { background: 'transparent', color: '#CBD5E1', border: '1px dashed #E2E8F0' },
+  },
+  hidden: {
+    earned:   { background: '#1E293B', color: '#FFFFFF', border: '1px solid #1E293B', fontStyle: 'italic' },
+    unearned: { background: '#F8FAFC', color: '#94A3B8', border: '1px solid #E2E8F0' },
+  },
+};
+
+const TIER_SECTION_LABEL = { rookie: 'ROOKIE', elite: 'ELITE', master: 'MASTER', hidden: 'HIDDEN' };
+const TIER_ORDER = ['rookie', 'elite', 'master', 'hidden'];
+
+function BadgeTag({ badge, earned, isSelected, onSelect }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [showSetBtn, setShowSetBtn]   = useState(false);
+  const styles   = TIER_STYLES[badge.tier];
+  const baseStyle = earned ? styles.earned : styles.unearned;
+
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+      onMouseEnter={() => { setShowSetBtn(earned); }}
+      onMouseLeave={() => { setShowTooltip(false); setShowSetBtn(false); }}
+    >
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '5px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+        cursor: earned ? 'pointer' : 'default', transition: 'all 0.15s',
+        outline: isSelected ? '2px solid #3B82F6' : 'none', outlineOffset: 2,
+        ...baseStyle,
+      }}
+        onClick={() => earned && onSelect(badge.key)}
+      >
+        {(!earned && badge.hidden) ? '🔒 ???' : badge.name}
+        <span
+          style={{ fontSize: 11, opacity: 0.6, cursor: 'help', lineHeight: 1 }}
+          onMouseEnter={e => { e.stopPropagation(); setShowTooltip(true); }}
+          onMouseLeave={() => setShowTooltip(false)}
+        >ⓘ</span>
+      </div>
+
+      {showTooltip && (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: '50%',
+          transform: 'translateX(-50%)', marginBottom: 6,
+          background: '#0F172A', color: '#fff', fontSize: 12, lineHeight: 1.6,
+          padding: '8px 12px', borderRadius: 8, maxWidth: 220, whiteSpace: 'normal',
+          zIndex: 100, pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}>
+          {(!earned && badge.hidden)
+            ? '이 뱃지의 달성 조건은 숨겨져 있습니다'
+            : badge.desc}
+        </div>
+      )}
+
+      {showSetBtn && (
+        <div style={{
+          position: 'absolute', top: '100%', left: '50%',
+          transform: 'translateX(-50%)', marginTop: 4,
+          background: isSelected ? '#3B82F6' : '#1E293B',
+          color: '#fff', fontSize: 11, fontWeight: 600,
+          padding: '4px 10px', borderRadius: 6, whiteSpace: 'nowrap',
+          cursor: 'pointer', zIndex: 100, boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+          onClick={() => onSelect(badge.key)}
+        >
+          {isSelected ? '✓ 대표 뱃지 해제' : '대표 뱃지로 설정'}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const lbl    = { display: 'flex', flexDirection: 'column', gap: 8 };
 const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
+
+// 1-3년: 1.0×(gray), 4-7년: 1.5×(navy), 8년: 2.0×(amber)
+function getYearTier(y) {
+  if (y >= 8) return { color: '#D97706', bg: '#FEF3C7', mult: '2.0×' };
+  if (y >= 4) return { color: 'var(--accent)', bg: 'var(--accent-dim)', mult: '1.5×' };
+  return { color: 'var(--text-3)', bg: 'var(--bg-3)', mult: '1.0×' };
+}
+
+function ExperienceBar({ value, onChange }) {
+  const match = (value || '').match(/(\d+)/);
+  const selected = match ? parseInt(match[1], 10) : 0;
+  const tier = selected > 0 ? getYearTier(selected) : null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {Array.from({ length: 8 }, (_, i) => i + 1).map(y => {
+          const t = getYearTier(y);
+          const active = y <= selected;
+          return (
+            <button
+              key={y}
+              type="button"
+              onClick={() => onChange(`${y}년`)}
+              style={{
+                flex: 1, height: 36, borderRadius: 6, border: 'none',
+                cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                transition: 'all 0.15s',
+                background: active ? t.color : 'var(--bg-3)',
+                color: active ? '#fff' : 'var(--text-3)',
+              }}
+            >{y}</button>
+          );
+        })}
+      </div>
+      {tier ? (
+        <div style={{ marginTop: 8, fontSize: 12, color: tier.color, fontWeight: 600 }}>
+          {selected}년차 · 미션비 {tier.mult} 배율 적용
+        </div>
+      ) : (
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-3)' }}>
+          경력을 선택하면 미션비 배율이 적용됩니다
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PanelProfile() {
   const [panel, setPanel]       = useState(null);
@@ -48,6 +183,7 @@ export default function PanelProfile() {
   const [bankName, setBankName]   = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankHolder, setBankHolder]   = useState('');
+  const [selectedBadge, setSelectedBadge] = useState(null);
   const [phone, setPhone]             = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [otpSent, setOtpSent]         = useState(false);
@@ -75,6 +211,7 @@ export default function PanelProfile() {
         setBankHolder(p.bank_holder || '');
         setPhone(p.phone || '');
         setPhoneVerified(p.phone_verified || false);
+        setSelectedBadge(p.selected_badge || null);
       }
       setLoading(false);
     }
@@ -228,10 +365,10 @@ export default function PanelProfile() {
                 {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
               </select>
             </label>
-            <label style={lbl}>
+            <div style={lbl}>
               <span style={lblTxt}>경력</span>
-              <input value={experience} onChange={e => setExperience(e.target.value)} placeholder="예: 5년, 7년 이상" />
-            </label>
+              <ExperienceBar value={experience} onChange={setExperience} />
+            </div>
             <label style={lbl}>
               <span style={lblTxt}>자기소개 (선택)</span>
               <textarea value={bio} onChange={e => setBio(e.target.value)}
@@ -349,32 +486,27 @@ export default function PanelProfile() {
 
       {/* Achievement tab */}
       {tab === 'achievement' && (() => {
-        const tier = panel?.tier || 'ROOKIE';
-        const tierMeta = TIER_META[tier] || TIER_META.ROOKIE;
-        const trustScore = panel?.trust_score || 0;
+        const trustScore  = panel?.trust_score || 0;
         const streakCount = panel?.streak_count || 0;
-        const earnedBadges = new Set(panel?.badges || []);
+        const earnedSet   = new Set(panel?.badges || []);
+        const earnedCount = BADGE_CATALOG.filter(b => earnedSet.has(b.key)).length;
+
+        const handleSelectBadge = async (key) => {
+          if (!panel) return;
+          const newVal = selectedBadge === key ? null : key;
+          setSelectedBadge(newVal);
+          await supabase.from('panels').update({ selected_badge: newVal }).eq('id', panel.id);
+        };
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {/* 티어 + 신뢰도 카드 */}
+            {/* 요약 카드 */}
             <Card>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-                <div style={{
-                  padding: '8px 18px', borderRadius: 20, fontWeight: 800, fontSize: 16,
-                  letterSpacing: '0.08em', color: tierMeta.color,
-                  background: tierMeta.bg, border: `1.5px solid ${tierMeta.color}`,
-                }}>
-                  {tier}
-                </div>
-                <div style={{ color: 'var(--text-2)', fontSize: 13 }}>{tierMeta.desc}</div>
-              </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
                 {[
-                  { label: '완료 미션', value: panel?.total_missions || 0, unit: '개' },
-                  { label: '이번 주 제출', value: streakCount, unit: '건' },
-                  { label: '취득 뱃지', value: earnedBadges.size, unit: '개' },
+                  { label: '완료 미션',  value: panel?.total_missions || 0, unit: '개' },
+                  { label: '이번 주 제출', value: streakCount,              unit: '건' },
+                  { label: '취득 뱃지',  value: earnedCount,                unit: '개' },
                 ].map(item => (
                   <div key={item.label} style={{ textAlign: 'center', padding: '12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                     <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{item.label}</div>
@@ -382,48 +514,43 @@ export default function PanelProfile() {
                   </div>
                 ))}
               </div>
-
-              <div style={{ marginBottom: 4 }}>
+              <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>신뢰도 (Purity Filter 통과율)</span>
-                  <span style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-sans)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-3)' }}>
-                    {trustScore}%
-                  </span>
+                  <span style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-sans)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-3)' }}>{trustScore}%</span>
                 </div>
                 <div style={{ height: 8, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%', borderRadius: 99,
-                    width: `${trustScore}%`,
-                    background: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : '#94a3b8',
-                    transition: 'width 0.6s ease',
-                  }} />
+                  <div style={{ height: '100%', borderRadius: 99, width: `${trustScore}%`, background: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : '#94a3b8', transition: 'width 0.6s ease' }} />
                 </div>
               </div>
             </Card>
 
-            {/* 뱃지 그리드 */}
+            {/* 뱃지 목록 */}
             <Card>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>획득 뱃지</div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>미션을 완료하고 다양한 뱃지를 획득하세요.</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                {BADGE_CATALOG.map(badge => {
-                  const earned = earnedBadges.has(badge.key);
-                  return (
-                    <div key={badge.key} style={{
-                      padding: '16px 14px', borderRadius: 'var(--radius)',
-                      border: `1.5px solid ${earned ? 'var(--accent)' : 'var(--border)'}`,
-                      background: 'var(--surface)',
-                      textAlign: 'center',
-                      opacity: earned ? 1 : 0.5,
-                      transition: 'all 0.15s',
-                    }}>
-                      <div style={{ fontSize: 32, marginBottom: 8, filter: earned ? 'none' : 'grayscale(1)' }}>{badge.emoji}</div>
-                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: earned ? 'var(--text)' : 'var(--text-3)' }}>{badge.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>{earned ? '✓ 획득' : badge.desc}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>뱃지 컬렉션</div>
+              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>획득한 뱃지를 클릭해 대표 뱃지로 설정하세요. 닉네임 옆에 표시됩니다.</div>
+
+              {TIER_ORDER.map(tier => {
+                const tierBadges = BADGE_CATALOG.filter(b => b.tier === tier);
+                return (
+                  <div key={tier} style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-3)', marginBottom: 10 }}>
+                      {TIER_SECTION_LABEL[tier]}
                     </div>
-                  );
-                })}
-              </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                      {tierBadges.map(badge => (
+                        <BadgeTag
+                          key={badge.key}
+                          badge={badge}
+                          earned={earnedSet.has(badge.key)}
+                          isSelected={selectedBadge === badge.key}
+                          onSelect={handleSelectBadge}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </Card>
           </div>
         );

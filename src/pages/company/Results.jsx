@@ -1013,6 +1013,9 @@ export default function Results() {
     if (error) {
       setHelpRatings(prevRatings);
       console.error('[rate_panel_feedback_helpfulness]', error.message);
+    } else if (isHelpful && panelId) {
+      supabase.rpc('check_and_award_badges', { p_panel_id: panelId })
+        .then(({ error: bErr }) => { if (bErr) console.warn('[check_and_award_badges]', bErr.message); });
     }
 
     setRatingInFlight(s => { const n = new Set(s); n.delete(key); return n; });

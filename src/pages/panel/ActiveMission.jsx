@@ -447,6 +447,8 @@ export default function ActiveMission() {
       await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
     }
     await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 });
+    supabase.rpc('check_and_award_badges', { p_panel_id: panel.id })
+      .then(({ error }) => { if (error) console.warn('[check_and_award_badges]', error.message); });
     if (resubmitMode && mission?.id) {
       supabase.rpc('recalc_mission_consumed', { p_mission_id: mission.id })
         .then(({ error }) => { if (error) console.warn('[recalc_consumed]', error.message); });

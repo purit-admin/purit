@@ -7,6 +7,28 @@ import {
   HONOR_COLOR_META, fmtWon, fmtKRW,
 } from '../../lib/honorLevels';
 
+const BADGE_CATALOG_DASH = [
+  { key: '영점_조준',    name: '영점 조준',    tier: 'rookie' },
+  { key: '유효_타격',    name: '유효 타격',    tier: 'rookie' },
+  { key: '데이터_스캐너', name: '데이터 스캐너', tier: 'rookie' },
+  { key: '제로_데펙트',  name: '제로 데펙트',  tier: 'elite'  },
+  { key: '크리티컬_샷',  name: '크리티컬 샷',  tier: 'elite'  },
+  { key: '트렌드_오라클', name: '트렌드 오라클', tier: 'elite'  },
+  { key: '절대_영도',    name: '절대 영도',    tier: 'master' },
+  { key: '픽셀_아키텍트', name: '픽셀 아키텍트', tier: 'master' },
+  { key: '에이펙스_노드', name: '에이펙스 노드', tier: 'master' },
+  { key: '마이크로스코프', name: '마이크로스코프', tier: 'hidden' },
+  { key: '퀵_타겟팅',    name: '퀵 타겟팅',   tier: 'hidden' },
+  { key: '블랙_스완',    name: '블랙 스완',   tier: 'hidden' },
+];
+
+const DASH_TIER_STYLES = {
+  rookie: { background: '#F1F5F9', color: '#334155', border: '1px solid #CBD5E1' },
+  elite:  { background: '#EEF2FF', color: '#1E40AF', border: '1px solid #BFDBFE' },
+  master: { background: '#0F172A', color: '#FFFFFF', border: '1px solid #0F172A' },
+  hidden: { background: '#1E293B', color: '#FFFFFF', border: '1px solid #1E293B', fontStyle: 'italic' },
+};
+
 const C = {
   pageBg:  '#F8FAFC',
   cardBg:  '#FFFFFF',
@@ -127,6 +149,12 @@ export default function PanelDashboard() {
   const nextReward  = nextLevel ? getPanelReward(nextLevel.minPoints, panel?.experience) : null;
   const curReward   = getPanelReward(honorPoints, panel?.experience);
 
+  const selectedBadgeKey  = panel?.selected_badge;
+  const earnedBadgeSet    = new Set(panel?.badges || []);
+  const selectedBadgeMeta = selectedBadgeKey && earnedBadgeSet.has(selectedBadgeKey)
+    ? BADGE_CATALOG_DASH.find(b => b.key === selectedBadgeKey)
+    : null;
+
   const approvedFbs = histFeedbacks.filter(f => f.purity_passed);
   const pendingFbs  = histFeedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
   const rejectedFbs = histFeedbacks.filter(f => !f.purity_passed && f.status === 'rejected');
@@ -151,6 +179,14 @@ export default function PanelDashboard() {
             <span style={{ fontSize: 12, color: C.text3 }}>
               {honorPoints.toLocaleString()}pts
             </span>
+            {selectedBadgeMeta && (
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: '2px 8px',
+                borderRadius: 4, ...DASH_TIER_STYLES[selectedBadgeMeta.tier],
+              }}>
+                {selectedBadgeMeta.name}
+              </span>
+            )}
             {streakCount >= 2 && (
               <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>
                 🔥 {streakCount}회 연속

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-09 (Landing 작동방식 섹션 스텝 루핑 애니메이션 추가)
+최종 업데이트: 2026-05-11 (패널 뱃지 시스템 v2 — 12개 계층형 뱃지, 대표 뱃지, 경력 바 선택)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -534,6 +534,8 @@
 5. 프로필 설정 (/panel/profile) — Profile.jsx
    - 탭 기본 정보: 이름·직군·경력·자기소개 → panels UPDATE
      · 개인정보 안내 박스: "기업에게는 이름과 핸드폰 번호는 공개되지 않습니다. 직군과 경력만 공개됩니다."
+     · 경력 입력: 1~8년 바 형식 버튼 (ExperienceBar 컴포넌트) — 선택 시 "N년" 포맷으로 저장 ★
+       1-3년: gray(1.0×배율), 4-7년: navy(1.5×배율), 8년: amber(2.0×배율) 색상 구분
      · 핸드폰 번호 Mock OTP 인증 섹션 (자기소개 아래):
        - 번호 입력 → "인증번호 발송" (800ms delay mock) → OTP 6자리 입력 → "확인" (600ms delay)
        - 6자리 아무 숫자 허용 (Mock 환경) → 성공 시 phone·phone_verified=true DB UPDATE
@@ -541,6 +543,20 @@
    - 탭 전문 분야: expertise 배열 토글 → panels UPDATE
    - 탭 정산 계좌: bank_name·bank_account·bank_holder → panels UPDATE
    - 탭 비밀번호: signInWithPassword 검증 → supabase.auth.updateUser({ password })  ★ 신규
+   - 탭 성과 — 뱃지 시스템 v2 ★ 개편 (2026-05-11)
+     · 요약 3칸: 완료 미션 / 이번 주 제출 / 취득 뱃지 수
+     · 신뢰도(Purity Filter 통과율) 게이지
+     · 뱃지 컬렉션: 12개 계층형 뱃지, 4개 섹션(ROOKIE/ELITE/MASTER/HIDDEN)
+       - ROOKIE (3개): 영점 조준, 유효 타격, 데이터 스캐너
+       - ELITE (3개): 제로 데펙트, 크리티컬 샷, 트렌드 오라클
+       - MASTER (3개): 절대 영도, 픽셀 아키텍트, 에이펙스 노드
+       - HIDDEN (3개): 마이크로스코프, 퀵 타겟팅, 블랙 스완 (미달성 시 🔒 ???)
+     · TIER_STYLES: rookie=회색, elite=인디고, master=다크네이비, hidden=다크(이탤릭) 텍스트 태그
+     · 미달성: dashed 투명 테두리 / hidden 미달성: solid 연회색 배경
+     · ⓘ 아이콘 호버 → 검은 툴팁 박스 (hidden 미달성: "조건 숨김" 문구)
+     · 획득 뱃지 호버 → "대표 뱃지로 설정" 버튼 / 재클릭 → null 해제 / 파란 outline 강조
+   - 패널 대시보드 헤더: panel.selected_badge + 획득 여부 확인 → 이름 옆 11px 소형 태그 표시 ★
+   - 뱃지 자동 달성: 피드백 제출 후 및 도움됨 평가 후 check_and_award_badges RPC fire-and-forget ★
 
 ================================================================
 ## 역할 3: Admin (관리자)

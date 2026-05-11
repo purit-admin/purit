@@ -44,9 +44,11 @@
   phone_verified    BOOLEAN DEFAULT false
   honor_points           INT         NOT NULL DEFAULT 0   ← 015 추가 (10단계 레벨 기반 HP)
   honor_decay_applied_at TIMESTAMPTZ                      ← 015 추가 (decay RPC 적용 커서)
+  selected_badge         TEXT        DEFAULT NULL          ← 021 추가 (패널이 선택한 대표 뱃지 key)
   ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
   ※ 012_panel_phone_public_profiles.sql 에서 phone / phone_verified 컬럼 추가
   ※ 015_honor_level_system.sql 에서 honor_points / honor_decay_applied_at 컬럼 추가
+  ※ 021_badge_system_v2.sql 에서 selected_badge 컬럼 추가
   INDEX: panels_honor_points_idx (honor_points)
 
 ---
@@ -391,6 +393,13 @@
     → {success, credits_reserved, credits_consumed, credits_refunded} 반환
     → admin/Missions.jsx 완료 처리 버튼에서 호출
     → 파일: supabase/migrations/018_credits_numeric.sql (016 버전 대체)
+
+  check_and_award_badges(p_panel_id UUID) RETURNS void
+    → 12개 뱃지 조건 순서대로 검사 후 panels.badges TEXT[]에 신규 달성분 추가 (중복 방지)
+    → 피드백 제출 완료 후 ActiveMission.jsx에서 fire-and-forget 호출
+    → 기업 도움됨 평가(is_helpful=true) 후 Results.jsx에서 fire-and-forget 호출
+    → 본인(auth.uid() = panels.user_id) 또는 어드민만 호출 가능
+    → 파일: supabase/migrations/021_badge_system_v2.sql
 
   apply_honor_decay(p_panel_id UUID) RETURNS jsonb
     → 30일 비활동 후 매주 -200 HP 지연 적용 (honor_decay_applied_at 커서로 이중 적용 방지)
