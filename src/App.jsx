@@ -22,6 +22,7 @@ import QuestionTemplates from './pages/company/QuestionTemplates';
 import PricingPage from './pages/company/Pricing';
 import AccountSettings from './pages/company/Settings';
 import CompanyAccount from './pages/company/Account';
+import CompanyBugReports from './pages/company/BugReports';
 import AdminAccount from './pages/admin/Account';
 import TimelineTracker from './pages/company/TimelineTracker';
 import ShareResult from './pages/ShareResult';
@@ -32,12 +33,14 @@ import MissionList from './pages/panel/Missions';
 import ActiveMission from './pages/panel/ActiveMission';
 import History from './pages/panel/History';
 import PanelProfile from './pages/panel/Profile';
+import PanelBugReports from './pages/panel/BugReports';
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminMissions from './pages/admin/Missions';
 import PurityFilter from './pages/admin/PurityFilter';
 import PanelManagement from './pages/admin/PanelManagement';
+import CompanyManagement from './pages/admin/CompanyManagement';
 import RevenueManagement from './pages/admin/Revenue';
 import BugReports from './pages/admin/BugReports';
 
@@ -86,6 +89,7 @@ function AppRoutes() {
       <Route path="/company/account" element={<RoleRoute role="company"><CL><CompanyAccount /></CL></RoleRoute>} />
       <Route path="/company/settings" element={<RoleRoute role="company"><CL><AccountSettings /></CL></RoleRoute>} />
       <Route path="/company/plans" element={<RoleRoute role="company"><CL><PricingPage /></CL></RoleRoute>} />
+      <Route path="/company/bug-reports" element={<RoleRoute role="company"><CL><CompanyBugReports /></CL></RoleRoute>} />
 
       {/* Panel — panel 역할만 접근 가능 */}
       <Route path="/panel" element={<RoleRoute role="panel"><PL><PanelDashboard /></PL></RoleRoute>} />
@@ -94,11 +98,13 @@ function AppRoutes() {
       <Route path="/panel/active" element={<RoleRoute role="panel"><PL><ActiveMission /></PL></RoleRoute>} />
       <Route path="/panel/history" element={<RoleRoute role="panel"><PL><History /></PL></RoleRoute>} />
       <Route path="/panel/profile" element={<RoleRoute role="panel"><PL><PanelProfile /></PL></RoleRoute>} />
+      <Route path="/panel/bug-reports" element={<RoleRoute role="panel"><PL><PanelBugReports /></PL></RoleRoute>} />
 
       {/* Admin — admin 역할만 접근 가능 */}
       <Route path="/admin" element={<RoleRoute role="admin"><AL><AdminDashboard /></AL></RoleRoute>} />
       <Route path="/admin/notifications" element={<RoleRoute role="admin"><AL><NotificationCenter role="admin" /></AL></RoleRoute>} />
       <Route path="/admin/panels" element={<RoleRoute role="admin"><AL><PanelManagement /></AL></RoleRoute>} />
+      <Route path="/admin/companies" element={<RoleRoute role="admin"><AL><CompanyManagement /></AL></RoleRoute>} />
       <Route path="/admin/missions" element={<RoleRoute role="admin"><AL><AdminMissions /></AL></RoleRoute>} />
       <Route path="/admin/purity" element={<RoleRoute role="admin"><AL><PurityFilter /></AL></RoleRoute>} />
       <Route path="/admin/revenue" element={<RoleRoute role="admin"><AL><RevenueManagement /></AL></RoleRoute>} />

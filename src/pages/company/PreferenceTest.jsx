@@ -49,6 +49,7 @@ export default function PreferenceTest() {
   const navigate = useNavigate();
   const initTemplateId = location.state?.templateId || null;
   const submittingRef = useRef(false);
+  const panelStepRef = useRef(null);
 
   const [view, setView] = useState('list');
   const [createStep, setCreateStep] = useState(0);
@@ -852,6 +853,7 @@ export default function PreferenceTest() {
             {/* Step 2: 패널 설정 */}
             {createStep === 2 && (
               <PanelTargetStep
+                ref={panelStepRef}
                 plan={companyPlan}
                 panelCount={panelSize}
                 onPanelCount={setPanelSize}
@@ -932,7 +934,13 @@ export default function PreferenceTest() {
               {createStep === 0 ? '취소' : '이전'}
             </Btn>
             {createStep < STEPS.length - 1 ? (
-              <Btn onClick={() => setCreateStep(s => s + 1)} disabled={
+              <Btn onClick={() => {
+                if (createStep === STEPS.length - 2 && creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance) {
+                  panelStepRef.current?.openCreditModal();
+                  return;
+                }
+                setCreateStep(s => s + 1);
+              }} disabled={
                 createStep === 0 && (!assetType || !variantA.trim() || !variantB.trim())
               }>
                 다음 →

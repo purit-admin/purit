@@ -5,7 +5,7 @@ import {
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
   Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
-  LogOut, Menu, X as CloseIcon, Flag,
+  LogOut, Menu, X as CloseIcon, Flag, Building2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -58,6 +58,7 @@ const NAV = {
         { path: '/company/account', label: '내 계정', icon: UserCog },
         { path: '/company/settings', label: '팀 & 설정', icon: Settings },
         { path: '/company/plans', label: '플랜 & 가격', icon: CreditCard },
+        { path: '/company/bug-reports', label: '버그/건의 현황', icon: Flag },
       ],
     },
   ],
@@ -80,6 +81,7 @@ const NAV = {
       items: [
         { path: '/panel/history', label: '정산 내역', icon: Wallet },
         { path: '/panel/profile', label: '프로필 설정', icon: UserCog },
+        { path: '/panel/bug-reports', label: '버그/건의 현황', icon: Flag },
       ],
     },
   ],
@@ -95,6 +97,7 @@ const NAV = {
       group: '운영',
       items: [
         { path: '/admin/panels', label: '패널 관리', icon: Users },
+        { path: '/admin/companies', label: '기업 관리', icon: Building2 },
         { path: '/admin/missions', label: '미션 관리', icon: ClipboardList },
         { path: '/admin/purity', label: 'Purit Filter', icon: ShieldCheck },
         { path: '/admin/revenue', label: '수익 & 정산', icon: PieChart },

@@ -393,8 +393,20 @@
 
   grant_plan_credits(p_company_id UUID, p_plan TEXT) RETURNS void
     → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(50/165/400)으로 갱신
-    → Pricing.jsx 플랜 선택 시 호출 (기존 직접 UPDATE 대체)
+    → Pricing.jsx 플랜 선택 시 호출 (기업 본인만 호출 가능 — user_id = auth.uid() 조건)
     → 파일: supabase/migrations/016_credit_system.sql
+
+  admin_add_credits(p_company_id UUID, p_amount NUMERIC) RETURNS NUMERIC
+    → 어드민 전용 (app_metadata.role='admin' 또는 raw_user_meta_data.role='admin' 검사)
+    → companies.credit_balance += p_amount → 새 잔액 반환
+    → CompanyManagement.jsx 관리 액션 카드 '크레딧 추가 지급' 버튼에서 호출
+    → 파일: supabase/migrations/024_admin_company_management.sql
+
+  admin_change_plan(p_company_id UUID, p_plan TEXT) RETURNS void
+    → 어드민 전용 (app_metadata.role='admin' 또는 raw_user_meta_data.role='admin' 검사)
+    → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(50/165/400)으로 갱신 (덮어쓰기)
+    → CompanyManagement.jsx 관리 액션 카드 '플랜 변경' 버튼에서 호출 (grant_plan_credits는 기업 본인 전용이라 어드민 불가)
+    → 파일: supabase/migrations/025_admin_change_plan.sql
 
   reserve_mission_credits(p_mission_id UUID, p_company_id UUID, p_credits NUMERIC) RETURNS jsonb
     → 018에서 p_credits INTEGER → NUMERIC 변경 (소수 크레딧 지원)

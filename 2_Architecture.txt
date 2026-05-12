@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-11 (버그 신고 시스템 + 패널 관리 고도화 — bug_reports 테이블, BugReportModal, BugReports 어드민 페이지, PanelManagement 기간별 통계·위험/우수 분류)
+최종 업데이트: 2026-05-12 (기업 관리 페이지 신설 + 패널/기업 관리 검색 + 크레딧 부족 시 다음 버튼 차단 — CompanyManagement.jsx, admin_change_plan RPC, PanelTargetStep forwardRef)
 ================================================================
 
 ## 기술 스택
@@ -51,6 +51,8 @@ purit/
 │   │                  supabase.storage('bug-screenshots').upload → screenshot_url, bug_reports INSERT
 │   │                  업로드 실패 시 screenshot_url=null graceful fallback
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
+│   │                  ★ forwardRef + useImperativeHandle 적용 — 부모 폼에서 ref={panelStepRef}로 openCreditModal() 호출 가능
+│   │                  크레딧 부족 시 "다음" 버튼에서 panelStepRef.current?.openCreditModal() 트리거 → 업그레이드 모달 표시
 │   │                ExpertPanelCloud.jsx (Landing.jsx 섹션 6.5 전용 — 전문가 경력 플로팅 애니메이션) ★ 신규
 │   ├── landing/
 │   │                StepAnimations.jsx (Landing.jsx 작동방식 섹션 6 전용 — Step1/2/3 루핑 CSS 애니메이션)
@@ -176,7 +178,7 @@ purit/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
 │       ├── company/  (17개 — 라우트 목록 참조)
 │       ├── panel/    (5개 — 라우트 목록 참조)
-│       └── admin/    (6개 — 라우트 목록 참조)
+│       └── admin/    (7개 — 라우트 목록 참조)
 ├── scripts/   (개발·테스트 전용 Node.js 유틸리티 — 배포 대상 아님)
 │   ├── create-panel-accounts.mjs      (Supabase Admin API로 테스트 패널 계정 일괄 생성)
 │   ├── create-test-main-mission.mjs   (어드민 계정으로 테스트 메인 의뢰 생성 — SVG 이미지 5장 Storage 업로드 포함)
@@ -194,11 +196,14 @@ purit/
 │   │                018(credits_numeric: 크레딧 컬럼 INTEGER→NUMERIC(10,2), CEIL 제거, recalc_mission_consumed·reserve_mission_credits·complete_mission_and_refund 재정의)
 │   │                020(honor_points_security: add_panel_honor_points·apply_honor_decay·rate_panel_feedback_helpfulness RPC에 호출자 검증 추가 — 본인 or admin만 허용)
 │   │                021(badge_system_v2: panels.selected_badge 컬럼 추가, check_and_award_badges RPC — 12개 계층형 뱃지 자동 달성)
+│   │                023(bug_report_reply: bug_reports 테이블 admin_memo 컬럼 추가)
+│   │                024(admin_company_management: admin_add_credits RPC — 어드민 전용 크레딧 직접 지급)
+│   │                025(admin_change_plan: admin_change_plan RPC — 어드민 전용 플랜+크레딧 동시 변경, grant_plan_credits의 owner 제한 우회)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (28개)
+## 라우트 전체 목록 (29개)
 ================================================================
 
 [공개]
@@ -238,11 +243,12 @@ purit/
   /admin                     → Dashboard.jsx
   /admin/notifications       → NotificationCenter.jsx
   /admin/panels              → PanelManagement.jsx
+  /admin/companies           → CompanyManagement.jsx ★ 신규
   /admin/missions            → Missions.jsx
   /admin/purity              → PurityFilter.jsx
   /admin/revenue             → Revenue.jsx
-  /admin/reports             → BugReports.jsx       ★ 신규
-  /admin/account             → Account.jsx          ★ 신규
+  /admin/reports             → BugReports.jsx
+  /admin/account             → Account.jsx
 
 ================================================================
 ## DB 스키마 & RPC 함수 목록

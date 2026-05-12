@@ -216,6 +216,7 @@ export default function NewMission() {
   const initTemplateName = location.state?.templateName || null;
 
   const fileInputRef = useRef(null);
+  const panelStepRef = useRef(null);
   const [view, setView]         = useState(isEditMode ? 'form' : 'list');
   const [step, setStep]         = useState(0);
   const [missionUuid] = useState(() => editMissionId || crypto.randomUUID());
@@ -1398,6 +1399,7 @@ export default function NewMission() {
             {/* Step 3: 패널 설정 */}
             {step === 3 && (
               <PanelTargetStep
+                ref={panelStepRef}
                 plan={companyPlan}
                 panelCount={form.panels}
                 onPanelCount={(n) => set('panels', n)}
@@ -1477,7 +1479,13 @@ export default function NewMission() {
               </div>
             )}
             <Btn
-              onClick={() => step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit()}
+              onClick={() => {
+                if (step === STEPS.length - 2 && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance) {
+                  panelStepRef.current?.openCreditModal();
+                  return;
+                }
+                step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit();
+              }}
               size="md"
               disabled={submitting || uploading || (step === STEPS.length - 1 && !isEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
             >

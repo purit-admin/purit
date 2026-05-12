@@ -56,6 +56,7 @@ export default function AdminPanels() {
   const [selected, setSelected]         = useState(null);
   const [acting, setActing]             = useState(false);
   const [page, setPage]                 = useState(1);
+  const [searchQuery, setSearchQuery]   = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [levelFilter, setLevelFilter]   = useState('all');
   const [periodFilter, setPeriodFilter] = useState('all');
@@ -129,6 +130,10 @@ export default function AdminPanels() {
   // 필터 + 정렬
   const filtered = panels
     .filter(p => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        if (!(p.name || '').toLowerCase().includes(q)) return false;
+      }
       const status = p.status || 'active';
       if (statusFilter !== 'all' && status !== statusFilter) return false;
       if (levelFilter !== 'all') {
@@ -202,8 +207,19 @@ export default function AdminPanels() {
         ))}
       </div>
 
-      {/* 필터 바 */}
+      {/* 검색 + 필터 바 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="text"
+          placeholder="패널명 검색..."
+          value={searchQuery}
+          onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+          style={{
+            padding: '6px 12px', borderRadius: 8, fontSize: 12, width: 180,
+            border: '1px solid var(--border)', background: '#fff',
+            color: 'var(--text)', outline: 'none',
+          }}
+        />
         {/* 상태 */}
         <FilterGroup
           options={[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['suspended', '정지']]}

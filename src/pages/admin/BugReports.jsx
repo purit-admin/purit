@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, Btn, Badge } from '../../components/ui';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { sendNotification } from '../../lib/notify';
 
 const TABS = [
   { key: 'pending',     label: '미처리',  color: '#DC2626' },
@@ -42,6 +43,8 @@ export default function BugReports() {
   const [selected, setSelected] = useState(null);
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [adminReply, setAdminReply] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -81,11 +84,13 @@ export default function BugReports() {
     setPage(1);
     setSelected(null);
     setMemo('');
+    setAdminReply('');
   }
 
   function handleSelect(r) {
     setSelected(r);
     setMemo(r.admin_memo || '');
+    setAdminReply(r.admin_reply || '');
   }
 
   async function handleStatusChange(reportId, newStatus) {
@@ -98,6 +103,7 @@ export default function BugReports() {
       setReports(rs => rs.filter(r => r.id !== reportId));
       setSelected(null);
       setMemo('');
+      setAdminReply('');
       setCounts(prev => {
         const next = { ...prev };
         next[selected.status] = Math.max(0, next[selected.status] - 1);
@@ -116,6 +122,30 @@ export default function BugReports() {
     setSelected(s => ({ ...s, admin_memo: memo }));
     setReports(rs => rs.map(r => r.id === selected.id ? { ...r, admin_memo: memo } : r));
     setSaving(false);
+  }
+
+  async function handleSendReply() {
+    if (!selected || !adminReply.trim()) return;
+    setSendingReply(true);
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('bug_reports')
+      .update({ admin_reply: adminReply.trim(), replied_at: now })
+      .eq('id', selected.id);
+    if (!error) {
+      setReports(rs => rs.map(r =>
+        r.id === selected.id ? { ...r, admin_reply: adminReply.trim(), replied_at: now } : r
+      ));
+      setSelected(s => ({ ...s, admin_reply: adminReply.trim(), replied_at: now }));
+      const actionUrl = selected.role === 'company' ? '/company/bug-reports' : '/panel/bug-reports';
+      sendNotification(selected.user_id, {
+        type: 'info', icon: '💬',
+        title: '버그/건의 답변이 도착했습니다',
+        body: `[${selected.title}] 답변을 확인해보세요.`,
+        actionUrl,
+      });
+    }
+    setSendingReply(false);
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -222,7 +252,19 @@ export default function BugReports() {
                     {/* 어드민 메모 미리보기 */}
                     {r.admin_memo && (
                       <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        💬 {r.admin_memo}
+                        📝 {r.admin_memo}
+                      </div>
+                    )}
+                    {/* 공개 답글 여부 */}
+                    {r.admin_reply && (
+                      <div style={{ marginTop: 5 }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, color: '#1C7A39',
+                          background: 'rgba(52,199,89,0.10)', border: '1px solid rgba(52,199,89,0.2)',
+                          borderRadius: 20, padding: '1px 7px',
+                        }}>
+                          💬 답변 완료
+                        </span>
                       </div>
                     )}
                   </div>
@@ -346,6 +388,38 @@ export default function BugReports() {
               <div style={{ marginTop: 6, textAlign: 'right' }}>
                 <Btn variant="outline" size="sm" onClick={handleSaveMemo} disabled={saving}>
                   메모 저장
+                </Btn>
+              </div>
+            </div>
+
+            {/* 공개 답글 */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                💬 공개 답글
+                <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-3)', textTransform: 'none', letterSpacing: 0 }}>
+                  사용자에게 전달됩니다
+                </span>
+              </div>
+              <textarea
+                value={adminReply}
+                onChange={e => setAdminReply(e.target.value)}
+                placeholder="사용자에게 보낼 답변을 입력하세요…"
+                rows={3}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 13,
+                  border: '1.5px solid var(--accent)', outline: 'none', resize: 'vertical',
+                  fontFamily: 'var(--font-ui)', color: 'var(--text)', lineHeight: 1.65,
+                  boxSizing: 'border-box', background: 'var(--accent-dim2)',
+                }}
+              />
+              {selected.replied_at && (
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                  마지막 발송: {fmtDate(selected.replied_at)}
+                </div>
+              )}
+              <div style={{ marginTop: 6, textAlign: 'right' }}>
+                <Btn variant="primary" size="sm" onClick={handleSendReply} disabled={sendingReply || !adminReply.trim()}>
+                  {sendingReply ? '발송 중…' : '답글 발송'}
                 </Btn>
               </div>
             </div>

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-11 (버그 신고 시스템 + 패널 관리 고도화)
+최종 업데이트: 2026-05-12 (기업 관리 페이지 신설 + 패널/기업 관리 검색 + 크레딧 부족 시 다음 버튼 차단)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -576,12 +576,13 @@
    - 사이드바 상단 포털 전환 버튼(어드민/기업/패널) 표시
 
 1. 플랫폼 대시보드 (/admin) — Dashboard.jsx
-2. 패널 관리 (/admin/panels) — PanelManagement.jsx  ★ 고도화 (2026-05-11)
+2. 패널 관리 (/admin/panels) — PanelManagement.jsx  ★ 고도화 (2026-05-11) + 검색 (2026-05-12)
    - 통계 카드 4개: 전체 패널 / 활성 / ⚠️ 위험 패널(빨강, >0 강조) / ⭐ 우수 패널(초록, >0 강조)
    - 위험/우수 분류 기준 (getFlag):
      · ⚠️ 위험: trust_score < 40 OR (기간 내 제출 ≥3 AND 반려율 > 50%)
      · ⭐ 우수: trust_score ≥ 80 AND 기간 내 제출 ≥3 AND 통과율 ≥ 80%
    - 필터 바:
+     · 패널명 검색 input ("패널명 검색...") — 이름 클라이언트 필터 ★ 신규
      · 상태 FilterGroup: 전체 / 활성 / 심사대기 / 정지
      · 기간 FilterGroup: 전체 기간 / 오늘 / 1주일 / 1개월 — feedbacks 집계 기간 변경
      · 분류 버튼: 전체 / ⚠️ 위험 / ⭐ 우수
@@ -597,7 +598,30 @@
      · 관리 액션 Card: 상태 정지(→suspended) / 활성화(→active) 버튼
    - PAGE_SIZE: 10
    - 서브 컴포넌트: FilterGroup(탭형 버튼 그룹), PanelDetail(우측 상세 패널)
-3. 미션 관리 (/admin/missions) — Missions.jsx  ★ 크레딧 연동 추가 (2026-05-04)
+3. 기업 관리 (/admin/companies) — CompanyManagement.jsx  ★ 신규 (2026-05-12)
+   - 통계 카드 4개 (.stat-inline-four): 전체 기업 / Pro+ 기업(>0 초록) / 크레딧 위험(<10, >0 빨강) / 활성 의뢰 기업
+   - 필터 바:
+     · 기업명 검색 input ("기업명 검색...") — 이름 클라이언트 필터
+     · 플랜 FilterGroup: 전체 / Starter / Pro / Enterprise
+     · 크레딧 FilterGroup: 전체 / 충분(≥20) / 주의(10~19) / 위험(<10)
+     · 정렬 select: 최근 가입 / 크레딧 많은순 / 적은순 / Pro+ 먼저 / 의뢰 많은순
+   - 테이블 컬럼 (.table-scroll): ⚠️/⭐ 아이콘, 기업명, 플랜 뱃지(PLAN_COLOR), 크레딧 잔액(creditColor), 예약 크레딧, 의뢰 현황(active/total), 가입일
+   - 테이블 행 클릭 → 우측 CompanyDetail 패널 토글 (.panel-mgmt-layout)
+   - CompanyDetail (우측 360px):
+     · Card 1 기본 정보: 기업명 + flag 아이콘 + 플랜 뱃지, 업종·웹사이트·가입일
+     · Card 2 크레딧 현황: 잔여 크레딧(대형 숫자+creditColor), 예약 크레딧, 월 지급량, 게이지 바(잔여/월지급량 %)
+     · Card 3 의뢰 현황 (4칸 그리드): 전체 / 진행 / 완료 / 취소
+     · Card 4 최근 의뢰 5건: 타입 뱃지 + 제목 + status 뱃지 + credits_reserved
+     · Card 5 관리 액션:
+       - 플랜 변경: <select>(starter/pro/enterprise) + "플랜 변경" 버튼 → admin_change_plan RPC ★
+         (grant_plan_credits는 company owner 전용이므로 어드민 전용 RPC 분리)
+       - 크레딧 추가 지급: <input type="number"> + "지급" 버튼 → admin_add_credits RPC
+       - 액션 결과 메시지(actionMsg): 성공=green / 실패=red 인라인 표시
+   - 데이터 로드: companies SELECT + missions(id, company_id, status, credits_reserved, type, title, created_at) 클라이언트 집계
+   - missionStats: { [company_id]: { total, active, completed, cancelled, totalReserved } }
+   - recentMissions: { [company_id]: missions[] } 최근 5건
+   - PAGE_SIZE: 10
+4. 미션 관리 (/admin/missions) — Missions.jsx  ★ 크레딧 연동 추가 (2026-05-04)
    - 기본 탭: '진행' (active) — 사이드바 클릭 시 진행 중 미션으로 바로 진입
    - 탭 4개: 전체 / 진행 / 완료 / 취소
    - 모든 탭에서 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리 ★ 개편

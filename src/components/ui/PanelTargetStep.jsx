@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn } from './index';
@@ -47,7 +47,7 @@ export function calcPanelPayout(careerLevels, missionType = 'sub') {
   return Math.round(base * finalWeight);
 }
 
-export default function PanelTargetStep({
+const PanelTargetStep = forwardRef(function PanelTargetStep({
   plan,
   panelCount,
   onPanelCount,
@@ -57,7 +57,7 @@ export default function PanelTargetStep({
   creditBalance = null,
   companyId = null,
   onCreditBalanceUpdate = null,
-}) {
+}, ref) {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
@@ -70,6 +70,8 @@ export default function PanelTargetStep({
   const isPro     = plan === 'pro';
   const credits   = calcCredits(panelCount, careerLevels, missionType);
   const isShort   = creditBalance != null && credits > creditBalance;
+
+  useImperativeHandle(ref, () => ({ openCreditModal }));
 
   const unitPrice = isStarter ? 25000 : 21600;
 
@@ -493,4 +495,6 @@ export default function PanelTargetStep({
       )}
     </div>
   );
-}
+});
+
+export default PanelTargetStep;
