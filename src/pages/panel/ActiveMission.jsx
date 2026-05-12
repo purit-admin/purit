@@ -4,6 +4,7 @@ import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
+import { getPanelReward } from '../../lib/honorLevels';
 
 const SECTIONS = [
   { key: 'clarity',         label: '명확성',   desc: '첫 화면 메시지가 타겟에게 즉시 이해되는가?' },
@@ -730,6 +731,9 @@ export default function ActiveMission() {
       const m = fb.missions;
       if (!m) return null;
       const hasProgress = hasDraftProgress(fb);
+      const isSubM = ['preference', 'pricing', 'email'].includes(m.type);
+      const baseRew = getPanelReward(panel?.honor_points || 0, panel?.experience);
+      const cardReward = isSubM ? Math.round(baseRew * 4500 / 8000) : baseRew;
       return (
         <Card key={fb.id}>
           <div className="mc-row">
@@ -752,7 +756,7 @@ export default function ActiveMission() {
             <div className="mc-right">
               <div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>
-                  ₩{(m.reward_amount || 0).toLocaleString()}
+                  ₩{cardReward.toLocaleString()}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>건당 보상</div>
               </div>
@@ -918,10 +922,17 @@ export default function ActiveMission() {
             이미지 위를 드래그해서 영역을 지정하고, 항목별 점수와 코멘트를 달아주세요.
           </div>
         )}
-        <div style={{ padding: '14px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
-          <strong style={{ color: 'var(--text)' }}>보상: ₩{(mission.reward_amount || 0).toLocaleString()}</strong>
-          <span style={{ color: 'var(--text-2)' }}> · Purit Filter 통과 시 자동 지급</span>
-        </div>
+        {(() => {
+          const isSub = ['preference', 'pricing', 'email'].includes(mission.type);
+          const base  = getPanelReward(panel?.honor_points || 0, panel?.experience);
+          const disp  = isSub ? Math.round(base * 4500 / 8000) : base;
+          return (
+            <div style={{ padding: '14px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+              <strong style={{ color: 'var(--text)' }}>보상: ₩{disp.toLocaleString()}</strong>
+              <span style={{ color: 'var(--text-2)' }}> · Purit Filter 통과 시 자동 지급</span>
+            </div>
+          );
+        })()}
       </Card>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {draftId ? (
@@ -950,7 +961,7 @@ export default function ActiveMission() {
           ? '수정된 피드백이 어드민 검토 대기 중으로 이동했습니다. '
           : 'Purit Filter 검증 중입니다. '}
         통과 시{' '}
-        <strong style={{ color: 'var(--green)' }}>₩{(mission.reward_amount || 0).toLocaleString()}</strong>이 적립됩니다.
+        <strong style={{ color: 'var(--green)' }}>₩{(() => { const isSub = ['preference','pricing','email'].includes(mission.type); const base = getPanelReward(panel?.honor_points||0, panel?.experience); return (isSub ? Math.round(base*4500/8000) : base).toLocaleString(); })()}</strong>이 적립됩니다.
       </p>
       <Btn onClick={() => navigate('/panel')}>대시보드로 →</Btn>
     </div>

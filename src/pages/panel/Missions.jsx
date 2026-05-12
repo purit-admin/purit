@@ -16,7 +16,7 @@ const PAGE_SIZE = 5;
 
 const TABS = [
   { key: 'new',          label: '새로운 미션' },
-  { key: 'inProgress',   label: '진행 중' },
+  { key: 'inProgress',   label: '이어하기' },
   { key: 'needsRevision', label: '수정 필요' },
 ];
 
