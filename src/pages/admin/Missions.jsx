@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -32,9 +33,9 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
+function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, isHighlighted }) {
   return (
-    <Card key={m.id}>
+    <Card key={m.id} style={{ outline: isHighlighted ? '2px solid var(--accent)' : 'none', transition: 'outline 0.3s' }}>
       <div className="mc-row">
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 7, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -100,6 +101,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc }) {
 }
 
 export default function AdminMissions() {
+  const location = useLocation();
   const [missions, setMissions] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('active');
@@ -107,6 +109,7 @@ export default function AdminMissions() {
   const [mainPage, setMainPage] = useState(1);
   const [subPage, setSubPage]   = useState(1);
   const [statusError, setStatusError] = useState('');
+  const [highlightId, setHighlightId] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -120,6 +123,34 @@ export default function AdminMissions() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    const targetId = location.state?.missionId;
+    if (!targetId) return;
+    const target = missions.find(m => m.id === targetId);
+    if (!target) return;
+
+    const targetStatus = target.status === 'draft' ? 'all' : target.status;
+    setFilter(targetStatus);
+
+    const isMain = !target.type || target.type === 'landing_page';
+    const filteredMs = targetStatus === 'all' ? missions : missions.filter(m => m.status === targetStatus);
+    const category = filteredMs.filter(m =>
+      isMain ? (!m.type || m.type === 'landing_page')
+             : ['preference', 'pricing', 'email'].includes(m.type)
+    );
+    const idx = category.findIndex(m => m.id === targetId);
+    if (idx !== -1) {
+      const pg = Math.floor(idx / PAGE_SIZE) + 1;
+      if (isMain) setMainPage(pg); else setSubPage(pg);
+    }
+
+    setHighlightId(targetId);
+    window.history.replaceState({}, '', location.pathname);
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [loading, location.state?.missionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateStatus = async (id, newStatus) => {
     setStatusError('');
@@ -188,7 +219,7 @@ export default function AdminMissions() {
       {/* Filter */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['cancelled', '취소']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); setHighlightId(null); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -226,7 +257,7 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {mainPaged.map(m => (
-                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} />
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} isHighlighted={m.id === highlightId} />
                 ))}
               </div>
               <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
@@ -248,7 +279,7 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {subPaged.map(m => (
-                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} />
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} isHighlighted={m.id === highlightId} />
                 ))}
               </div>
               <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />

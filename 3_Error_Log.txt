@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-09 (D-51 CSS 키프레임 애니메이션 루프 재시작 시 React key 교체 필요)
+최종 업데이트: 2026-05-12 (D-55 useMemo 의존 배열 누락으로 검색 필터 무반응)
 ================================================================
 
 ## 핵심 원칙
@@ -617,3 +617,13 @@ D-54. 사이드바 인접 요소의 position:absolute 툴팁 좌측 잘림 방�
              구현 복잡도 증가 — 콘텐츠가 항상 좌→우로 시작하는 레이아웃에서는 `left:0` 단순 패턴으로 충분
      → 원칙: 사이드바처럼 왼쪽에 고정 요소가 있는 레이아웃에서 첫 번째 열 요소의 툴팁은
              center 정렬 대신 left:0 또는 right:0으로 한쪽 끝 정렬을 기본으로 선택할 것
+
+D-55. useMemo 의존 배열 누락으로 검색·필터 상태 변경 시 메모 값이 갱신되지 않는 패턴 ✅ 해결
+     → 증상: 검색 input에 타이핑해도 목록이 전혀 변하지 않음 (다른 필터는 정상 작동)
+     → 원인: `useMemo(() => filtered, [companies, planFilter, creditFilter, sortBy])` 형태에서
+             searchQuery가 의존 배열에서 누락 → searchQuery가 바뀌어도 React가 메모를 재계산하지 않음
+             → 이전 렌더의 stale 클로저 값(빈 문자열)으로 계속 필터링 → 검색어 무시
+     → 해결: 의존 배열에 searchQuery 추가 → `[companies, missionStats, searchQuery, planFilter, creditFilter, sortBy]`
+     → 원칙: useMemo/useCallback 작성 시 콜백 내부에서 참조하는 모든 state/prop을 의존 배열에 포함할 것
+             "아무 상태나 바꾸면 되는 필터는 정상인데 특정 state만 반응 없음" = 해당 state의 deps 누락 신호
+             ESLint react-hooks/exhaustive-deps 규칙이 이를 자동 감지하므로 린터 경고 무시 금지

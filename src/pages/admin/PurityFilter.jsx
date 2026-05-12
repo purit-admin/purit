@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
@@ -68,13 +69,20 @@ function parseSubDesc(desc, type) {
 }
 
 function parseLPDesc(desc) {
-  if (!desc) return { briefText: '', selectedQuestions: [] };
+  const empty = { briefText: '', selectedQuestions: [], product: '', lpUrl: '', focusAreas: [], industry: '' };
+  if (!desc) return empty;
   try {
     const p = JSON.parse(desc);
-    if (p && typeof p === 'object' && 'briefText' in p)
-      return { briefText: p.briefText || '', selectedQuestions: p.selectedQuestions || [] };
-    return { briefText: desc, selectedQuestions: [] };
-  } catch { return { briefText: desc, selectedQuestions: [] }; }
+    if (p && typeof p === 'object') return {
+      briefText:         p.briefText         || '',
+      selectedQuestions: p.selectedQuestions  || [],
+      product:           p.product            || '',
+      lpUrl:             p.lpUrl              || '',
+      focusAreas:        Array.isArray(p.focusAreas) ? p.focusAreas : [],
+      industry:          p.industry           || '',
+    };
+    return { ...empty, briefText: desc };
+  } catch { return { ...empty, briefText: desc }; }
 }
 
 function getSkippedLabels(suggestions = '') {
@@ -130,9 +138,11 @@ function Pagination({ page, total, onPage }) {
 }
 
 export default function PurityFilter() {
+  const location = useLocation();
   const [feedbacks, setFeedbacks]         = useState([]);
   const [selected, setSelected]           = useState(null);
   const [loading, setLoading]             = useState(true);
+  const [highlightId, setHighlightId]     = useState(null);
   const [acting, setActing]               = useState(false);
   const [bulkActing, setBulkActing]       = useState(false);
   const [filter, setFilter]               = useState('pending');
@@ -176,6 +186,33 @@ export default function PurityFilter() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    const targetId = location.state?.feedbackId;
+    if (!targetId) return;
+    const target = feedbacks.find(f => f.id === targetId);
+    if (!target) return;
+
+    const tf = target.purity_passed ? 'approved'
+      : target.status === 'rejected' ? 'rejected'
+      : 'pending';
+    setFilter(tf);
+    setPendingSubFilter('all');
+
+    const base =
+      tf === 'approved' ? feedbacks.filter(f => f.purity_passed)
+      : tf === 'rejected' ? feedbacks.filter(f => f.status === 'rejected' && !f.purity_passed)
+      : feedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
+    const idx = base.findIndex(f => f.id === targetId);
+    if (idx !== -1) setListPage(Math.floor(idx / PAGE_SIZE) + 1);
+
+    setSelected(targetId);
+    setHighlightId(targetId);
+    window.history.replaceState({}, '', location.pathname);
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [loading, location.state?.feedbackId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selected) { setAnnotations([]); setSubResponse(null); return; }
@@ -428,7 +465,8 @@ export default function PurityFilter() {
                       flex: 1, padding: '14px 16px',
                       background: selected === f.id ? 'var(--accent-dim2)' : 'var(--surface)',
                       borderRadius: 'var(--radius)',
-                      border: '1px solid ' + (selected === f.id ? 'var(--accent)' : checkedIds.has(f.id) ? 'var(--accent-dim)' : 'var(--border)'),
+                      border: '1px solid ' + (highlightId === f.id ? '#059669' : selected === f.id ? 'var(--accent)' : checkedIds.has(f.id) ? 'var(--accent-dim)' : 'var(--border)'),
+                      boxShadow: highlightId === f.id ? '0 0 0 2px rgba(5,150,105,0.2)' : 'none',
                       cursor: 'pointer', transition: 'all 0.15s',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -724,14 +762,43 @@ export default function PurityFilter() {
                 {/* ── 기존 랜딩페이지 피드백 ── */}
                 {!isSubMission && (
                   <>
-                    {/* LP 브리핑 */}
+                    {/* LP 미션 정보 */}
                     {(() => {
-                      const { briefText } = parseLPDesc(fb.missions?.description);
-                      if (!briefText) return null;
+                      const { briefText, product, lpUrl, focusAreas, industry } = parseLPDesc(fb.missions?.description);
+                      const hasAnyInfo = briefText || product || lpUrl || focusAreas.length > 0 || industry;
+                      if (!hasAnyInfo) return null;
                       return (
                         <div style={{ padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 12, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>브리핑</div>
-                          {briefText}
+                          <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8 }}>미션 정보</div>
+                          {product && (
+                            <div style={{ marginBottom: 4 }}>
+                              <span style={{ color: 'var(--text-3)', fontSize: 11 }}>제품명: </span>{product}
+                            </div>
+                          )}
+                          {industry && (
+                            <div style={{ marginBottom: 4 }}>
+                              <span style={{ color: 'var(--text-3)', fontSize: 11 }}>업종: </span>{industry}
+                            </div>
+                          )}
+                          {lpUrl && (
+                            <div style={{ marginBottom: 4 }}>
+                              <span style={{ color: 'var(--text-3)', fontSize: 11 }}>LP URL: </span>
+                              <a href={lpUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>{lpUrl}</a>
+                            </div>
+                          )}
+                          {focusAreas.length > 0 && (
+                            <div style={{ marginBottom: 4, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                              <span style={{ color: 'var(--text-3)', fontSize: 11 }}>집중 영역: </span>
+                              {focusAreas.map((fa, i) => (
+                                <span key={i} style={{ fontSize: 11, padding: '1px 7px', background: 'var(--accent-dim)', color: 'var(--accent)', borderRadius: 99 }}>{fa}</span>
+                              ))}
+                            </div>
+                          )}
+                          {briefText && (
+                            <div style={{ marginTop: 6, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+                              <span style={{ color: 'var(--text-3)', fontSize: 11 }}>브리핑: </span>{briefText}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-12 (기업 관리 페이지 신설 + 패널/기업 관리 검색 + 크레딧 부족 시 다음 버튼 차단 — CompanyManagement.jsx, admin_change_plan RPC, PanelTargetStep forwardRef)
+최종 업데이트: 2026-05-12 (기업/패널 관리 제출내역 전체 페이지네이션 + 딥링크 — CompanyManagement, PanelManagement, Missions, PurityFilter)
 ================================================================
 
 ## 기술 스택
@@ -164,6 +164,9 @@ purit/
 │   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
 │   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
+│   │                  딥링크: useLocation + highlightId state — location.state.feedbackId → 탭 전환 + 페이지 이동 + setSelected + 초록 하이라이트 3초 ★
+│   │                  parseLPDesc: briefText / selectedQuestions / product / lpUrl / focusAreas / industry 추출 ★
+│   │                    LP 미션 정보 카드: hasAnyInfo 조건 (하나라도 있으면 표시) — briefText 없어도 제품명/업종/LP URL/집중영역 칩 표시 ★
 │   │                  prefIds/priceIds/emailIds 추출 → Promise.all 병렬 조회 → feedbackId 키 맵으로 저장
 │   │                  getScore(f) 헬퍼: 타입 분기 → 메인=calcPurityScore(f), 서브=calcSubPurityScore(subResponseMap[f.id]||null, type)
 │   │                  calcPurityScore: base20 + 길이(max20) + 섹션균형(max10) + 구체성키워드(×4,max25) + 실행(×5,max25) + AI패널티(×-12,min-30)
@@ -174,6 +177,15 @@ purit/
 │   │                  pendingPageIds/allPageChecked/toggleAll: pagedList 선언 이후에 배치 (D-51 참조)
 │   │                  Pagination: 슬라이딩 5-윈도우(WINDOW=5) + «/» 5페이지 점프 버튼
 │   │                    winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) 계산 후 pageNums 슬라이스
+│   │   ※ pages/admin/Missions.jsx: 딥링크 수신 — useLocation + highlightId state ★
+│   │                  location.state.missionId → 해당 미션 status로 setFilter + mainPage/subPage 계산 + MissionCard isHighlighted prop
+│   │                  isHighlighted: outline 2px solid var(--accent) 3초 후 자동 해제, window.history.replaceState로 state 클리어
+│   │   ※ pages/admin/CompanyManagement.jsx: 의뢰 내역 전체 페이지네이션 ★
+│   │                  recentMissions: 5건 제한 제거 → 전체 저장, missionPage state + DETAIL_PAGE_SIZE=5
+│   │                  onMissionClick prop: navigate('/admin/missions', { state: { missionId } })
+│   │   ※ pages/admin/PanelManagement.jsx: 제출 내역 전체 페이지네이션 ★
+│   │                  loadPanelDetail: .limit(5) 제거 → 전체 로드, feedbackDetailPage state + DETAIL_PAGE_SIZE=5
+│   │                  onFeedbackClick prop: navigate('/admin/purity', { state: { feedbackId } })
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
 │       ├── company/  (17개 — 라우트 목록 참조)

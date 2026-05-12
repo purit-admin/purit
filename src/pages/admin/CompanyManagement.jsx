@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { ChevronLeft, ChevronRight, AlertTriangle, Star, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -69,7 +70,9 @@ function FilterGroup({ options, value, onChange }) {
   );
 }
 
-function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits }) {
+const DETAIL_PAGE_SIZE = 5;
+
+function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissionClick }) {
   const st    = stats[co.id] || { total: 0, active: 0, completed: 0, cancelled: 0, totalReserved: 0 };
   const flag  = getCompanyFlag(co);
   const bal   = co.credit_balance ?? 0;
@@ -80,13 +83,22 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits }) {
   const [addAmount, setAddAmount]       = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMsg, setActionMsg]       = useState(null);
+  const [missionPage, setMissionPage]   = useState(1);
 
-  // co가 바뀌면 선택 플랜 리셋
+  // co가 바뀌면 선택 플랜·페이지 리셋
   useEffect(() => {
     setActionPlan(co.plan || 'starter');
     setAddAmount('');
     setActionMsg(null);
+    setMissionPage(1);
   }, [co.id]);
+
+  const allMissions = recent[co.id] || [];
+  const totalMissionPages = Math.max(1, Math.ceil(allMissions.length / DETAIL_PAGE_SIZE));
+  const pagedMissions = allMissions.slice(
+    (missionPage - 1) * DETAIL_PAGE_SIZE,
+    missionPage * DETAIL_PAGE_SIZE,
+  );
 
   async function handlePlanChange() {
     if (actionPlan === co.plan) return;
@@ -210,15 +222,29 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits }) {
         </div>
       </Card>
 
-      {/* Card 4 — 최근 의뢰 5건 */}
-      {(recent[co.id] || []).length > 0 && (
+      {/* Card 4 — 의뢰 내역 (전체, 5개씩 페이지네이션) */}
+      {allMissions.length > 0 && (
         <Card style={{ padding: '16px 18px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
-            최근 의뢰
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              의뢰 내역
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>총 {allMissions.length}건</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {(recent[co.id] || []).map(m => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {pagedMissions.map((m, i) => (
+              <div
+                key={m.id}
+                onClick={() => onMissionClick(m.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 6px',
+                  borderBottom: i < pagedMissions.length - 1 ? '1px solid var(--border-light)' : 'none',
+                  cursor: 'pointer', borderRadius: 6, transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-2)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 <span style={{
                   fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4,
                   background: 'var(--bg-2)', color: 'var(--text-2)', whiteSpace: 'nowrap', flexShrink: 0,
@@ -243,6 +269,25 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits }) {
               </div>
             ))}
           </div>
+          {totalMissionPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <button
+                onClick={() => setMissionPage(p => Math.max(1, p - 1))}
+                disabled={missionPage === 1}
+                style={{ background: 'none', border: 'none', cursor: missionPage === 1 ? 'not-allowed' : 'pointer', opacity: missionPage === 1 ? 0.3 : 1, padding: 4 }}
+              >
+                <ChevronLeft size={14} color="var(--text-2)" />
+              </button>
+              <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>{missionPage} / {totalMissionPages}</span>
+              <button
+                onClick={() => setMissionPage(p => Math.min(totalMissionPages, p + 1))}
+                disabled={missionPage === totalMissionPages}
+                style={{ background: 'none', border: 'none', cursor: missionPage === totalMissionPages ? 'not-allowed' : 'pointer', opacity: missionPage === totalMissionPages ? 0.3 : 1, padding: 4 }}
+              >
+                <ChevronRight size={14} color="var(--text-2)" />
+              </button>
+            </div>
+          )}
         </Card>
       )}
 
@@ -327,6 +372,7 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits }) {
 }
 
 export default function CompanyManagement() {
+  const navigate = useNavigate();
   const [companies, setCompanies]         = useState([]);
   const [missionStats, setMissionStats]   = useState({});
   const [recentMissions, setRecentMissions] = useState({});
@@ -366,7 +412,7 @@ export default function CompanyManagement() {
         if (m.status === 'completed') stats[cid].completed++;
         if (m.status === 'cancelled') stats[cid].cancelled++;
         if (!recent[cid]) recent[cid] = [];
-        if (recent[cid].length < 5)  recent[cid].push(m);
+        recent[cid].push(m);
       }
 
       setCompanies(cos);
@@ -604,6 +650,7 @@ export default function CompanyManagement() {
             recent={recentMissions}
             onPlanChange={handlePlanChange}
             onAddCredits={handleAddCredits}
+            onMissionClick={(missionId) => navigate('/admin/missions', { state: { missionId } })}
           />
         )}
       </div>

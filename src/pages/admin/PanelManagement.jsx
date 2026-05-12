@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
+
+const DETAIL_PAGE_SIZE = 5;
 
 const PAGE_SIZE = 10;
 
@@ -47,6 +50,7 @@ function getFlag(panel, stats) {
 const PERIOD_LABEL = { all: '전체', today: '오늘', week: '1주일', month: '1개월' };
 
 export default function AdminPanels() {
+  const navigate = useNavigate();
   const [panels, setPanels]             = useState([]);
   const [feedbackStats, setFeedbackStats] = useState({});
   const [panelFeedbacks, setPanelFeedbacks] = useState([]);
@@ -56,6 +60,7 @@ export default function AdminPanels() {
   const [selected, setSelected]         = useState(null);
   const [acting, setActing]             = useState(false);
   const [page, setPage]                 = useState(1);
+  const [feedbackDetailPage, setFeedbackDetailPage] = useState(1);
   const [searchQuery, setSearchQuery]   = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [levelFilter, setLevelFilter]   = useState('all');
@@ -68,6 +73,7 @@ export default function AdminPanels() {
   useEffect(() => {
     if (selected) loadPanelDetail(selected);
     else setPanelFeedbacks([]);
+    setFeedbackDetailPage(1);
   }, [selected]);
 
   async function load() {
@@ -114,8 +120,7 @@ export default function AdminPanels() {
       .select('id, created_at, status, purity_passed, missions(title, type)')
       .eq('panel_id', panelId)
       .neq('status', 'draft')
-      .order('created_at', { ascending: false })
-      .limit(5);
+      .order('created_at', { ascending: false });
     setPanelFeedbacks(data || []);
     setDetailLoading(false);
   }
@@ -434,6 +439,9 @@ export default function AdminPanels() {
           acting={acting}
           onUpdate={updatePanel}
           flag={getFlag(panel, feedbackStats)}
+          feedbackPage={feedbackDetailPage}
+          onFeedbackPage={setFeedbackDetailPage}
+          onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })}
         />}
       </div>
     </div>
@@ -459,7 +467,13 @@ function FilterGroup({ options, value, onChange }) {
   );
 }
 
-function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, flag }) {
+function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, flag,
+                       feedbackPage, onFeedbackPage, onFeedbackClick }) {
+  const totalDetailPages = Math.max(1, Math.ceil(feedbacks.length / DETAIL_PAGE_SIZE));
+  const pagedFeedbacks = feedbacks.slice(
+    (feedbackPage - 1) * DETAIL_PAGE_SIZE,
+    feedbackPage * DETAIL_PAGE_SIZE,
+  );
   const status = panel.status || 'active';
   const hl = getHonorLevel(panel.honor_points ?? 0);
   const cm = HONOR_COLOR_META[hl.colorTier];
@@ -574,41 +588,78 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
         )}
       </Card>
 
-      {/* 최근 피드백 5건 */}
+      {/* 제출 내역 (전체, 5개씩 페이지네이션) */}
       <Card style={{ padding: '16px 18px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-          최근 제출 내역 (최대 5건)
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            제출 내역
+          </div>
+          {feedbacks.length > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>총 {feedbacks.length}건</span>
+          )}
         </div>
         {detailLoading ? (
           <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '12px 0' }}>불러오는 중…</div>
         ) : feedbacks.length === 0 ? (
           <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '12px 0' }}>제출 내역 없음</div>
-        ) : feedbacks.map((f, i) => {
-          const typeLabel = MISSION_TYPE_LABEL[f.missions?.type] || 'LP 검증';
-          let statusLabel = '검토 대기';
-          let statusColor = '#D97706';
-          if (f.purity_passed)          { statusLabel = '통과'; statusColor = '#059669'; }
-          else if (f.status === 'rejected') { statusLabel = '반려'; statusColor = '#DC2626'; }
-          return (
-            <div key={f.id} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '9px 0',
-              borderBottom: i < feedbacks.length - 1 ? '1px solid var(--border)' : 'none',
-            }}>
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {f.missions?.title || '(삭제된 의뢰)'}
+        ) : (
+          <>
+            {pagedFeedbacks.map((f, i) => {
+              const typeLabel = MISSION_TYPE_LABEL[f.missions?.type] || 'LP 검증';
+              let statusLabel = '검토 대기';
+              let statusColor = '#D97706';
+              if (f.purity_passed)              { statusLabel = '통과'; statusColor = '#059669'; }
+              else if (f.status === 'rejected') { statusLabel = '반려'; statusColor = '#DC2626'; }
+              return (
+                <div
+                  key={f.id}
+                  onClick={() => onFeedbackClick(f.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '9px 6px',
+                    borderBottom: i < pagedFeedbacks.length - 1 ? '1px solid var(--border)' : 'none',
+                    cursor: 'pointer', borderRadius: 6, transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {f.missions?.title || '(삭제된 의뢰)'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                      {typeLabel} · {relativeTime(f.created_at)}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, marginLeft: 10, flexShrink: 0 }}>
+                    {statusLabel}
+                  </span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-                  {typeLabel} · {relativeTime(f.created_at)}
-                </div>
+              );
+            })}
+            {totalDetailPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <button
+                  onClick={() => onFeedbackPage(p => Math.max(1, p - 1))}
+                  disabled={feedbackPage === 1}
+                  style={{ background: 'none', border: 'none', cursor: feedbackPage === 1 ? 'not-allowed' : 'pointer', opacity: feedbackPage === 1 ? 0.3 : 1, padding: 4 }}
+                >
+                  <ChevronLeft size={14} color="var(--text-2)" />
+                </button>
+                <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>
+                  {feedbackPage} / {totalDetailPages}
+                </span>
+                <button
+                  onClick={() => onFeedbackPage(p => Math.min(totalDetailPages, p + 1))}
+                  disabled={feedbackPage === totalDetailPages}
+                  style={{ background: 'none', border: 'none', cursor: feedbackPage === totalDetailPages ? 'not-allowed' : 'pointer', opacity: feedbackPage === totalDetailPages ? 0.3 : 1, padding: 4 }}
+                >
+                  <ChevronRight size={14} color="var(--text-2)" />
+                </button>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, marginLeft: 10, flexShrink: 0 }}>
-                {statusLabel}
-              </span>
-            </div>
-          );
-        })}
+            )}
+          </>
+        )}
       </Card>
 
       {/* 관리 액션 */}
