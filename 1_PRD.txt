@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-13 (어드민 미션관리 피드백 패널 + PurityFilter 오래된순 정렬 + 타입 필터 추가)
+최종 업데이트: 2026-05-13 (미션관리 인라인 상세·피드백 탭 필터 / PurityFilter 섹션균형 점수 수정)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -621,7 +621,7 @@
    - missionStats: { [company_id]: { total, active, completed, cancelled, totalReserved } }
    - recentMissions: { [company_id]: missions[] } 최근 5건
    - PAGE_SIZE: 10
-4. 미션 관리 (/admin/missions) — Missions.jsx  ★ 피드백 상세 패널 + 딥링크 연동 (2026-05-13)
+4. 미션 관리 (/admin/missions) — Missions.jsx  ★ 인라인 상세 + 피드백 탭 필터 (2026-05-13)
    - 딥링크: location.state.missionId → 해당 미션의 status로 탭 자동 전환 + 페이지 이동 + 네이비 outline 하이라이트 3초, window.history.replaceState로 state 클리어 (재진입 중복 방지) ★
    - 기본 탭: '진행' (active) — 사이드바 클릭 시 진행 중 미션으로 바로 진입
    - 탭 4개: 전체 / 진행 / 완료 / 취소
@@ -632,12 +632,16 @@
    - 전체(all) 탭: 메인 미션 / 서브 미션 섹션 분리, 각 섹션 5개씩 페이지네이션
    - 취소(cancelled) 상태 미션 영구 삭제: 확인 모달(ConfirmModal) → missions DELETE
    - draft 상태 기업 미션 목록 제외: .neq('status', 'draft') ★
-   - ★ 미션 카드 클릭 → 우측 360px MissionDetail 패널 열림 (panel-mgmt-layout 그리드)
+   - ★ 미션 카드 클릭 → 클릭한 카드 바로 아래 인라인으로 MissionDetail 펼침 (우측 고정 패널 폐지)
+     · 좌측 파란 세로 선 들여쓰기로 상위 카드와 시각적 연결
      · 미션 정보 카드: 제목 / 회사명 / 패널 슬롯 현황
-     · 피드백 목록 카드: draft 제외 제출 피드백 5개씩 페이지네이션 (detailPage)
+     · 피드백 목록 카드: 탭 4개 — 전체(N) / 검토중(N) / 승인(N) / 반려(N) ★
+       - 전체 탭: 승인 → 반려 → 검토중 순 정렬 ★
+       - 탭 전환 시 detailPage 자동 1 리셋 (MissionDetail 내부 state로 관리)
+       - 5개씩 페이지네이션 (‹ › 버튼)
        - 행 표시: 패널명 / 상태 배지(승인됨 green·검토 중 gold·반려됨 red) / 제출일
        - 피드백 행 클릭 → navigate('/admin/purity', { state: { feedbackId } }) 딥링크 이동
-     · 같은 카드 재클릭 → 패널 닫힘 / 탭 전환 → 패널 자동 닫힘
+     · 같은 카드 재클릭 → 인라인 패널 닫힘 / 탭 전환 → 패널 자동 닫힘
      · MissionCard 내부 버튼(완료 처리·취소 등): e.stopPropagation()으로 카드 클릭과 분리
      · updateStatus / deleteMission 후 selectedMission 로컬 동기화
    - ★ 크레딧 완료 처리: "완료 처리" 버튼 클릭 시 complete_mission_and_refund RPC 호출
