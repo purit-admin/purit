@@ -4,7 +4,7 @@ import { Card, Stat, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import {
   getHonorLevel, getNextLevel, getProgressPct, getPanelReward,
-  HONOR_COLOR_META, fmtWon, fmtKRW,
+  getExperienceCareerKey, HONOR_COLOR_META, fmtWon, fmtKRW,
 } from '../../lib/honorLevels';
 
 const BADGE_CATALOG_DASH = [
@@ -76,11 +76,19 @@ export default function PanelDashboard() {
       ]);
 
       const myMissionIds = new Set((myFeedbacks || []).map(f => f.mission_id));
+      const panelKey = p.experience ? getExperienceCareerKey(p.experience) : null;
       setMissions(
-        (ms || []).filter(m =>
-          !myMissionIds.has(m.id) &&
-          (m.filled_count || 0) < (m.panel_count || 1)
-        )
+        (ms || []).filter(m => {
+          if (myMissionIds.has(m.id) || (m.filled_count || 0) >= (m.panel_count || 1)) return false;
+          if (panelKey) {
+            try {
+              const desc = JSON.parse(m.description || '{}');
+              const cl = desc.careerLevels;
+              if (Array.isArray(cl) && cl.length > 0 && !cl.includes(panelKey)) return false;
+            } catch {}
+          }
+          return true;
+        })
       );
       setHistFeedbacks(hFbs || []);
 

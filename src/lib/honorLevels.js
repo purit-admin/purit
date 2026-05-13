@@ -55,6 +55,14 @@ export function getExperienceMultiplier(experience = '') {
   return 1.0;
 }
 
+export function getExperienceCareerKey(experience = '') {
+  const mult = getExperienceMultiplier(experience);
+  if (mult >= 3.0) return 'clevel';
+  if (mult >= 2.0) return 'senior';
+  if (mult >= 1.5) return 'middle';
+  return 'junior';
+}
+
 export function getPanelReward(points = 0, experience = '') {
   const level = getHonorLevel(points);
   const mult  = getExperienceMultiplier(experience);

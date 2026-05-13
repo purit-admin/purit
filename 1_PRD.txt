@@ -419,7 +419,9 @@
 2. 미션 관리 (/panel/missions) — Missions.jsx  ★ 전면 재설계 (미션 탐색 + 진행 중 통합)
    - 탭 3개: 새로운 미션 / 이어하기 / 수정 필요
      · "수정 필요" 탭: 반려된 피드백 건수를 빨간 숫자 뱃지로 표시 (0건이면 비노출)
-   - [새로운 미션]: missions status='active' + 미참여(feedbackMap에 없음) + 슬롯 여유 있는 것
+   - [새로운 미션]: missions status='active' + 미참여(feedbackMap에 없음) + 슬롯 여유 있는 것 + 경력 레벨 일치 ★
+     · 미션 description.careerLevels 배열에 패널 경력 키가 포함된 미션만 노출 (기업이 체크 안 한 경력 패널은 미노출)
+     · 패널 experience 미설정 시 필터 미적용(모든 미션 노출), careerLevels 없는 레거시 미션도 모두 노출 — 하위 호환
    - [이어하기]: 이 패널이 수락한(status='draft') 미션 목록 — /panel/active 목록 뷰 기능 통합
    - [수정 필요]: feedbacks.status='rejected'인 미션 목록 — 재작성 버튼은 오직 이 탭에만 존재
      · "탈락 사유 보기 ▼" 토글 클릭 시 인라인 안내문 표시

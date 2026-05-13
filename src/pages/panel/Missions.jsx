@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
-import { getPanelReward } from '../../lib/honorLevels';
+import { getPanelReward, getExperienceCareerKey } from '../../lib/honorLevels';
 import { sendNotification } from '../../lib/notify';
 
 const DIFF_META = {
@@ -276,9 +276,18 @@ export default function MissionList() {
 
   const filtered = (() => {
     if (filter === 'new') {
-      let list = missions.filter(m =>
-        !feedbackMap[m.id] && m.status === 'active' && (m.filled_count || 0) < (m.panel_count || 1)
-      );
+      const panelKey = panelExperience ? getExperienceCareerKey(panelExperience) : null;
+      let list = missions.filter(m => {
+        if (feedbackMap[m.id] || m.status !== 'active' || (m.filled_count || 0) >= (m.panel_count || 1)) return false;
+        if (panelKey) {
+          try {
+            const desc = JSON.parse(m.description || '{}');
+            const cl = desc.careerLevels;
+            if (Array.isArray(cl) && cl.length > 0 && !cl.includes(panelKey)) return false;
+          } catch { /* 파싱 실패 시 노출 */ }
+        }
+        return true;
+      });
       if (isHighTier) list = [...list].sort((a, b) => (b.reward_amount || 0) - (a.reward_amount || 0));
       return list;
     }
