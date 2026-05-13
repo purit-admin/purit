@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -33,9 +33,74 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, isHighlighted }) {
+const DETAIL_PAGE_SIZE = 5;
+
+function getFeedbackStatus(f) {
+  if (f.purity_passed) return { type: 'green', label: '승인됨' };
+  if (f.status === 'rejected') return { type: 'red', label: '반려됨' };
+  return { type: 'gold', label: '검토 중' };
+}
+
+function MissionDetail({ mission, onFeedbackClick, detailPage, onDetailPage }) {
+  const feedbacks = (mission.feedbacks || []).filter(f => f.status !== 'draft');
+  const totalPages = Math.ceil(feedbacks.length / DETAIL_PAGE_SIZE);
+  const paged = feedbacks.slice((detailPage - 1) * DETAIL_PAGE_SIZE, detailPage * DETAIL_PAGE_SIZE);
   return (
-    <Card key={m.id} style={{ outline: isHighlighted ? '2px solid var(--accent)' : 'none', transition: 'outline 0.3s' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Card style={{ padding: '16px 18px' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.07em', marginBottom: 10 }}>미션 정보</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{mission.title}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>{mission.companies?.name || '—'}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>패널 슬롯: {feedbacks.length}/{mission.panel_count}건</div>
+      </Card>
+      <Card style={{ padding: '16px 18px' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.07em', marginBottom: 10 }}>
+          피드백 ({feedbacks.length}건)
+        </div>
+        {feedbacks.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>제출된 피드백이 없습니다.</div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {paged.map(f => {
+                const st = getFeedbackStatus(f);
+                return (
+                  <div key={f.id}
+                    onClick={() => onFeedbackClick(f.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {f.panels?.name || '패널'}
+                    </span>
+                    <Badge type={st.type}>{st.label}</Badge>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>
+                      {f.created_at ? new Date(f.created_at).toLocaleDateString('ko-KR') : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <button onClick={() => onDetailPage(p => Math.max(1, p - 1))} disabled={detailPage === 1}
+                  style={{ background: 'none', border: 'none', cursor: detailPage === 1 ? 'not-allowed' : 'pointer', opacity: detailPage === 1 ? 0.3 : 1, fontSize: 16 }}>‹</button>
+                <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>{detailPage} / {totalPages}</span>
+                <button onClick={() => onDetailPage(p => Math.min(totalPages, p + 1))} disabled={detailPage === totalPages}
+                  style={{ background: 'none', border: 'none', cursor: detailPage === totalPages ? 'not-allowed' : 'pointer', opacity: detailPage === totalPages ? 0.3 : 1, fontSize: 16 }}>›</button>
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, isHighlighted, isSelected, onSelect }) {
+  return (
+    <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer' }}>
       <div className="mc-row">
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 7, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -65,26 +130,26 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, isHighlighted }) {
           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>패널 슬롯</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {m.status === 'active' && (
-              <Btn size="sm" variant="secondary" onClick={() => onUpdateStatus(m.id, 'completed')}>완료 처리</Btn>
+              <Btn size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onUpdateStatus(m.id, 'completed'); }}>완료 처리</Btn>
             )}
             {m.status === 'active' && (
-              <Btn size="sm" variant="danger" onClick={() => onUpdateStatus(m.id, 'cancelled')}>취소</Btn>
+              <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onUpdateStatus(m.id, 'cancelled'); }}>취소</Btn>
             )}
             {m.status === 'completed' && (
-              <Btn size="sm" onClick={() => onUpdateStatus(m.id, 'active')}>재진행</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onUpdateStatus(m.id, 'active'); }}>재진행</Btn>
             )}
             {m.status === 'cancelled' && (
-              <Btn size="sm" onClick={() => onUpdateStatus(m.id, 'active')}>재개</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onUpdateStatus(m.id, 'active'); }}>재개</Btn>
             )}
             {m.status === 'cancelled' && (
-              <Btn size="sm" variant="danger" onClick={() => onDelete(m.id)}>삭제</Btn>
+              <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}>삭제</Btn>
             )}
           </div>
           {m.credits_reserved > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
               <span>{`예상 ${fmtCr(m.credits_reserved)} / 사용 ${fmtCr(m.credits_consumed)} (환불 ${fmtCr(Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)))} cr)`}</span>
               {m.status !== 'cancelled' && (
-                <button onClick={() => onRecalc(m.id)} title="크레딧 재계산"
+                <button onClick={(e) => { e.stopPropagation(); onRecalc(m.id); }} title="크레딧 재계산"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 13, padding: 0, lineHeight: 1 }}>
                   ↺
                 </button>
@@ -102,6 +167,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, isHighlighted }) {
 
 export default function AdminMissions() {
   const location = useLocation();
+  const navigate  = useNavigate();
   const [missions, setMissions] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('active');
@@ -110,12 +176,15 @@ export default function AdminMissions() {
   const [subPage, setSubPage]   = useState(1);
   const [statusError, setStatusError] = useState('');
   const [highlightId, setHighlightId] = useState(null);
+  const [selectedMission, setSelectedMission] = useState(null);
+  const [detailPage, setDetailPage]           = useState(1);
 
   useEffect(() => {
     async function load() {
       const { data, error } = await supabase
         .from('missions')
-        .select('*, companies(name, user_id), feedbacks(id)')
+        .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')
+        .neq('status', 'draft')
         .order('created_at', { ascending: false });
       if (error) console.error('[AdminMissions]', error.message);
       setMissions(data || []);
@@ -164,6 +233,7 @@ export default function AdminMissions() {
         ? { ...m, status: 'completed', credits_consumed: data.credits_consumed }
         : m
       ));
+      setSelectedMission(prev => prev?.id === id ? { ...prev, status: 'completed', credits_consumed: data.credits_consumed } : prev);
       const completedMission = missions.find(m => m.id === id);
       if (completedMission?.companies?.user_id) {
         sendNotification(completedMission.companies.user_id, {
@@ -176,12 +246,14 @@ export default function AdminMissions() {
     } else {
       await supabase.from('missions').update({ status: newStatus }).eq('id', id);
       setMissions(ms => ms.map(m => m.id === id ? { ...m, status: newStatus } : m));
+      setSelectedMission(prev => prev?.id === id ? { ...prev, status: newStatus } : prev);
     }
   };
 
   const deleteMission = async (id) => {
     await supabase.from('missions').delete().eq('id', id);
     setMissions(ms => ms.filter(m => m.id !== id));
+    setSelectedMission(prev => prev?.id === id ? null : prev);
     setConfirmDelete(null);
   };
 
@@ -219,7 +291,7 @@ export default function AdminMissions() {
       {/* Filter */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['cancelled', '취소']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); setHighlightId(null); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); setHighlightId(null); setSelectedMission(null); setDetailPage(1); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -242,6 +314,7 @@ export default function AdminMissions() {
       )}
 
       {/* 메인/서브 분리 (모든 탭 공통) */}
+      <div className="panel-mgmt-layout" style={{ display: 'grid', gridTemplateColumns: selectedMission ? '1fr 360px' : '1fr', gap: 24, alignItems: 'start' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
         {/* 메인 미션 섹션 */}
         <div>
@@ -257,7 +330,7 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {mainPaged.map(m => (
-                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} isHighlighted={m.id === highlightId} />
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => { setSelectedMission(prev => prev?.id === mission.id ? null : mission); setDetailPage(1); }} />
                 ))}
               </div>
               <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
@@ -279,13 +352,22 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {subPaged.map(m => (
-                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} isHighlighted={m.id === highlightId} />
+                  <MissionCard key={m.id} m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => { setSelectedMission(prev => prev?.id === mission.id ? null : mission); setDetailPage(1); }} />
                 ))}
               </div>
               <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
             </>
           )}
         </div>
+      </div>
+      {selectedMission && (
+        <MissionDetail
+          mission={selectedMission}
+          onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })}
+          detailPage={detailPage}
+          onDetailPage={setDetailPage}
+        />
+      )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-12 (ActiveMission 보상 동적 계산 + 미션관리 탭 이어하기 워딩)
+최종 업데이트: 2026-05-13 (어드민 미션관리 피드백 상세 패널 + PurityFilter 정렬·타입 필터·딥링크 안정화)
 ================================================================
 
 ## 기술 스택
@@ -164,6 +164,13 @@ purit/
 │   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
 │   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
+│   │                  목록 정렬: .order('created_at', { ascending: true }) — 오래된 순(먼저 낸 피드백 먼저) ★
+│   │                  typeFilter state: 'all'|'main'|'sub' — 상태 탭 아래 전체/메인/서브 pill 버튼 (각 건수 표시) ★
+│   │                    필터 파이프라인: filteredBase(상태) → filteredByType(타입) → filtered(65점 서브필터)
+│   │                    SUB_TYPES = ['preference','pricing','email']; 상태 탭 전환 시 typeFilter 초기화
+│   │                  딥링크 안정화: pendingDeeplink = location.state?.feedbackId 를 load() useEffect 최상단에서 캡처
+│   │                    pendingDeeplink 있으면 fbs[0] 자동선택 생략 → 딥링크 effect 단독으로 setSelected(X) ★
+│   │                    fb lookup: feedbacks.find(f=>f.id===selected) — filtered 아닌 전체 배열 사용 (D-56/D-57)
 │   │                  딥링크: useLocation + highlightId state — location.state.feedbackId → 탭 전환 + 페이지 이동 + setSelected + 초록 하이라이트 3초 ★
 │   │                  parseLPDesc: briefText / selectedQuestions / product / lpUrl / focusAreas / industry 추출 ★
 │   │                    LP 미션 정보 카드: hasAnyInfo 조건 (하나라도 있으면 표시) — briefText 없어도 제품명/업종/LP URL/집중영역 칩 표시 ★
@@ -177,7 +184,14 @@ purit/
 │   │                  pendingPageIds/allPageChecked/toggleAll: pagedList 선언 이후에 배치 (D-51 참조)
 │   │                  Pagination: 슬라이딩 5-윈도우(WINDOW=5) + «/» 5페이지 점프 버튼
 │   │                    winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) 계산 후 pageNums 슬라이스
-│   │   ※ pages/admin/Missions.jsx: 딥링크 수신 — useLocation + highlightId state ★
+│   │   ※ pages/admin/Missions.jsx: 딥링크 수신 + 피드백 상세 패널 ★
+│   │                  쿼리: .neq('status', 'draft') + feedbacks(id, status, purity_passed, created_at, panels(name)) join 확장
+│   │                  selectedMission state + detailPage state — panel-mgmt-layout 그리드 (1fr 360px)
+│   │                  MissionDetail 컴포넌트: 미션 정보 Card + 피드백 목록 Card (DETAIL_PAGE_SIZE=5)
+│   │                    getFeedbackStatus(f): purity_passed→green / rejected→red / else→gold
+│   │                    피드백 행 클릭: navigate('/admin/purity', { state: { feedbackId } })
+│   │                  MissionCard: isSelected/onSelect props + Card onClick + e.stopPropagation() on inner Btns
+│   │                  updateStatus/deleteMission 후 setSelectedMission 동기화
 │   │                  location.state.missionId → 해당 미션 status로 setFilter + mainPage/subPage 계산 + MissionCard isHighlighted prop
 │   │                  isHighlighted: outline 2px solid var(--accent) 3초 후 자동 해제, window.history.replaceState로 state 클리어
 │   │   ※ pages/admin/CompanyManagement.jsx: 의뢰 내역 전체 페이지네이션 ★

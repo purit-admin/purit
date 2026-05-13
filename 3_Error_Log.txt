@@ -618,6 +618,30 @@ D-54. 사이드바 인접 요소의 position:absolute 툴팁 좌측 잘림 방�
      → 원칙: 사이드바처럼 왼쪽에 고정 요소가 있는 레이아웃에서 첫 번째 열 요소의 툴팁은
              center 정렬 대신 left:0 또는 right:0으로 한쪽 끝 정렬을 기본으로 선택할 것
 
+D-56. 필터링된 부분 배열(filtered)에서 선택 항목을 찾으면 필터 전환 시 항목을 못 찾는 패턴 ✅ 해결
+     → 증상: PurityFilter 딥링크 진입 시 하이라이트는 올바른 피드백에 표시되나 우측 내용 패널이 다른 피드백을 보여줌
+     → 원인: `const fb = filtered.find(f => f.id === selected)` — filtered는 현재 탭/타입 필터가 적용된 부분 집합
+             deeplink effect가 setFilter(tf) + setSelected(X)를 같은 배치로 처리하더라도
+             React 렌더 사이클에 따라 filtered가 아직 old filter 기준인 순간에 fb 탐색이 실행될 수 있어
+             fb = undefined → 우측 패널 미표시, 또는 엉뚱한 항목 표시
+     → 해결: `const fb = feedbacks.find(f => f.id === selected)` — 전체 원본 배열에서 탐색
+             selected는 항상 특정 피드백 ID를 가리키므로 필터 상태와 무관하게 찾을 수 있음
+     → 원칙: "현재 표시 중인 선택 항목"을 화면에 렌더할 때는 클라이언트 필터 결과가 아니라
+             원본 전체 데이터 배열에서 ID로 탐색할 것
+             필터는 목록 표시용이고, 상세 패널은 selected ID 기준으로 독립 탐색해야 한다
+
+D-57. load() 자동선택과 딥링크 effect가 경쟁할 때 딥링크 진입 시 잘못된 항목이 보이는 패턴 ✅ 해결
+     → 증상: 딥링크로 PurityFilter 진입 시 우측 패널이 목표 피드백이 아닌 첫 번째(fbs[0]) 피드백 내용을 보여줌
+     → 원인: load() 완료 시 `if (fbs.length > 0) setSelected(fbs[0].id)` 가 항상 실행됨
+             이후 딥링크 effect가 setSelected(X)로 덮으려 하지만, React 18의 useEffect는 paint 이후 실행되므로
+             브라우저가 fbs[0] 내용을 한 프레임 이상 화면에 그린 후에야 X로 전환됨 → 사용자에게 노출
+     → 해결: load() useEffect 콜백 최상단에서 pendingDeeplink = location.state?.feedbackId 를 동기적으로 캡처
+             async load() 내부에서 `if (!pendingDeeplink && fbs.length > 0) setSelected(fbs[0].id);`
+             딥링크가 있으면 자동선택 생략 → 딥링크 effect가 단독으로 정확한 항목을 선택
+     → 원칙: "초기 자동선택 + 딥링크 덮어쓰기" 패턴은 React의 비동기 paint 특성으로 인해 플리커 발생
+             딥링크 여부를 load() 시작 전에 동기적으로 확인하고, 있으면 자동선택 자체를 생략하는 것이 안전함
+             async 함수가 완료되기 전에 외부 상태(location.state)가 변할 수 있으므로 클로저로 캡처할 것
+
 D-55. useMemo 의존 배열 누락으로 검색·필터 상태 변경 시 메모 값이 갱신되지 않는 패턴 ✅ 해결
      → 증상: 검색 input에 타이핑해도 목록이 전혀 변하지 않음 (다른 필터는 정상 작동)
      → 원인: `useMemo(() => filtered, [companies, planFilter, creditFilter, sortBy])` 형태에서

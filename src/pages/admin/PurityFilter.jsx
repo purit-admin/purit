@@ -45,8 +45,21 @@ function calcPurityScore(fb) {
   const all = [fb.strengths || '', fb.weaknesses || '', fb.suggestions || ''].join(' ');
   const base     = 20;
   const length   = Math.min(all.length / 8, 20);
-  const sectionFill = [fb.strengths, fb.weaknesses, fb.suggestions].filter(s => (s || '').trim().length >= 10).length;
-  const balance  = sectionFill === 3 ? 10 : sectionFill === 2 ? 4 : 0;
+  const isImgMission = (fb.missions?.image_urls?.length || 0) > 0;
+  const sectionFill = isImgMission
+    ? (() => {
+        const dimSet = new Set();
+        (fb.suggestions || '').split('\n').forEach(line => {
+          const m = line.match(/^\[(.+?) \/ \d+점\]/);
+          if (m) dimSet.add(m[1]);
+        });
+        return dimSet.size;
+      })()
+    : (fb.suggestions || '').split('\n\n').filter(sec => {
+        const body = sec.replace(/^\[.+?\]\n?/, '').trim();
+        return body.length >= 10;
+      }).length;
+  const balance  = sectionFill >= 4 ? 10 : sectionFill >= 2 ? 4 : 0;
   const specKw   = all.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피|CTR|CVR|ROAS|노출|세션|바운스|히트맵|UX|UI|fold|above|below/gi) || [];
   const specific = Math.min(specKw.length * 4, 25);
   const actKw    = all.match(/추천|바꿔|교체|추가|필요|개선|수정|변경|강화|재배치|삭제|줄여|늘려|이동|배치|고려|적용|테스트|실험|보완/gi) || [];
@@ -148,6 +161,7 @@ export default function PurityFilter() {
   const [filter, setFilter]               = useState('pending');
   const [pendingSubFilter, setPendingSubFilter] = useState('all'); // 'all'|'above65'|'below65'
   const [checkedIds, setCheckedIds]       = useState(new Set());
+  const [typeFilter, setTypeFilter]       = useState('all'); // 'all'|'main'|'sub'
   const [listPage, setListPage]           = useState(1);
   const [annotations, setAnnotations]     = useState([]);
   const [adminImageIdx, setAdminImageIdx] = useState(0);
@@ -156,14 +170,15 @@ export default function PurityFilter() {
   const [statusError, setStatusError]     = useState('');
 
   useEffect(() => {
+    const pendingDeeplink = location.state?.feedbackId;
     async function load() {
       const { data } = await supabase
         .from('feedbacks')
         .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name)')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
       const fbs = data || [];
       setFeedbacks(fbs);
-      if (fbs.length > 0) setSelected(fbs[0].id);
+      if (!pendingDeeplink && fbs.length > 0) setSelected(fbs[0].id);
       setLoading(false);
 
       // 서브 미션 응답 전체 사전 로드 → 목록 점수 즉시 표시
@@ -199,6 +214,7 @@ export default function PurityFilter() {
       : 'pending';
     setFilter(tf);
     setPendingSubFilter('all');
+    setTypeFilter('all');
 
     const base =
       tf === 'approved' ? feedbacks.filter(f => f.purity_passed)
@@ -333,9 +349,15 @@ export default function PurityFilter() {
     : filter === 'pending' ? feedbacks.filter(f => !f.purity_passed && f.status === 'submitted')
     : filter === 'approved' ? feedbacks.filter(f => f.purity_passed)
     : feedbacks.filter(f => f.status === 'rejected');
+  const SUB_TYPES = ['preference', 'pricing', 'email'];
+  const filteredByType = typeFilter === 'all'
+    ? filteredBase
+    : typeFilter === 'main'
+      ? filteredBase.filter(f => !SUB_TYPES.includes(f.missions?.type))
+      : filteredBase.filter(f =>  SUB_TYPES.includes(f.missions?.type));
   const filtered = (filter === 'pending' && pendingSubFilter !== 'all')
-    ? filteredBase.filter(f => pendingSubFilter === 'above65' ? getScore(f) >= 65 : getScore(f) < 65)
-    : filteredBase;
+    ? filteredByType.filter(f => pendingSubFilter === 'above65' ? getScore(f) >= 65 : getScore(f) < 65)
+    : filteredByType;
   const pagedList = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
 
   const pendingPageIds = pagedList.filter(f => f.status === 'submitted' && !f.purity_passed).map(f => f.id);
@@ -349,7 +371,7 @@ export default function PurityFilter() {
     });
   };
 
-  const fb = filtered.find(f => f.id === selected);
+  const fb = feedbacks.find(f => f.id === selected);
   const fbSkippedLabels = fb ? getSkippedLabels(fb.suggestions) : new Set();
   const missionType = fb?.missions?.type;
   const isSubMission = ['preference', 'pricing', 'email'].includes(missionType);
@@ -370,12 +392,33 @@ export default function PurityFilter() {
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['pending', '검토 대기'], ['approved', '승인됨'], ['rejected', '반려됨'], ['all', '전체']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); setTypeFilter('all'); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
             border: 'none', transition: 'all 0.15s', cursor: 'pointer',
           }}>{l}</button>
+        ))}
+      </div>
+
+      {/* 타입 필터 탭 — 메인/서브 구분 */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-3)', marginRight: 2 }}>타입:</span>
+        {[
+          ['all',  `전체 (${filteredBase.length})`],
+          ['main', `메인 (${filteredBase.filter(f => !SUB_TYPES.includes(f.missions?.type)).length})`],
+          ['sub',  `서브 (${filteredBase.filter(f =>  SUB_TYPES.includes(f.missions?.type)).length})`],
+        ].map(([v, label]) => (
+          <button key={v}
+            onClick={() => { setTypeFilter(v); setListPage(1); setCheckedIds(new Set()); setSelected(null); }}
+            style={{
+              padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer', border: '1px solid',
+              background:  typeFilter === v ? 'var(--accent)' : 'transparent',
+              color:       typeFilter === v ? '#fff'          : 'var(--text-2)',
+              borderColor: typeFilter === v ? 'var(--accent)' : 'var(--border)',
+            }}>
+            {label}
+          </button>
         ))}
       </div>
 
@@ -539,14 +582,27 @@ export default function PurityFilter() {
                     // LP 피드백 점수 분해 (calcPurityScore와 동일 공식)
                     (() => {
                       const all = [fb.strengths||'', fb.weaknesses||'', fb.suggestions||''].join(' ');
-                      const sectionFill = [fb.strengths, fb.weaknesses, fb.suggestions].filter(s => (s||'').trim().length >= 10).length;
+                      const isImgMission = (fb.missions?.image_urls?.length || 0) > 0;
+                      const sectionFill = isImgMission
+                        ? (() => {
+                            const dimSet = new Set();
+                            (fb.suggestions||'').split('\n').forEach(line => {
+                              const m = line.match(/^\[(.+?) \/ \d+점\]/);
+                              if (m) dimSet.add(m[1]);
+                            });
+                            return dimSet.size;
+                          })()
+                        : (fb.suggestions||'').split('\n\n').filter(sec => {
+                            const body = sec.replace(/^\[.+?\]\n?/, '').trim();
+                            return body.length >= 10;
+                          }).length;
                       const specKw = all.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피|CTR|CVR|ROAS|노출|세션|바운스|히트맵|UX|UI|fold|above|below/gi) || [];
                       const actKw  = all.match(/추천|바꿔|교체|추가|필요|개선|수정|변경|강화|재배치|삭제|줄여|늘려|이동|배치|고려|적용|테스트|실험|보완/gi) || [];
                       const aiKw   = all.match(/중요합니다|생각됩니다|분석됩니다|판단됩니다|여겨집니다|사료됩니다|향상될 것|효과적일 것|효율적일 것/gi) || [];
                       return [
                         { label: '기본 점수',   val: 20, max: 20 },
                         { label: '텍스트 길이', val: Math.min(all.length / 8, 20), max: 20 },
-                        { label: '섹션 균형',   val: sectionFill === 3 ? 10 : sectionFill === 2 ? 4 : 0, max: 10 },
+                        { label: '섹션 균형',   val: sectionFill >= 4 ? 10 : sectionFill >= 2 ? 4 : 0, max: 10 },
                         { label: '구체성 지수', val: Math.min(specKw.length * 4, 25), max: 25 },
                         { label: '실행 가능성', val: Math.min(actKw.length * 5, 25), max: 25 },
                         { label: 'AI 패턴 패널티', val: Math.max(-30, aiKw.length * -12), max: 0, negative: true },
