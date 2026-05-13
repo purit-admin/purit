@@ -151,7 +151,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                 background: meta.bg,
                 border: `2px solid ${meta.color}`,
                 borderRadius: 3,
-                cursor: 'pointer',
+                cursor: readonly ? 'default' : 'crosshair',
                 boxSizing: 'border-box',
                 display: isHidden ? 'none' : undefined,
               }}

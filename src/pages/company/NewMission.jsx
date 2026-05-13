@@ -742,7 +742,7 @@ export default function NewMission() {
                     <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                       onClick={() => {
                         if (isDraft) navigate('/company/new', { state: { editMode: true, missionId: m.id } });
-                        else if (m.status !== 'cancelled') navigate(`/company/results?id=${m.id}`);
+                        else navigate(`/company/results?id=${m.id}`);
                       }}>
                       <div className="mc-row">
                         <div style={{ flex: 1 }}>

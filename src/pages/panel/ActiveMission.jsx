@@ -1185,7 +1185,7 @@ export default function ActiveMission() {
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>이미지 어노테이션</h1>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-              차원 탭을 클릭하고 해당 영역을 드래그하세요 · 5개 차원 모두 완료 후 총평 작성
+              탭을 클릭하고 해당 영역을 드래그하세요 · 같은 탭에서 여러 번 드래그할 수 있어요
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
