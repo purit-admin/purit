@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-13 (D-56 점수 함수가 저장 구조와 다른 필드를 검사해 항상 0점 반환)
+최종 업데이트: 2026-05-13 (D-58 RLS 정책에서 user_metadata 대신 app_metadata 사용 원칙)
 ================================================================
 
 ## 핵심 원칙
@@ -641,6 +641,21 @@ D-57. load() 자동선택과 딥링크 effect가 경쟁할 때 딥링크 진입 
      → 원칙: "초기 자동선택 + 딥링크 덮어쓰기" 패턴은 React의 비동기 paint 특성으로 인해 플리커 발생
              딥링크 여부를 load() 시작 전에 동기적으로 확인하고, 있으면 자동선택 자체를 생략하는 것이 안전함
              async 함수가 완료되기 전에 외부 상태(location.state)가 변할 수 있으므로 클로저로 캡처할 것
+
+D-58. RLS 정책에서 user_metadata 사용 시 보안 취약점 패턴 ✅ 해결
+     → 증상: Supabase Advisor가 "RLS references user_metadata" CRITICAL 경고 다수 발생
+     → 원인: auth.jwt()->'user_metadata'->>'role' 은 유저 본인이 supabase.auth.updateUser()로 수정 가능
+             → 악의적 유저가 자신의 role을 'admin'으로 변조해 어드민 전용 데이터에 접근 가능
+     → 해결: 1) auth.users.raw_app_meta_data에 role 복사 (service role만 수정 가능)
+                UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || '{"role":"admin"}'
+                WHERE raw_user_meta_data->>'role' = 'admin';
+             2) RLS 정책의 user_metadata → app_metadata 교체
+                (auth.jwt()->'user_metadata'->>'role') = 'admin'
+                → (auth.jwt()->'app_metadata'->>'role') = 'admin'
+     → 원칙: RLS 정책에서 역할(role) 판별은 반드시 app_metadata 사용
+             user_metadata는 프론트엔드 라우팅(역할별 포털 진입)에만 사용 가능
+             SECURITY DEFINER 함수·트리거 내부에서 raw_user_meta_data 사용은 허용 (유저 접근 불가)
+     → 적용 파일: supabase/migrations/026_fix_rls_user_metadata.sql
 
 D-56. 점수 함수가 실제 저장 구조와 다른 필드를 검사해 항상 0점 반환하는 패턴 ✅ 해결
      → 증상: PurityFilter calcPurityScore 섹션균형이 모든 피드백에서 항상 0/10점

@@ -45,14 +45,6 @@ const NAV = {
       ],
     },
     {
-      group: '리서치',
-      items: [
-        { path: '/company/icp', label: 'ICP 리서치', icon: Users },
-        { path: '/company/icp-pulse', label: 'ICP Pulse', icon: Activity },
-        { path: '/company/brand', label: '브랜드 트래킹', icon: TrendingUp },
-      ],
-    },
-    {
       group: '계정',
       items: [
         { path: '/company/account', label: '내 계정', icon: UserCog },

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-13 (Google OAuth 로그인 추가 — Login.jsx 역할선택+구글버튼, OAuthCallback.jsx 신규)
+최종 업데이트: 2026-05-13 (사이드바 리서치 그룹 제거 — ICP 리서치·ICP Pulse·브랜드 트래킹 메뉴 비노출, 페이지 파일은 유지)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -348,9 +348,9 @@
      sectionLabel 변경 감지 → 섹션 구분선+레이블 자동 렌더링 (category 변경 없이 시각적 그룹핑)
 
 ### [인텔리전스]
-9.  ICP 리서치 (/company/icp) — ICPResearch.jsx
-10. ICP Pulse (/company/icp-pulse) — ICPPulse.jsx
-11. 브랜드 트래킹 (/company/brand) — BrandTracking.jsx
+9.  ICP 리서치 (/company/icp) — ICPResearch.jsx  ★ 사이드바 메뉴 비노출 (페이지 파일 유지)
+10. ICP Pulse (/company/icp-pulse) — ICPPulse.jsx  ★ 사이드바 메뉴 비노출 (페이지 파일 유지)
+11. 브랜드 트래킹 (/company/brand) — BrandTracking.jsx  ★ 사이드바 메뉴 비노출 (페이지 파일 유지)
 12. AI 리포트 (/company/report) — AIReport.jsx
     - 피드백 데이터 기반 자동 리포트 (로컬 계산 폴백 + Anthropic AI 강화)
     - "AI 리포트 생성" 버튼 → generate-ai-report Edge Function 호출 → ai_reports 테이블 저장

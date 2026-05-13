@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-13 (Google OAuth 로그인 추가 — Login.jsx 역할선택+구글버튼, AuthContext signInWithGoogle, OAuthCallback.jsx 신규 / assets/ 폴더 추가 — purit-logo.html 브랜드 로고)
+최종 업데이트: 2026-05-13 (사이드바 리서치 그룹 제거 / RLS user_metadata→app_metadata 보안 수정 — 026_fix_rls_user_metadata.sql)
 ================================================================
 
 ## 기술 스택
@@ -35,7 +35,8 @@ purit/
 │   │              navigationGuard.js (싱글톤 — register(config)/unregister()/intercept(path); 폼 페이지가 register, Sidebar가 intercept 호출)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
-│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(질문템플릿·피드백결과·5차원진단·AI리포트)/리서치(ICP·Pulse·브랜드)/계정)
+│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(질문템플릿·피드백결과·5차원진단·AI리포트)/계정)
+│   │   │              ★ 리서치 그룹(ICP·Pulse·브랜드) 사이드바에서 제거 — 라우트·페이지 파일은 유지
 │   │   │              handleNav(path) 헬퍼: navigationGuard.intercept(path) → false면 navigate, true면 guard가 모달 트리거
 │   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   │              showBugReport state + "버그/불편 신고" 버튼(로그아웃 버튼 위, 전 포털 공통) + BugReportModal 렌더
@@ -241,6 +242,7 @@ purit/
 │   │                023(bug_report_reply: bug_reports 테이블 admin_memo 컬럼 추가)
 │   │                024(admin_company_management: admin_add_credits RPC — 어드민 전용 크레딧 직접 지급)
 │   │                025(admin_change_plan: admin_change_plan RPC — 어드민 전용 플랜+크레딧 동시 변경, grant_plan_credits의 owner 제한 우회)
+│   │                026(fix_rls_user_metadata: RLS 정책 user_metadata→app_metadata 교체 + 어드민 app_metadata role 설정 — D-58 참조)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
