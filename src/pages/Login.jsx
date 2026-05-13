@@ -10,17 +10,35 @@ const T1     = '#0F172A';
 const T2     = '#475569';
 const T3     = '#94A3B8';
 
+const ROLES = [
+  { id: 'company', label: '기업', desc: '소재 검증 의뢰' },
+  { id: 'panel',   label: '패널', desc: '미션 참여 & 보상' },
+];
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.440 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+    </svg>
+  );
+}
+
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
 
   const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
+  const [role, setRole]       = useState('company');
   const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]   = useState(false);
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,14 +49,25 @@ export default function Login() {
     setLoading(true);
     try {
       const { user } = await signIn({ email, password });
-      const role = user?.user_metadata?.role;
-      navigate(DEST[role] ?? '/company', { replace: true });
+      const userRole = user?.user_metadata?.role;
+      navigate(DEST[userRole] ?? '/company', { replace: true });
     } catch (err) {
       setError(err.message === 'Invalid login credentials'
         ? '이메일 또는 비밀번호가 올바르지 않습니다.'
         : err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle(role);
+    } catch (err) {
+      setError(err.message);
+      setGoogleLoading(false);
     }
   };
 
@@ -66,11 +95,52 @@ export default function Login() {
         boxShadow: '0 8px 40px rgba(0,0,0,0.06)',
         animation: 'fadeUp 0.35s cubic-bezier(0.22,1,0.36,1) both',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.01em', fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', color: T1, marginBottom: 6 }}>
             Purit
           </div>
           <div style={{ fontSize: 15, color: T2 }}>로그인</div>
+        </div>
+
+        {/* 역할 선택 */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T2, marginBottom: 10 }}>역할 선택</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {ROLES.map(r => (
+              <button key={r.id} type="button" onClick={() => setRole(r.id)} style={{
+                padding: '12px', borderRadius: 12, cursor: 'pointer',
+                border: role === r.id ? `2px solid ${ACCENT}` : `1.5px solid ${BORDER}`,
+                background: role === r.id ? 'rgba(16,54,125,0.06)' : '#fff',
+                textAlign: 'center', transition: 'all 0.15s', fontFamily: 'inherit',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: role === r.id ? ACCENT : T1, marginBottom: 2 }}>{r.label}</div>
+                <div style={{ fontSize: 11, color: T3 }}>{r.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Google 로그인 */}
+        <button type="button" onClick={handleGoogle} disabled={googleLoading} style={{
+          width: '100%', padding: '12px 0', borderRadius: 10,
+          background: '#fff', border: `1.5px solid ${BORDER}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          fontSize: 14, fontWeight: 600, color: T1, cursor: googleLoading ? 'not-allowed' : 'pointer',
+          fontFamily: 'inherit', transition: 'background 0.15s, border-color 0.15s',
+          opacity: googleLoading ? 0.7 : 1,
+        }}
+        onMouseEnter={e => { if (!googleLoading) e.currentTarget.style.background = BG; }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+        >
+          <GoogleIcon />
+          {googleLoading ? '연결 중...' : 'Google로 로그인'}
+        </button>
+
+        {/* 구분선 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0' }}>
+          <div style={{ flex: 1, height: 1, background: BORDER }} />
+          <span style={{ fontSize: 12, color: T3, whiteSpace: 'nowrap' }}>또는 이메일로 로그인</span>
+          <div style={{ flex: 1, height: 1, background: BORDER }} />
         </div>
 
         <form onSubmit={handleSubmit}>

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-13 (어드민 미션관리 피드백 상세 패널 + PurityFilter 정렬·타입 필터·딥링크 안정화)
+최종 업데이트: 2026-05-13 (Google OAuth 로그인 추가 — Login.jsx 역할선택+구글버튼, AuthContext signInWithGoogle, OAuthCallback.jsx 신규)
 ================================================================
 
 ## 기술 스택
@@ -207,7 +207,17 @@ purit/
 │   │                  loadPanelDetail: .limit(5) 제거 → 전체 로드, feedbackDetailPage state + DETAIL_PAGE_SIZE=5
 │   │                  onFeedbackClick prop: navigate('/admin/purity', { state: { feedbackId } })
 │   └── pages/
-│       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개)
+│       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개), OAuthCallback.jsx (/oauth/callback 공개) ★
+│   ※ Login.jsx: 역할 선택(기업/패널) → Google 로그인 버튼 + 이메일/비밀번호 폼 구조 ★ 개편
+│              role state + googleLoading state / handleGoogle(): signInWithGoogle(role) 호출
+│              GoogleIcon 인라인 SVG 컴포넌트 (Google 공식 4색)
+│   ※ OAuthCallback.jsx: OAuth 리다이렉트 처리 전용 페이지 ★ 신규
+│              getSession() → existingRole 있으면 즉시 대시보드 이동
+│              신규 유저: localStorage('purit_oauth_role') 읽어 updateUser(role) + companies/panels INSERT
+│              user.user_metadata.full_name || name || email prefix → displayName으로 사용
+│   ※ AuthContext.jsx: signInWithGoogle(role) 추가 ★ 신규
+│              localStorage.setItem('purit_oauth_role', role) → signInWithOAuth({ provider:'google', redirectTo: origin+'/oauth/callback' })
+│              context value에 signInWithGoogle 노출
 │       ├── company/  (17개 — 라우트 목록 참조)
 │       ├── panel/    (5개 — 라우트 목록 참조)
 │       └── admin/    (7개 — 라우트 목록 참조)
@@ -235,13 +245,14 @@ purit/
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (29개)
+## 라우트 전체 목록 (30개)
 ================================================================
 
 [공개]
   /                          → Landing.jsx
   /login                     → Login.jsx
   /signup                    → Signup.jsx
+  /oauth/callback            → OAuthCallback.jsx (공개, Google OAuth 리다이렉트 처리) ★ 신규
   /share/:token              → ShareResult.jsx (공개, 인증 불필요)
 
 [Company 포털] — RoleRoute role="company"

@@ -5,6 +5,7 @@ import NotificationCenter from './components/ui/NotificationCenter';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import OAuthCallback from './pages/OAuthCallback';
 
 // Company pages
 import CompanyDashboard from './pages/company/Dashboard';
@@ -69,6 +70,7 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/oauth/callback" element={<OAuthCallback />} />
       <Route path="/share/:token" element={<ShareResult />} />
 
       {/* Company — company 역할만 접근 가능 */}

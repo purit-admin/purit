@@ -40,6 +40,15 @@ export function AuthProvider({ children }) {
     return data;
   }
 
+  async function signInWithGoogle(role) {
+    localStorage.setItem('purit_oauth_role', role);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/oauth/callback' },
+    });
+    if (error) throw error;
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -48,7 +57,7 @@ export function AuthProvider({ children }) {
   const dashboardPath = role ? (DEST[role] ?? '/') : '/';
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signUp, signIn, signOut, dashboardPath }}>
+    <AuthContext.Provider value={{ user, role, loading, signUp, signIn, signInWithGoogle, signOut, dashboardPath }}>
       {children}
     </AuthContext.Provider>
   );
