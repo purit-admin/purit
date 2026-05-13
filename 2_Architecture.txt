@@ -199,6 +199,9 @@ purit/
 │   │                    DETAIL_PAGE_SIZE=5, getFeedbackStatus(f): purity_passed→green / rejected→red / else→gold
 │   │                    피드백 행 클릭: navigate('/admin/purity', { state: { feedbackId } })
 │   │                  MissionCard: isSelected/onSelect props + Card onClick + e.stopPropagation() on inner Btns
+│   │                    onCancelMission(id) / onCompleteMission(m) props — 각각 setConfirmCancel / setConfirmComplete 연결
+│   │                  confirmCancel state: ConfirmModal(danger) → updateStatus(id, 'cancelled')
+│   │                  confirmComplete state: ConfirmModal → 승인 건수(m.feedbacks.filter(f.purity_passed).length) 동적 표시 → complete_mission_and_refund RPC
 │   │                  updateStatus/deleteMission 후 setSelectedMission 동기화
 │   │                  location.state.missionId → 해당 미션 status로 setFilter + mainPage/subPage 계산 + MissionCard isHighlighted prop
 │   │                  isHighlighted: outline 2px solid var(--accent) 3초 후 자동 해제, window.history.replaceState로 state 클리어

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { Card, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { getPanelReward } from '../../lib/honorLevels';
 
 const fmtAmt = (n) => {
   if (!n) return '₩0';
@@ -38,6 +39,7 @@ function Pagination({ page, total, onPage }) {
 
 export default function History() {
   const [feedbacks, setFeedbacks]     = useState([]);
+  const [panelData, setPanelData]     = useState(null);
   const [loading, setLoading]         = useState(true);
   const [tab, setTab]                 = useState('pending');
   const [page, setPage]               = useState(1);
@@ -49,12 +51,13 @@ export default function History() {
       if (!user) return;
 
       const { data: panel } = await supabase
-        .from('panels').select('id').eq('user_id', user.id).single();
+        .from('panels').select('id, honor_points, experience').eq('user_id', user.id).single();
       if (!panel) { setLoading(false); return; }
+      setPanelData(panel);
 
       const { data: fbs } = await supabase
         .from('feedbacks')
-        .select('*, missions(title, reward_amount)')
+        .select('*, missions(title, reward_amount, type)')
         .eq('panel_id', panel.id)
         .neq('status', 'draft')
         .order('created_at', { ascending: false });
@@ -79,8 +82,14 @@ export default function History() {
   const pending  = feedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
   const rejected = feedbacks.filter(f => !f.purity_passed && f.status === 'rejected');
 
-  const totalPaid    = approved.reduce((s, f) => s + (f.missions?.reward_amount || 0), 0);
-  const totalPending = pending.reduce((s, f)  => s + (f.missions?.reward_amount || 0), 0);
+  const calcReward = (f) => {
+    const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
+    const base = getPanelReward(panelData?.honor_points || 0, panelData?.experience || '');
+    return isSub ? Math.round(base * (4500 / 8000)) : base;
+  };
+
+  const totalPaid    = approved.reduce((s, f) => s + calcReward(f), 0);
+  const totalPending = pending.reduce((s, f)  => s + calcReward(f), 0);
 
   const filtered = tab === 'pending'  ? pending
     : tab === 'approved' ? approved
@@ -145,7 +154,7 @@ export default function History() {
           {paged.map((f) => {
             const statusKey    = getStatusKey(f);
             const isRejected   = statusKey === 'rejected';
-            const reward       = f.missions?.reward_amount || 0;
+            const reward       = calcReward(f);
             const isReasonOpen = openReasonId === f.id;
             return (
               <div key={f.id} style={{
@@ -172,6 +181,9 @@ export default function History() {
                       <>
                         <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
                         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-sans)', color: statusKey === 'approved' ? 'var(--green)' : 'var(--accent)' }}>{reward.toLocaleString()}</div>
+                        {statusKey === 'submitted' && (
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>(예상)</div>
+                        )}
                       </>
                     )}
                   </div>
