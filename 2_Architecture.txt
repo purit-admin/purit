@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-13 (Google OAuth 로그인 추가 — Login.jsx 역할선택+구글버튼, AuthContext signInWithGoogle, OAuthCallback.jsx 신규)
+최종 업데이트: 2026-05-13 (Google OAuth 로그인 추가 — Login.jsx 역할선택+구글버튼, AuthContext signInWithGoogle, OAuthCallback.jsx 신규 / assets/ 폴더 추가 — purit-logo.html 브랜드 로고)
 ================================================================
 
 ## 기술 스택
@@ -242,6 +242,7 @@ purit/
 │   │                024(admin_company_management: admin_add_credits RPC — 어드민 전용 크레딧 직접 지급)
 │   │                025(admin_change_plan: admin_change_plan RPC — 어드민 전용 플랜+크레딧 동시 변경, grant_plan_credits의 owner 제한 우회)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
+├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purit — Logo</title>
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #F8FAFC;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  canvas { display: block; }
+  #c-main {
+    filter: drop-shadow(0 16px 40px rgba(16,54,125,0.22))
+            drop-shadow(0 4px 12px rgba(16,54,125,0.12));
+  }
+  .hero { display:flex; flex-direction:column; align-items:center; gap:20px; }
+  .logo-name {
+    font-size: 44px;
+    font-weight: 900;
+    letter-spacing: 18px;
+    margin-right: -18px;
+    color: #10367D;
+  }
+  .logo-sub {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    color: #8598AA;
+    text-transform: uppercase;
+    margin-top: -10px;
+  }
+  hr.sep {
+    border: none;
+    width: 80px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #CBD5E1, transparent);
+    margin: 56px 0;
+  }
+  .var-row {
+    display: flex;
+    gap: 48px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .var { display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .var-pad { padding: 24px; border-radius: 16px; }
+  .v-light { background:#fff; border:1px solid #E2E8F0; }
+  .v-dark  { background:#0F172A; }
+  .v-mono  { background:#EEF2F6; border:1px solid #E2E8F0; }
+  .var-lbl { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#8598AA; font-weight:500; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <canvas id="c-main"></canvas>
+  <div class="logo-name">PURIT</div>
+  <div class="logo-sub">Conversion Intelligence</div>
+</div>
+
+<hr class="sep">
+
+<div class="var-row">
+  <div class="var">
+    <div class="var-pad v-light"><canvas id="c-light"></canvas></div>
+    <span class="var-lbl">Light</span>
+  </div>
+  <div class="var">
+    <div class="var-pad v-dark"><canvas id="c-dark"></canvas></div>
+    <span class="var-lbl">Dark</span>
+  </div>
+  <div class="var">
+    <div class="var-pad v-mono"><canvas id="c-mono"></canvas></div>
+    <span class="var-lbl">Mono</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  const OUTER = 6, INNER = 2;
+
+  // 다이아몬드 프레임 좌표 생성
+  const POS = [];
+  for (let r = -OUTER; r <= OUTER; r++)
+    for (let c = -OUTER; c <= OUTER; c++) {
+      const d = Math.abs(c) + Math.abs(r);
+      if (d <= OUTER && d > INNER) POS.push([c, r]);
+    }
+
+  // 페인터 알고리즘: c+r 오름차순(뒤→앞)
+  POS.sort((a, b) => (a[0]+a[1]) - (b[0]+b[1]) || a[1]-b[1]);
+
+  function render(canvas, S, { cTop, cLeft, cRight, eLight = 0.28 }) {
+    const tH = S * 0.5;
+    const wH = Math.round(S * 0.80);
+    const ctx = canvas.getContext('2d');
+
+    const sx = (c, r) => (c - r) * S;
+    const sy = (c, r) => (c + r) * tH;
+
+    // 경계 계산
+    let x0=1e9, x1=-1e9, y0=1e9, y1=-1e9;
+    for (const [c,r] of POS) {
+      const cx=sx(c,r), cy=sy(c,r);
+      x0=Math.min(x0,cx-S); x1=Math.max(x1,cx+S);
+      y0=Math.min(y0,cy-tH); y1=Math.max(y1,cy+tH+wH);
+    }
+    const PAD = Math.round(S * 0.25);
+    canvas.width  = Math.ceil(x1-x0) + PAD*2;
+    canvas.height = Math.ceil(y1-y0) + PAD*2;
+    const ox = -x0+PAD, oy = -y0+PAD;
+
+    for (const [c,r] of POS) {
+      const cx = sx(c,r)+ox, cy = sy(c,r)+oy;
+
+      // 윗면 (top face)
+      ctx.beginPath();
+      ctx.moveTo(cx,    cy-tH);
+      ctx.lineTo(cx+S,  cy);
+      ctx.lineTo(cx,    cy+tH);
+      ctx.lineTo(cx-S,  cy);
+      ctx.closePath();
+      ctx.fillStyle = cTop;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,255,255,${eLight})`;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+
+      // 왼쪽면 (left face)
+      ctx.beginPath();
+      ctx.moveTo(cx-S, cy);
+      ctx.lineTo(cx,   cy+tH);
+      ctx.lineTo(cx,   cy+tH+wH);
+      ctx.lineTo(cx-S, cy+wH);
+      ctx.closePath();
+      ctx.fillStyle = cLeft;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,255,255,${eLight*0.4})`;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+
+      // 오른쪽면 (right face — 그림자)
+      ctx.beginPath();
+      ctx.moveTo(cx+S, cy);
+      ctx.lineTo(cx,   cy+tH);
+      ctx.lineTo(cx,   cy+tH+wH);
+      ctx.lineTo(cx+S, cy+wH);
+      ctx.closePath();
+      ctx.fillStyle = cRight;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+    }
+  }
+
+  // 메인 (S=30)
+  render(document.getElementById('c-main'), 30, {
+    cTop:  '#84B5EA',
+    cLeft: '#10367D',
+    cRight:'#060E28',
+  });
+
+  // Light variant (S=16)
+  render(document.getElementById('c-light'), 16, {
+    cTop:  '#84B5EA',
+    cLeft: '#10367D',
+    cRight:'#060E28',
+  });
+
+  // Dark variant
+  render(document.getElementById('c-dark'), 16, {
+    cTop:  '#93C5FD',
+    cLeft: '#2563EB',
+    cRight:'#1E3A8A',
+    eLight: 0.40,
+  });
+
+  // Mono variant
+  render(document.getElementById('c-mono'), 16, {
+    cTop:  '#B0BFC8',
+    cLeft: '#52606E',
+    cRight:'#1E2830',
+  });
+})();
+</script>
+</body>
+</html>
