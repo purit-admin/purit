@@ -323,7 +323,8 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 수평 전개 조사 2차: 수평-A~G 7건 발견 및 수정 완료 — 총 62건 완료
                             / 패널 포털 심층 검사: 패널-A~I 9건 발견 및 수정 완료 — 총 71건 완료
                             / 수평 전개 조사 3차: 수평-H~J 3건 발견 및 수정 완료 — 총 74건 완료
-                            / 어드민 포털 심층 검사: A-01~A-17 17건 발견, 14건 수정·3건 오판 확인 — 총 91건 완료)
+                            / 어드민 포털 심층 검사: A-01~A-17 17건 발견, 14건 수정·3건 오판 확인 — 총 91건 완료
+                            / Landing·Login 페이지 심층 검사: LG-1~LG-7 7건 발견 — 수정 대기)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -331,16 +332,134 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   (상세 없음) 미완료 항목: 위치·재현·현재·기대 전체 유지
 
 ================================================================
+## 🔴 CRITICAL — 수정 대기 (P1)
+================================================================
+
+[LG-1] OAuthCallback — localStorage 역할 주입으로 관리자 계정 탈취 가능
+- 🚨 중요도: P1 (당장 고쳐) — 누구나 브라우저 콘솔 2줄로 자신의 Google 계정을 admin 역할로 영구 등록 가능
+- 📍 위치: src/pages/OAuthCallback.jsx (line 34-38)
+- 🕵️‍♂️ 재현 방법:
+  1. 개발자 도구 콘솔에서 localStorage.setItem('purit_oauth_role', 'admin') 실행
+  2. 로그인 페이지에서 "Google로 로그인" 클릭 → Google 인증 완료
+  3. /oauth/callback에서 savedRole='admin' → updateUser({ data: { role: 'admin' } }) 실행
+  4. 이후 해당 계정은 user_metadata.role='admin' → /admin 포털 진입 가능
+- 🤦‍♂️ 현재 상황:
+  const savedRole = localStorage.getItem('purit_oauth_role') || 'company';
+  localStorage.removeItem('purit_oauth_role');
+  await supabase.auth.updateUser({ data: { role: savedRole } }); // 검증 없음
+  'admin', 'super', 임의 문자열 모두 그대로 DB 반영됨
+- ✨ 기대 화면:
+  const ALLOWED_ROLES = ['company', 'panel'];
+  const raw = localStorage.getItem('purit_oauth_role');
+  const savedRole = ALLOWED_ROLES.includes(raw) ? raw : 'company';
+  허용된 역할만 통과, 나머지는 'company' 기본값으로 고정
+- 🔍 추가 확인(수평 전개):
+  · AuthContext.jsx signInWithGoogle(role): localStorage.setItem('purit_oauth_role', role) — role을 Login.jsx에서 받아 저장.
+    Login.jsx는 ROLES 배열(company/panel) 중 하나만 허용하므로 정상 경로에서는 안전.
+    그러나 콜백 측에서 검증이 없어 공격자가 정상 흐름을 우회해 직접 localStorage 조작 가능 → OAuthCallback만 수정하면 됨
+
+================================================================
 ## 🟠 MAJOR — 수정 대기 (P2)
 ================================================================
 
-(수정 대기 항목 없음)
+[LG-2] Landing 푸터 링크 — cursor:pointer + hover 효과 있으나 onClick 핸들러 미연결
+- 🚨 중요도: P2 (빨리 고쳐) — 첫 방문 기업 고객이 이용약관·개인정보처리방침 확인 시 완전히 무반응
+- 📍 위치: src/pages/Landing.jsx (line 519-524 푸터 링크 렌더 블록)
+- 🕵️‍♂️ 재현 방법: 랜딩 페이지 최하단 스크롤 → 푸터의 "이용약관", "개인정보처리방침", "고객지원" 등 링크 클릭 → 아무 일도 일어나지 않음
+- 🤦‍♂️ 현재 상황:
+  <div key={link} style={{ cursor: 'pointer', ... }}
+    onMouseEnter={...} onMouseLeave={...}
+  >{link}</div>
+  onClick prop이 없어 클릭해도 완전 무반응. 시각적으로는 클릭 가능한 링크처럼 보임.
+- ✨ 기대 화면:
+  현재 MVP 단계에서 실제 페이지가 없다면 최소한 href="#" 또는 "준비 중입니다" 토스트 표시.
+  또는 link 텍스트 기준으로 적절한 경로(이용약관 → /terms 등)로 navigate 처리
+- 🔍 추가 확인(수평 전개):
+  · 랜딩 페이지 내 다른 링크(네비 "로그인", 히어로 CTA 등)는 정상 onClick 연결 확인 ✅
+  · 푸터 링크 그룹 4개 전체가 동일 패턴(링크 텍스트 map → div)으로 onClick 없음 → 4개 그룹 전부 수정 필요
+
+[LG-3] OAuthCallback — 패널 신규 Google 가입 시 panels INSERT 필수 컬럼 누락
+- 🚨 중요도: P2 (빨리 고쳐) — 패널이 Google로 최초 가입 시 DB INSERT 실패 가능, "로그인 처리 중" 화면에서 멈춤
+- 📍 위치: src/pages/OAuthCallback.jsx (line 49-55)
+- 🕵️‍♂️ 재현 방법:
+  1. 구글 계정으로 최초 가입 (role='panel' 선택 후 Google 로그인)
+  2. /oauth/callback에서 panels INSERT 실행
+  3. honor_points / honor_decay_applied_at / selected_badge 컬럼이 NOT NULL without DEFAULT이면 INSERT 에러
+  4. catch 블록 진입 → "로그인 처리 중 오류가 발생했습니다." 표시 후 멈춤
+- 🤦‍♂️ 현재 상황:
+  await supabase.from('panels').insert({
+    user_id: user.id, name: displayName, status: 'active',
+    trust_score: 100, total_missions: 0,
+    // honor_points (migration 015 추가) 누락
+    // honor_decay_applied_at (migration 015 추가) 누락
+    // selected_badge (migration 021 추가) 누락
+  });
+  이메일 가입 경로는 handle_new_user DB 트리거가 처리하므로 영향 없음 — Google OAuth 경로만 문제
+- ✨ 기대 화면:
+  await supabase.from('panels').insert({
+    user_id: user.id, name: displayName, status: 'active',
+    trust_score: 100, total_missions: 0,
+    honor_points: 0,
+    honor_decay_applied_at: new Date().toISOString(),
+    selected_badge: null,
+  });
+- 🔍 추가 확인(수평 전개):
+  · companies INSERT (line 61-65): credit_balance·plan·name·user_id — migration 015/021에서 companies 컬럼 추가 없음 → 안전 ✅
+  · handle_new_user DB 트리거: 이메일 가입 시 panels/companies 행 자동 생성 — 트리거에서 honor_points/selected_badge 처리 여부는 4_DBSchema.txt 확인 권장
 
 ================================================================
 ## 🟡 MINOR — 수정 대기 (P3)
 ================================================================
 
-(수정 대기 항목 없음)
+[LG-4] Landing — "무료로 시작하기" CTA 3개가 /signup 대신 /login으로 이동
+- 🚨 중요도: P3 (나중에 고쳐) — 신규 방문자 전환율 저하, 가입 과정에 불필요한 단계 추가
+- 📍 위치: src/pages/Landing.jsx (line 87, 134, 482 — navigate('/login?role=company'))
+- 🕵️‍♂️ 재현 방법: 랜딩 페이지 히어로·기능 섹션·하단 CTA의 "무료로 시작하기" 버튼 클릭 → /login으로 이동
+- 🤦‍♂️ 현재 상황: navigate('/login?role=company') — 신규 방문자를 로그인 페이지로 보냄
+- ✨ 기대 화면: navigate('/signup?role=company') — 바로 회원가입 페이지로 직행
+- 🔍 추가 확인(수평 전개): 네비게이션의 "로그인" 버튼 (/login 이동)은 정상 ✅ / LG-6 수정 시 ?role 파라미터 처리와 함께 적용 권장
+
+[LG-5] Login — Google 로딩 중 이메일 로그인 버튼 비활성화 누락
+- 🚨 중요도: P3 (나중에 고쳐) — Google 로딩 중 이메일 동시 시도 가능, 의도치 않은 중복 인증 요청
+- 📍 위치: src/pages/Login.jsx (line 218 — submit 버튼 disabled 조건)
+- 🕵️‍♂️ 재현 방법: "Google로 로그인" 클릭 후 "연결 중..." 표시 중 이메일 폼의 "로그인" 버튼 클릭 가능
+- 🤦‍♂️ 현재 상황: disabled={loading} — googleLoading=true일 때 이메일 버튼이 여전히 활성화
+- ✨ 기대 화면: disabled={loading || googleLoading} — 어느 인증이 진행 중이든 두 버튼 모두 비활성
+- 🔍 추가 확인(수평 전개): Google 버튼 disabled={googleLoading} 는 정상 ✅ / 이메일 버튼만 googleLoading 조건 누락
+
+[LG-6] Login/Signup — URL ?role= 파라미터 미처리로 외부 딥링크 무효
+- 🚨 중요도: P3 (나중에 고쳐) — /login?role=panel 같은 딥링크 동작 안 해 외부 캠페인 링크 연동 불가
+- 📍 위치: src/pages/Login.jsx (line 45), src/pages/Signup.jsx (line 34) — useState('company') 고정 초기값
+- 🕵️‍♂️ 재현 방법: 브라우저에서 /login?role=panel 또는 /signup?role=panel 직접 접속 → 역할 선택이 "기업"으로 고정
+- 🤦‍♂️ 현재 상황:
+  const [role, setRole] = useState('company'); // URL 파라미터 무시
+- ✨ 기대 화면:
+  const [searchParams] = useSearchParams();
+  const [role, setRole] = useState(() => {
+    const r = searchParams.get('role');
+    return ['company', 'panel'].includes(r) ? r : 'company';
+  });
+- 🔍 추가 확인(수평 전개): LG-4 수정 시 Landing CTA가 /signup?role=company 전달 예정 → LG-6과 함께 적용해야 의미 있음
+
+[LG-7] Signup — 이메일 인증 필요 환경에서 가입 후 안내 없이 /login으로 튕겨남
+- 🚨 중요도: P3 (나중에 고쳐) — Supabase 이메일 인증 설정 활성화 시 신규 가입자 전체 혼란
+- 📍 위치: src/pages/Signup.jsx (line 51-53 — signUp 후 즉시 navigate)
+- 🕵️‍♂️ 재현 방법:
+  Supabase 대시보드에서 "Confirm email" 활성화된 환경:
+  1. 회원가입 양식 작성 후 제출 → signUp 성공, 인증 이메일 발송
+  2. 코드가 navigate(DEST[userRole]) 실행 → session=null이므로 RoleRoute가 /login으로 리다이렉트
+  3. 사용자는 "왜 로그인 화면이 나오지?" 혼란
+- 🤦‍♂️ 현재 상황:
+  const { user } = await signUp({ email, password, name, role });
+  navigate(DEST[userRole] ?? '/company', { replace: true }); // 세션 유무 미확인
+- ✨ 기대 화면:
+  const { user, session } = await signUp({ email, password, name, role });
+  if (!session) {
+    setSuccessMsg('인증 이메일이 발송되었습니다. 이메일을 확인 후 로그인해 주세요.');
+    return;
+  }
+  navigate(DEST[userRole] ?? '/company', { replace: true });
+- 🔍 추가 확인(수평 전개): Login.jsx signIn 후 navigate — 로그인은 항상 session이 있으므로 동일 이슈 없음 ✅
 
 ================================================================
 ## 📊 잔여 항목 (미완료)
@@ -348,9 +467,15 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 
   등급       ID              내용
   ────────   ──────────────  ──────────────────────────────────────
-  (수정 대기 항목 없음 — 전체 완료)
+  P1         LG-1            OAuthCallback localStorage admin 주입 (보안)
+  P2         LG-2            Landing 푸터 링크 onClick 미연결
+  P2         LG-3            OAuthCallback panels INSERT 컬럼 누락 (Google 패널 가입)
+  P3         LG-4            Landing CTA → /login 대신 /signup으로 수정 필요
+  P3         LG-5            Login 이메일 버튼 googleLoading 비활성 누락
+  P3         LG-6            Login/Signup URL ?role= 파라미터 미처리
+  P3         LG-7            Signup 이메일 인증 환경 session 미확인
   ────────   ──────────────  ──────────────────────────────────────
-  잔여 합계  0건             (전체 91건 중 91건 완료·스킵 / 0건 수정 대기)
+  잔여 합계  7건             (전체 98건 중 91건 완료·스킵 / 7건 수정 대기)
 
 ================================================================
 ## 🗄️ 완료·스킵 아카이브 (✅ / ⏭)
