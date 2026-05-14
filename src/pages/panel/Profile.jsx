@@ -258,7 +258,9 @@ export default function PanelProfile() {
   };
 
   const toggleExpertise = (e) =>
-    setExpertise(prev => prev.includes(e) ? prev.filter(x => x !== e) : [...prev, e]);
+    setExpertise(prev =>
+      prev.includes(e) ? prev.filter(x => x !== e) : prev.length >= 5 ? prev : [...prev, e]
+    );
 
   const isDirty = orig ? (() => {
     if (tab === 'profile') return name !== orig.name || industry !== orig.industry || experience !== orig.experience || bio !== orig.bio;
@@ -573,9 +575,11 @@ export default function PanelProfile() {
 
         const handleSelectBadge = async (key) => {
           if (!panel) return;
+          const prev = selectedBadge;
           const newVal = selectedBadge === key ? null : key;
           setSelectedBadge(newVal);
-          await supabase.from('panels').update({ selected_badge: newVal }).eq('id', panel.id);
+          const { error } = await supabase.from('panels').update({ selected_badge: newVal }).eq('id', panel.id);
+          if (error) setSelectedBadge(prev);
         };
 
         return (

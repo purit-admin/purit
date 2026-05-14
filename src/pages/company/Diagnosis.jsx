@@ -101,17 +101,22 @@ export default function Diagnosis() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
 
-    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
-    if (!co) { setLoading(false); return; }
+      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      if (!co) { setLoading(false); return; }
 
-    const { data: ms } = await supabase.from('missions').select('id, title').eq('company_id', co.id);
-    setMissions(ms || []);
+      const { data: ms } = await supabase.from('missions').select('id, title').eq('company_id', co.id);
+      setMissions(ms || []);
 
-    await loadFeedbacks('all', ms?.map(m => m.id) || []);
-    setLoading(false);
+      await loadFeedbacks('all', ms?.map(m => m.id) || []);
+      setLoading(false);
+    } catch (err) {
+      console.error('[Diagnosis load]', err);
+      setLoading(false);
+    }
   }
 
   async function loadFeedbacks(missionFilter, missionIds) {

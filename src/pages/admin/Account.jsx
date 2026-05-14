@@ -21,11 +21,16 @@ export default function AdminAccount() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setEmail(user.email || '');
-      setName(user.user_metadata?.name || '');
-      setLoading(false);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setLoading(false); return; }
+        setEmail(user.email || '');
+        setName(user.user_metadata?.name || '');
+        setLoading(false);
+      } catch (err) {
+        console.error('[AdminAccount load]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);

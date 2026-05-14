@@ -253,6 +253,7 @@ export default function ActiveMission() {
               if (ms.image_urls?.length > 0) {
                 const { data: anns } = await supabase.from('feedback_annotations').select('*').eq('feedback_id', fb.id).order('created_at');
                 setAnnotations(anns || []);
+                setViewedImages(new Set(ms.image_urls.map((_, i) => i)));
                 if (fb.suggestions) {
                   const overallMatch = fb.suggestions.match(/\[총평\]\n([\s\S]*)$/);
                   if (overallMatch) setOverallComment(overallMatch[1].trim());
@@ -366,6 +367,7 @@ export default function ActiveMission() {
       }
       } catch (err) {
         console.error('[PanelActiveMission load]', err);
+        if (!missionId) setDrafts([]);
       }
     }
     load();
@@ -521,7 +523,8 @@ export default function ActiveMission() {
       purity_passed:         false,
       status:                'draft',
     }).select('id').single();
-    if (!error && data) setDraftId(data.id);
+    if (error) { alert('초안 생성 중 오류: ' + error.message); return; }
+    if (data) setDraftId(data.id);
     setStep(1);
   };
 
@@ -529,7 +532,7 @@ export default function ActiveMission() {
     hasImages
       ? annotations.length > 0 || customAnswers.length > 0
       : isSubMission
-        ? Boolean(prefChoice || prefClarity || prefIntent || priceFairness || priceValue || priceWouldBuy !== null || emailOpenIntent || emailHook || emailWouldReply !== null)
+        ? Boolean(prefChoice || prefClarity || prefIntent || priceFairness || priceValue || priceWouldBuy !== null || emailOpenIntent || emailCuriosity || emailHook || emailWouldReply !== null)
         : Object.values(scores).some(s => s > 0) || Object.values(comments).some(c => c.trim()) || customAnswers.length > 0
   );
 
@@ -1040,7 +1043,7 @@ export default function ActiveMission() {
       const baseOk = (() => {
         if (missionType === 'preference') return prefChoice && prefClarity && prefIntent && prefComment.trim();
         if (missionType === 'pricing') return priceWouldBuy !== null && priceFairness && priceValue;
-        if (missionType === 'email') return emailWouldReply !== null && emailHook && emailClarity && emailOpenIntent;
+        if (missionType === 'email') return emailWouldReply !== null && emailHook && emailClarity && emailOpenIntent && emailCuriosity;
         return false;
       })();
       return baseOk && (allTypedQs.length === 0 || allTypedQsAnswered());

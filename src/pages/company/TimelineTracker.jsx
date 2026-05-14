@@ -29,25 +29,30 @@ export default function TimelineTracker() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
 
-    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
-    if (!co) { setLoading(false); return; }
+      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      if (!co) { setLoading(false); return; }
 
-    const { data: ms } = await supabase
-      .from('missions').select('id, title, created_at, status')
-      .eq('company_id', co.id)
-      .order('created_at', { ascending: false });
+      const { data: ms } = await supabase
+        .from('missions').select('id, title, created_at, status')
+        .eq('company_id', co.id)
+        .order('created_at', { ascending: false });
 
-    const missionList = ms || [];
-    setMissions(missionList);
-    setSelected(missionList.map(m => m.id));
+      const missionList = ms || [];
+      setMissions(missionList);
+      setSelected(missionList.map(m => m.id));
 
-    if (missionList.length) {
-      await fetchChartData(missionList, missionList.map(m => m.id), view);
+      if (missionList.length) {
+        await fetchChartData(missionList, missionList.map(m => m.id), view);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('[TimelineTracker load]', err);
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function fetchChartData(missionList, ids, viewMode) {

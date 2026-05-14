@@ -1182,7 +1182,7 @@ export default function Results() {
 
                     {/* 탭 콘텐츠 */}
                     {activeDimTab === 'summary' ? (
-                      <SummaryTabView feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
+                      <SummaryTabView key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
                     ) : (
                       <DimTabView
                         dim={activeDimTab}

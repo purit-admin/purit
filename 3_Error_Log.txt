@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-14 (D-61 SQL INSERT 트리거 UPDATE 경로 누락 / D-62 일괄 처리 알림 side effect 누락)
+최종 업데이트: 2026-05-14 (D-27~D-31 날짜 제거 / D-51·D-56 중복 번호 → D-63·D-64 재번호)
 ================================================================
 
 ## 핵심 원칙
@@ -279,12 +279,12 @@ D-26. 수익 현황 집계 패턴 (Dashboard/History 공통)
      → Dashboard는 feedbacks를 별도 쿼리로 조회 (histFeedbacks state)
      → History와 동일한 집계 함수 패턴 사용 (reduce로 금액 합산)
 
-D-27. Results.jsx 미션 선택 칩 UI 문제 ✅ 해결 (2026-04-30)
+D-27. Results.jsx 미션 선택 칩 UI 문제 ✅ 해결
      → 미션이 10개 이상이면 상단에 칩 버튼이 여러 줄로 펼쳐져 지저분
      → 해결: 좌측 230px 고정 패널 구조로 전면 재설계 (메인 의뢰 / 서브 의뢰 섹션 분리)
      → Results.jsx 전체 재작성: 레이아웃 grid(230px 1fr), sticky 좌측 패널, 6탭 우측 콘텐츠
 
-D-28. panels 조인 RLS 차단으로 feedbacks 쿼리 전체 실패 패턴 ✅ 해결 (2026-04-30)
+D-28. panels 조인 RLS 차단으로 feedbacks 쿼리 전체 실패 패턴 ✅ 해결
      → 증상: Results.jsx에서 피드백이 전혀 표시 안 됨 (대시보드 수치는 정상)
      → 원인: feedbacks 쿼리에서 panels(industry, experience, name) 조인 시
              RLS가 기업 유저의 panels 접근을 차단 → 쿼리 전체 실패 → data=null → feedbacks=[]
@@ -293,7 +293,7 @@ D-28. panels 조인 RLS 차단으로 feedbacks 쿼리 전체 실패 패턴 ✅ �
      → 원칙: 기업 유저가 feedbacks를 조회할 때 panels를 직접 join하지 말 것
              (panels SELECT RLS는 본인 or admin 전용)
 
-D-29. 반려 피드백 재제출 시 서브 응답 테이블 중복 INSERT 함정 ✅ 해결 (2026-04-30)
+D-29. 반려 피드백 재제출 시 서브 응답 테이블 중복 INSERT 함정 ✅ 해결
      → 증상: 재제출 시 preference_responses / pricing_responses / email_responses에 INSERT 시도 →
              unique constraint(mission_id + panel_id) 위반으로 에러 발생
      → 원인: 최초 제출 때 이미 해당 테이블에 행이 존재 — 재제출은 신규 행이 아니라 수정임
@@ -303,7 +303,7 @@ D-29. 반려 피드백 재제출 시 서브 응답 테이블 중복 INSERT 함�
                   절대 호출하지 말 것 — 최초 제출 때 이미 카운트가 증가되어 있음. 재호출 시 중복 집계 발생
      → isResubmit 플래그 판별: URL ?resubmit=<feedbackId> + DB에서 fb.status === 'rejected' 교차 검증
 
-D-30. 이미지 어노테이션 코멘트 debounce 미flush로 제출 시 코멘트 유실 ✅ 해결 (2026-04-30)
+D-30. 이미지 어노테이션 코멘트 debounce 미flush로 제출 시 코멘트 유실 ✅ 해결
      → 증상: 패널이 어노테이션 코멘트를 입력 후 1초 이내에 제출 → 기업 Results에서 "코멘트 없음" 표시
      → 원인: handleUpdateAnnotationComment의 1s debounce 타이머가 handleSubmit 호출보다 늦게 실행됨
              → feedback_annotations.comment가 빈 문자열('')로 남아 기업 화면에서 누락
@@ -313,7 +313,7 @@ D-30. 이미지 어노테이션 코멘트 debounce 미flush로 제출 시 코멘
      → 교훈: debounce로 저장하는 중간 데이터가 있을 때, 최종 제출 시 반드시 pending 타이머를 flush해야 함
              (D-12의 "코멘트 UPDATE debounce 패턴"과 연계 — 저장만 설계해서는 안 되고 flush 로직도 필수)
 
-D-31. template_questions DB 데이터 미존재 시 로컬 폴백 패턴 ✅ 정착 (2026-05-01)
+D-31. template_questions DB 데이터 미존재 시 로컬 폴백 패턴 ✅ 정착
      → 증상: QuestionTemplates.jsx 미리보기 클릭 시 질문 목록이 빈 상태로 표시됨
      → 원인: Supabase question_templates 테이블에 template_questions JOIN 데이터가 없음
              (마이그레이션은 실행됐으나 시드 데이터가 없는 상태)
@@ -571,7 +571,7 @@ D-48. staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 �
              단일 rAF + 수식 계산 패턴만이 드리프트 없이 항상 정확한 동시 노출 수를 보장함
              React state 대신 DOM 직접 조작(el.style.opacity)으로 리렌더 없이 60fps 유지
 
-D-51. CSS 키프레임 애니메이션을 루프에서 재시작하려면 React key 교체로 강제 리마운트 필요 ✅ 해결
+D-63. CSS 키프레임 애니메이션을 루프에서 재시작하려면 React key 교체로 강제 리마운트 필요 ✅ 해결
      → 증상: 루핑 phase 머신에서 phase가 0으로 리셋될 때 SVG stroke-dashoffset 애니메이션이 처음부터 재실행되지 않음
      → 원인: 동일 DOM 요소에 animation 속성을 'none'으로 변경 후 다시 설정해도 브라우저가 새 애니메이션으로 인식하지 않는 경우가 있음
              (animationName 변경 없이 animation 프로퍼티만 토글 시 브라우저가 같은 애니메이션으로 간주 → 재시작 미실행)
@@ -671,7 +671,7 @@ D-59. 자동저장 JSON에서 제출 gate 조건이 되는 state를 빠뜨리면
              저장 대상 누락 = 복원 후 해당 state가 초기값으로 남음 = 제출 gate 영구 잠김
              canSubmit 조건식과 strengths 저장 객체 키를 나란히 놓고 빠진 것 없는지 대조 확인할 것
 
-D-56. 점수 함수가 실제 저장 구조와 다른 필드를 검사해 항상 0점 반환하는 패턴 ✅ 해결
+D-64. 점수 함수가 실제 저장 구조와 다른 필드를 검사해 항상 0점 반환하는 패턴 ✅ 해결
      → 증상: PurityFilter calcPurityScore 섹션균형이 모든 피드백에서 항상 0/10점
      → 원인: `[fb.strengths, fb.weaknesses, fb.suggestions].filter(10자+)` 로 3개 필드를 검사했지만
              패널 피드백 제출 시 strengths·weaknesses는 null로 초기화되고 모든 내용이 suggestions 하나에 저장됨

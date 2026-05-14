@@ -175,7 +175,7 @@ export default function MissionList() {
 
       const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
         supabase.from('feedbacks').select('mission_id, status, id, suggestions').eq('panel_id', p.id),
-        supabase.from('missions').select('*').order('created_at', { ascending: false }),
+        supabase.from('missions').select('*').neq('status', 'draft').order('created_at', { ascending: false }),
       ]);
 
       const map = {};

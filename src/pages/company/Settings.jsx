@@ -33,20 +33,25 @@ export default function AccountSettings() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
-    setCompany(co);
-    if (co) {
-      const [membersRes, invRes] = await Promise.all([
-        supabase.from('team_members').select('*').eq('company_id', co.id).neq('status', 'inactive').order('joined_at'),
-        supabase.from('invoices').select('*').eq('company_id', co.id).order('invoice_date', { ascending: false }).limit(6),
-      ]);
-      if (!membersRes.error) setMembers(membersRes.data);
-      if (!invRes.error) setInvoices(invRes.data);
+      const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
+      setCompany(co);
+      if (co) {
+        const [membersRes, invRes] = await Promise.all([
+          supabase.from('team_members').select('*').eq('company_id', co.id).neq('status', 'inactive').order('joined_at'),
+          supabase.from('invoices').select('*').eq('company_id', co.id).order('invoice_date', { ascending: false }).limit(6),
+        ]);
+        if (!membersRes.error) setMembers(membersRes.data);
+        if (!invRes.error) setInvoices(invRes.data);
+      }
+    } catch (err) {
+      console.error('[Settings load]', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleInvite() {

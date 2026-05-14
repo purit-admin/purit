@@ -257,7 +257,7 @@ export default function PricingPage() {
             <Btn
               variant={currentPlan === plan.id ? 'secondary' : plan.highlight ? 'primary' : 'secondary'}
               style={{ width: '100%', justifyContent: 'center' }}
-              disabled={currentPlan === plan.id || changing === plan.id}
+              disabled={currentPlan === plan.id || !!changing}
               onClick={() => handleSelectPlan(plan.id)}
             >
               {currentPlan === plan.id ? '사용 중' : changing === plan.id ? '변경 중...' : plan.cta}

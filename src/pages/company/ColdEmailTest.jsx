@@ -82,7 +82,9 @@ export default function ColdEmailTest() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
   const [terminateTarget, setTerminateTarget] = useState(null);
+  const [terminateError, setTerminateError] = useState('');
   const [pendingNavPath, setPendingNavPath] = useState(null);
 
   const initTemplateName = location.state?.templateName || null;
@@ -173,19 +175,27 @@ export default function ColdEmailTest() {
 
   async function handleDeleteMission() {
     if (!deleteTarget) return;
-    await supabase.from('missions').delete().eq('id', deleteTarget);
+    const { error } = await supabase.from('missions').delete().eq('id', deleteTarget);
+    if (error) {
+      setDeleteError('삭제 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      return;
+    }
     setMissions(prev => prev.filter(m => m.id !== deleteTarget));
+    setDeleteError('');
     setDeleteTarget(null);
   }
 
   async function handleTerminate() {
     if (!terminateTarget) return;
     const { error } = await supabase.from('missions').update({ status: 'cancelled' }).eq('id', terminateTarget.id);
-    if (!error) {
-      setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
-      supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
-        .then(({ error: re }) => { if (re) console.warn('[recalc]', re.message); });
+    if (error) {
+      setTerminateError('종료 처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      return;
     }
+    setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+    supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
+      .then(({ error: re }) => { if (re) console.warn('[recalc]', re.message); });
+    setTerminateError('');
     setTerminateTarget(null);
   }
 
@@ -961,8 +971,9 @@ export default function ColdEmailTest() {
           confirmLabel="조기 종료 (크레딧 환불 불가)"
           cancelLabel="유지"
           danger
+          errorMsg={terminateError}
           onConfirm={handleTerminate}
-          onCancel={() => setTerminateTarget(null)}
+          onCancel={() => { setTerminateTarget(null); setTerminateError(''); }}
         />
       )}
       {deleteTarget && (
@@ -972,8 +983,9 @@ export default function ColdEmailTest() {
           confirmLabel="영구 삭제"
           cancelLabel="취소"
           danger
+          errorMsg={deleteError}
           onConfirm={handleDeleteMission}
-          onCancel={() => setDeleteTarget(null)}
+          onCancel={() => { setDeleteTarget(null); setDeleteError(''); }}
         />
       )}
 

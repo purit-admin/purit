@@ -27,18 +27,23 @@ export default function CompanyAccount() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setEmail(user.email || '');
-      const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
-      if (co) {
-        setCompany(co);
-        setName(co.name || '');
-        setIndustry(co.industry || '');
-        setWebsite(co.website || '');
-        setOrig({ name: co.name || '', industry: co.industry || '', website: co.website || '' });
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setEmail(user.email || '');
+        const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
+        if (co) {
+          setCompany(co);
+          setName(co.name || '');
+          setIndustry(co.industry || '');
+          setWebsite(co.website || '');
+          setOrig({ name: co.name || '', industry: co.industry || '', website: co.website || '' });
+        }
+      } catch (err) {
+        console.error('[Account load]', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, []);

@@ -318,7 +318,9 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 최종 업데이트: 2026-05-14 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
                             / 대규모 전체 조사: 신규-F~Y 20건 발견
                             / Phase 1+2 무한 로딩 고착 13건 수정 완료: 신규-F/G/H/I/M/N/O/T/U/V/W/X/Y
-                            / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료)
+                            / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료
+                            / 기업 포털 심층 검사: 기업-A~G 7건 발견 및 수정 완료 — 총 55건 완료
+                            / 수평 전개 조사 2차: 수평-A~G 7건 발견 및 수정 완료 — 총 62건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -345,7 +347,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   ────────   ──────────────  ──────────────────────────────────────
   (수정 대기 항목 없음 — 전체 완료)
   ────────   ──────────────  ──────────────────────────────────────
-  잔여 합계  0건             (전체 48건 중 48건 완료·스킵 / 0건 수정 대기)
+  잔여 합계  0건             (전체 62건 중 62건 완료·스킵 / 0건 수정 대기)
 
 ================================================================
 ## 🗄️ 완료·스킵 아카이브 (✅ / ⏭)
@@ -406,5 +408,23 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [N-12] 기업 커스텀 질문 "×" 확인 모달 없음  ✅
 [N-13] Purity Filter "반려" 확인 모달 없음  ✅
 [신규-B] 기업 팀원 "제거" 확인 모달 없음  ✅
+
+-- 기업 포털 심층 검사 (2026-05-14) --
+[기업-A] 기업 내 계정 (company/Account.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[기업-B] 기업 팀 & 설정 (company/Settings.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[기업-C] 기업 의뢰 조기 종료 (Dashboard/NewMission/PreferenceTest/PricingTest/ColdEmailTest) — handleTerminate() DB 실패 시 낙관적 롤백 없이 모달 닫힘  ✅
+[기업-D] 기업 의뢰 삭제 (Dashboard/NewMission/PreferenceTest/PricingTest/ColdEmailTest) — handleDeleteMission() error 캡처 없이 항상 로컬 상태 제거  ✅
+[기업-E] NewMission.jsx 신규 의뢰 제출 — reward_amount를 calcCredits()*10000으로 계산해 패널 정산 금액 완전히 오염  ✅
+[기업-F] 기업 플랜 변경 (company/Pricing.jsx) — 플랜 변경 중 다른 플랜 버튼 비활성화 미적용으로 동시 중복 변경 가능  ✅
+[기업-G] 기업 피드백 결과 (company/Results.jsx) — SummaryTabView의 commentPage가 미션 전환 시 초기화되지 않아 잘못된 페이지 표시  ✅
+
+-- 수평 전개 조사 2차 (2026-05-14) — 기업-A/B 동일 패턴(try-catch 누락) 전체 코드베이스 수평 전개 --
+[수평-A] 기업 5차원 진단 (company/Diagnosis.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-B] 기업 질문 템플릿 (company/QuestionTemplates.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-C] 알림 센터 공용 컴포넌트 (NotificationCenter.jsx) — load() try-catch 없어 기업·패널·어드민 전 포털 무한 로딩 가능  ✅
+[수평-D] 기업 시계열 추적 (company/TimelineTracker.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-E] 어드민 내 계정 (admin/Account.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-F] 어드민 수익 & 정산 (admin/Revenue.jsx) — loadAll() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-G] 어드민 미션 관리 (admin/Missions.jsx) — deleteMission() error 미캡처, DB 삭제 실패 시에도 항상 로컬 상태 제거 (기업-D 동일 패턴)  ✅
 
 ================================================================

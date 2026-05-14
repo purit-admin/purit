@@ -16,15 +16,20 @@ export default function RevenueManagement() {
 
   async function loadAll() {
     setLoading(true);
-    const [gmvRes, settRes, invRes] = await Promise.all([
-      supabase.from('gmv_snapshots').select('*').order('year').order('month_num'),
-      supabase.from('settlements').select('*').order('created_at', { ascending: false }),
-      supabase.from('invoices').select('*').order('invoice_date', { ascending: false }),
-    ]);
-    if (!gmvRes.error) setGmvData(gmvRes.data);
-    if (!settRes.error) setSettlements(settRes.data);
-    if (!invRes.error) setInvoices(invRes.data);
-    setLoading(false);
+    try {
+      const [gmvRes, settRes, invRes] = await Promise.all([
+        supabase.from('gmv_snapshots').select('*').order('year').order('month_num'),
+        supabase.from('settlements').select('*').order('created_at', { ascending: false }),
+        supabase.from('invoices').select('*').order('invoice_date', { ascending: false }),
+      ]);
+      if (!gmvRes.error) setGmvData(gmvRes.data);
+      if (!settRes.error) setSettlements(settRes.data);
+      if (!invRes.error) setInvoices(invRes.data);
+      setLoading(false);
+    } catch (err) {
+      console.error('[Revenue loadAll]', err);
+      setLoading(false);
+    }
   }
 
   async function handleSettle(id) {

@@ -52,45 +52,50 @@ export default function QuestionTemplates() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
 
-    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
-    if (co) setCompanyId(co.id);
+      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      if (co) setCompanyId(co.id);
 
-    const baseQuery = supabase
-      .from('question_templates')
-      .select('*, template_questions(id, question_text, question_order, question_type, options)')
-      .order('use_count', { ascending: false });
+      const baseQuery = supabase
+        .from('question_templates')
+        .select('*, template_questions(id, question_text, question_order, question_type, options)')
+        .order('use_count', { ascending: false });
 
-    const { data, error } = await (co
-      ? baseQuery.or(`is_default.eq.true,company_id.eq.${co.id}`)
-      : baseQuery.eq('is_default', true));
+      const { data, error } = await (co
+        ? baseQuery.or(`is_default.eq.true,company_id.eq.${co.id}`)
+        : baseQuery.eq('is_default', true));
 
-    if (error) console.error('[QuestionTemplates]', error.message);
-    if (data) {
-      const allData = [...data];
-      // DB에 없으면 로컬 상수로 폴백 (D-31 패턴) — 4개 탭 전체 적용
-      const checks = [
-        { key: 'lp',         category: '랜딩페이지' },
-        { key: 'preference', category: '광고소재'   },
-        { key: 'pricing',    category: '가격'       },
-        { key: 'email',      category: '이메일'     },
-      ];
-      checks.forEach(({ key, category }) => {
-        const hasData = allData.some(t => t.category === category && t.is_default);
-        if (!hasData) {
-          (QUESTION_TEMPLATES[key] || []).forEach(t => allData.push({
-            ...t, is_default: true, template_questions: [], use_count: 0,
-          }));
-        }
-      });
-      setTemplates(allData.map(t => ({
-        ...t,
-        template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),
-      })));
+      if (error) console.error('[QuestionTemplates]', error.message);
+      if (data) {
+        const allData = [...data];
+        // DB에 없으면 로컬 상수로 폴백 (D-31 패턴) — 4개 탭 전체 적용
+        const checks = [
+          { key: 'lp',         category: '랜딩페이지' },
+          { key: 'preference', category: '광고소재'   },
+          { key: 'pricing',    category: '가격'       },
+          { key: 'email',      category: '이메일'     },
+        ];
+        checks.forEach(({ key, category }) => {
+          const hasData = allData.some(t => t.category === category && t.is_default);
+          if (!hasData) {
+            (QUESTION_TEMPLATES[key] || []).forEach(t => allData.push({
+              ...t, is_default: true, template_questions: [], use_count: 0,
+            }));
+          }
+        });
+        setTemplates(allData.map(t => ({
+          ...t,
+          template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),
+        })));
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('[QuestionTemplates load]', err);
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function loadCustomQs(cid, cat) {

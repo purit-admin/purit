@@ -107,7 +107,7 @@ export const EmptyState = ({ icon, title, desc }) => (
   </div>
 );
 
-export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel = '취소', onConfirm, onCancel, danger = false }) =>
+export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel = '취소', onConfirm, onCancel, danger = false, errorMsg = '' }) =>
   ReactDOM.createPortal(
     <div
       onClick={onCancel}
@@ -120,6 +120,7 @@ export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel
       >
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{title}</div>
         {desc && <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24, lineHeight: 1.6 }}>{desc}</div>}
+        {errorMsg && <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600, marginBottom: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 6 }}>{errorMsg}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
           <Btn variant="secondary" onClick={onCancel}>{cancelLabel}</Btn>
           <Btn variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>{confirmLabel}</Btn>

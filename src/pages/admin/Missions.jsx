@@ -201,6 +201,7 @@ export default function AdminMissions() {
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('active');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleteError, setDeleteError]     = useState('');
   const [confirmCancel, setConfirmCancel] = useState(null);
   const [confirmComplete, setConfirmComplete] = useState(null);
   const [confirmReactivate, setConfirmReactivate] = useState(null);
@@ -316,7 +317,12 @@ export default function AdminMissions() {
   };
 
   const deleteMission = async (id) => {
-    await supabase.from('missions').delete().eq('id', id);
+    const { error } = await supabase.from('missions').delete().eq('id', id);
+    if (error) {
+      setDeleteError('삭제 중 오류가 발생했습니다: ' + error.message);
+      return;
+    }
+    setDeleteError('');
     setMissions(ms => ms.filter(m => m.id !== id));
     setSelectedMission(prev => prev?.id === id ? null : prev);
     setConfirmDelete(null);
@@ -373,8 +379,9 @@ export default function AdminMissions() {
           confirmLabel="삭제"
           cancelLabel="취소"
           danger
+          errorMsg={deleteError}
           onConfirm={() => deleteMission(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
+          onCancel={() => { setConfirmDelete(null); setDeleteError(''); }}
         />
       )}
 

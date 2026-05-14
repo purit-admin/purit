@@ -44,30 +44,35 @@ export default function NotificationCenter({ role = 'company' }) {
     let subscription;
 
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setLoading(false); return; }
 
-      const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .or(`target_role.eq.${role},target_role.is.null`)
-        .order('created_at', { ascending: false });
+        const { data } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .or(`target_role.eq.${role},target_role.is.null`)
+          .order('created_at', { ascending: false });
 
-      if (data) setNotifs(data);
-      setLoading(false);
+        if (data) setNotifs(data);
+        setLoading(false);
 
-      subscription = supabase
-        .channel('notifications')
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        }, (payload) => {
-          setNotifs(prev => [payload.new, ...prev]);
-        })
-        .subscribe();
+        subscription = supabase
+          .channel('notifications')
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          }, (payload) => {
+            setNotifs(prev => [payload.new, ...prev]);
+          })
+          .subscribe();
+      } catch (err) {
+        console.error('[NotificationCenter load]', err);
+        setLoading(false);
+      }
     }
 
     load();
