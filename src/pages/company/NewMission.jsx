@@ -251,6 +251,7 @@ export default function NewMission() {
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [terminateError, setTerminateError] = useState('');
   const [pendingNavPath, setPendingNavPath] = useState(null);
+  const [currentEditId, setCurrentEditId] = useState(null);
 
   // 질문 설정 state
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -480,8 +481,11 @@ export default function NewMission() {
     set('imageUrls', form.imageUrls.filter(u => u !== url));
   };
 
+  const effectiveEditMode = isEditMode || !!currentEditId;
+  const effectiveEditId   = currentEditId || editMissionId;
+
   const shouldBlockNav = view === 'form'
-    && (!isEditMode || isDraftMode)
+    && (!effectiveEditMode || isDraftMode)
     && Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0
       || form.industry || form.personaAge || form.personaIncome || form.personaRole || form.personaContext);
 
@@ -502,6 +506,34 @@ export default function NewMission() {
     }
     return () => navigationGuard.unregister();
   }, [shouldBlockNav]);
+
+  function openDraftOrActiveForEdit(missionId) {
+    setCurrentEditId(missionId);
+    supabase.from('missions').select('*').eq('id', missionId).single().then(({ data: ms }) => {
+      if (!ms) return;
+      setIsDraftMode(ms.status === 'draft');
+      let parsed = {};
+      try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+      setForm(f => ({
+        ...f,
+        product:        parsed.product || ms.title || '',
+        lpUrl:          ms.target_url || '',
+        briefText:      parsed.briefText || '',
+        panels:         ms.panel_count || 10,
+        focusAreas:     parsed.focusAreas || ms.assets || [],
+        imageUrls:      ms.image_urls || [],
+        industry:       parsed.industry || '',
+        personaAge:     parsed.personaAge || '',
+        personaIncome:  parsed.personaIncome || '',
+        personaRole:    parsed.personaRole || '',
+        personaContext: parsed.personaContext || '',
+      }));
+      if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+      if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
+      if (parsed.step != null) setStep(parsed.step);
+      setView('form');
+    });
+  }
 
   async function handleDeleteMission() {
     if (!deleteTarget) return;
@@ -534,7 +566,7 @@ export default function NewMission() {
 
   async function saveDraft() {
     if (!companyId) return;
-    if (isEditMode && !isDraftMode) return;
+    if (effectiveEditMode && !isDraftMode) return;
     setSavingDraft(true);
     try {
       const persona = [
@@ -557,8 +589,8 @@ export default function NewMission() {
         description: desc, panel_count: form.panels || 10,
         image_urls: form.imageUrls, assets: form.focusAreas, persona,
       };
-      if (isEditMode && editMissionId) {
-        await supabase.from('missions').update(payload).eq('id', editMissionId);
+      if (effectiveEditMode && effectiveEditId) {
+        await supabase.from('missions').update(payload).eq('id', effectiveEditId);
       } else {
         await supabase.from('missions').insert({ id: missionUuid, ...payload });
       }
@@ -595,7 +627,7 @@ export default function NewMission() {
 
       const description = buildDescription();
 
-      if (isEditMode && editMissionId) {
+      if (effectiveEditMode && effectiveEditId) {
         const updatePayload = {
           title:         form.product || '의뢰',
           target_url:    form.lpUrl,
@@ -607,17 +639,17 @@ export default function NewMission() {
           image_urls:    form.imageUrls,
         };
         if (isDraftMode) updatePayload.status = 'active';
-        const { error } = await supabase.from('missions').update(updatePayload).eq('id', editMissionId);
+        const { error } = await supabase.from('missions').update(updatePayload).eq('id', effectiveEditId);
         if (error) throw error;
         if (isDraftMode) {
           const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
           const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
-            p_mission_id: editMissionId,
+            p_mission_id: effectiveEditId,
             p_company_id: company.id,
             p_credits:    requiredCredits,
           });
           if (creditErr || !creditData?.success) {
-            await supabase.from('missions').update({ status: 'draft' }).eq('id', editMissionId);
+            await supabase.from('missions').update({ status: 'draft' }).eq('id', effectiveEditId);
             throw new Error(
               creditData?.error === 'INSUFFICIENT_CREDITS'
                 ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
@@ -753,7 +785,7 @@ export default function NewMission() {
                   return (
                     <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                       onClick={() => {
-                        if (isDraft) navigate('/company/new', { state: { editMode: true, missionId: m.id } });
+                        if (isDraft) openDraftOrActiveForEdit(m.id);
                         else navigate(`/company/results?id=${m.id}`);
                       }}>
                       <div className="mc-row">
@@ -783,13 +815,13 @@ export default function NewMission() {
                             {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
                           </div>
                           {isDraft && (
-                            <button onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                            <button onClick={e => { e.stopPropagation(); openDraftOrActiveForEdit(m.id); }}
                               style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, border: 'none', background: 'rgba(16,54,125,0.07)', color: 'var(--text-2)', cursor: 'pointer' }}>
                               이어 작성하기 →
                             </button>
                           )}
                           {m.status === 'active' && filled === 0 && (
-                            <button onClick={e => { e.stopPropagation(); navigate('/company/new', { state: { editMode: true, missionId: m.id } }); }}
+                            <button onClick={e => { e.stopPropagation(); openDraftOrActiveForEdit(m.id); }}
                               style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: '#F1F5F9', color: 'var(--text-2)', cursor: 'pointer', transition: 'background 0.12s' }}>
                               수정
                             </button>
@@ -823,8 +855,8 @@ export default function NewMission() {
       {view === 'form' && (
         <>
           <div style={{ marginBottom: 36 }}>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>{isEditMode ? 'EDIT MISSION' : 'NEW MISSION'}</div>
-            <h1 style={{ fontSize: 28, fontWeight: 800 }}>{isEditMode ? '의뢰 수정' : '마케팅 소재 종합 진단 등록'}</h1>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>{effectiveEditMode ? 'EDIT MISSION' : 'NEW MISSION'}</div>
+            <h1 style={{ fontSize: 28, fontWeight: 800 }}>{effectiveEditMode ? '의뢰 수정' : '마케팅 소재 종합 진단 등록'}</h1>
           </div>
 
           {/* NDA 안내 배너 */}
@@ -1480,10 +1512,10 @@ export default function NewMission() {
             <Btn variant="secondary" onClick={() => {
               if (step > 0) { setStep(s => s - 1); }
               else if (shouldBlockNav) { setShowDraftModal(true); }
-              else if (isEditMode) navigate('/company');
+              else if (effectiveEditMode) navigate('/company');
               else setView('list');
             }} size="md">
-              {step === 0 ? (isEditMode ? '취소' : '목록으로') : '이전'}
+              {step === 0 ? (effectiveEditMode ? '취소' : '목록으로') : '이전'}
             </Btn>
             {submitError && (
               <div style={{ color: 'var(--red)', fontSize: 13, padding: '8px 12px', background: 'var(--red-dim)', borderRadius: 8 }}>
@@ -1499,9 +1531,9 @@ export default function NewMission() {
                 step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit();
               }}
               size="md"
-              disabled={submitting || uploading || (step === STEPS.length - 1 && !isEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
+              disabled={submitting || uploading || (step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
             >
-              {step === STEPS.length - 1 ? (submitting ? '처리 중...' : isEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
+              {step === STEPS.length - 1 ? (submitting ? '처리 중...' : effectiveEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
             </Btn>
           </div>
         </>
@@ -1557,7 +1589,7 @@ export default function NewMission() {
               const dest = pendingNavPath;
               setPendingNavPath(null);
               if (dest) navigate(dest);
-              else if (isEditMode) navigate('/company');
+              else if (effectiveEditMode) navigate('/company');
               else setView('list');
             }} disabled={savingDraft}>
               {savingDraft ? '저장 중...' : '임시 저장 후 나가기'}
@@ -1568,7 +1600,7 @@ export default function NewMission() {
               const dest = pendingNavPath;
               setPendingNavPath(null);
               if (dest) navigate(dest);
-              else if (isEditMode) navigate('/company');
+              else if (effectiveEditMode) navigate('/company');
               else setView('list');
             }}>저장 없이 나가기</Btn>
             <Btn variant="ghost" onClick={() => { setShowDraftModal(false); setPendingNavPath(null); }}>계속 작성하기</Btn>

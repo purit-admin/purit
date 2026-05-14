@@ -105,7 +105,7 @@ purit/
 │   │                Step 2: "내 커스텀 질문" 아코디언 (customLPQs DB 데이터) + QUESTION_TEMPLATES.lp 아코디언
 │   │                        "질문 만들기" 인라인 Card: textarea + 타입(옵션형/점수형/서술형) + "추가"(localCustomQs) + "템플릿에 저장 →"(DB INSERT, ConfirmModal)
 │   │                임시 저장 상태: isDraftMode(ms.status==='draft'), savingDraft, showDraftModal
-│   │                  shouldBlockNav: view==='form' && (!isEditMode || isDraftMode) && 입력값 존재
+│   │                  shouldBlockNav: view==='form' && (!effectiveEditMode || isDraftMode) && 입력값 존재
 │   │                  useBlocker: 라우터 이탈 감지 / showDraftModal: 로컬 setView('list') 이탈 감지
 │   │                  saveDraft(): description JSON에 모든 필드(step 포함) 저장 → missions INSERT/UPDATE(status='draft')
 │   │                  draft→active 제출: UPDATE(status='active') + reserve_mission_credits 호출, 실패 시 'draft' 롤백
@@ -120,10 +120,17 @@ purit/
 │   │                  window.beforeunload: shouldBlockNav 조건 시 e.preventDefault() + e.returnValue=''
 │   │                  deleteTarget state + handleDeleteMission(): missions DELETE + 로컬 필터 제거
 │   │                  terminateTarget state + handleTerminate(): missions UPDATE(status='cancelled') + 로컬 상태 반영 (4개 폼 공통)
-│   │                  서브 의뢰(Preference/Pricing/Email): 목록 뷰 draft/active 이어하기·수정 버튼은 navigate 불사용
-│   │                    openDraftOrActiveForEdit(missionId) 헬퍼로 직접 DB 로드 후 필드 복원 + setView('create') 호출
+│   │                  메인·서브 의뢰 모두: 목록 뷰 draft/active 이어하기·수정 버튼은 navigate 불사용
+│   │                    openDraftOrActiveForEdit(missionId) 헬퍼로 직접 DB 로드 후 필드 복원 + setView('form'/'create') 호출
 │   │                    (같은 경로 navigate는 컴포넌트 리마운트 미실행으로 useEffect 미재실행 — D-43 참조)
-│   │                  서브 의뢰 목록: cancelled 포함 5탭 (전체/진행/완료/임시저장/취소)
+│   │                  NewMission.jsx: currentEditId state + effectiveEditMode(isEditMode||!!currentEditId) + effectiveEditId(currentEditId||editMissionId)
+│   │                    → saveDraft/handleSubmit 모두 effectiveEditMode/effectiveEditId 사용
+│   │                    → Dashboard(외부 경로)에서 진입 시 기존 isEditMode/editMissionId 경로 유지
+│   │                  메인 의뢰 목록(NewMission): cancelled 포함 5탭 (전체/진행/완료/임시저장/취소)
+│   │                    - draft 카드 클릭 / 이어 작성하기 버튼 → openDraftOrActiveForEdit(id)
+│   │                    - active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id)
+│   │                    - 일반 카드 클릭 (active/completed) → navigate('/company/results?id=…')
+│   │                  서브 의뢰 목록(Preference/Pricing/Email): cancelled 포함 5탭
 │   │                    - draft 카드 클릭 / 이어 작성하기 버튼 → openDraftOrActiveForEdit(id)
 │   │                    - active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id)
 │   │                    - cancelled 카드 클릭 → navigate('/company/results?id=…')
