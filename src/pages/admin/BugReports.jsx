@@ -143,6 +143,7 @@ export default function BugReports() {
         title: '버그/건의 답변이 도착했습니다',
         body: `[${selected.title}] 답변을 확인해보세요.`,
         actionUrl,
+        targetRole: selected.role,
       });
     }
     setSendingReply(false);

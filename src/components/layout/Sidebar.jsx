@@ -129,7 +129,8 @@ export default function Layout({ role, children }) {
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .eq('read', false);
+        .eq('read', false)
+        .or(`target_role.eq.${role},target_role.is.null`);
       setUnreadCount(count || 0);
     }
 

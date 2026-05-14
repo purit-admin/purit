@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
-const ROLE_LABELS = { admin: '관리자', member: '멤버', viewer: '뷰어만' };
+const ROLE_LABELS = { admin: '관리자', member: '멤버', editor: '편집자', viewer: '뷰어' };
 const ROLE_PERMS = {
-  admin: ['의뢰 등록·수정·삭제', '팀원 관리', '결제·플랜 변경', '전체 결과 열람'],
-  member: ['의뢰 등록·수정', '전체 결과 열람'],
+  editor: ['의뢰 등록·수정', '전체 결과 열람'],
   viewer: ['결과 열람만 가능'],
 };
 
@@ -18,7 +17,7 @@ export default function AccountSettings() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('member');
+  const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
   const [confirmRemoveMemberId, setConfirmRemoveMemberId] = useState(null);
 
@@ -114,9 +113,8 @@ export default function AccountSettings() {
               <div style={{ width: 160 }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>권한</div>
                 <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
-                  <option value="admin">관리자</option>
-                  <option value="member">멤버</option>
-                  <option value="viewer">뷰어만</option>
+                  <option value="editor">편집자</option>
+                  <option value="viewer">뷰어</option>
                 </select>
               </div>
               <Btn size="md" onClick={handleInvite} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>
@@ -149,7 +147,7 @@ export default function AccountSettings() {
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name || '(이름 없음)'}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.email}</div>
                   </div>
-                  <Badge type={m.status === 'invited' ? 'gray' : m.role === 'admin' ? 'gold' : m.role === 'member' ? 'blue' : 'gray'}>
+                  <Badge type={m.status === 'invited' ? 'gray' : m.role === 'editor' ? 'blue' : 'gray'}>
                     {m.status === 'invited' ? '초대됨' : ROLE_LABELS[m.role]}
                   </Badge>
                   <div style={{ fontSize: 12, color: 'var(--text-3)' }}>가입 {m.joined_at}</div>

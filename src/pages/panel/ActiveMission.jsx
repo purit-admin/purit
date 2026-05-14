@@ -474,6 +474,7 @@ export default function ActiveMission() {
             ? `[${mission.title}] 패널이 피드백을 수정하여 재제출했습니다.`
             : `[${mission.title}] 패널이 피드백을 제출했습니다.`,
           actionUrl: `/company/results?id=${mission.id}`,
+          targetRole: 'company',
         });
       }
     }
@@ -492,6 +493,7 @@ export default function ActiveMission() {
             title: '패널 참여 취소',
             body: `[${mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
             actionUrl: `/company/results?id=${mission.id}`,
+            targetRole: 'company',
           });
         });
     }

@@ -264,6 +264,7 @@ export default function MissionList() {
               title: '패널 참여 취소',
               body: `[${modal.mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
               actionUrl: `/company/results?id=${modal.mission.id}`,
+              targetRole: 'company',
             });
           });
       }

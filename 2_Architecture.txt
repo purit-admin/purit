@@ -26,7 +26,9 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
+│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼 — targetRole 파라미터 포함) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
+│   │              notify.js sendNotification(userId, { type, icon, title, body, actionUrl, targetRole }): notifications INSERT
+│   │                targetRole: 'admin'|'company'|'panel'|null — 포털별 알림 분리 (030 마이그레이션)
 │   │              lp 템플릿 sectionLabel 필드: '랜딩페이지 진단'(3종)·'광고 소재 진단'(3종)·'제품 상세 페이지 진단'(3종)·'영상/숏폼 광고 진단'(3종)
 │   │              QuestionTemplates.jsx·NewMission.jsx: sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링 (category='랜딩페이지' 유지 — 기존 필터 로직 불변)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getExperienceCareerKey·getPanelReward·fmtWon·fmtKRW 헬퍼)
@@ -47,6 +49,12 @@ purit/
 │   │                  seqPool prop(글로벌 번호 계산용 전체 어노테이션 배열, 미전달 시 annotations 사용), highlightedId prop(해당 id만 표시·나머지 숨김)
 │   │                  어노테이션 뱃지: 한국어 접두사 없이 숫자만 표시 (색상으로 차원 구분)
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
+│   │                  쿼리: .or('target_role.eq.${role},target_role.is.null') — 포털별 알림 분리 ★
+│   │                  어드민 탭: 'general'|'bugs' — isBug(n)=action_url==='/admin/reports' 구분, 탭별 unread 뱃지
+│   │                  페이지네이션: PAGE_SIZE=10, paged 슬라이스, 탭·페이지 전환 시 선택 초기화 ★
+│   │                  선택/삭제: selected Set + toggleOne/toggleAll + deleteSelected (notifications DELETE .in('id', ids)) ★
+│   │                  markAll(): displayed(현재 탭 전체) 기준 일괄 읽음, 페이지 무관
+│   │                  Sidebar loadCount도 동일 .or() 필터로 포털별 카운트 분리 ★
 │   │                BugReportModal.jsx (버그/불편 신고 모달 — ReactDOM.createPortal, 전체 포털 공통) ★ 신규
 │   │                  props: onClose, pageUrl(현재 pathname)
 │   │                  5가지 유형 칩 + 제목 + 상세 + 스크린샷 업로드(bug-screenshots 버킷, 5MB)

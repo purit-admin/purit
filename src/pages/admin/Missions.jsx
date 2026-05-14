@@ -140,7 +140,6 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
             {m.type === 'email'      && <Badge type="blue">이메일 검증</Badge>}
-            {(!m.type || m.type === 'landing_page') && <Badge type="gray">LP 검증</Badge>}
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)' }}>
               {m.id.slice(0, 8).toUpperCase()}
             </span>
@@ -273,6 +272,7 @@ export default function AdminMissions() {
           title: '의뢰 완료',
           body: `[${completedMission.title}] 의뢰가 완료 처리되었습니다. 잔여 크레딧이 환불되었습니다.`,
           actionUrl: `/company/results?id=${completedMission.id}`,
+          targetRole: 'company',
         });
       }
     } else {
@@ -282,9 +282,9 @@ export default function AdminMissions() {
       const foundM = missions.find(m => m.id === id);
       if (foundM?.companies?.user_id) {
         if (newStatus === 'cancelled') {
-          sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: `/company/results?id=${id}` });
+          sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: `/company/results?id=${id}`, targetRole: 'company' });
         } else if (newStatus === 'active') {
-          sendNotification(foundM.companies.user_id, { type: 'success', icon: '▶️', title: '의뢰 재개', body: `[${foundM.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`, actionUrl: `/company/results?id=${id}` });
+          sendNotification(foundM.companies.user_id, { type: 'success', icon: '▶️', title: '의뢰 재개', body: `[${foundM.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`, actionUrl: `/company/results?id=${id}`, targetRole: 'company' });
         }
       }
     }
@@ -306,7 +306,7 @@ export default function AdminMissions() {
     setSelectedMission(prev => prev?.id === id ? { ...prev, status: 'active' } : prev);
     const foundM = missions.find(m => m.id === id);
     if (foundM?.companies?.user_id) {
-      sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: `/company/results?id=${id}` });
+      sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: `/company/results?id=${id}`, targetRole: 'company' });
     }
   };
 

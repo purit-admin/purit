@@ -268,8 +268,8 @@ export default function PurityFilter() {
     const panelUserId = fb?.panels?.user_id;
     const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
-    if (panelUserId) sendNotification(panelUserId, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${missionTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history' });
-    if (companyUserId) sendNotification(companyUserId, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${missionTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${fb.mission_id}` });
+    if (panelUserId) sendNotification(panelUserId, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${missionTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel' });
+    if (companyUserId) sendNotification(companyUserId, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${missionTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${fb.mission_id}`, targetRole: 'company' });
 
     setSelected(null);
     setActing(false);
@@ -288,8 +288,8 @@ export default function PurityFilter() {
     const panelUserId = fb?.panels?.user_id;
     const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
-    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions' });
-    if (companyUserId) sendNotification(companyUserId, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${missionTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${fb.mission_id}` });
+    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
+    if (companyUserId) sendNotification(companyUserId, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${missionTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${fb.mission_id}`, targetRole: 'company' });
 
     setSelected(null);
     setActing(false);
@@ -322,8 +322,8 @@ export default function PurityFilter() {
       const f = feedbacks.find(fb => fb.id === id);
       if (!f) return;
       const mTitle = f.missions?.title || '미션';
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history' });
-      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${mTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${f.mission_id}` });
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel' });
+      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${mTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${f.mission_id}`, targetRole: 'company' });
     });
     setCheckedIds(new Set()); setBulkActing(false);
   };
@@ -342,8 +342,8 @@ export default function PurityFilter() {
       const f = feedbacks.find(fb => fb.id === id);
       if (!f) return;
       const mTitle = f.missions?.title || '미션';
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions' });
-      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${mTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${f.mission_id}` });
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
+      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${mTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${f.mission_id}`, targetRole: 'company' });
     });
     setCheckedIds(new Set()); setBulkActing(false);
   };
