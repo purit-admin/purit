@@ -410,7 +410,12 @@ export default function PanelProfile() {
               style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
             >계속 편집</button>
             <button
-              onClick={() => { setTab(pendingTab); setPendingTab(null); setDirtyWarn(false); setSaved(''); setPwMsg(''); }}
+              onClick={() => {
+                if (tab === 'profile') { setName(orig.name); setIndustry(orig.industry); setExperience(orig.experience); setBio(orig.bio); }
+                else if (tab === 'expertise') { setExpertise([...orig.expertise]); }
+                else if (tab === 'payment') { setBankName(orig.bankName); setBankAccount(orig.bankAccount); setBankHolder(orig.bankHolder); }
+                setTab(pendingTab); setPendingTab(null); setDirtyWarn(false); setSaved(''); setPwMsg('');
+              }}
               style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
             >저장하지 않고 이동 →</button>
           </div>

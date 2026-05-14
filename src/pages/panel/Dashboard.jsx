@@ -48,8 +48,9 @@ export default function PanelDashboard() {
 
   useEffect(() => {
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
 
       let { data: p } = await supabase
         .from('panels').select('*').eq('user_id', user.id).single();
@@ -136,6 +137,10 @@ export default function PanelDashboard() {
       }
 
       setLoading(false);
+      } catch (err) {
+        console.error('[PanelDashboard load error]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);

@@ -16,7 +16,7 @@ const envVars = Object.fromEntries(
 );
 
 const SUPABASE_URL = envVars.VITE_SUPABASE_URL;
-const SERVICE_ROLE_KEY = envVars.SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE_ROLE_KEY = envVars.SUPABASE_SERVICE_ROLE_KEY || envVars.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   console.error('❌ VITE_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 환경변수 누락');
@@ -33,7 +33,9 @@ const ADMIN_EMAIL = 'purit.admin@gmail.com';
 
 const MISSION_DATA = {
   title: 'Purit SaaS 랜딩페이지 전환율 검증',
+  product: 'Purit',
   lpUrl: 'https://purit.io',
+  industry: 'SaaS/소프트웨어',
   personaAge: '25~35세',
   personaIncome: '월 400~700만원',
   personaRole: 'B2B SaaS 마케터 / 스타트업 대표',
@@ -155,9 +157,20 @@ async function main() {
   ].join(' / ');
 
   const description = JSON.stringify({
+    product: MISSION_DATA.product,
+    lpUrl: MISSION_DATA.lpUrl,
+    industry: MISSION_DATA.industry,
+    personaAge: MISSION_DATA.personaAge,
+    personaIncome: MISSION_DATA.personaIncome,
+    personaRole: MISSION_DATA.personaRole,
+    personaContext: MISSION_DATA.personaContext,
     briefText: MISSION_DATA.briefText,
-    careerLevels: MISSION_DATA.careerLevels,
+    focusAreas: MISSION_DATA.focusAreas,
+    imageUrls,
     selectedQuestions: SELECTED_QUESTIONS,
+    careerLevels: MISSION_DATA.careerLevels,
+    panels: MISSION_DATA.panelCount,
+    step: 4,
   });
 
   // 7. missions INSERT

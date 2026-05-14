@@ -199,15 +199,11 @@ export default function History() {
                 {/* 탈락 사유 펼침 영역 */}
                 {isRejected && isReasonOpen && (
                   <div style={{ borderTop: '1px solid var(--border)', padding: '12px 20px', background: 'rgba(239,68,68,0.04)' }}>
-                    <div style={{ fontSize: 12, color: 'var(--red, #ef4444)', fontWeight: 600, marginBottom: 4 }}>반려 사유</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>
-                      Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함한 피드백이 필요합니다.
-                    </div>
-                    {f.suggestions && (
-                      <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--surface)', borderRadius: 6, fontSize: 11, color: 'var(--text-3)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', lineHeight: 1.6 }}>
-                        {f.suggestions}
-                      </div>
-                    )}
+                    <div style={{ fontSize: 12, color: 'var(--red, #ef4444)', fontWeight: 600, marginBottom: 8 }}>반려 사유 · Purit Filter 기준 미달</div>
+                    {f.suggestions
+                      ? <div style={{ padding: '8px 12px', background: 'var(--surface)', borderRadius: 6, fontSize: 12, color: 'var(--text-2)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', lineHeight: 1.7 }}>{f.suggestions}</div>
+                      : <div style={{ fontSize: 12, color: 'var(--text-3)' }}>상세 사유가 기재되지 않았습니다.</div>
+                    }
                   </div>
                 )}
               </div>

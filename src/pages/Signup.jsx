@@ -10,6 +10,16 @@ const T1     = '#0F172A';
 const T2     = '#475569';
 const T3     = '#94A3B8';
 
+function toKoreanAuthError(err) {
+  const code = err?.code ?? '';
+  const msg  = err?.message ?? '';
+  if (code === 'user_already_exists'   || msg.includes('already registered') || msg.includes('already been registered')) return '이미 가입된 이메일입니다. 로그인해 주세요.';
+  if (code === 'weak_password'         || msg.includes('weak'))              return '비밀번호가 너무 단순합니다. 더 복잡하게 설정해 주세요.';
+  if (code === 'invalid_email'         || msg.includes('invalid email'))     return '올바른 이메일 형식을 입력해 주세요.';
+  if (code === 'over_email_send_rate_limit' || msg.includes('rate limit'))  return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+  return '회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+}
+
 const ROLES = [
   { id: 'company', label: '기업', desc: '전환 소재 검증 의뢰' },
   { id: 'panel',   label: '패널', desc: '미션 참여 & 보상 수령' },
@@ -42,11 +52,7 @@ export default function Signup() {
       const userRole = user?.user_metadata?.role ?? role;
       navigate(DEST[userRole] ?? '/company', { replace: true });
     } catch (err) {
-      if (err.message.includes('already registered')) {
-        setError('이미 가입된 이메일입니다. 로그인해 주세요.');
-      } else {
-        setError(err.message);
-      }
+      setError(toKoreanAuthError(err));
     } finally {
       setLoading(false);
     }

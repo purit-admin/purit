@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -6,12 +6,14 @@ const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     handleCallback();
   }, []);
 
   async function handleCallback() {
+    try {
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -66,6 +68,10 @@ export default function OAuthCallback() {
     }
 
     navigate(DEST[savedRole] ?? '/company', { replace: true });
+    } catch (err) {
+      console.error('[OAuthCallback error]', err);
+      setError('로그인 처리 중 오류가 발생했습니다.');
+    }
   }
 
   return (
@@ -82,7 +88,22 @@ export default function OAuthCallback() {
         }}>
           Purit
         </div>
-        <div style={{ fontSize: 14, color: '#4B556D' }}>로그인 처리 중...</div>
+        {error ? (
+          <>
+            <div style={{ fontSize: 14, color: '#EF4444', marginBottom: 16 }}>{error}</div>
+            <button
+              onClick={() => navigate('/login', { replace: true })}
+              style={{
+                fontSize: 13, color: '#10367D', background: 'none', border: 'none',
+                cursor: 'pointer', textDecoration: 'underline',
+              }}
+            >
+              로그인 페이지로 돌아가기
+            </button>
+          </>
+        ) : (
+          <div style={{ fontSize: 14, color: '#4B556D' }}>로그인 처리 중...</div>
+        )}
       </div>
     </div>
   );

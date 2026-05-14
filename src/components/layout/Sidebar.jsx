@@ -114,6 +114,8 @@ export default function Layout({ role, children }) {
   const navGroups = NAV[role] || [];
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [rejectedCount, setRejectedCount] = useState(0);
+  const [panelId, setPanelId] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
@@ -143,6 +145,37 @@ export default function Layout({ role, children }) {
 
     return () => { if (sub) supabase.removeChannel(sub); };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || role !== 'panel') return;
+    supabase.from('panels').select('id').eq('user_id', user.id).single()
+      .then(({ data: p }) => { if (p) setPanelId(p.id); });
+  }, [user?.id, role]);
+
+  useEffect(() => {
+    if (!panelId) return;
+    let sub;
+
+    async function loadRejected() {
+      const { count } = await supabase
+        .from('feedbacks')
+        .select('*', { count: 'exact', head: true })
+        .eq('panel_id', panelId)
+        .eq('status', 'rejected');
+      setRejectedCount(count || 0);
+    }
+
+    loadRejected();
+    sub = supabase
+      .channel('sidebar-rejected-badge')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'feedbacks',
+        filter: `panel_id=eq.${panelId}`,
+      }, loadRejected)
+      .subscribe();
+
+    return () => { if (sub) supabase.removeChannel(sub); };
+  }, [panelId]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -323,6 +356,21 @@ export default function Layout({ role, children }) {
                       }}>{unreadCount}</span>
                     )}
                     {collapsed && item.path === `/${role}/notifications` && unreadCount > 0 && (
+                      <div style={{
+                        position: 'absolute', top: 7, right: 10,
+                        width: 6, height: 6, borderRadius: '50%', background: 'var(--red)',
+                      }} />
+                    )}
+                    {!collapsed && item.path === '/panel/missions' && rejectedCount > 0 && (
+                      <span style={{
+                        minWidth: 18, height: 18, borderRadius: 9,
+                        background: 'var(--red)', color: '#fff',
+                        fontSize: 11, fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '0 5px', flexShrink: 0,
+                      }}>{rejectedCount}</span>
+                    )}
+                    {collapsed && item.path === '/panel/missions' && rejectedCount > 0 && (
                       <div style={{
                         position: 'absolute', top: 7, right: 10,
                         width: 6, height: 6, borderRadius: '50%', background: 'var(--red)',

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-13 (사이드바 리서치 그룹 제거 / RLS user_metadata→app_metadata 보안 수정 — 026_fix_rls_user_metadata.sql)
+최종 업데이트: 2026-05-14 (알림 시스템 전수 감사: 028/029 트리거 마이그레이션 + bulkApprove/bulkReject 알림 + 어드민 상태변경 알림 + 워딩 수정)
 ================================================================
 
 ## 기술 스택
@@ -200,13 +200,16 @@ purit/
 │   │                    피드백 행 클릭: navigate('/admin/purity', { state: { feedbackId } })
 │   │                  MissionCard: isSelected/onSelect props + Card onClick + e.stopPropagation() on inner Btns
 │   │                    onCancelMission(id) / onCompleteMission(m) / onReactivateMission({id,label,desc}) props — 각각 setConfirmCancel / setConfirmComplete / setConfirmReactivate 연결
-│   │                  confirmCancel state: ConfirmModal(danger) → updateStatus(id, 'cancelled')
-│   │                  confirmComplete state: ConfirmModal → 승인 건수(m.feedbacks.filter(f.purity_passed).length) 동적 표시 → complete_mission_and_refund RPC
+│   │                  confirmCancel state: ConfirmModal(danger) → updateStatus(id, 'cancelled') + 기업 취소 알림 발송
+│   │                  confirmComplete state: ConfirmModal → 승인 건수(m.feedbacks.filter(f.purity_passed).length) 동적 표시 → complete_mission_and_refund RPC + 기업 완료 알림 발송
 │   │                  confirmReactivate state: { id, label, desc, fromStatus } — fromStatus로 completed/cancelled 분기
-│   │                    fromStatus='completed': reactivateCompleted(id) 호출 → reactivate_mission_and_reclaim RPC
+│   │                    fromStatus='completed': reactivateCompleted(id) 호출 → reactivate_mission_and_reclaim RPC + 기업 재진행 알림 발송
 │   │                      INSUFFICIENT_CREDITS 에러 시 잔액/필요량 표시 + 상태 변경 없음
 │   │                      성공 시 missions/selectedMission state를 status:'active'로 동기화
-│   │                    fromStatus='cancelled': updateStatus(id, 'active') — 취소→재개는 크레딧 처리 없음
+│   │                    fromStatus='cancelled': updateStatus(id, 'active') + 기업 재개 알림 발송 — 취소→재개는 크레딧 처리 없음
+│   │                  알림 발송: sendNotification(companies.user_id, ...) — updateStatus/reactivateCompleted 성공 직후
+│   │                    missions select 쿼리에 companies(name, user_id) 포함 → foundM.companies.user_id 접근 가능
+│   │                    확인 모달 desc에 "기업에게 [상태변경] 알림이 발송됩니다." 문구 포함
 │   │                  updateStatus/deleteMission 후 setSelectedMission 동기화
 │   │                  location.state.missionId → 해당 미션 status로 setFilter + mainPage/subPage 계산 + MissionCard isHighlighted prop
 │   │                  isHighlighted: outline 2px solid var(--accent) 3초 후 자동 해제, window.history.replaceState로 state 클리어
@@ -253,6 +256,8 @@ purit/
 │   │                025(admin_change_plan: admin_change_plan RPC — 어드민 전용 플랜+크레딧 동시 변경, grant_plan_credits의 owner 제한 우회)
 │   │                026(fix_rls_user_metadata: RLS 정책 user_metadata→app_metadata 교체 + 어드민 app_metadata role 설정 — D-58 참조)
 │   │                027(reactivate_mission_and_reclaim: 완료 미션 재진행 시 환불 크레딧 회수 RPC — D-60 참조)
+│   │                028(fix_notification_triggers: notify_admin_on_mission draft 제외 재정의 + notify_company_on_slots_full actionUrl·워딩 수정)
+│   │                029(notify_admin_on_draft_activate: draft→active UPDATE 트리거 — notify_admin_on_mission 재사용)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json

@@ -361,6 +361,8 @@
 ### [계정]
 13. 내 계정 (/company/account) — Account.jsx  ★ 신규
     - 탭 1 기업 프로필: 기업명·업종·웹사이트 → companies UPDATE / 이메일 읽기전용
+      · 미저장 변경사항 경고: 탭 전환 시 isDirty 검사 → "⚠ 저장하지 않은 변경사항이 있습니다." 배너
+        "계속 편집" / "저장하지 않고 이동 →" — 이동 클릭 시 orig 값으로 폼 필드 리셋
     - 탭 2 비밀번호 변경: signInWithPassword 검증 → supabase.auth.updateUser({ password })
     - 사이드바 '계정' 그룹 최상단에 위치
 
@@ -435,6 +437,8 @@
    - 수락 시 feedbacks INSERT(status='draft') → feedbackMap 업데이트 → /panel/active?id=... 이동
    - 수락 취소 모달: ConfirmModal 컴포넌트 사용, cancel_panel_feedback RPC 호출
    - 사이드바 메뉴: "미션 탐색" + "진행 중" 2개 → "미션 관리" 1개로 통합
+     · 사이드바 "미션 관리" 항목에 rejected 피드백 건수 뱃지 실시간 표시 (0건이면 비노출)
+       feedbacks Realtime 구독으로 재작성 제출 시 자동 소멸
 
 3. 미션 수행 (/panel/active) — ActiveMission.jsx
    ★ 목록 뷰 (id 파라미터 없음, /panel/active):
@@ -536,13 +540,16 @@
      · calcReward(f): 서브미션(preference/pricing/email)이면 base × (4500/8000), 메인이면 base 그대로
      · 정산 대기 항목: 금액 아래 "(예상)" 레이블 표시
    - [지급 거절] 항목: 재작성 버튼 없음 — "탈락 사유 보기" 텍스트(버튼) 클릭 시 인라인 사유 펼침
-     · 반려 사유 안내문 + feedbacks.suggestions 원문을 mono 스타일로 표시
+     · 헤더: "반려 사유 · Purit Filter 기준 미달" (한 줄)
+     · feedbacks.suggestions 원문을 메인 콘텐츠로 표시 (없으면 "상세 사유가 기재되지 않았습니다.")
      · 재작성은 [미션 관리 → 수정 필요] 탭에서만 가능
    - Purit Filter 탈락 안내 카드: '정산 완료' 탭에서는 숨김 (정산 대기·지급 거절 탭에서 표시)
    - draft 상태 피드백 제외 (.neq('status', 'draft'))
      → 클릭 시 /panel/active?id=<missionId>&resubmit=<feedbackId> 이동 → 재작성 모드 진입
 
 5. 프로필 설정 (/panel/profile) — Profile.jsx
+   - 탭 전환 시 미저장 경고: isDirty 검사 → "⚠ 저장하지 않은 변경사항이 있습니다." 배너
+     · "저장하지 않고 이동 →" 클릭 시 해당 탭의 폼 필드를 orig 값으로 리셋 (변경사항 실제 버림)
    - 탭 기본 정보: 이름·직군·경력·자기소개 → panels UPDATE
      · 개인정보 안내 박스: "기업에게는 이름과 핸드폰 번호는 공개되지 않습니다. 직군과 경력만 공개됩니다."
      · 경력 입력: 1~8년 바 형식 버튼 (ExperienceBar 컴포넌트) — 선택 시 "N년" 포맷으로 저장 ★
@@ -786,10 +793,16 @@
 - /*/notifications : NotificationCenter.jsx (역할별 알림, 각 포털 공유)
   - 알림 클릭 시 action_url 페이지로 자동 이동 (읽음 처리 동시)
   - 알림 발송 이벤트 전체 목록:
-    · 새 미션 등록 (DB 트리거) → 어드민
-    · 피드백 제출 (ActiveMission.jsx) → 기업
-    · 슬롯 완료 (DB 트리거) → 기업
-    · 피드백 승인 (PurityFilter.jsx) → 패널 + 기업
-    · 피드백 반려 (PurityFilter.jsx) → 패널 + 기업
+    · 새 의뢰 등록 (DB 트리거 on_mission_created) → 어드민 (draft INSERT 제외)
+    · draft → active 전환 (DB 트리거 on_mission_activated) → 어드민 (임시저장 후 제출 경로)
+    · 피드백 제출/재제출 (ActiveMission.jsx) → 기업
+    · 패널 참여 취소 (ActiveMission.jsx, panel/Missions.jsx) → 기업
+    · 슬롯 완료 (DB 트리거 on_mission_slots_full) → 기업 (actionUrl에 mission id 포함)
+    · 피드백 승인 개별/일괄 (PurityFilter.jsx) → 패널 + 기업
+    · 피드백 반려 개별/일괄 (PurityFilter.jsx) → 패널 + 기업
+    · 의뢰 완료 처리 (admin/Missions.jsx) → 기업
+    · 의뢰 취소 처리 (admin/Missions.jsx) → 기업
+    · 의뢰 재개 취소→진행 (admin/Missions.jsx) → 기업
+    · 의뢰 재진행 완료→진행 (admin/Missions.jsx) → 기업
     · 24h 미완료 draft (panel/Dashboard.jsx) → 패널
     · Enterprise 문의 접수 (Pricing.jsx) → 기업(본인)

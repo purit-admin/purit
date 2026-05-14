@@ -15,6 +15,9 @@ export default function CompanyAccount() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [orig, setOrig] = useState(null);
+  const [dirtyWarn, setDirtyWarn] = useState(false);
+  const [pendingTab, setPendingTab] = useState(null);
 
   const [curPw, setCurPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -33,6 +36,7 @@ export default function CompanyAccount() {
         setName(co.name || '');
         setIndustry(co.industry || '');
         setWebsite(co.website || '');
+        setOrig({ name: co.name || '', industry: co.industry || '', website: co.website || '' });
       }
       setLoading(false);
     }
@@ -48,9 +52,29 @@ export default function CompanyAccount() {
       .eq('id', company.id);
     setSaving(false);
     setMsg(error ? '저장 실패: ' + error.message : '저장됐습니다.');
-    if (!error) setCompany(c => ({ ...c, name, industry, website }));
+    if (!error) {
+      setCompany(c => ({ ...c, name, industry, website }));
+      setOrig({ name, industry, website });
+    }
     setTimeout(() => setMsg(''), 3000);
   }
+
+  const isDirty = orig && tab === 'profile'
+    ? (name !== orig.name || industry !== orig.industry || website !== orig.website)
+    : false;
+
+  const handleTabClick = (v) => {
+    if (isDirty && v !== tab) {
+      setDirtyWarn(true);
+      setPendingTab(v);
+      return;
+    }
+    setTab(v);
+    setMsg('');
+    setPwMsg('');
+    setDirtyWarn(false);
+    setPendingTab(null);
+  };
 
   async function handleChangePw() {
     setPwMsg('');
@@ -97,7 +121,7 @@ export default function CompanyAccount() {
       {/* 탭 */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
         {[['profile', '기업 프로필'], ['password', '비밀번호 변경']].map(([v, l]) => (
-          <button key={v} onClick={() => { setTab(v); setMsg(''); setPwMsg(''); }} style={{
+          <button key={v} onClick={() => handleTabClick(v)} style={{
             padding: '10px 18px', fontSize: 13,
             background: 'none', border: 'none', cursor: 'pointer',
             color: tab === v ? 'var(--text)' : 'var(--text-3)',
@@ -107,6 +131,31 @@ export default function CompanyAccount() {
           }}>{l}</button>
         ))}
       </div>
+
+      {/* 미저장 경고 */}
+      {dirtyWarn && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px', borderRadius: 'var(--radius)',
+          background: '#FFFBEB', border: '1px solid #F59E0B',
+          fontSize: 13, color: '#92400E',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <span>⚠ 저장하지 않은 변경사항이 있습니다.</span>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+            <button
+              onClick={() => { setDirtyWarn(false); setPendingTab(null); }}
+              style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+            >계속 편집</button>
+            <button
+              onClick={() => {
+                setName(orig.name); setIndustry(orig.industry); setWebsite(orig.website);
+                setTab(pendingTab); setPendingTab(null); setDirtyWarn(false); setMsg(''); setPwMsg('');
+              }}
+              style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+            >저장하지 않고 이동 →</button>
+          </div>
+        </div>
+      )}
 
       {/* 피드백 메시지 */}
       {(msg || pwMsg) && (

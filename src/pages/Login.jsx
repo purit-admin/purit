@@ -15,6 +15,16 @@ const ROLES = [
   { id: 'panel',   label: '패널', desc: '미션 참여 & 보상' },
 ];
 
+function toKoreanAuthError(err) {
+  const code = err?.code ?? '';
+  const msg  = err?.message ?? '';
+  if (code === 'invalid_credentials'       || msg.includes('Invalid login credentials'))  return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  if (code === 'email_not_confirmed'       || msg.includes('Email not confirmed'))        return '이메일 인증을 완료한 후 로그인해 주세요.';
+  if (code === 'user_not_found'            || msg.includes('User not found'))             return '가입되지 않은 이메일입니다.';
+  if (code === 'over_email_send_rate_limit' || msg.includes('rate limit'))               return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+  return '로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+}
+
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -52,9 +62,7 @@ export default function Login() {
       const userRole = user?.user_metadata?.role;
       navigate(DEST[userRole] ?? '/company', { replace: true });
     } catch (err) {
-      setError(err.message === 'Invalid login credentials'
-        ? '이메일 또는 비밀번호가 올바르지 않습니다.'
-        : err.message);
+      setError(toKoreanAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -66,7 +74,7 @@ export default function Login() {
     try {
       await signInWithGoogle(role);
     } catch (err) {
-      setError(err.message);
+      setError(toKoreanAuthError(err));
       setGoogleLoading(false);
     }
   };
