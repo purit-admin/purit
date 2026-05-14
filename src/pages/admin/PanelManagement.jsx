@@ -83,12 +83,17 @@ export default function AdminPanels() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('panels')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error) setPanels(data || []);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('panels')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error) setPanels(data || []);
+      setLoading(false);
+    } catch (err) {
+      console.error('[PanelManagement load]', err);
+      setLoading(false);
+    }
   }
 
   async function loadStats(period) {

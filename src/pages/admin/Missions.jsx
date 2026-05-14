@@ -212,14 +212,19 @@ export default function AdminMissions() {
 
   useEffect(() => {
     async function load() {
-      const { data, error } = await supabase
-        .from('missions')
-        .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')
-        .neq('status', 'draft')
-        .order('created_at', { ascending: false });
-      if (error) console.error('[AdminMissions]', error.message);
-      setMissions(data || []);
-      setLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from('missions')
+          .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')
+          .neq('status', 'draft')
+          .order('created_at', { ascending: false });
+        if (error) console.error('[AdminMissions]', error.message);
+        setMissions(data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error('[AdminMissions load]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);

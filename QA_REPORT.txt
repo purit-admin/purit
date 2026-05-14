@@ -231,50 +231,283 @@
 ################################################################
 
 ################################################################
-## 기존 QA 결과 (2026-05-13 기준)
+## QA 결과 (2026-05-13 기준) + 2026-05-14 대규모 전체 조사 결과
 ################################################################
 
 ================================================================
 QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 작성일: 2026-05-13
-최종 업데이트: 2026-05-14 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료)
+최종 업데이트: 2026-05-14 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
+                            / 대규모 전체 조사: 신규-F~Y 20건 발견
+                            / Phase 1+2 무한 로딩 고착 13건 수정 완료: 신규-F/G/H/I/M/N/O/T/U/V/W/X/Y
+                            / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료)
 ================================================================
 ## 표기 규칙
-  ✅  수정 완료 항목: 제목 한 줄만 남기고 상세 내용 제거
-  ⏭  스킵 항목: 제목 한 줄만 남기고 상세 내용 제거
+  ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
+  ⏭  스킵 항목: 하단 아카이브 섹션으로 이동
   (상세 없음) 미완료 항목: 위치·재현·현재·기대 전체 유지
 
 ================================================================
-## 🔴 CRITICAL (즉시 수정 필요 — 플로우 중단 또는 데이터 손상)
+## 🟠 MAJOR — 수정 대기 (P2)
 ================================================================
 
+[신규-K] 어드민 Purity Filter — 일괄 반려 시 패널 명예 점수(-5) 차감 누락
+- 🚨 중요도: P2 — 개별 반려 시 패널 honor_points -5 차감이 일괄 반려에서 누락됨.
+             반려 수가 많을수록 패널 레벨·신뢰도 데이터가 실제와 괴리됨 (정산 금액 영향 가능)
+- 📍 위치: src/pages/admin/PurityFilter.jsx — bulkReject() 함수 (약 lines 331~348)
+- 🕵️‍♂️ 재현 방법: Purity Filter 검토 대기 탭에서 복수 피드백 선택 → "일괄 반려" 실행
+- 🤦‍♂️ 현재 상황:
+    개별 reject() 함수:
+    ```js
+    if (fb?.panel_id)
+      supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 })
+             .then(({ error }) => { if (error) console.warn(...) });
+    ```
+    bulkReject() 함수:
+    ```js
+    // sendNotification 호출은 있으나 add_panel_honor_points(-5) 호출 없음
+    for (const id of ids) {
+      const fb = feedbacks.find(f => f.id === id);
+      if (fb?.missions?.companies?.user_id) sendNotification(...);
+      if (fb?.panel_id) sendNotification(...);
+      // ← 여기서 add_panel_honor_points 누락
+    }
+    ```
+- ✨ 기대 화면:
+    bulkReject() 루프 내에 개별 reject()와 동일하게 honor_points -5 차감 추가:
+    ```js
+    if (fb?.panel_id) {
+      sendNotification(...); // 기존
+      supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 })
+             .then(({ error }) => { if (error) console.warn('[bulkReject honor]', error); });
+    }
+    ```
+- 🔍 추가 확인(수평 전개): bulkApprove()는 honor_points 변화 없으므로 해당 없음.
+  D-62 원칙(일괄 처리 side effect 누락 패턴) 적용 사례
+
+
+================================================================
+## 🟡 MINOR — 수정 대기 (P3)
+================================================================
+
+[신규-J] 패널 미션 제출 — 존재하지 않는 RPC 'update_panel_gamification' 호출 (Dead RPC)
+- 🚨 중요도: P3 — D-37 패턴. RPC가 DB에 없어 silent failure 발생.
+             현재는 after-promise라 제출 플로우가 블락되지는 않으나,
+             로그에 경고 없이 조용히 실패하므로 추후 RPC 추가 시 혼선 가능
+- 📍 위치: src/pages/panel/ActiveMission.jsx — postSubmitActions() 함수 (약 lines 453~464)
+- 🕵️‍♂️ 재현 방법: 패널이 미션 피드백 제출(최초 제출, 재제출 아님) 완료 시
+- 🤦‍♂️ 현재 상황:
+    ```js
+    if (!resubmitMode) {
+      await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
+      // ↑ 001~030 마이그레이션 어디에도 존재하지 않는 RPC
+      // Supabase는 에러를 반환하지만 await 결과를 무시하고 진행됨
+      // 콘솔 경고도 없어서 운영 중 발견 불가
+    }
+    await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 });
+    ```
+- ✨ 기대 화면:
+    dead RPC 호출 제거. honor_points는 이미 다음 줄에서 정상 처리되므로 기능 영향 없음:
+    ```js
+    if (!resubmitMode) {
+      // update_panel_gamification 호출 삭제 (DB에 존재하지 않음)
+    }
+    await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 })
+      .then(({ error }) => { if (error) console.warn('[honor_points +5]', error); });
+    ```
+- 🔍 추가 확인(수평 전개): 전체 마이그레이션(001~030) 및 코드베이스에서
+  'update_panel_gamification' 호출 위치 grep → ActiveMission.jsx 단 1곳만 확인됨. 추가 확산 없음
+
+------------------------------------------------------------
+[신규-L] 기업 조기 종료 후 미션 크레딧 재계산 누락 (company/Dashboard + company/NewMission)
+- 🚨 중요도: P3 — 기업이 조기 종료 시 해당 미션의 credits_consumed가 갱신되지 않아
+             어드민 Missions.jsx의 "예상/사용/환불" 크레딧 표시가 틀린 값을 보여줌.
+             실제 DB 크레딧은 완료 처리 RPC 시점에 재계산되므로 금전 손실은 없으나 운영 정보 불일치
+- 📍 위치:
+    - src/pages/company/Dashboard.jsx — handleTerminate() 함수 (약 lines 287~295)
+    - src/pages/company/NewMission.jsx — handleTerminate() 함수 (약 lines 511~521)
+- 🕵️‍♂️ 재현 방법: 기업 대시보드 또는 NewMission 목록에서 "조기 종료" 버튼 클릭 → 확인
+- 🤦‍♂️ 현재 상황:
+    ```js
+    async function handleTerminate() {
+      if (!terminateTarget) return;
+      const { error } = await supabase.from('missions')
+        .update({ status: 'cancelled' }).eq('id', terminateTarget.id);
+      if (!error) setMissions(...);
+      setTerminateTarget(null);
+      // ← recalc_mission_consumed RPC 호출 누락
+    }
+    ```
+- ✨ 기대 화면:
+    ```js
+    if (!error) {
+      setMissions(...);
+      supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
+             .then(({ error: re }) => { if (re) console.warn('[recalc]', re); });
+    }
+    ```
+- 🔍 추가 확인(수평 전개): 동일 패턴 → 신규-P(PreferenceTest) · 신규-Q(PricingTest) · 신규-R(ColdEmailTest)
+
+------------------------------------------------------------
+[신규-P] 소재 A/B 비교 조기 종료 후 크레딧 재계산 누락
+- 🚨 중요도: P3 — 신규-L과 동일 문제. 어드민 크레딧 표시 불일치
+- 📍 위치: src/pages/company/PreferenceTest.jsx — handleTerminate() 함수 (약 lines 199~204)
+- 🤦‍♂️ 현재 상황: status='cancelled' UPDATE 후 recalc_mission_consumed RPC 호출 없음
+- ✨ 기대 화면: 신규-L과 동일 수정 패턴
+- 🔍 추가 확인(수평 전개): 신규-L/Q/R 동일 패턴
+
+------------------------------------------------------------
+[신규-Q] 가격 페이지 테스트 조기 종료 후 크레딧 재계산 누락
+- 🚨 중요도: P3 — 신규-L과 동일 문제
+- 📍 위치: src/pages/company/PricingTest.jsx — handleTerminate() 함수 (약 lines 187~192)
+- 🤦‍♂️ 현재 상황: status='cancelled' UPDATE 후 recalc_mission_consumed RPC 호출 없음
+- ✨ 기대 화면: 신규-L과 동일 수정 패턴
+- 🔍 추가 확인(수평 전개): 신규-L/P/R 동일 패턴
+
+------------------------------------------------------------
+[신규-R] 이메일 검증 조기 종료 후 크레딧 재계산 누락
+- 🚨 중요도: P3 — 신규-L과 동일 문제
+- 📍 위치: src/pages/company/ColdEmailTest.jsx — handleTerminate() 함수 (약 lines 176~181)
+- 🤦‍♂️ 현재 상황: status='cancelled' UPDATE 후 recalc_mission_consumed RPC 호출 없음
+- ✨ 기대 화면: 신규-L과 동일 수정 패턴
+- 🔍 추가 확인(수평 전개): 신규-L/P/Q 동일 패턴
+
+------------------------------------------------------------
+[신규-S] 기업 조기 종료 모달 — PRD 지정 경고 문구·버튼 텍스트 불일치 (4개 파일)
+- 🚨 중요도: P3 — 크레딧 환불 불가 사실이 모달에 표시되지 않아 기업이 인지하지 못한 채 종료 가능.
+             PRD 명시 요건 불충족 (법적 분쟁 소지 있음)
+- 📍 위치:
+    - src/pages/company/NewMission.jsx — ConfirmModal (약 lines 1508~1512)
+    - src/pages/company/PreferenceTest.jsx — terminateTarget ConfirmModal
+    - src/pages/company/PricingTest.jsx — terminateTarget ConfirmModal
+    - src/pages/company/ColdEmailTest.jsx — terminateTarget ConfirmModal
+- 🕵️‍♂️ 재현 방법: 기업 포털에서 진행 중인 의뢰(filled≥1) "조기 종료" 버튼 클릭
+- 🤦‍♂️ 현재 상황:
+    ```jsx
+    <ConfirmModal
+      desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 중단되고 취소 상태로 변경됩니다.\n이 작업은 되돌릴 수 없습니다.`}
+      confirmLabel="조기 종료"
+    />
+    ```
+    ← 크레딧 환불 불가 경고 없음, 버튼 레이블도 PRD와 다름
+- ✨ 기대 화면 (PRD 1_PRD.txt 기준):
+    ```jsx
+    <ConfirmModal
+      desc="⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 계속 확인 가능합니다."
+      confirmLabel="조기 종료 (크레딧 환불 불가)"
+    />
+    ```
+    4개 파일 모두 동일하게 수정
+- 🔍 추가 확인(수평 전개): 기업 대시보드(Dashboard.jsx)의 ConfirmModal은 이미 올바른 문구 사용 확인 ✓
+  나머지 4개 파일만 수정 필요
+
+================================================================
+## 📊 잔여 항목 (미완료)
+================================================================
+
+  등급       ID              내용
+  ────────   ──────────────  ──────────────────────────────────────
+  (수정 대기 항목 없음 — 전체 완료)
+  ────────   ──────────────  ──────────────────────────────────────
+  잔여 합계  0건             (전체 48건 중 48건 완료·스킵 / 0건 수정 대기)
+
+================================================================
+## 🔧 수정 권장 순서
+================================================================
+
+### Phase 1 — D-51 Type A (early return setLoading 누락) · P2 · 6건
+  우선 이유: 세션 만료 시 고객 이탈 직결. 수정 패턴이 동일하여 일괄 처리 가능.
+  대상: 신규-F(panel/Missions) · 신규-G(panel/History) · 신규-H(panel/ActiveMission)
+        · 신규-T(panel/Profile) · 신규-U(company/Results) · 신규-V(company/Pricing)
+  수정 방법: 각 파일 load() 내 `if (!user) return;` →
+             `if (!user) { setLoading(false); return; }` 로 변경
+
+### Phase 2 — D-51 Type B (try-catch 없음) · P2 · 8건
+  우선 이유: 네트워크 불안정 환경에서 재현 가능. 어드민 전용 페이지 포함.
+  대상: 신규-I(admin/PurityFilter) · 신규-M(company/PreferenceTest)
+        · 신규-N(company/PricingTest) · 신규-O(company/ColdEmailTest)
+        · 신규-W(admin/Missions) · 신규-X(admin/Dashboard) · 신규-Y(admin/PanelManagement)
+        (신규-I는 Promise.all 구조 포함)
+  수정 방법: 각 파일 load() 전체를 try-catch로 감싸고 catch { console.error; setLoading(false); }
+
+### Phase 3 — bulkReject honor_points 누락 · P2 · 1건
+  우선 이유: 패널 명예 레벨·정산 금액에 직접 영향. 일괄 작업 빈도 높을수록 오차 누적.
+  대상: 신규-K(admin/PurityFilter bulkReject)
+  수정 방법: bulkReject() 루프 내 sendNotification과 동일 위치에
+             add_panel_honor_points(p_delta: -5) fire-and-forget 추가
+
+### Phase 4 — 크레딧 재계산 누락 · P3 · 4건
+  우선 이유: 어드민 운영 정보 불일치. 금전 손실은 없으나 신뢰도 문제.
+  대상: 신규-L(Dashboard+NewMission) · 신규-P(PreferenceTest)
+        · 신규-Q(PricingTest) · 신규-R(ColdEmailTest)
+  수정 방법: handleTerminate() 성공 후
+             supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
+             .then({ error } => if(error) console.warn(...)) 추가
+
+### Phase 5 — 모달 문구 불일치 · P3 · 1건 (4 파일)
+  우선 이유: PRD 명시 요건 불충족. 사용자 오해 가능.
+  대상: 신규-S (NewMission · PreferenceTest · PricingTest · ColdEmailTest)
+  수정 방법: 각 파일 terminateTarget ConfirmModal의 desc/confirmLabel을
+             PRD 기준 ("⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다...") 으로 통일
+
+### Phase 6 — Dead RPC 제거 · P3 · 1건
+  우선 이유: 코드베이스 정리. 현재 기능 영향 없으나 잔류 시 혼선.
+  대상: 신규-J (panel/ActiveMission postSubmitActions)
+  수정 방법: update_panel_gamification RPC 호출 1줄 삭제
+
+================================================================
+
+================================================================
+## 🗄️ 완료·스킵 아카이브 (✅ / ⏭)
+================================================================
+※ 이 섹션의 항목은 재조사 금지.
+  단, 해당 수정이 다른 버그의 원인이 되었을 가능성이 있을 때는 예외.
+
+-- CRITICAL --
 [C-1] 어드민 미션 "취소" 버튼 — 확인 모달 없이 즉시 실행  ✅
+[C-2] 반려 알림 메시지와 실제 UI 흐름 불일치 — 재작성 방법 없는 페이지로 유도  ✅
 [C-3] OAuthCallback — 에러 발생 시 무한 로딩 화면  ✅
 [C-4] 패널 대시보드 load() — try-catch 없어 무한 로딩 가능  ✅
 
-[C-2] 반려 알림 메시지와 실제 UI 흐름 불일치 — 재작성 방법 없는 페이지로 유도  ✅
-
-
-
-================================================================
-## 🟠 MAJOR (플로우 깨짐 또는 사용자 혼란 유발)
-================================================================
-
+-- MAJOR --
 [M-1] LP검증 취소 카드 — cursor:pointer인데 클릭 시 아무 동작 없음  ✅
-[M-3] 정산 내역 — 미션 등록 시 고정 예상금액 표시 (실제 지급액 아님)  ✅
-[M-5] 어드민 "완료 처리" — 확인 모달 없이 즉시 RPC 실행  ✅
-[신규-A] 어드민 미션 "재진행" / "재개" — 확인 모달 없이 즉시 status='active' 복원  ✅
 [M-2] 어드민 검색 (패널명/기업명) — 디바운스 없음  ✅
-[M-4] panelTier — 구버전 tier 컬럼 사용으로 미션 정렬 신뢰도 저하  ✅ (무의미한 정렬 로직 삭제)
+[M-3] 정산 내역 — 미션 등록 시 고정 예상금액 표시 (실제 지급액 아님)  ✅
+[M-4] panelTier — 구버전 tier 컬럼 사용으로 미션 정렬 신뢰도 저하  ✅
+[M-5] 어드민 "완료 처리" — 확인 모달 없이 즉시 RPC 실행  ✅
 [M-6] 이미지 어노테이션 — 드래프트 복원 시 이미지 탭 방문 기록 초기화  ✅
+[신규-A] 어드민 미션 "재진행" / "재개" — 확인 모달 없이 즉시 status='active' 복원  ✅
 [신규-C] 이미지 미션 — 드래프트 복원 시 총평(overallComment) 미복원으로 제출 불가  ✅
 [신규-D] 이미지 미션 — 드래프트 복원 시 건너뛴 차원(skippedDims) 미복원으로 제출 불가  ✅
 [신규-E] 어드민 미션 "재진행" — 완료 처리 시 환불된 크레딧 미회수로 기업 부당 보유  ✅
+[신규-F] 패널 미션 관리 (panel/Missions.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-G] 패널 정산 내역 (panel/History.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-H] 패널 미션 수행 (panel/ActiveMission.jsx) — try-catch 추가 (loading state 없음 — false positive)  ✅
+[신규-I] 어드민 Purity Filter — D-51 Type B try-catch 추가 (setLoading 위치 Promise.all 전 유지)  ✅
+[신규-M] 기업 소재 A/B 비교 (company/PreferenceTest.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-N] 기업 가격 페이지 테스트 (company/PricingTest.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-O] 기업 이메일 검증 (company/ColdEmailTest.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-T] 패널 프로필 설정 (panel/Profile.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-U] 기업 피드백 결과 (company/Results.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-V] 기업 플랜 & 가격 (company/Pricing.jsx) — try-catch 추가 (loading state 없음 — false positive)  ✅
+[신규-W] 어드민 미션 관리 (admin/Missions.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-X] 어드민 플랫폼 대시보드 (admin/Dashboard.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-Y] 어드민 패널 관리 (admin/PanelManagement.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-K] 어드민 Purity Filter — bulkReject() 루프에 add_panel_honor_points(-5) 추가  ✅
+[신규-J] 패널 미션 수행 — postSubmitActions()의 Dead RPC 'update_panel_gamification' 제거  ✅
+[신규-L] 기업 대시보드·NewMission — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-P] 기업 소재 A/B 비교 — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-Q] 기업 가격 페이지 테스트 — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-R] 기업 이메일 검증 — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-S] 조기 종료 ConfirmModal 4개 파일 — PRD 기준 경고 문구·버튼 레이블 통일  ✅
 
-================================================================
-## 🟡 MINOR (UX 불편 또는 정보 불일치)
-================================================================
-
+-- MINOR --
+[N-1]  반려 사유 — 안내 문구 하드코딩 (실제 사유와 중복 표시)  ✅
+[N-2]  취소된 서브미션 카드 — 삭제 버튼 없음 (목록에 계속 누적)  ✅
+[N-3]  기업 대시보드 — 의뢰 조기종료 후 잔여 크레딧 미갱신  ✅
+[N-4]  알림 클릭 → '/company/results' 이동 시 의뢰 자동 선택 안 됨  ✅
+[N-5]  회원가입 — 중복 이메일 감지 문자열 취약  ✅
+[N-6]  패널 사이드바 "미션 관리" — 반려 건수 뱃지 없음  ✅
 [N-7]  패널 프로필 탭 전환 시 미저장 경고 없음  ✅
 [N-8]  Landing 로그인 사용자 리다이렉트 없음  ⏭
 [N-9]  어드민 포털 전환 시 맥락 배너 없음  ⏭
@@ -283,32 +516,5 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [N-12] 기업 커스텀 질문 "×" 확인 모달 없음  ✅
 [N-13] Purity Filter "반려" 확인 모달 없음  ✅
 [신규-B] 기업 팀원 "제거" 확인 모달 없음  ✅
-[N-1] 반려 사유 — 안내 문구 하드코딩 (실제 사유와 중복 표시)  ✅
-
-[N-2] 취소된 서브미션 카드 — 삭제 버튼 없음 (목록에 계속 누적)  ✅
-
-[N-3] 기업 대시보드 — 의뢰 조기종료 후 잔여 크레딧 미갱신  ✅
-
-[N-4] 알림 클릭 → '/company/results' 이동 시 의뢰 자동 선택 안 됨  ✅
-
-[N-5] 회원가입 — 중복 이메일 감지 문자열 취약  ✅
-
-[N-6] 패널 사이드바 "미션 관리" — 반려 건수 뱃지 없음  ✅
-
-================================================================
-## 📊 잔여 항목 (미완료)
-================================================================
-
-  등급       ID              내용
-  ────────   ──────────────  ──────────────────────────────────────
-  (전체 완료)
-  ────────   ──────────────  ──────────────────────────────────────
-  잔여 합계  0건             (전체 28건 중 28건 완료·스킵)
-
-================================================================
-## 🔧 수정 권장 순서
-================================================================
-
-모든 항목 완료.
 
 ================================================================

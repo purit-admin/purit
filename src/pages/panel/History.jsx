@@ -47,8 +47,9 @@ export default function History() {
 
   useEffect(() => {
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
 
       const { data: panel } = await supabase
         .from('panels').select('id, honor_points, experience').eq('user_id', user.id).single();
@@ -64,6 +65,10 @@ export default function History() {
 
       setFeedbacks(fbs || []);
       setLoading(false);
+      } catch (err) {
+        console.error('[PanelHistory load]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);

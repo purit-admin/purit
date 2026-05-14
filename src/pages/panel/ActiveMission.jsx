@@ -215,6 +215,7 @@ export default function ActiveMission() {
     setSkippedDims({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
 
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -363,6 +364,9 @@ export default function ActiveMission() {
           .eq('status', 'draft');
         setDrafts(fbs || []);
       }
+      } catch (err) {
+        console.error('[PanelActiveMission load]', err);
+      }
     }
     load();
   }, [missionId]);
@@ -453,9 +457,9 @@ export default function ActiveMission() {
   const postSubmitActions = async (resubmitMode = false) => {
     if (!panel?.id) return;
     if (!resubmitMode) {
-      await supabase.rpc('update_panel_gamification', { p_panel_id: panel.id });
+      await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 })
+        .then(({ error }) => { if (error) console.warn('[honor_points +5]', error.message); });
     }
-    await supabase.rpc('add_panel_honor_points', { p_panel_id: panel.id, p_delta: 5 });
     supabase.rpc('check_and_award_badges', { p_panel_id: panel.id })
       .then(({ error }) => { if (error) console.warn('[check_and_award_badges]', error.message); });
     if (resubmitMode && mission?.id) {

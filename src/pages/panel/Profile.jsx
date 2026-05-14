@@ -198,8 +198,9 @@ export default function PanelProfile() {
 
   useEffect(() => {
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
       setEmail(user.email || '');
 
       const { data: p } = await supabase
@@ -225,6 +226,10 @@ export default function PanelProfile() {
         });
       }
       setLoading(false);
+      } catch (err) {
+        console.error('[PanelProfile load]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);

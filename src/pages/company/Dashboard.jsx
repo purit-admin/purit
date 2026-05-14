@@ -294,6 +294,8 @@ export default function CompanyDashboard() {
       setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
       const { data: co } = await supabase.from('companies').select('*').eq('id', company.id).single();
       if (co) setCompany(co);
+      supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
+        .then(({ error: re }) => { if (re) console.warn('[recalc]', re.message); });
     }
     setTerminateTarget(null);
   };

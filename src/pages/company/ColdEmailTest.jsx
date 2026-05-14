@@ -120,31 +120,36 @@ export default function ColdEmailTest() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-    const { data: co } = await supabase.from('companies').select('id, plan, credit_balance').eq('user_id', user.id).single();
-    setCompanyId(co?.id);
-    setCompanyPlan(co?.plan?.toLowerCase() || 'starter');
-    if (co != null) setCreditBalance(co.credit_balance ?? 0);
-    if (co) {
-      const { data: missionsData } = await supabase
-        .from('missions').select('id, title, status, panel_count, filled_count, created_at')
-        .eq('company_id', co.id).eq('type', 'email')
-        .order('created_at', { ascending: false });
-      setMissions(missionsData || []);
-      const { data: ctData } = await supabase
-        .from('question_templates')
-        .select('template_questions(id, question_text, question_type, options, question_order)')
-        .eq('company_id', co.id).eq('category', '이메일').eq('is_default', false);
-      const flatQs = (ctData || []).flatMap(t =>
-        (t.template_questions || []).sort((a, b) => a.question_order - b.question_order)
-      );
-      setCustomTemplateQs(flatQs.map(q => ({
-        id: q.id, text: q.question_text, type: q.question_type || 'text',
-        options: Array.isArray(q.options) ? q.options : (() => { try { return JSON.parse(q.options || '[]'); } catch { return []; } })(),
-      })));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const { data: co } = await supabase.from('companies').select('id, plan, credit_balance').eq('user_id', user.id).single();
+      setCompanyId(co?.id);
+      setCompanyPlan(co?.plan?.toLowerCase() || 'starter');
+      if (co != null) setCreditBalance(co.credit_balance ?? 0);
+      if (co) {
+        const { data: missionsData } = await supabase
+          .from('missions').select('id, title, status, panel_count, filled_count, created_at')
+          .eq('company_id', co.id).eq('type', 'email')
+          .order('created_at', { ascending: false });
+        setMissions(missionsData || []);
+        const { data: ctData } = await supabase
+          .from('question_templates')
+          .select('template_questions(id, question_text, question_type, options, question_order)')
+          .eq('company_id', co.id).eq('category', '이메일').eq('is_default', false);
+        const flatQs = (ctData || []).flatMap(t =>
+          (t.template_questions || []).sort((a, b) => a.question_order - b.question_order)
+        );
+        setCustomTemplateQs(flatQs.map(q => ({
+          id: q.id, text: q.question_text, type: q.question_type || 'text',
+          options: Array.isArray(q.options) ? q.options : (() => { try { return JSON.parse(q.options || '[]'); } catch { return []; } })(),
+        })));
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('[ColdEmailTest load]', err);
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const shouldBlockNav = view === 'create' && Boolean(emailText || productDescription || industry);
@@ -176,7 +181,11 @@ export default function ColdEmailTest() {
   async function handleTerminate() {
     if (!terminateTarget) return;
     const { error } = await supabase.from('missions').update({ status: 'cancelled' }).eq('id', terminateTarget.id);
-    if (!error) setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+    if (!error) {
+      setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+      supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
+        .then(({ error: re }) => { if (re) console.warn('[recalc]', re.message); });
+    }
     setTerminateTarget(null);
   }
 
@@ -948,8 +957,8 @@ export default function ColdEmailTest() {
       {terminateTarget && (
         <ConfirmModal
           title="의뢰를 조기 종료할까요?"
-          desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 중단되고 취소 상태로 변경됩니다.\n이 작업은 되돌릴 수 없습니다.`}
-          confirmLabel="조기 종료"
+          desc="⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 계속 확인 가능합니다."
+          confirmLabel="조기 종료 (크레딧 환불 불가)"
           cancelLabel="유지"
           danger
           onConfirm={handleTerminate}

@@ -516,6 +516,8 @@ export default function NewMission() {
       .eq('id', terminateTarget.id);
     if (!error) {
       setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+      supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
+        .then(({ error: re }) => { if (re) console.warn('[recalc]', re.message); });
     }
     setTerminateTarget(null);
   }
@@ -1508,8 +1510,8 @@ export default function NewMission() {
       {terminateTarget && (
         <ConfirmModal
           title="의뢰를 조기 종료할까요?"
-          desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 중단되고 취소 상태로 변경됩니다.\n이 작업은 되돌릴 수 없습니다.`}
-          confirmLabel="조기 종료"
+          desc="⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 계속 확인 가능합니다."
+          confirmLabel="조기 종료 (크레딧 환불 불가)"
           cancelLabel="유지"
           danger
           onConfirm={handleTerminate}

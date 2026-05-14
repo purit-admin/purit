@@ -99,10 +99,14 @@ export default function PricingPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: co } = await supabase.from('companies').select('id, plan').eq('user_id', user.id).single();
-      if (co) setCompany(co);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: co } = await supabase.from('companies').select('id, plan').eq('user_id', user.id).single();
+        if (co) setCompany(co);
+      } catch (err) {
+        console.error('[Pricing load]', err);
+      }
     }
     load();
   }, []);

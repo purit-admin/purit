@@ -173,6 +173,7 @@ export default function PurityFilter() {
   useEffect(() => {
     const pendingDeeplink = location.state?.feedbackId;
     async function load() {
+      try {
       const { data } = await supabase
         .from('feedbacks')
         .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name)')
@@ -199,6 +200,10 @@ export default function PurityFilter() {
         if (resp) map[f.id] = resp;
       });
       setSubResponseMap(map);
+      } catch (err) {
+        console.error('[PurityFilter load]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);
@@ -344,6 +349,8 @@ export default function PurityFilter() {
       const mTitle = f.missions?.title || '미션';
       if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
       if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${mTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${f.mission_id}`, targetRole: 'company' });
+      if (f.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 })
+        .then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
     });
     setCheckedIds(new Set()); setBulkActing(false);
   };

@@ -874,8 +874,9 @@ export default function Results() {
   // 미션 목록 로드
   useEffect(() => {
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
       const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
@@ -896,6 +897,10 @@ export default function Results() {
         if (sIdx >= 0) setSubPage(Math.floor(sIdx / PAGE_SIZE) + 1);
       }
       setLoading(false);
+      } catch (err) {
+        console.error('[CompanyResults load]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);

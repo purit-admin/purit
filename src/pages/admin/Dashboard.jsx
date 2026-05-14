@@ -23,29 +23,34 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function load() {
-      const [
-        { count: mCount, error: e1 },
-        { count: pCount, error: e2 },
-        { count: fbCount, error: e3 },
-        { count: passedCount, error: e4 },
-        { data: panelList, error: e5 },
-      ] = await Promise.all([
-        supabase.from('missions').select('*', { count: 'exact', head: true }),
-        supabase.from('panels').select('*', { count: 'exact', head: true }),
-        supabase.from('feedbacks').select('*', { count: 'exact', head: true }),
-        supabase.from('feedbacks').select('*', { count: 'exact', head: true }).eq('purity_passed', true),
-        supabase.from('panels').select('*').order('created_at', { ascending: false }).limit(10),
-      ]);
+      try {
+        const [
+          { count: mCount, error: e1 },
+          { count: pCount, error: e2 },
+          { count: fbCount, error: e3 },
+          { count: passedCount, error: e4 },
+          { data: panelList, error: e5 },
+        ] = await Promise.all([
+          supabase.from('missions').select('*', { count: 'exact', head: true }),
+          supabase.from('panels').select('*', { count: 'exact', head: true }),
+          supabase.from('feedbacks').select('*', { count: 'exact', head: true }),
+          supabase.from('feedbacks').select('*', { count: 'exact', head: true }).eq('purity_passed', true),
+          supabase.from('panels').select('*').order('created_at', { ascending: false }).limit(10),
+        ]);
 
-      [e1,e2,e3,e4,e5].forEach((e,i) => e && console.error(`[AdminDashboard] query${i+1}:`, e.message));
-      setStats({
-        missions:  mCount  || 0,
-        panels:    pCount  || 0,
-        feedbacks: fbCount || 0,
-        passed:    passedCount || 0,
-      });
-      setPanels(panelList || []);
-      setLoading(false);
+        [e1,e2,e3,e4,e5].forEach((e,i) => e && console.error(`[AdminDashboard] query${i+1}:`, e.message));
+        setStats({
+          missions:  mCount  || 0,
+          panels:    pCount  || 0,
+          feedbacks: fbCount || 0,
+          passed:    passedCount || 0,
+        });
+        setPanels(panelList || []);
+        setLoading(false);
+      } catch (err) {
+        console.error('[AdminDashboard load]', err);
+        setLoading(false);
+      }
     }
     load();
   }, []);

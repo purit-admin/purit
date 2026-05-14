@@ -162,8 +162,9 @@ export default function MissionList() {
     let sub = null;
 
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
 
       const { data: p } = await supabase
         .from('panels').select('id, honor_points, experience').eq('user_id', user.id).single();
@@ -193,6 +194,10 @@ export default function MissionList() {
           setMissions(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
         })
         .subscribe();
+      } catch (err) {
+        console.error('[PanelMissions load]', err);
+        setLoading(false);
+      }
     }
 
     load();
