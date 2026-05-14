@@ -166,10 +166,10 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
               <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onCancelMission(m.id); }}>취소</Btn>
             )}
             {m.status === 'completed' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다. 기업에게 재진행 알림이 발송됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
             )}
             {m.status === 'cancelled' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다.', fromStatus: 'cancelled' }); }}>재개</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다. 기업에게 재개 알림이 발송됩니다.', fromStatus: 'cancelled' }); }}>재개</Btn>
             )}
             {m.status === 'cancelled' && (
               <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}>삭제</Btn>
@@ -279,6 +279,14 @@ export default function AdminMissions() {
       await supabase.from('missions').update({ status: newStatus }).eq('id', id);
       setMissions(ms => ms.map(m => m.id === id ? { ...m, status: newStatus } : m));
       setSelectedMission(prev => prev?.id === id ? { ...prev, status: newStatus } : prev);
+      const foundM = missions.find(m => m.id === id);
+      if (foundM?.companies?.user_id) {
+        if (newStatus === 'cancelled') {
+          sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: `/company/results?id=${id}` });
+        } else if (newStatus === 'active') {
+          sendNotification(foundM.companies.user_id, { type: 'success', icon: '▶️', title: '의뢰 재개', body: `[${foundM.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`, actionUrl: `/company/results?id=${id}` });
+        }
+      }
     }
   };
 
@@ -296,6 +304,10 @@ export default function AdminMissions() {
     }
     setMissions(ms => ms.map(m => m.id === id ? { ...m, status: 'active' } : m));
     setSelectedMission(prev => prev?.id === id ? { ...prev, status: 'active' } : prev);
+    const foundM = missions.find(m => m.id === id);
+    if (foundM?.companies?.user_id) {
+      sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: `/company/results?id=${id}` });
+    }
   };
 
   const deleteMission = async (id) => {
@@ -365,7 +377,7 @@ export default function AdminMissions() {
       {confirmCancel && (
         <ConfirmModal
           title="이 미션을 취소하시겠습니까?"
-          desc="미션을 취소하면 패널 피드백 수집이 즉시 중단됩니다. 계속하시겠습니까?"
+          desc="미션을 취소하면 패널 피드백 수집이 즉시 중단됩니다. 기업에게 취소 알림이 발송됩니다. 계속하시겠습니까?"
           confirmLabel="미션 취소"
           cancelLabel="돌아가기"
           danger
