@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -157,6 +157,7 @@ export default function PurityFilter() {
   const [loading, setLoading]             = useState(true);
   const [highlightId, setHighlightId]     = useState(null);
   const [acting, setActing]               = useState(false);
+  const [confirmRejectId, setConfirmRejectId] = useState(null);
   const [bulkActing, setBulkActing]       = useState(false);
   const [filter, setFilter]               = useState('pending');
   const [pendingSubFilter, setPendingSubFilter] = useState('all'); // 'all'|'above65'|'below65'
@@ -958,7 +959,7 @@ export default function PurityFilter() {
                       <Btn size="sm" disabled={acting} onClick={() => approve(fb.id)}>
                         {acting ? '처리 중...' : '✓ 승인'}
                       </Btn>
-                      <Btn size="sm" variant="danger" disabled={acting} onClick={() => reject(fb.id)}>
+                      <Btn size="sm" variant="danger" disabled={acting} onClick={() => setConfirmRejectId(fb.id)}>
                         {acting ? '처리 중...' : '✕ 반려'}
                       </Btn>
                     </>
@@ -978,6 +979,17 @@ export default function PurityFilter() {
             </div>
           )}
         </div>
+      )}
+
+      {confirmRejectId && (
+        <ConfirmModal
+          title="피드백 반려"
+          desc="이 피드백을 반려 처리합니까? 패널에게 반려 알림이 발송됩니다."
+          confirmLabel="✕ 반려"
+          onConfirm={() => { reject(confirmRejectId); setConfirmRejectId(null); }}
+          onCancel={() => setConfirmRejectId(null)}
+          danger
+        />
       )}
     </div>
   );

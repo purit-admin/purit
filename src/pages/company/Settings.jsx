@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Btn, Badge } from '../../components/ui';
+import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const ROLE_LABELS = { admin: '관리자', member: '멤버', viewer: '뷰어만' };
@@ -20,6 +20,7 @@ export default function AccountSettings() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
   const [inviting, setInviting] = useState(false);
+  const [confirmRemoveMemberId, setConfirmRemoveMemberId] = useState(null);
 
   const NOTIF_KEY = 'purit_notif_prefs';
   const [notif, setNotif] = useState(() => {
@@ -153,7 +154,7 @@ export default function AccountSettings() {
                   </Badge>
                   <div style={{ fontSize: 12, color: 'var(--text-3)' }}>가입 {m.joined_at}</div>
                   {m.role !== 'admin' && (
-                    <Btn size="sm" variant="ghost" style={{ color: 'var(--red)', fontSize: 12 }} onClick={() => handleRemove(m.id)}>제거</Btn>
+                    <Btn size="sm" variant="ghost" style={{ color: 'var(--red)', fontSize: 12 }} onClick={() => setConfirmRemoveMemberId(m.id)}>제거</Btn>
                   )}
                 </div>
               ))}
@@ -222,6 +223,16 @@ export default function AccountSettings() {
         </Card>
       )}
 
+      {confirmRemoveMemberId && (
+        <ConfirmModal
+          title="팀원 제거"
+          desc="이 팀원을 제거합니까? 즉시 액세스가 취소되며, 다시 초대하려면 이메일을 재발송해야 합니다."
+          confirmLabel="제거"
+          onConfirm={() => { handleRemove(confirmRemoveMemberId); setConfirmRemoveMemberId(null); }}
+          onCancel={() => setConfirmRemoveMemberId(null)}
+          danger
+        />
+      )}
     </div>
   );
 }

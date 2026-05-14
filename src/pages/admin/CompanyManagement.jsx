@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { ChevronLeft, ChevronRight, AlertTriangle, Star, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -84,6 +84,7 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMsg, setActionMsg]       = useState(null);
   const [missionPage, setMissionPage]   = useState(1);
+  const [confirmPlan, setConfirmPlan]   = useState(false);
 
   // co가 바뀌면 선택 플랜·페이지 리셋
   useEffect(() => {
@@ -317,7 +318,7 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
             <Btn
               variant="danger"
               disabled={actionLoading || actionPlan === co.plan}
-              onClick={handlePlanChange}
+              onClick={() => setConfirmPlan(true)}
               style={{ whiteSpace: 'nowrap', fontSize: 12 }}
             >
               변경
@@ -367,6 +368,17 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
           </div>
         )}
       </Card>
+
+      {confirmPlan && (
+        <ConfirmModal
+          title="플랜 변경"
+          desc={`플랜을 ${PLAN_LABEL[actionPlan]}으로 변경합니다.\n크레딧이 ${PLAN_CREDITS[actionPlan]}cr으로 재설정됩니다. 현재 잔여 크레딧은 초기화됩니다.`}
+          confirmLabel="플랜 변경"
+          onConfirm={() => { setConfirmPlan(false); handlePlanChange(); }}
+          onCancel={() => setConfirmPlan(false)}
+          danger
+        />
+      )}
     </div>
   );
 }

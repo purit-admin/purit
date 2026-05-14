@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
@@ -477,6 +477,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
   const status = panel.status || 'active';
   const hl = getHonorLevel(panel.honor_points ?? 0);
   const cm = HONOR_COLOR_META[hl.colorTier];
+  const [confirmAction, setConfirmAction] = useState(null);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -675,14 +676,14 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
                 ✓ 심사 승인
               </Btn>
               <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center' }}
-                onClick={() => onUpdate(panel.id, { status: 'suspended' })}>
+                onClick={() => setConfirmAction({ status: 'suspended', label: '심사 거절', desc: '이 패널을 심사 거절 처리합니까?\n계정이 정지 상태로 전환됩니다.' })}>
                 ✕ 심사 거절
               </Btn>
             </>
           )}
           {status === 'active' && (
             <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center' }}
-              onClick={() => onUpdate(panel.id, { status: 'suspended' })}>
+              onClick={() => setConfirmAction({ status: 'suspended', label: '활동 정지', desc: '이 패널의 활동을 정지합니까?\n정지 시 진행 중인 미션에서도 배제됩니다.' })}>
               활동 정지
             </Btn>
           )}
@@ -694,6 +695,17 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           )}
         </div>
       </Card>
+
+      {confirmAction && (
+        <ConfirmModal
+          title={confirmAction.label}
+          desc={confirmAction.desc}
+          confirmLabel={confirmAction.label}
+          onConfirm={() => { onUpdate(panel.id, { status: confirmAction.status }); setConfirmAction(null); }}
+          onCancel={() => setConfirmAction(null)}
+          danger
+        />
+      )}
     </div>
   );
 }

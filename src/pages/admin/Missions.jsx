@@ -128,7 +128,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
   );
 }
 
-function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, isHighlighted, isSelected, onSelect }) {
+function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, isHighlighted, isSelected, onSelect }) {
   return (
     <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer' }}>
       <div className="mc-row">
@@ -166,10 +166,10 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
               <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onCancelMission(m.id); }}>취소</Btn>
             )}
             {m.status === 'completed' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onUpdateStatus(m.id, 'active'); }}>재진행</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: '완료된 미션을 다시 진행 상태로 되돌립니까? 패널이 추가 피드백을 제출할 수 있게 됩니다.' }); }}>재진행</Btn>
             )}
             {m.status === 'cancelled' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onUpdateStatus(m.id, 'active'); }}>재개</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다.' }); }}>재개</Btn>
             )}
             {m.status === 'cancelled' && (
               <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}>삭제</Btn>
@@ -204,6 +204,7 @@ export default function AdminMissions() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(null);
   const [confirmComplete, setConfirmComplete] = useState(null);
+  const [confirmReactivate, setConfirmReactivate] = useState(null);
   const [mainPage, setMainPage] = useState(1);
   const [subPage, setSubPage]   = useState(1);
   const [statusError, setStatusError] = useState('');
@@ -372,6 +373,18 @@ export default function AdminMissions() {
         );
       })()}
 
+      {/* Reactivate confirm modal */}
+      {confirmReactivate && (
+        <ConfirmModal
+          title={confirmReactivate.label}
+          desc={confirmReactivate.desc}
+          confirmLabel={confirmReactivate.label}
+          cancelLabel="돌아가기"
+          onConfirm={() => { updateStatus(confirmReactivate.id, 'active'); setConfirmReactivate(null); }}
+          onCancel={() => setConfirmReactivate(null)}
+        />
+      )}
+
       {/* 메인/서브 분리 (모든 탭 공통) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
         {/* 메인 미션 섹션 */}
@@ -389,7 +402,7 @@ export default function AdminMissions() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {mainPaged.map(m => (
                   <div key={m.id}>
-                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
+                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
                     {selectedMission?.id === m.id && (
                       <MissionDetail mission={selectedMission} onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })} />
                     )}
@@ -416,7 +429,7 @@ export default function AdminMissions() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {subPaged.map(m => (
                   <div key={m.id}>
-                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
+                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
                     {selectedMission?.id === m.id && (
                       <MissionDetail mission={selectedMission} onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })} />
                     )}

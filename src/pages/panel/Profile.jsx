@@ -192,6 +192,10 @@ export default function PanelProfile() {
   const [otpLoading, setOtpLoading]   = useState(false);
   const [otpError, setOtpError]       = useState('');
 
+  const [orig, setOrig]           = useState(null);
+  const [dirtyWarn, setDirtyWarn] = useState(false);
+  const [pendingTab, setPendingTab] = useState(null);
+
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -213,6 +217,12 @@ export default function PanelProfile() {
         setPhone(p.phone || '');
         setPhoneVerified(p.phone_verified || false);
         setSelectedBadge(p.selected_badge || null);
+        setOrig({
+          name: p.name || '', industry: p.industry || '',
+          experience: p.experience || '', bio: p.bio || '',
+          expertise: p.expertise || [],
+          bankName: p.bank_name || '', bankAccount: p.bank_account || '', bankHolder: p.bank_holder || '',
+        });
       }
       setLoading(false);
     }
@@ -232,6 +242,11 @@ export default function PanelProfile() {
       setSaved('저장 실패: ' + error.message);
     } else {
       setPanel(p => ({ ...p, ...fields }));
+      if ('name' in fields) setOrig(o => ({ ...o, name, industry, experience, bio }));
+      if ('expertise' in fields) setOrig(o => ({ ...o, expertise: [...expertise] }));
+      if ('bank_name' in fields) setOrig(o => ({ ...o, bankName, bankAccount, bankHolder }));
+      setDirtyWarn(false);
+      setPendingTab(null);
       setSaved('저장됐습니다.');
       setTimeout(() => setSaved(''), 2500);
     }
@@ -239,6 +254,26 @@ export default function PanelProfile() {
 
   const toggleExpertise = (e) =>
     setExpertise(prev => prev.includes(e) ? prev.filter(x => x !== e) : [...prev, e]);
+
+  const isDirty = orig ? (() => {
+    if (tab === 'profile') return name !== orig.name || industry !== orig.industry || experience !== orig.experience || bio !== orig.bio;
+    if (tab === 'expertise') return JSON.stringify([...expertise].sort()) !== JSON.stringify([...orig.expertise].sort());
+    if (tab === 'payment') return bankName !== orig.bankName || bankAccount !== orig.bankAccount || bankHolder !== orig.bankHolder;
+    return false;
+  })() : false;
+
+  const handleTabClick = (v) => {
+    if (isDirty && v !== tab) {
+      setDirtyWarn(true);
+      setPendingTab(v);
+      return;
+    }
+    setTab(v);
+    setSaved('');
+    setPwMsg('');
+    setDirtyWarn(false);
+    setPendingTab(null);
+  };
 
   async function handleChangePw() {
     setPwMsg('');
@@ -330,7 +365,7 @@ export default function PanelProfile() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
         {[['profile', '기본 정보'], ['expertise', '전문 분야'], ['payment', '정산 계좌'], ['password', '비밀번호'], ['achievement', '성과']].map(([v, l]) => (
-          <button key={v} onClick={() => { setTab(v); setSaved(''); setPwMsg(''); }} style={{
+          <button key={v} onClick={() => handleTabClick(v)} style={{
             padding: '10px 18px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',
             color: tab === v ? 'var(--text)' : 'var(--text-3)',
@@ -359,6 +394,26 @@ export default function PanelProfile() {
           fontWeight: 600,
         }}>
           {saved}
+        </div>
+      )}
+      {dirtyWarn && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px', borderRadius: 'var(--radius)',
+          background: '#FFFBEB', border: '1px solid #F59E0B',
+          fontSize: 13, color: '#92400E',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <span>⚠ 저장하지 않은 변경사항이 있습니다.</span>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+            <button
+              onClick={() => { setDirtyWarn(false); setPendingTab(null); }}
+              style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+            >계속 편집</button>
+            <button
+              onClick={() => { setTab(pendingTab); setPendingTab(null); setDirtyWarn(false); setSaved(''); setPwMsg(''); }}
+              style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+            >저장하지 않고 이동 →</button>
+          </div>
         </div>
       )}
 

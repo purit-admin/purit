@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
@@ -42,6 +42,7 @@ export default function QuestionTemplates() {
   const [newQScaleMax, setNewQScaleMax] = useState('');
   const [savingQ, setSavingQ] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [confirmDeleteQid, setConfirmDeleteQid] = useState(null);
 
   useEffect(() => { load(); }, []);
   useEffect(() => { setSelected(null); }, [activeTab]);
@@ -285,7 +286,7 @@ export default function QuestionTemplates() {
                       )}
                     </div>
                   </div>
-                  <button onClick={() => handleDeleteCustomQ(q.id)} style={{
+                  <button onClick={() => setConfirmDeleteQid(q.id)} style={{
                     background: 'none', border: 'none', cursor: 'pointer',
                     color: 'var(--text-3)', fontSize: 16, padding: '2px 4px', flexShrink: 0,
                   }}>×</button>
@@ -559,6 +560,17 @@ export default function QuestionTemplates() {
             </div>
           )}
         </>
+      )}
+
+      {confirmDeleteQid && (
+        <ConfirmModal
+          title="커스텀 질문 삭제"
+          desc="이 커스텀 질문을 삭제합니까? 삭제 후 복구할 수 없으며, 다른 의뢰 폼의 질문 목록에서도 즉시 제거됩니다."
+          confirmLabel="삭제"
+          onConfirm={() => { handleDeleteCustomQ(confirmDeleteQid); setConfirmDeleteQid(null); }}
+          onCancel={() => setConfirmDeleteQid(null)}
+          danger
+        />
       )}
     </div>
   );
