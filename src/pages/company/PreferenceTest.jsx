@@ -1039,7 +1039,7 @@ export default function PreferenceTest() {
                           의뢰 조기 종료
                         </button>
                       )}
-                      {(isDraft || m.status === 'completed') && (
+                      {(isDraft || m.status === 'completed' || m.status === 'cancelled') && (
                         <button onClick={e => { e.stopPropagation(); setDeleteTarget(m.id); }}
                           style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer' }}>
                           삭제

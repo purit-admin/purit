@@ -292,6 +292,8 @@ export default function CompanyDashboard() {
       .eq('id', terminateTarget.id);
     if (!error) {
       setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
+      const { data: co } = await supabase.from('companies').select('*').eq('id', company.id).single();
+      if (co) setCompany(co);
     }
     setTerminateTarget(null);
   };
