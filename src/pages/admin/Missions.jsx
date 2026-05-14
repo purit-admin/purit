@@ -272,7 +272,7 @@ export default function AdminMissions() {
           type: 'success', icon: '🏁',
           title: '의뢰 완료',
           body: `[${completedMission.title}] 의뢰가 완료 처리되었습니다. 잔여 크레딧이 환불되었습니다.`,
-          actionUrl: '/company/results',
+          actionUrl: `/company/results?id=${completedMission.id}`,
         });
       }
     } else {

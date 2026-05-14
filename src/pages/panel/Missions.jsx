@@ -263,7 +263,7 @@ export default function MissionList() {
               type: 'info', icon: '👤',
               title: '패널 참여 취소',
               body: `[${modal.mission.title}] 패널이 미션 참여를 취소했습니다.`,
-              actionUrl: '/company/results',
+              actionUrl: `/company/results?id=${modal.mission.id}`,
             });
           });
       }
