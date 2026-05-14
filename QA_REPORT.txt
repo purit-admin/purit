@@ -6,6 +6,7 @@
 최고 수준의 QA 에이전트이자 내가 명령하면 수정까지하는 개발자야.
 단순히 눈에 보이는 에러만 찾지 말고, 코드를 뜯어보며
 '이게 진짜 서비스에 치명적인가?'를 스스로 고민(Think)한 뒤에 리포트를 작성해줘.
+이 문서에 기재된 모든 규칙과, 수평 전개 조사, 무결성 검증 등의 내용을 엄격하게 지키고 명령 수행해. 
 
 [🤔 리포트를 쓰기 전, 속으로 이렇게 생각(Thinking)해볼 것]
 1. 사용자 입장 고민: "이 버튼이 안 눌리거나 로딩이 멈추면, 패널이나 기업 고객이 얼마나
@@ -125,15 +126,15 @@
 ################################################################
 
 [🔎 이 프로젝트 전용 추가 체크리스트]
-5. RLS 무음 실패: Supabase는 권한 차단 시 에러 대신 빈 배열로 조용히 실패함.
+1. RLS 무음 실패: Supabase는 권한 차단 시 에러 대신 빈 배열로 조용히 실패함.
    cross-role 조인(기업→panels, 패널→missions UPDATE 등)은 RLS 통과 여부를 반드시 의심할 것.
-6. 크레딧/정산 연타 방지: useState만으로 중복 제출을 막는 버튼은 빠른 더블클릭 시
+2. 크레딧/정산 연타 방지: useState만으로 중복 제출을 막는 버튼은 빠른 더블클릭 시
    DB에 중복 데이터가 쌓일 수 있음. 돈이 걸린 RPC·크레딧 차감에 집중할 것.
-7. 상태 단방향 무결성: draft→active→completed/cancelled 역방향 전환 경로
+3. 상태 단방향 무결성: draft→active→completed/cancelled 역방향 전환 경로
    (URL 직접 접근, 버튼 중복 클릭 등)가 열려 있는지 확인할 것.
-8. 낙관적 UI 롤백 누락: 클릭 즉시 화면 반영 후 DB 실패 시 롤백 로직이 없으면
+4. 낙관적 UI 롤백 누락: 클릭 즉시 화면 반영 후 DB 실패 시 롤백 로직이 없으면
    화면과 실제 데이터가 어긋남. 에러 콜백에 setState 롤백이 있는지 확인할 것.
-9. 동시성(Race Condition): 같은 자원에 복수의 사용자가 거의 동시에 접근할 때 DB가 꼬이는지 확인할 것.
+5. 동시성(Race Condition): 같은 자원에 복수의 사용자가 거의 동시에 접근할 때 DB가 꼬이는지 확인할 것.
    핵심 질문 3가지:
    - 패널 2명이 슬롯 1개 남은 미션에 0.1초 차이로 동시에 수락하면 filled_count가 panel_count를 초과하는가?
    - 어드민 2명이 동시에 같은 피드백을 승인/반려하면 honor_points가 중복 적용되는가?
@@ -141,56 +142,56 @@
    확인 방법: DB RPC 함수 내부에 SELECT → 조건 체크 → UPDATE 순서로 낙관적 잠금이 있는지,
    또는 Supabase unique constraint / check constraint가 이를 DB 레벨에서 막는지 확인.
    프론트 단 submittingRef·isActing 가드만으로는 서로 다른 세션의 동시 요청을 막을 수 없음.
-10. 보안 — 프론트 우회 공격: UI에서 숨겨놨다고 안전하지 않음. 뒷단에서 한 번 더 검증하는지 확인할 것.
-    핵심 공격 시나리오 3가지:
-    - 패널이 개발자 도구로 API 요청을 가로채 p_panel_id를 타인 ID로 바꿔 honor_points를 조작하는가?
-      → add_panel_honor_points RPC 내부에서 auth.uid() = p_panel_id 또는 admin 여부를 검증하는가?
-    - 기업이 남의 mission_id로 complete_mission_and_refund RPC를 직접 호출해 타사 크레딧을 환불받는가?
-      → RPC 내부에서 호출자가 해당 미션의 owner인지 확인하는가?
-    - 패널이 UI 없이 REST로 feedbacks INSERT 시 purity_passed=true를 직접 심어넣는가?
-      → RLS WITH CHECK 조건이 purity_passed 컬럼 직접 설정을 차단하는가?
-    기준: "DB/RPC가 auth.uid() 기반으로 본인 데이터만 수정하도록 강제하고 있는가"를 항상 물을 것.
-    D-58(app_metadata role 검증)과 연계하여 admin 전용 RPC는 호출자 role을 반드시 재확인할 것.
-11. 에러 경로 우선 추적: if (!error) 성공 블록보다 에러·빈 응답·null 반환 경로를 먼저 볼 것.
-    "DB가 에러를 반환하면 사용자 화면에 무슨 일이 생기는가?"를 항상 확인할 것.
-    - catch 블록이 빠진 async 함수는 에러를 조용히 삼킴 → 사용자는 성공인지 실패인지 알 수 없음
-    - early return에 setLoading(false) 누락 → 로딩 영구 걸림 (D-51 패턴)
-    - 에러 메시지가 console.error로만 출력되고 UI에 미반영되면 사용자 혼란 발생
-    조사 방법: 핸들러 함수의 모든 exit path(return, throw, catch)를 추적해
-    각 경로에서 loading 해제·에러 메시지 표시·상태 롤백이 모두 존재하는지 대조 확인.
-12. 액션의 Side Effect 완전성: 버튼 액션 하나가 유발하는 연쇄 효과 목록을 먼저 작성한 뒤 코드와 대조할 것.
-    개별 처리 핸들러(handleApprove)와 일괄 처리 핸들러(bulkApprove)가 동일한 side effect 목록을 완수하는지 비교.
-    - DB UPDATE 외에: 알림 발송 / 크레딧 재계산 / honor_points 변경 / 카운터 갱신 / 로컬 상태 동기화
-    - 일괄 처리는 DB만 수정하고 나머지를 빠뜨리는 패턴이 반복됨 (D-62 참조)
-    조사 방법: 개별 핸들러의 코드 블록을 체크리스트로 줄 세우고, 일괄 핸들러에 동일 항목이 있는지 한 줄씩 대조.
-13. 소유권 질문 의무화: 새 쿼리·RPC·INSERT를 볼 때마다 반드시 물어볼 것.
-    "이 데이터의 소유자가 아닌 사람도 이 요청을 보낼 수 있는가?"
-    - 패널이 다른 패널의 피드백을 UPDATE할 수 있는가?
-    - 기업이 다른 기업의 missions를 조회·수정할 수 있는가?
-    - 어드민 전용 RPC를 패널/기업 계정에서 직접 호출하면 어떻게 되는가?
-    확인 방법: RPC 함수 본문의 첫 번째 조건문, RLS WITH CHECK 조건,
-    SECURITY DEFINER 여부를 읽어 auth.uid() 소유권 검증이 코드 레벨에 명시적으로 존재하는지 확인.
-14. 저장·복원 대칭성 검증: 드래프트 자동저장 코드를 볼 때, 복원 코드를 즉시 나란히 펼쳐
+6. 보안 — 프론트 우회 공격: UI에서 숨겨놨다고 안전하지 않음. 뒷단에서 한 번 더 검증하는지 확인할 것.
+   핵심 공격 시나리오 3가지:
+   - 패널이 개발자 도구로 API 요청을 가로채 p_panel_id를 타인 ID로 바꿔 honor_points를 조작하는가?
+     → add_panel_honor_points RPC 내부에서 auth.uid() = p_panel_id 또는 admin 여부를 검증하는가?
+   - 기업이 남의 mission_id로 complete_mission_and_refund RPC를 직접 호출해 타사 크레딧을 환불받는가?
+     → RPC 내부에서 호출자가 해당 미션의 owner인지 확인하는가?
+   - 패널이 UI 없이 REST로 feedbacks INSERT 시 purity_passed=true를 직접 심어넣는가?
+     → RLS WITH CHECK 조건이 purity_passed 컬럼 직접 설정을 차단하는가?
+   기준: "DB/RPC가 auth.uid() 기반으로 본인 데이터만 수정하도록 강제하고 있는가"를 항상 물을 것.
+   D-58(app_metadata role 검증)과 연계하여 admin 전용 RPC는 호출자 role을 반드시 재확인할 것.
+7. 에러 경로 우선 추적: if (!error) 성공 블록보다 에러·빈 응답·null 반환 경로를 먼저 볼 것.
+   "DB가 에러를 반환하면 사용자 화면에 무슨 일이 생기는가?"를 항상 확인할 것.
+   - catch 블록이 빠진 async 함수는 에러를 조용히 삼킴 → 사용자는 성공인지 실패인지 알 수 없음
+   - early return에 setLoading(false) 누락 → 로딩 영구 걸림 (D-51 패턴)
+   - 에러 메시지가 console.error로만 출력되고 UI에 미반영되면 사용자 혼란 발생
+   조사 방법: 핸들러 함수의 모든 exit path(return, throw, catch)를 추적해
+   각 경로에서 loading 해제·에러 메시지 표시·상태 롤백이 모두 존재하는지 대조 확인.
+8. 액션의 Side Effect 완전성: 버튼 액션 하나가 유발하는 연쇄 효과 목록을 먼저 작성한 뒤 코드와 대조할 것.
+   개별 처리 핸들러(handleApprove)와 일괄 처리 핸들러(bulkApprove)가 동일한 side effect 목록을 완수하는지 비교.
+   - DB UPDATE 외에: 알림 발송 / 크레딧 재계산 / honor_points 변경 / 카운터 갱신 / 로컬 상태 동기화
+   - 일괄 처리는 DB만 수정하고 나머지를 빠뜨리는 패턴이 반복됨 (D-62 참조)
+   조사 방법: 개별 핸들러의 코드 블록을 체크리스트로 줄 세우고, 일괄 핸들러에 동일 항목이 있는지 한 줄씩 대조.
+9. 소유권 질문 의무화: 새 쿼리·RPC·INSERT를 볼 때마다 반드시 물어볼 것.
+   "이 데이터의 소유자가 아닌 사람도 이 요청을 보낼 수 있는가?"
+   - 패널이 다른 패널의 피드백을 UPDATE할 수 있는가?
+   - 기업이 다른 기업의 missions를 조회·수정할 수 있는가?
+   - 어드민 전용 RPC를 패널/기업 계정에서 직접 호출하면 어떻게 되는가?
+   확인 방법: RPC 함수 본문의 첫 번째 조건문, RLS WITH CHECK 조건,
+   SECURITY DEFINER 여부를 읽어 auth.uid() 소유권 검증이 코드 레벨에 명시적으로 존재하는지 확인.
+10. 저장·복원 대칭성 검증: 드래프트 자동저장 코드를 볼 때, 복원 코드를 즉시 나란히 펼쳐
     저장 객체의 필드 목록과 복원 코드의 setState 호출 목록을 1:1로 대조할 것.
     - 저장은 됐는데 복원 코드에 없으면 → 재진입 시 해당 state가 기본값으로 고착
     - 기본값이 제출 gate 조건(canSubmit)에 영향을 주면 → 제출 버튼 영구 비활성 (D-59 패턴)
     조사 방법: strengths/description JSON에 저장하는 키 목록과
     복원 useEffect에서 setState를 호출하는 키 목록을 나란히 놓고 diff 확인.
     빠진 키 하나가 "이어하기 후 제출 불가" 버그의 전형적 원인.
-15. 페이지네이션 리셋 트리거 점검: 탭·필터·검색어가 바뀌는 모든 핸들러에서
+11. 페이지네이션 리셋 트리거 점검: 탭·필터·검색어가 바뀌는 모든 핸들러에서
     page 상태가 1로 리셋되는지 확인할 것.
     - page=5에서 필터 변경 후 리셋 없으면 해당 페이지에 데이터가 없어 빈 화면 표시
     - 이 프로젝트는 탭 5개 × 필터 3개 조합이 다수 존재해 리셋 누락이 빈번
     조사 방법: setFilter() / setTab() / setSearchQuery() 호출 지점을 Grep 후
     같은 핸들러 또는 useEffect에서 setPage(1) / setMainPage(1) / setSubPage(1)이 따라오는지 확인.
     탭 전환과 필터 전환이 별도 핸들러인 경우 둘 다 확인할 것.
-16. 쿼리 exclusion filter 완전성: 목록 쿼리를 볼 때마다
+12. 쿼리 exclusion filter 완전성: 목록 쿼리를 볼 때마다
     "이 목록에 절대 나오면 안 되는 데이터 종류가 있는가?"를 물을 것.
     이 프로젝트의 필수 exclusion 조건 목록:
     - feedbacks 조회: .neq('status', 'draft') — draft 피드백이 카운트·결과에 포함되면 안 됨
     - missions 조회(기업·어드민): .neq('status', 'draft') — 임시저장 의뢰가 관리 목록에 노출되면 안 됨
     - Results.jsx 좌측 패널: draft 의뢰 제외 (.neq('status','draft')) 확인
-    규칙 5(RLS 무음 실패)는 권한 차단 문제를 다루지만, 이 규칙은
+    규칙 1(RLS 무음 실패)은 권한 차단 문제를 다루지만, 이 규칙은
     개발자가 명시적으로 추가해야 할 exclusion 조건 누락을 다루는 별개 패턴.
     조사 방법: 새 목록 쿼리 추가 시 위 목록과 대조 후 누락 여부 확인.
 
