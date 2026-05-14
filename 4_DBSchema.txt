@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-11 (022_bug_reports — bug_reports 테이블 + DB 트리거)
+최종 업데이트: 2026-05-14 (031_feedbacks_payout_tracking — payout_amount + rejection_penalty_applied 컬럼 추가)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -92,7 +92,9 @@
                                형식: [{questionId, questionText, type, answer}]
                                서브 미션(preference/pricing/email)은 각 응답 테이블의 custom_answers 사용
                                LP 메인 의뢰만 feedbacks.custom_answers 사용
-  purity_passed         BOOL  DEFAULT false
+  purity_passed                BOOL           DEFAULT false
+  payout_amount                NUMERIC(10,2)  DEFAULT NULL  ← 031 추가 (승인 시점 정산 금액 스냅샷 — 패널 경력 변경 이후에도 금액 불변)
+  rejection_penalty_applied    BOOLEAN        NOT NULL DEFAULT FALSE  ← 031 추가 (반려 시 true, 재제출 후 재승인 시 HP +5 복원 트리거)
   status                TEXT  ('draft'|'submitted'|'approved'|'rejected')
                                ※ draft: 수락 후 미완료 (패널이 수락하면 즉시 생성)
                                ※ CHECK 제약: feedbacks_status_check 로 4개 값 허용
@@ -100,6 +102,7 @@
 
   ※ RLS: SELECT(인증된 전체), INSERT(패널), UPDATE(인증된 전체)
   ※ DELETE 정책 없음 → 수락 취소는 cancel_panel_feedback RPC(SECURITY DEFINER)로 처리
+  ※ 031_feedbacks_payout_tracking.sql 에서 payout_amount / rejection_penalty_applied 컬럼 추가
 
 ---
 
@@ -381,7 +384,9 @@
   add_panel_honor_points(p_panel_id UUID, p_delta INT)
     → panels.honor_points = GREATEST(0, honor_points + p_delta) 원자 업데이트
     → 미션 제출 완료 시 +5 호출 (ActiveMission.jsx)
-    → 파일: supabase/migrations/015_honor_level_system.sql
+    → 반려된 피드백 재제출 후 재승인 시 +5 복원 호출 (PurityFilter.jsx — rejection_penalty_applied=true 조건)
+    → 보안: raw_app_meta_data ->> 'role' = 'admin' 검사로 admin 사칭 방지 (032 마이그레이션) ← D-58 패턴
+    → 파일: supabase/migrations/015_honor_level_system.sql (원본) + 032_fix_honor_rpc_app_metadata.sql (보안 패치)
 
   rate_panel_feedback_helpfulness(p_company_id UUID, p_panel_id UUID, p_ref_type TEXT, p_ref_id UUID, p_is_helpful BOOLEAN) RETURNS jsonb
     → 최초 평가 → INSERT + HP ±(+15/-20)
@@ -453,4 +458,5 @@
     → 30일 비활동 후 매주 -200 HP 지연 적용 (honor_decay_applied_at 커서로 이중 적용 방지)
     → 패널 대시보드 마운트 시 호출, decayRes.applied=true 이면 패널 데이터 재로드
     → Returns: {applied: bool, weeks_decayed: N, points_removed: N}
-    → 파일: supabase/migrations/015_honor_level_system.sql
+    → 보안: raw_app_meta_data ->> 'role' = 'admin' 검사 (032 마이그레이션) ← D-58 패턴
+    → 파일: supabase/migrations/015_honor_level_system.sql (원본) + 032_fix_honor_rpc_app_metadata.sql (보안 패치)

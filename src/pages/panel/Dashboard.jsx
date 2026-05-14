@@ -71,7 +71,7 @@ export default function PanelDashboard() {
           .order('created_at', { ascending: false }),
         supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p?.id),
         supabase.from('feedbacks')
-          .select('status, purity_passed, missions(type)')
+          .select('status, purity_passed, payout_amount, missions(type)')
           .eq('panel_id', p?.id)
           .neq('status', 'draft'),
       ]);
@@ -172,6 +172,7 @@ export default function PanelDashboard() {
   const pendingFbs  = histFeedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
   const rejectedFbs = histFeedbacks.filter(f => !f.purity_passed && f.status === 'rejected');
   const calcDashReward = (f) => {
+    if (f.purity_passed && f.payout_amount != null) return Number(f.payout_amount);
     const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
     const base = getPanelReward(panel?.honor_points || 0, panel?.experience || '');
     return isSub ? Math.round(base * (4500 / 8000)) : base;
@@ -246,6 +247,7 @@ export default function PanelDashboard() {
                   ['미션 제출 완료', '+5 pts'],
                   ['기업 도움 됨 평가', '+15 pts'],
                   ['기업 도움 안 됨 평가', '−20 pts'],
+                  ['Purit Filter 반려', '−5 pts'],
                   ['30일 비활동 후 매주', '−200 pts'],
                 ].map(([desc, val]) => (
                   <div key={desc} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>

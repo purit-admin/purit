@@ -88,6 +88,7 @@ export default function History() {
   const rejected = feedbacks.filter(f => !f.purity_passed && f.status === 'rejected');
 
   const calcReward = (f) => {
+    if (f.purity_passed && f.payout_amount != null) return Number(f.payout_amount);
     const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
     const base = getPanelReward(panelData?.honor_points || 0, panelData?.experience || '');
     return isSub ? Math.round(base * (4500 / 8000)) : base;

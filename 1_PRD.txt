@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-14 (어드민 미션 관리 LP 검증 뱃지 미표시 + 기업 팀 권한 편집자·뷰어 2종으로 변경)
+최종 업데이트: 2026-05-14 (패널 정산 금액 고정(payout_amount) + 반려 HP 복원 + Revenue.jsx feedbacks 기반 재작성)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -536,11 +536,15 @@
    - 탭 3개: 정산 대기 / 정산 완료 / 지급 거절 (기존 "전체" 탭 제거)
    - 기본 탭: '정산 대기' (pending)
    - 탭별 5개씩 페이지네이션 (Pagination 컴포넌트, 탭 전환 시 page 리셋) ★ 추가
-   - 금액 계산: getPanelReward(honor_points, experience) 동적 계산 — missions.reward_amount 고정값 미사용 ★
+   - 금액 계산: payout_amount 고정값 우선 → 없으면 getPanelReward 동적 계산 폴백 ★ 개편
      · panels 쿼리: id·honor_points·experience 조회 → panelData state 저장
      · missions 서브쿼리: title·reward_amount·type 조회
-     · calcReward(f): 서브미션(preference/pricing/email)이면 base × (4500/8000), 메인이면 base 그대로
+     · calcReward(f):
+         - purity_passed=true && payout_amount != null → Number(payout_amount) 고정값 사용 (승인 시점에 스냅샷)
+         - 그 외 → getPanelReward(panelData.honor_points, panelData.experience) 동적 계산 폴백
+         - 서브미션(preference/pricing/email)이면 base × (4500/8000), 메인이면 base 그대로
      · 정산 대기 항목: 금액 아래 "(예상)" 레이블 표시
+     · payout_amount는 PurityFilter.jsx 개별/일괄 승인 시 feedbacks 컬럼에 저장 (migration 031)
    - [지급 거절] 항목: 재작성 버튼 없음 — "탈락 사유 보기" 텍스트(버튼) 클릭 시 인라인 사유 펼침
      · 헤더: "반려 사유 · Purit Filter 기준 미달" (한 줄)
      · feedbacks.suggestions 원문을 메인 콘텐츠로 표시 (없으면 "상세 사유가 기재되지 않았습니다.")
@@ -719,11 +723,26 @@
    - 점수 카드 컨테이너: CSS grid repeat(N, 1fr) 균등 폭 (preference/pricing=3열, email/LP=5열)
    - 개별 반려: "✕ 반려" 버튼 → ConfirmModal(danger) 경유 → feedbacks.status 업데이트 ★
    - 승인/반려: feedbacks.status 업데이트 (서브 미션도 동일)
+   - 승인 시 payout_amount 저장 ★: getPanelReward(panel.honor_points, panel.experience) 계산값을 feedbacks.payout_amount에 스냅샷 저장
+     · 서브미션이면 base × (4500/8000) 적용 후 저장
+     · 이후 패널이 경력(experience)을 변경해도 정산 금액 불변
+   - 반려 시 rejection_penalty_applied=true 저장 ★: -5 HP는 별도 penalty 없음, 재제출 후 재승인 시 HP 보정에만 사용
+   - 반려된 피드백이 재제출 후 재승인될 때: rejection_penalty_applied=true 이면 +5 HP RPC 호출로 패널 HP 복원 ★
+   - 일괄 승인(bulkApprove): 상태 일괄 UPDATE 후 피드백별 payout_amount 개별 UPDATE (금액이 각자 다르므로) ★
    - 승인/반려/초기화 직후: recalc_mission_consumed RPC 호출 → 해당 미션의 credits_consumed 자동 재계산
    - 승인/반려 시 패널 + 기업 양쪽에 알림 자동 발송 (sendNotification 사용)
    - 반려 알림: 패널에게 actionUrl='/panel/history' 로 발송 → 재작성 버튼으로 바로 이동 유도
    - 패널 재제출 시: feedbacks.status 'rejected' → 'submitted' 자동 전환 → "검토 대기" 탭에 노출
-5. 수익 & 정산 (/admin/revenue) — Revenue.jsx
+   - panels select에 honor_points, experience 컬럼 추가 (payout 계산용) ★
+5. 수익 & 정산 (/admin/revenue) — Revenue.jsx  ★ feedbacks 기반 전면 재작성 (2026-05-14)
+   - 데이터 소스: settlements 테이블(시드/목업 데이터) 제거 → feedbacks 테이블 직접 조회 ★
+     · feedbacks WHERE purity_passed=true, NOT draft, join missions(title, type, status) + panels(name, honor_points, experience)
+     · calcSettleAmt(f): payout_amount != null → 고정값 / null → getPanelReward 동적 계산 폴백 (같은 패턴)
+   - 정산 탭: feedbacks 기반 패널별 행 표시 (패널명 / 미션 타입 뱃지 / 미션 제목 / 금액 / 지급 상태)
+     · 지급 상태 표시: missions.status='completed' → "지급완료" (green) / 그 외 → "지급대기" (gold)
+     · 일괄 정산 처리 버튼 제거 — 실제 은행 이체는 외부 처리, 미션 완료 처리로 간접 관리
+   - 청구서 탭: invoices 테이블 — 상태 변경 ConfirmModal async/await + errorMsg prop 적용 (D-65·D-69 준수) ★
+   - 수익 탭: 기업별 크레딧 사용 현황 집계 (기존 유지)
 6. 버그 리포트 (/admin/reports) — BugReports.jsx  ★ 신규
    - 탭 4개: 미처리 / 처리 중 / 해결됨 / 기각 (색상 카운트 뱃지 포함)
    - 좌측 목록: 유형 뱃지(버그/UX/데이터/기능제안/기타) + 역할 뱃지 + 제목 + 날짜 + 메모 미리보기

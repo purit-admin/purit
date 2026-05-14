@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-14 (D-65·D-66·D-67 추가 — 낙관적 롤백 모달 유지·전체 버튼 비활성화·key 강제 리마운트)
+최종 업데이트: 2026-05-14 (D-70 추가 — 정산 금액 스냅샷 누락 시 경력 변경으로 금액 소급 변동 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -805,3 +805,17 @@ D-69. ConfirmModal onConfirm에 async 함수를 await 없이 호출하면 DB 완
              `onXxx={() => { asyncFn(); cleanup(); }}` 패턴은 항상 cleanup이 선행 실행됨
              특히 ConfirmModal의 onConfirm처럼 "DB 완료 후 닫아야 한다"는 의도가 있을 때 이 함정에 빠지기 쉬움
              → 올바른 패턴: `onConfirm={async () => { await asyncFn(); setModal(null); }}`
+
+D-70. 동적 계산 금액을 승인 시점에 스냅샷 저장하지 않으면 경력 변경 시 금액이 소급 변동되는 패턴 ✅ 해결
+     → 증상: 패널이 피드백 승인 후 프로필에서 경력(experience)을 변경 시,
+             정산 내역(History.jsx)에 이미 승인된 항목의 금액이 새 경력 기준으로 재계산되어 변동됨
+     → 원인: calcReward()가 매번 getPanelReward(panelData.honor_points, panelData.experience)를 동적 호출
+             panelData.experience는 현재 시점 값 → 과거 승인 건도 현재 경력 기준으로 계산 → 소급 적용
+     → 해결: 승인 시점(PurityFilter.jsx approve())에 계산값을 feedbacks.payout_amount에 저장 (migration 031)
+             calcReward(): `if (f.purity_passed && f.payout_amount != null) return Number(f.payout_amount)` 우선 확인
+             null이면(승인 전 또는 마이그레이션 전 구 데이터) 동적 계산으로 폴백 → 하위 호환 유지
+     → 패턴: 승인 시점 스냅샷 패턴 — 가격/배율/정책이 변할 수 있는 계산값은 확정 시점에 DB에 고정
+             "계산값 = f(현재 상태)" 설계는 과거 트랜잭션을 소급 변경하는 회계 버그를 만든다
+     → 적용 파일: PurityFilter.jsx(approve/bulkApprove) + History.jsx(calcReward) + panel/Dashboard.jsx(calcDashReward) + Revenue.jsx(calcSettleAmt)
+     → 추가 적용: 일괄 승인(bulkApprove)에서 payout_amount는 피드백마다 다르므로 일괄 UPDATE 불가
+                  payoutMap({[id]: amount}) 계산 후 ids.forEach() 개별 UPDATE 패턴 필수

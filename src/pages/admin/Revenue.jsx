@@ -1,17 +1,17 @@
-﻿import { useState, useEffect } from 'react';
-import { Card, Stat, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { useState, useEffect } from 'react';
+import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid } from 'recharts';
 import { supabase } from '../../lib/supabase';
+import { getPanelReward } from '../../lib/honorLevels';
 
 export default function RevenueManagement() {
   const [tab, setTab] = useState('overview');
   const [gmvData, setGmvData] = useState([]);
-  const [settlements, setSettlements] = useState([]);
+  const [feedbackSettlements, setFeedbackSettlements] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [confirmSettleAll, setConfirmSettleAll] = useState(false);
-  const [confirmSettleId, setConfirmSettleId] = useState(null);
-  const [confirmInvoice, setConfirmInvoice] = useState(null); // { id, newStatus }
+  const [confirmInvoice, setConfirmInvoice] = useState(null);
+  const [invoiceError, setInvoiceError] = useState('');
 
   useEffect(() => {
     loadAll();
@@ -22,12 +22,17 @@ export default function RevenueManagement() {
     try {
       const [gmvRes, settRes, invRes] = await Promise.all([
         supabase.from('gmv_snapshots').select('*').order('year').order('month_num'),
-        supabase.from('settlements').select('*').order('created_at', { ascending: false }),
+        supabase
+          .from('feedbacks')
+          .select('id, payout_amount, missions(id, title, type, status), panels(id, name, honor_points, experience)')
+          .eq('purity_passed', true)
+          .neq('status', 'draft')
+          .order('created_at', { ascending: false }),
         supabase.from('invoices').select('*').order('invoice_date', { ascending: false }),
       ]);
-      if (!gmvRes.error) setGmvData(gmvRes.data);
-      if (!settRes.error) setSettlements(settRes.data);
-      if (!invRes.error) setInvoices(invRes.data);
+      if (!gmvRes.error) setGmvData(gmvRes.data || []);
+      if (!settRes.error) setFeedbackSettlements(settRes.data || []);
+      if (!invRes.error) setInvoices(invRes.data || []);
       setLoading(false);
     } catch (err) {
       console.error('[Revenue loadAll]', err);
@@ -35,30 +40,15 @@ export default function RevenueManagement() {
     }
   }
 
-  async function handleSettle(id) {
-    const { error } = await supabase
-      .from('settlements')
-      .update({ status: 'paid' })
-      .eq('id', id);
-    if (!error) setSettlements(s => s.map(x => x.id === id ? { ...x, status: 'paid' } : x));
-  }
-
-  async function handleSettleAll() {
-    const pendingIds = settlements.filter(s => s.status === 'pending').map(s => s.id);
-    if (!pendingIds.length) return;
-    const { error } = await supabase
-      .from('settlements')
-      .update({ status: 'paid' })
-      .in('id', pendingIds);
-    if (!error) setSettlements(s => s.map(x => pendingIds.includes(x.id) ? { ...x, status: 'paid' } : x));
-  }
-
   async function handleInvoiceStatus(id, newStatus) {
+    setInvoiceError('');
     const { error } = await supabase
       .from('invoices')
       .update({ status: newStatus })
       .eq('id', id);
-    if (!error) setInvoices(inv => inv.map(x => x.id === id ? { ...x, status: newStatus } : x));
+    if (error) { setInvoiceError('처리 실패: ' + error.message); return; }
+    setInvoices(inv => inv.map(x => x.id === id ? { ...x, status: newStatus } : x));
+    setConfirmInvoice(null);
   }
 
   if (loading) return (
@@ -67,10 +57,18 @@ export default function RevenueManagement() {
     </div>
   );
 
+  const calcSettleAmt = (f) => {
+    if (f.payout_amount != null) return Number(f.payout_amount);
+    const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
+    const base = getPanelReward(f.panels?.honor_points || 0, f.panels?.experience || '');
+    return isSub ? Math.round(base * (4500 / 8000)) : base;
+  };
+
   const lastMonth = gmvData[gmvData.length - 1];
   const monthlyGMV = lastMonth ? lastMonth.gmv * 10000 : 0;
   const marginRate = lastMonth ? Math.round((lastMonth.margin / lastMonth.gmv) * 100) : 0;
-  const pendingAmt = settlements.filter(s => s.status === 'pending').reduce((a, s) => a + Number(s.amount), 0);
+  const pendingSettlements = feedbackSettlements.filter(f => f.missions?.status !== 'completed');
+  const pendingAmt = pendingSettlements.reduce((a, f) => a + calcSettleAmt(f), 0);
   const pendingInvAmt = invoices.filter(i => i.status === 'pending').reduce((a, i) => a + Number(i.amount), 0);
 
   const chartData = gmvData.map(d => ({
@@ -92,7 +90,7 @@ export default function RevenueManagement() {
         {[
           { label: '이번 달 GMV', raw: monthlyGMV, accent: true },
           { label: '영업 마진율', value: `${marginRate}%`, sub: '목표 40%+' },
-          { label: '패널 정산 대기', raw: pendingAmt },
+          { label: '패널 정산 대기', raw: pendingAmt, sub: `${pendingSettlements.length}건` },
           { label: '미수금 (기업)', raw: pendingInvAmt },
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--surface)', padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -170,52 +168,57 @@ export default function RevenueManagement() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 14, color: 'var(--text-2)' }}>
-              정산 대기 <strong style={{ color: 'var(--text)' }}>₩{(pendingAmt / 10000).toFixed(1)}만</strong> · {settlements.filter(s => s.status === 'pending').length}건
+              지급 대기 <strong style={{ color: 'var(--text)' }}>₩{(pendingAmt / 10000).toFixed(1)}만</strong> · {pendingSettlements.length}건
             </div>
-            <Btn size="sm" onClick={() => setConfirmSettleAll(true)}>일괄 정산 처리</Btn>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
+              실제 지급은 미션 완료 후 계좌 이체로 처리됩니다
+            </div>
           </div>
-          {settlements.length === 0 ? (
-            <Card><div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>정산 데이터 없음</div></Card>
+          {feedbackSettlements.length === 0 ? (
+            <Card><div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>승인된 정산 내역 없음</div></Card>
           ) : (
             <Card style={{ padding: 0, overflow: 'hidden' }}>
               <div className="table-scroll">
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['패널', '등급', '미션', '정산액', '마감일', '상태', ''].map(h => (
-                      <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {settlements.map((s, i) => (
-                    <tr key={s.id} style={{ borderBottom: i < settlements.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                      <td style={{ padding: '12px 18px', fontWeight: 600, fontSize: 13 }}>{s.panel_name}</td>
-                      <td style={{ padding: '12px 18px' }}><Badge type={s.tier === 'EXPERT' ? 'gold' : 'blue'}>{s.tier}</Badge></td>
-                      <td style={{ padding: '12px 18px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-2)' }}>{s.missions_count}건</td>
-                      <td style={{ padding: '12px 18px' }}>
-                        {s.status === 'rejected' ? (
-                          <span style={{ color: 'var(--text-3)', fontWeight: 700 }}>—</span>
-                        ) : (
-                          <div style={{ lineHeight: 1 }}>
-                            <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
-                            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-sans)', color: s.status === 'paid' ? 'var(--green)' : 'var(--accent)' }}>{Number(s.amount).toLocaleString()}</div>
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px 18px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{s.due_date}</td>
-                      <td style={{ padding: '12px 18px' }}>
-                        <Badge type={s.status === 'paid' ? 'green' : s.status === 'pending' ? 'gold' : 'red'}>
-                          {s.status === 'paid' ? '정산완료' : s.status === 'pending' ? '대기중' : '반려'}
-                        </Badge>
-                      </td>
-                      <td style={{ padding: '12px 18px' }}>
-                        {s.status === 'pending' && <Btn size="sm" variant="secondary" onClick={() => setConfirmSettleId(s.id)}>정산</Btn>}
-                      </td>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['패널', '미션', '유형', '정산액', '상태'].map(h => (
+                        <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {feedbackSettlements.map((f, i) => {
+                      const amt = calcSettleAmt(f);
+                      const isPaid = f.missions?.status === 'completed';
+                      const mType = f.missions?.type;
+                      return (
+                        <tr key={f.id} style={{ borderBottom: i < feedbackSettlements.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                          <td style={{ padding: '12px 18px', fontWeight: 600, fontSize: 13 }}>{f.panels?.name || '—'}</td>
+                          <td style={{ padding: '12px 18px', fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-2)' }}>{f.missions?.title || '—'}</td>
+                          <td style={{ padding: '12px 18px' }}>
+                            {mType && mType !== 'landing_page' && (
+                              <Badge type="blue">
+                                {mType === 'preference' ? '소재비교' : mType === 'pricing' ? '가격검증' : '이메일검증'}
+                              </Badge>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px 18px' }}>
+                            <div style={{ lineHeight: 1 }}>
+                              <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-sans)', color: isPaid ? 'var(--green)' : 'var(--accent)' }}>{amt.toLocaleString()}</div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 18px' }}>
+                            <Badge type={isPaid ? 'green' : 'gold'}>
+                              {isPaid ? '지급완료' : '지급대기'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </Card>
           )}
@@ -232,76 +235,60 @@ export default function RevenueManagement() {
           ) : (
             <Card style={{ padding: 0, overflow: 'hidden' }}>
               <div className="table-scroll">
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['기업', '플랜', '청구액', '청구일', '상태', ''].map(h => (
-                      <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv, i) => (
-                    <tr key={inv.id} style={{ borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                      <td style={{ padding: '12px 18px', fontWeight: 600, fontSize: 13 }}>{inv.company_name}</td>
-                      <td style={{ padding: '12px 18px' }}><Badge type="gray">{inv.plan}</Badge></td>
-                      <td style={{ padding: '12px 18px' }}>
-                        <div style={{ lineHeight: 1 }}>
-                          <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-sans)', color: 'var(--text)' }}>{Number(inv.amount).toLocaleString()}</div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 18px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{inv.invoice_date}</td>
-                      <td style={{ padding: '12px 18px' }}>
-                        <Badge type={inv.status === 'paid' ? 'green' : 'red'}>
-                          {inv.status === 'paid' ? '수납완료' : '미수금'}
-                        </Badge>
-                      </td>
-                      <td style={{ padding: '12px 18px' }}>
-                        {inv.status === 'pending' && (
-                          <Btn size="sm" variant="danger" onClick={() => setConfirmInvoice({ id: inv.id, newStatus: 'paid' })}>수납 처리</Btn>
-                        )}
-                      </td>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['기업', '플랜', '청구액', '청구일', '상태', ''].map(h => (
+                        <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {invoices.map((inv, i) => (
+                      <tr key={inv.id} style={{ borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <td style={{ padding: '12px 18px', fontWeight: 600, fontSize: 13 }}>{inv.company_name}</td>
+                        <td style={{ padding: '12px 18px' }}><Badge type="gray">{inv.plan}</Badge></td>
+                        <td style={{ padding: '12px 18px' }}>
+                          <div style={{ lineHeight: 1 }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-sans)', color: 'var(--text)' }}>{Number(inv.amount).toLocaleString()}</div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 18px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{inv.invoice_date}</td>
+                        <td style={{ padding: '12px 18px' }}>
+                          <Badge type={inv.status === 'paid' ? 'green' : 'red'}>
+                            {inv.status === 'paid' ? '수납완료' : '미수금'}
+                          </Badge>
+                        </td>
+                        <td style={{ padding: '12px 18px' }}>
+                          {inv.status === 'pending' && (
+                            <Btn size="sm" variant="danger" onClick={() => { setInvoiceError(''); setConfirmInvoice({ id: inv.id, newStatus: 'paid' }); }}>수납 처리</Btn>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </Card>
           )}
         </div>
       )}
-    </div>
 
-    {confirmSettleAll && (
-      <ConfirmModal
-        title="일괄 정산 처리"
-        desc={`대기 중인 정산 ${settlements.filter(s => s.status === 'pending').length}건을 모두 완료 처리합니다.`}
-        confirmLabel="일괄 정산 처리"
-        danger
-        onConfirm={() => { setConfirmSettleAll(false); handleSettleAll(); }}
-        onCancel={() => setConfirmSettleAll(false)}
-      />
-    )}
-    {confirmSettleId && (
-      <ConfirmModal
-        title="정산 처리"
-        desc="해당 패널의 정산을 완료 처리합니다."
-        confirmLabel="정산 처리"
-        danger
-        onConfirm={() => { const id = confirmSettleId; setConfirmSettleId(null); handleSettle(id); }}
-        onCancel={() => setConfirmSettleId(null)}
-      />
-    )}
-    {confirmInvoice && (
-      <ConfirmModal
-        title="수납 처리"
-        desc="해당 청구 건을 수납 완료로 처리합니다."
-        confirmLabel="수납 처리"
-        danger
-        onConfirm={() => { const { id, newStatus } = confirmInvoice; setConfirmInvoice(null); handleInvoiceStatus(id, newStatus); }}
-        onCancel={() => setConfirmInvoice(null)}
-      />
-    )}
+      {confirmInvoice && (
+        <ConfirmModal
+          title="수납 처리"
+          desc="해당 청구 건을 수납 완료로 처리합니다."
+          confirmLabel="수납 처리"
+          danger
+          errorMsg={invoiceError}
+          onConfirm={async () => {
+            const { id, newStatus } = confirmInvoice;
+            await handleInvoiceStatus(id, newStatus);
+          }}
+          onCancel={() => { setConfirmInvoice(null); setInvoiceError(''); }}
+        />
+      )}
+    </div>
   );
 }

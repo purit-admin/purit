@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-14 (알림 포털 분리: target_role 컬럼 + 어드민 탭 분리 + 페이지네이션 + 선택/삭제 기능)
+최종 업데이트: 2026-05-14 (031 payout_amount 스냅샷 + 032 HP RPC 보안 패치 + PurityFilter 정산 금액 저장 + Revenue.jsx feedbacks 기반 재작성)
 ================================================================
 
 ## 기술 스택
@@ -183,6 +183,12 @@ purit/
 │   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
 │   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
+│   │                  feedbacks select: panels(user_id, name, honor_points, experience) — payout 계산용 honor_points·experience 포함 ★
+│   │                  approve(id): getPanelReward(panel.honor_points, panel.experience) 계산 → feedbacks.payout_amount 저장 + rejection_penalty_applied=false 초기화
+│   │                    rejection_penalty_applied=true 인 경우 add_panel_honor_points(+5) RPC fire-and-forget (HP 복원)
+│   │                  reject(id): feedbacks.rejection_penalty_applied=true 저장
+│   │                  bulkApprove: 상태 일괄 UPDATE 후 payoutMap({[id]: amount}) 기반 개별 UPDATE + HP 복원 루프
+│   │                  bulkReject: rejection_penalty_applied=true 일괄 UPDATE 포함
 │   │                  목록 정렬: .order('created_at', { ascending: true }) — 오래된 순(먼저 낸 피드백 먼저) ★
 │   │                  typeFilter state: 'all'|'main'|'sub' — 상태 탭 아래 전체/메인/서브 pill 버튼 (각 건수 표시) ★
 │   │                    필터 파이프라인: filteredBase(상태) → filteredByType(타입) → filtered(65점 서브필터)
@@ -276,6 +282,8 @@ purit/
 │   │                028(fix_notification_triggers: notify_admin_on_mission draft 제외 재정의 + notify_company_on_slots_full actionUrl·워딩 수정)
 │   │                029(notify_admin_on_draft_activate: draft→active UPDATE 트리거 — notify_admin_on_mission 재사용)
 │   │                030(notifications_target_role: notifications.target_role TEXT 컬럼 추가, notify_admin/notify_company 트리거 target_role 포함 재정의)
+│   │                031(feedbacks_payout_tracking: feedbacks.payout_amount NUMERIC(10,2) + rejection_penalty_applied BOOLEAN 컬럼 추가 — 정산 금액 스냅샷·HP 복원 추적)
+│   │                032(fix_honor_rpc_app_metadata: add_panel_honor_points·apply_honor_decay RPC의 admin 검증을 raw_user_meta_data→raw_app_meta_data로 교체 — D-58 보안 패치)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json

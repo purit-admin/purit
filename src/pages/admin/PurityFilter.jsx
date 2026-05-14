@@ -4,6 +4,7 @@ import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
+import { getPanelReward } from '../../lib/honorLevels';
 
 const DIM = [
   { key: 'clarity_score',         label: '명확성' },
@@ -176,7 +177,7 @@ export default function PurityFilter() {
       try {
       const { data } = await supabase
         .from('feedbacks')
-        .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name)')
+        .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience)')
         .neq('status', 'draft')
         .order('created_at', { ascending: true });
       const fbs = data || [];
@@ -265,10 +266,17 @@ export default function PurityFilter() {
   const approve = async (id) => {
     setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
-    const { error } = await supabase.from('feedbacks').update({ purity_passed: true, status: 'approved' }).eq('id', id);
+    const isSub = ['preference', 'pricing', 'email'].includes(fb?.missions?.type);
+    const baseReward = getPanelReward(fb?.panels?.honor_points || 0, fb?.panels?.experience || '');
+    const payoutAmount = isSub ? Math.round(baseReward * (4500 / 8000)) : baseReward;
+    const updatePayload = { purity_passed: true, status: 'approved', payout_amount: payoutAmount, rejection_penalty_applied: false };
+    const { error } = await supabase.from('feedbacks').update(updatePayload).eq('id', id);
     if (error) { setStatusError('승인 실패: ' + error.message); setActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: true, status: 'approved' } : f));
+    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, ...updatePayload } : f));
 
+    if (fb?.rejection_penalty_applied && fb?.panel_id) {
+      supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: 5 }).then(({ error: he }) => { if (he) console.warn('[honor_restore]', he.message); });
+    }
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
 
     const panelUserId = fb?.panels?.user_id;
@@ -284,9 +292,9 @@ export default function PurityFilter() {
   const reject = async (id) => {
     setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
-    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected' }).eq('id', id);
+    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true }).eq('id', id);
     if (error) { setStatusError('반려 실패: ' + error.message); setActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected' } : f));
+    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
     if (fb?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 }).then(({ error }) => { if (error) console.warn('[honor_penalty]', error.message); });
@@ -318,16 +326,30 @@ export default function PurityFilter() {
     if (checkedIds.size === 0 || bulkActing) return;
     setBulkActing(true); setStatusError('');
     const ids = [...checkedIds];
+    const payoutMap = {};
+    ids.forEach(id => {
+      const f = feedbacks.find(fb => fb.id === id);
+      if (!f) return;
+      const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
+      const base = getPanelReward(f.panels?.honor_points || 0, f.panels?.experience || '');
+      payoutMap[id] = isSub ? Math.round(base * (4500 / 8000)) : base;
+    });
     const { error } = await supabase.from('feedbacks')
-      .update({ purity_passed: true, status: 'approved' }).in('id', ids);
+      .update({ purity_passed: true, status: 'approved', rejection_penalty_applied: false }).in('id', ids);
     if (error) { setStatusError('일괄 승인 실패: ' + error.message); setBulkActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved' } : f));
+    await Promise.all(ids.map(id =>
+      supabase.from('feedbacks').update({ payout_amount: payoutMap[id] }).eq('id', id)
+    ));
+    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved', payout_amount: payoutMap[f.id], rejection_penalty_applied: false } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
     ids.forEach(id => {
       const f = feedbacks.find(fb => fb.id === id);
       if (!f) return;
       const mTitle = f.missions?.title || '미션';
+      if (f.rejection_penalty_applied && f.panel_id) {
+        supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: 5 }).then(({ error: he }) => { if (he) console.warn('[bulk_honor_restore]', he.message); });
+      }
       if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel' });
       if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${mTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${f.mission_id}`, targetRole: 'company' });
     });
@@ -339,9 +361,9 @@ export default function PurityFilter() {
     setBulkActing(true); setStatusError('');
     const ids = [...checkedIds];
     const { error } = await supabase.from('feedbacks')
-      .update({ purity_passed: false, status: 'rejected' }).in('id', ids);
+      .update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true }).in('id', ids);
     if (error) { setStatusError('일괄 반려 실패: ' + error.message); setBulkActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected' } : f));
+    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
     ids.forEach(id => {
