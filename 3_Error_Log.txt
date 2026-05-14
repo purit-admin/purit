@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-14 (D-27~D-31 날짜 제거 / D-51·D-56 중복 번호 → D-63·D-64 재번호)
+최종 업데이트: 2026-05-14 (D-65·D-66·D-67 추가 — 낙관적 롤백 모달 유지·전체 버튼 비활성화·key 강제 리마운트)
 ================================================================
 
 ## 핵심 원칙
@@ -730,3 +730,44 @@ D-62. 일괄 처리(bulk operation)에서 개별 처리가 가진 side effect(�
      → 원칙: 일괄 처리 기능을 추가할 때 단순히 개별 핸들러를 N번 호출하는 것이 불가능한 경우에도
              개별 핸들러의 side effect 목록을 명시적으로 체크리스트로 만들어 일괄 처리에도 동일하게 적용할 것
              특히 알림·크레딧 재계산·카운터 갱신처럼 눈에 안 보이는 side effect가 누락되기 쉬움
+
+D-65. 낙관적 롤백 핸들러에서 에러 시에도 ConfirmModal이 닫히는 패턴 ✅ 해결
+     → 증상: 의뢰 조기 종료·삭제 시 DB 오류가 발생했음에도 모달이 즉시 닫히고 성공처럼 보임
+     → 원인: handleTerminate() / handleDeleteMission() 성공·실패 경로 모두에서
+             setConfirmX(null)을 호출 → DB 실패 여부와 관계없이 항상 모달 닫힘
+             에러를 catch/감지하지 않거나(deleteMission), 에러 분기 없이 항상 닫힘(handleTerminate)
+     → 해결: const { error } = await DB 호출
+             if (error) { setXxxError('오류 메시지'); return; }  // 모달 유지 + 에러 표시
+             성공 시에만 setConfirmX(null) 호출 + setXxxError('') 초기화
+             ConfirmModal에 errorMsg prop 추가 → 에러 발생 시 모달 내부에 인라인 빨간 배너 표시
+     → 원칙: DB 작업이 수반되는 ConfirmModal의 onConfirm 핸들러는 반드시 두 경로를 분리해야 함
+             - 실패 경로: setError(msg); return; (모달 열린 채 유지)
+             - 성공 경로: setError(''); setConfirmX(null); setState(...) (상태 변경 후 모달 닫기)
+             에러가 나도 모달이 닫히면 사용자가 "됐나?"라고 혼동하고 재시도하거나 잘못된 상태를 보게 됨
+             ConfirmModal errorMsg prop: ui/index.jsx — `errorMsg = ''` 기본값, 있으면 모달 내 빨간 배너 렌더
+
+D-66. 비동기 처리 중 "지금 변경 중인 항목만" 비활성화하면 다른 항목이 동시 클릭 가능한 패턴 ✅ 해결
+     → 증상: 플랜 변경 중 다른 플랜 버튼을 클릭하면 두 번째 플랜 변경 요청이 동시에 시작됨
+     → 원인: `disabled={changing === plan.id}` — 지금 처리 중인 플랜 버튼만 비활성화
+             처리 중인 plan.id가 아닌 버튼은 enabled 상태로 남아 중복 요청 허용
+     → 해결: `disabled={currentPlan === plan.id || !!changing}`
+             !!changing — truthy(어떤 plan.id든 처리 중)이면 모든 버튼을 비활성화
+             버튼 레이블은 `changing === plan.id ? '변경 중...' : plan.cta` 유지 (지금 처리 중인 것만 텍스트 변경)
+     → 원칙: 비동기 처리 중 같은 종류의 다른 항목도 동시 클릭을 막아야 할 때
+             `loading === item.id` (현재 항목만) 대신 `!!loading` (전체 차단)을 사용할 것
+             "지금 처리 중인 것만 비활성화"는 배타적 자원(플랜·크레딧·상태머신)에서 경합 조건을 만든다
+
+D-67. 부모 데이터가 바뀌어도 자식 컴포넌트 내부 useState가 자동 초기화되지 않는 패턴 ✅ 해결
+     → 증상: 피드백 결과 페이지에서 다른 의뢰를 선택해도 총평 목록 페이지(commentPage)가 이전 값으로 남아
+             2페이지 이상에서 빈 화면이 표시되거나 엉뚱한 페이지가 보임
+     → 원인: SummaryTabView 컴포넌트 내부에 `const [commentPage, setCommentPage] = useState(1)` 선언
+             부모의 `mission` prop이 변경되어도 React는 같은 위치에 마운트된 컴포넌트를 재사용하므로
+             내부 useState는 이전 값을 유지 (리마운트 없음 = 초기화 없음)
+     → 해결: 부모에서 자식 컴포넌트에 `key={mission?.id}` 부여
+             key가 변경될 때마다 React가 이전 인스턴스를 언마운트하고 새 인스턴스를 마운트
+             → 내부 useState 전체가 초기값으로 리셋됨
+     → 대안: 자식 컴포넌트 내부에 useEffect(() => setCommentPage(1), [mission]) 추가도 가능하나
+             초기화 대상 state가 많거나 deps 관리가 복잡할 때 key 패턴이 더 명시적이고 안전함
+     → 원칙: "부모 데이터(선택된 항목 등)가 바뀔 때 자식 내부 상태를 전부 초기화해야 한다"면
+             useEffect 개별 초기화보다 key={parent.id} 리마운트 패턴을 우선 검토할 것
+             단, key 교체는 DOM 완전 재생성이므로 애니메이션·포커스가 초기화되는 부작용에 주의

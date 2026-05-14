@@ -45,6 +45,8 @@ purit/
 │   │   │              showBugReport state + "버그/불편 신고" 버튼(로그아웃 버튼 위, 전 포털 공통) + BugReportModal 렌더
 │   │   │              어드민 NAV '운영' 그룹 순서: 기업 관리 → 패널 관리 → 미션 관리 → 피드백 관리(구 'Purit Filter') → 수익 & 정산 → 버그 리포트 ★
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
+│   │                  ConfirmModal props: title·desc·confirmLabel·cancelLabel·danger·onConfirm·onCancel + errorMsg=''(선택)
+│   │                    errorMsg 있으면 모달 내부 하단에 빨간 배너 표시 → 확인 실패 시 모달 유지 (낙관적 롤백 패턴 — D-65 참조)
 │   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원, activeDimension prop으로 차원 고정)
 │   │                  seqPool prop(글로벌 번호 계산용 전체 어노테이션 배열, 미전달 시 annotations 사용), highlightedId prop(해당 id만 표시·나머지 숨김)
 │   │                  어노테이션 뱃지: 한국어 접두사 없이 숫자만 표시 (색상으로 차원 구분)
