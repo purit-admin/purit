@@ -10,25 +10,33 @@ const PAGE_SIZE = 5;
 
 function fmtCr(n) { return parseFloat((n ?? 0).toFixed(2)); }
 
+const WINDOW = 5;
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
+  const winStart = Math.max(1, page - 2);
+  const winEnd   = Math.min(totalPages, winStart + WINDOW - 1);
+  const pageNums = [];
+  for (let i = winStart; i <= winEnd; i++) pageNums.push(i);
+  const btnStyle = (active) => ({
+    padding: '5px 9px', borderRadius: 6, border: '1px solid var(--border)',
+    background: active ? 'var(--accent)' : 'var(--surface)',
+    color: active ? '#fff' : 'var(--text)',
+    cursor: 'pointer', fontSize: 12, fontWeight: active ? 700 : 400, minWidth: 30,
+  });
   return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+    <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      <button onClick={() => onPage(Math.max(1, page - WINDOW))} disabled={page <= 1}
+        style={{ ...btnStyle(false), opacity: page <= 1 ? 0.4 : 1, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}>«</button>
       <button onClick={() => onPage(page - 1)} disabled={page === 1}
-        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>
-        이전
-      </button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-        <button key={n} onClick={() => onPage(n)}
-          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>
-          {n}
-        </button>
+        style={{ ...btnStyle(false), opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}>‹</button>
+      {pageNums.map(n => (
+        <button key={n} onClick={() => onPage(n)} style={btnStyle(page === n)}>{n}</button>
       ))}
       <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
-        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>
-        다음
-      </button>
+        style={{ ...btnStyle(false), opacity: page === totalPages ? 0.4 : 1, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>›</button>
+      <button onClick={() => onPage(Math.min(totalPages, page + WINDOW))} disabled={page >= totalPages}
+        style={{ ...btnStyle(false), opacity: page >= totalPages ? 0.4 : 1, cursor: page >= totalPages ? 'not-allowed' : 'pointer' }}>»</button>
     </div>
   );
 }
@@ -282,7 +290,8 @@ export default function AdminMissions() {
         });
       }
     } else {
-      await supabase.from('missions').update({ status: newStatus }).eq('id', id);
+      const { error: updateErr } = await supabase.from('missions').update({ status: newStatus }).eq('id', id);
+      if (updateErr) { setStatusError('상태 변경 실패: ' + updateErr.message); return; }
       setMissions(ms => ms.map(m => m.id === id ? { ...m, status: newStatus } : m));
       setSelectedMission(prev => prev?.id === id ? { ...prev, status: newStatus } : prev);
       const foundM = missions.find(m => m.id === id);

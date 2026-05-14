@@ -322,7 +322,8 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 기업 포털 심층 검사: 기업-A~G 7건 발견 및 수정 완료 — 총 55건 완료
                             / 수평 전개 조사 2차: 수평-A~G 7건 발견 및 수정 완료 — 총 62건 완료
                             / 패널 포털 심층 검사: 패널-A~I 9건 발견 및 수정 완료 — 총 71건 완료
-                            / 수평 전개 조사 3차: 수평-H~J 3건 발견 및 수정 완료 — 총 74건 완료)
+                            / 수평 전개 조사 3차: 수평-H~J 3건 발견 및 수정 완료 — 총 74건 완료
+                            / 어드민 포털 심층 검사: A-01~A-17 17건 발견, 14건 수정·3건 오판 확인 — 총 91건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -349,7 +350,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   ────────   ──────────────  ──────────────────────────────────────
   (수정 대기 항목 없음 — 전체 완료)
   ────────   ──────────────  ──────────────────────────────────────
-  잔여 합계  0건             (전체 74건 중 74건 완료·스킵 / 0건 수정 대기)
+  잔여 합계  0건             (전체 91건 중 91건 완료·스킵 / 0건 수정 대기)
 
 ================================================================
 ## 🗄️ 완료·스킵 아카이브 (✅ / ⏭)
@@ -444,5 +445,24 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [수평-H] 어드민 플랫폼 대시보드 (admin/Dashboard.jsx) — missions·feedbacks 카운트 쿼리에 .neq('status','draft') 누락, "총 의뢰" 부풀림 및 "검증 통과율" 왜곡  ✅
 [수평-I] 기업 5차원 진단 (company/Diagnosis.jsx) — missions 쿼리 draft 필터 누락, 임시저장 의뢰가 분석 드롭다운에 노출  ✅
 [수평-J] 기업 시계열 추적 (company/TimelineTracker.jsx) — missions 쿼리 draft 필터 누락, 임시저장 의뢰가 타임라인 선택 목록에 노출  ✅
+
+-- 어드민 포털 심층 검사 (2026-05-14) — admin 8개 페이지 전수 조사 --
+[A-01] 어드민 Purity Filter (admin/PurityFilter.jsx) — feedbacks 쿼리에 .neq('status','draft') 누락, draft 피드백이 검토 목록에 노출  ✅
+[A-02] 어드민 플랫폼 대시보드 (admin/Dashboard.jsx) — purity_passed=true 카운트 쿼리에 .neq('status','draft') 누락, "검증 통과" 수치 부풀림 (missions/feedbacks total 쿼리는 이미 필터 적용)  ✅
+[A-03] 어드민 버그 리포트 (admin/BugReports.jsx) — loadAll()·loadTab() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[A-04] 어드민 수익 & 정산 (admin/Revenue.jsx) — loadAll() try-catch 유무 확인 → 이미 적용됨, 오판  ⏭
+[A-05] 어드민 수익 & 정산 (admin/Revenue.jsx) — 일괄 정산 처리 버튼 ConfirmModal 없이 즉시 실행  ✅
+[A-06] 어드민 수익 & 정산 (admin/Revenue.jsx) — 개별 정산·수납 처리 버튼 ConfirmModal 없이 즉시 실행  ✅
+[A-07] 어드민 패널 관리 (admin/PanelManagement.jsx) — loadStats() try-catch 없어 통계 로드 실패 시 로딩 영구 고착  ✅
+[A-08] 어드민 패널 관리 (admin/PanelManagement.jsx) — loadPanelDetail() try-catch 없어 패널 상세 로드 실패 시 로딩 영구 고착  ✅
+[A-09] 어드민 패널 관리 (admin/PanelManagement.jsx) — updatePanel() error 미캡처로 DB 실패 시 화면만 성공 처리, 에러 메시지 미표시  ✅
+[A-10] 어드민 미션 관리 (admin/Missions.jsx) — 페이지네이션 단순 선형 렌더(전체 번호 나열), 슬라이딩 5-윈도우 미적용  ✅
+[A-11] 어드민 버그 리포트 (admin/BugReports.jsx) — 버그 답장 알림 actionUrl이 존재하지 않는 경로('/company/bug-reports')로 발송  ✅
+[A-12] 어드민 Purity Filter (admin/PurityFilter.jsx) — approve/reject/reset 에러 시 alert() 사용, 인라인 상태 표시 없음  ✅
+[A-13] 어드민 내 계정 (admin/Account.jsx) — handleChangePw() try-catch 없어 예외 발생 시 pwSaving 영구 true 고착  ✅
+[A-14] 어드민 미션 관리 (admin/Missions.jsx) — updateStatus() non-completed 분기 error 미캡처, DB 실패 시 화면만 상태 변경  ✅
+[A-15] 어드민 미션 관리 (admin/Missions.jsx) — deleteMission() error 처리 확인 → 이미 error 캡처 및 early return 적용, 오판  ⏭
+[A-16] 어드민 미션 관리 (admin/Missions.jsx) — setStatusError('') 초기화 확인 → 이미 각 핸들러 진입 시 초기화 적용, 오판  ⏭
+[A-17] 어드민 패널 관리 (admin/PanelManagement.jsx) — PanelDetail 에러 메시지 표시용 actionMsg state 미존재, 에러 표시 불가  ✅
 
 ================================================================

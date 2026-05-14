@@ -49,14 +49,19 @@ export default function AdminAccount() {
     if (!newPw || newPw.length < 6) { setPwMsg('새 비밀번호는 6자 이상이어야 합니다.'); return; }
     if (newPw !== confirmPw) { setPwMsg('새 비밀번호가 일치하지 않습니다.'); return; }
     setPwSaving(true);
-    const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password: curPw });
-    if (signInErr) { setPwMsg('현재 비밀번호가 올바르지 않습니다.'); setPwSaving(false); return; }
-    const { error } = await supabase.auth.updateUser({ password: newPw });
+    try {
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password: curPw });
+      if (signInErr) { setPwMsg('현재 비밀번호가 올바르지 않습니다.'); setPwSaving(false); return; }
+      const { error } = await supabase.auth.updateUser({ password: newPw });
+      if (error) { setPwMsg('변경 실패: ' + error.message); setPwSaving(false); return; }
+      setPwMsg('비밀번호가 변경됐습니다.');
+      setCurPw(''); setNewPw(''); setConfirmPw('');
+      setTimeout(() => setPwMsg(''), 3000);
+    } catch (err) {
+      console.error('[AdminAccount handleChangePw]', err);
+      setPwMsg('오류가 발생했습니다. 다시 시도해주세요.');
+    }
     setPwSaving(false);
-    if (error) { setPwMsg('변경 실패: ' + error.message); return; }
-    setPwMsg('비밀번호가 변경됐습니다.');
-    setCurPw(''); setNewPw(''); setConfirmPw('');
-    setTimeout(() => setPwMsg(''), 3000);
   }
 
   if (loading) return (

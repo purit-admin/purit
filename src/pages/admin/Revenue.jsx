@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { Card, Stat, Badge, Btn } from '../../components/ui';
+import { Card, Stat, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid } from 'recharts';
 import { supabase } from '../../lib/supabase';
 
@@ -9,6 +9,9 @@ export default function RevenueManagement() {
   const [settlements, setSettlements] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmSettleAll, setConfirmSettleAll] = useState(false);
+  const [confirmSettleId, setConfirmSettleId] = useState(null);
+  const [confirmInvoice, setConfirmInvoice] = useState(null); // { id, newStatus }
 
   useEffect(() => {
     loadAll();
@@ -169,7 +172,7 @@ export default function RevenueManagement() {
             <div style={{ fontSize: 14, color: 'var(--text-2)' }}>
               정산 대기 <strong style={{ color: 'var(--text)' }}>₩{(pendingAmt / 10000).toFixed(1)}만</strong> · {settlements.filter(s => s.status === 'pending').length}건
             </div>
-            <Btn size="sm" onClick={handleSettleAll}>일괄 정산 처리</Btn>
+            <Btn size="sm" onClick={() => setConfirmSettleAll(true)}>일괄 정산 처리</Btn>
           </div>
           {settlements.length === 0 ? (
             <Card><div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>정산 데이터 없음</div></Card>
@@ -207,7 +210,7 @@ export default function RevenueManagement() {
                         </Badge>
                       </td>
                       <td style={{ padding: '12px 18px' }}>
-                        {s.status === 'pending' && <Btn size="sm" variant="secondary" onClick={() => handleSettle(s.id)}>정산</Btn>}
+                        {s.status === 'pending' && <Btn size="sm" variant="secondary" onClick={() => setConfirmSettleId(s.id)}>정산</Btn>}
                       </td>
                     </tr>
                   ))}
@@ -256,7 +259,7 @@ export default function RevenueManagement() {
                       </td>
                       <td style={{ padding: '12px 18px' }}>
                         {inv.status === 'pending' && (
-                          <Btn size="sm" variant="danger" onClick={() => handleInvoiceStatus(inv.id, 'paid')}>수납 처리</Btn>
+                          <Btn size="sm" variant="danger" onClick={() => setConfirmInvoice({ id: inv.id, newStatus: 'paid' })}>수납 처리</Btn>
                         )}
                       </td>
                     </tr>
@@ -269,5 +272,36 @@ export default function RevenueManagement() {
         </div>
       )}
     </div>
+
+    {confirmSettleAll && (
+      <ConfirmModal
+        title="일괄 정산 처리"
+        desc={`대기 중인 정산 ${settlements.filter(s => s.status === 'pending').length}건을 모두 완료 처리합니다.`}
+        confirmLabel="일괄 정산 처리"
+        danger
+        onConfirm={() => { setConfirmSettleAll(false); handleSettleAll(); }}
+        onCancel={() => setConfirmSettleAll(false)}
+      />
+    )}
+    {confirmSettleId && (
+      <ConfirmModal
+        title="정산 처리"
+        desc="해당 패널의 정산을 완료 처리합니다."
+        confirmLabel="정산 처리"
+        danger
+        onConfirm={() => { const id = confirmSettleId; setConfirmSettleId(null); handleSettle(id); }}
+        onCancel={() => setConfirmSettleId(null)}
+      />
+    )}
+    {confirmInvoice && (
+      <ConfirmModal
+        title="수납 처리"
+        desc="해당 청구 건을 수납 완료로 처리합니다."
+        confirmLabel="수납 처리"
+        danger
+        onConfirm={() => { const { id, newStatus } = confirmInvoice; setConfirmInvoice(null); handleInvoiceStatus(id, newStatus); }}
+        onCancel={() => setConfirmInvoice(null)}
+      />
+    )}
   );
 }

@@ -166,6 +166,9 @@ export default function ActiveMission() {
   const [isResubmit, setIsResubmit]           = useState(false);
   const [cancelModal, setCancelModal]         = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
+  const [cancelError, setCancelError]         = useState('');
+  const [startError, setStartError]           = useState('');
+  const [submitError, setSubmitError]         = useState('');
 
   // ── IMAGE ANNOTATION ──
   const [annotations, setAnnotations]         = useState([]);
@@ -490,7 +493,7 @@ export default function ActiveMission() {
     setCancelConfirming(true);
     const { error } = await supabase.rpc('cancel_panel_feedback', { p_mission_id: mission.id });
     setCancelConfirming(false);
-    if (error) { alert('취소 중 오류: ' + error.message); return; }
+    if (error) { setCancelModal(false); setCancelError('취소 중 오류: ' + error.message); return; }
     if (mission?.company_id) {
       supabase.from('companies').select('user_id').eq('id', mission.company_id).single()
         .then(({ data: co }) => {
@@ -523,7 +526,7 @@ export default function ActiveMission() {
       purity_passed:         false,
       status:                'draft',
     }).select('id').single();
-    if (error) { alert('초안 생성 중 오류: ' + error.message); return; }
+    if (error) { setStartError('초안 생성 중 오류: ' + error.message); return; }
     if (data) setDraftId(data.id);
     setStep(1);
   };
@@ -643,7 +646,7 @@ export default function ActiveMission() {
 
       setStep(SECTIONS.length + 1);
     } catch (err) {
-      alert('제출 중 오류: ' + err.message);
+      setSubmitError('제출 중 오류: ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -724,7 +727,7 @@ export default function ActiveMission() {
 
       setStep(SECTIONS.length + 1);
     } catch (err) {
-      alert('제출 중 오류: ' + err.message);
+      setSubmitError('제출 중 오류: ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -951,15 +954,20 @@ export default function ActiveMission() {
           );
         })()}
       </Card>
+      {(cancelError || startError) && (
+        <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+          {cancelError || startError}
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {draftId ? (
-          <Btn variant="ghost" onClick={() => setCancelModal(true)} style={{ fontSize: 12, color: 'var(--text-3)' }}>수락 취소</Btn>
+          <Btn variant="ghost" onClick={() => { setCancelError(''); setCancelModal(true); }} style={{ fontSize: 12, color: 'var(--text-3)' }}>수락 취소</Btn>
         ) : <div />}
         <div style={{ display: 'flex', gap: 12 }}>
           <Btn variant="secondary" onClick={() => navigate('/panel/active')}>목록으로</Btn>
           {hasSavedProgress
             ? <Btn onClick={handleResume}>이어하기 →</Btn>
-            : <Btn onClick={handleStart}>피드백 시작하기 →</Btn>
+            : <Btn onClick={() => { setStartError(''); handleStart(); }}>피드백 시작하기 →</Btn>
           }
         </div>
       </div>
@@ -1168,8 +1176,13 @@ export default function ActiveMission() {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
-          <Btn disabled={!canSubmit() || submitting} onClick={handleSubMissionSubmit}>
+        {submitError && (
+          <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+            {submitError}
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+          <Btn disabled={!canSubmit() || submitting} onClick={() => { setSubmitError(''); handleSubMissionSubmit(); }}>
             {submitting ? '제출 중...' : '피드백 제출하기 →'}
           </Btn>
         </div>
@@ -1436,6 +1449,11 @@ export default function ActiveMission() {
             📷 이미지 {imageUrls.map((_, i) => i).filter(i => !viewedImages.has(i)).map(i => `${i + 1}번`).join(', ')}을 아직 확인하지 않았습니다. 모든 이미지를 확인한 후 제출할 수 있습니다.
           </div>
         )}
+        {submitError && (
+          <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+            {submitError}
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
@@ -1445,7 +1463,7 @@ export default function ActiveMission() {
           </div>
           <Btn
             disabled={!canSubmitImage || submitting}
-            onClick={handleSubmit}
+            onClick={() => { setSubmitError(''); handleSubmit(); }}
           >
             {submitting ? '제출 중...' : '제출하기 →'}
           </Btn>
@@ -1539,6 +1557,11 @@ export default function ActiveMission() {
         </Card>
       )}
 
+      {isLast && submitError && (
+        <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+          {submitError}
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <Btn variant="secondary" onClick={() => setStep(s => s - 1)}>이전</Btn>
         <Btn
@@ -1548,7 +1571,7 @@ export default function ActiveMission() {
             if (q.type === 'text') return String(a).trim().length >= 10;
             return true;
           })))}
-          onClick={() => isLast ? handleSubmit() : setStep(s => s + 1)}
+          onClick={() => isLast ? (setSubmitError(''), handleSubmit()) : setStep(s => s + 1)}
         >
           {isLast ? (submitting ? '제출 중...' : '제출하기 →') : '다음 →'}
         </Btn>

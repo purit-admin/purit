@@ -59,6 +59,7 @@ export default function AdminPanels() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [selected, setSelected]         = useState(null);
   const [acting, setActing]             = useState(false);
+  const [actionMsg, setActionMsg]       = useState('');
   const [page, setPage]                 = useState(1);
   const [feedbackDetailPage, setFeedbackDetailPage] = useState(1);
   const [searchInput, setSearchInput]   = useState('');
@@ -98,46 +99,59 @@ export default function AdminPanels() {
 
   async function loadStats(period) {
     setStatsLoading(true);
-    let query = supabase
-      .from('feedbacks')
-      .select('panel_id, created_at, status, purity_passed')
-      .neq('status', 'draft');
-    const from = periodStart(period);
-    if (from) query = query.gte('created_at', from);
-    const { data } = await query;
+    try {
+      let query = supabase
+        .from('feedbacks')
+        .select('panel_id, created_at, status, purity_passed')
+        .neq('status', 'draft');
+      const from = periodStart(period);
+      if (from) query = query.gte('created_at', from);
+      const { data } = await query;
 
-    const stats = {};
-    (data || []).forEach(f => {
-      if (!stats[f.panel_id]) stats[f.panel_id] = { total: 0, passed: 0, rejected: 0, lastAt: null };
-      stats[f.panel_id].total++;
-      if (f.purity_passed) stats[f.panel_id].passed++;
-      if (f.status === 'rejected') stats[f.panel_id].rejected++;
-      if (!stats[f.panel_id].lastAt || f.created_at > stats[f.panel_id].lastAt) {
-        stats[f.panel_id].lastAt = f.created_at;
-      }
-    });
-    Object.values(stats).forEach(s => {
-      s.passRate = s.total > 0 ? Math.round(s.passed / s.total * 100) : 0;
-    });
-    setFeedbackStats(stats);
+      const stats = {};
+      (data || []).forEach(f => {
+        if (!stats[f.panel_id]) stats[f.panel_id] = { total: 0, passed: 0, rejected: 0, lastAt: null };
+        stats[f.panel_id].total++;
+        if (f.purity_passed) stats[f.panel_id].passed++;
+        if (f.status === 'rejected') stats[f.panel_id].rejected++;
+        if (!stats[f.panel_id].lastAt || f.created_at > stats[f.panel_id].lastAt) {
+          stats[f.panel_id].lastAt = f.created_at;
+        }
+      });
+      Object.values(stats).forEach(s => {
+        s.passRate = s.total > 0 ? Math.round(s.passed / s.total * 100) : 0;
+      });
+      setFeedbackStats(stats);
+    } catch (err) {
+      console.error('[PanelManagement loadStats]', err);
+    }
     setStatsLoading(false);
   }
 
   async function loadPanelDetail(panelId) {
     setDetailLoading(true);
-    const { data } = await supabase
-      .from('feedbacks')
-      .select('id, created_at, status, purity_passed, missions(title, type)')
-      .eq('panel_id', panelId)
-      .neq('status', 'draft')
-      .order('created_at', { ascending: false });
-    setPanelFeedbacks(data || []);
+    try {
+      const { data } = await supabase
+        .from('feedbacks')
+        .select('id, created_at, status, purity_passed, missions(title, type)')
+        .eq('panel_id', panelId)
+        .neq('status', 'draft')
+        .order('created_at', { ascending: false });
+      setPanelFeedbacks(data || []);
+    } catch (err) {
+      console.error('[PanelManagement loadPanelDetail]', err);
+    }
     setDetailLoading(false);
   }
 
   async function updatePanel(id, fields) {
     setActing(true);
-    await supabase.from('panels').update(fields).eq('id', id);
+    const { error } = await supabase.from('panels').update(fields).eq('id', id);
+    if (error) {
+      setActionMsg('저장 실패: ' + error.message);
+      setActing(false);
+      return;
+    }
     setPanels(ps => ps.map(p => p.id === id ? { ...p, ...fields } : p));
     setActing(false);
   }
@@ -452,6 +466,8 @@ export default function AdminPanels() {
           feedbackPage={feedbackDetailPage}
           onFeedbackPage={setFeedbackDetailPage}
           onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })}
+          actionMsg={actionMsg}
+          onClearActionMsg={() => setActionMsg('')}
         />}
       </div>
     </div>
@@ -478,7 +494,7 @@ function FilterGroup({ options, value, onChange }) {
 }
 
 function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, flag,
-                       feedbackPage, onFeedbackPage, onFeedbackClick }) {
+                       feedbackPage, onFeedbackPage, onFeedbackClick, actionMsg, onClearActionMsg }) {
   const totalDetailPages = Math.max(1, Math.ceil(feedbacks.length / DETAIL_PAGE_SIZE));
   const pagedFeedbacks = feedbacks.slice(
     (feedbackPage - 1) * DETAIL_PAGE_SIZE,
@@ -678,11 +694,19 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
           관리 액션
         </div>
+        {actionMsg && (
+          <div style={{ fontSize: 12, padding: '8px 12px', borderRadius: 6, marginBottom: 4,
+            background: actionMsg.includes('실패') ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)',
+            color: actionMsg.includes('실패') ? 'var(--red, #EF4444)' : '#22C55E', fontWeight: 600,
+            cursor: 'pointer' }} onClick={onClearActionMsg}>
+            {actionMsg} ✕
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {status === 'pending' && (
             <>
               <Btn size="sm" disabled={acting} style={{ justifyContent: 'center' }}
-                onClick={() => onUpdate(panel.id, { status: 'active' })}>
+                onClick={() => setConfirmAction({ status: 'active', label: '심사 승인', desc: '이 패널을 심사 승인합니까?\n활성 패널로 전환되어 미션에 참여할 수 있습니다.' })}>
                 ✓ 심사 승인
               </Btn>
               <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center' }}
@@ -699,7 +723,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           )}
           {status === 'suspended' && (
             <Btn size="sm" disabled={acting} style={{ justifyContent: 'center' }}
-              onClick={() => onUpdate(panel.id, { status: 'active' })}>
+              onClick={() => setConfirmAction({ status: 'active', label: '활동 재개', desc: '이 패널의 활동을 재개합니까?\n활성 패널로 전환되어 미션에 다시 참여할 수 있습니다.' })}>
               활동 재개
             </Btn>
           )}

@@ -34,7 +34,7 @@ export default function AdminDashboard() {
           supabase.from('missions').select('*', { count: 'exact', head: true }).neq('status', 'draft'),
           supabase.from('panels').select('*', { count: 'exact', head: true }),
           supabase.from('feedbacks').select('*', { count: 'exact', head: true }).neq('status', 'draft'),
-          supabase.from('feedbacks').select('*', { count: 'exact', head: true }).eq('purity_passed', true),
+          supabase.from('feedbacks').select('*', { count: 'exact', head: true }).neq('status', 'draft').eq('purity_passed', true),
           supabase.from('panels').select('*').order('created_at', { ascending: false }).limit(10),
         ]);
 

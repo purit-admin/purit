@@ -52,29 +52,37 @@ export default function BugReports() {
   useEffect(() => { loadTab(); }, [tab, page]);
 
   async function loadAll() {
-    const { data } = await supabase
-      .from('bug_reports')
-      .select('status');
-    if (data) {
-      const c = { pending: 0, in_progress: 0, resolved: 0, dismissed: 0 };
-      data.forEach(r => { if (c[r.status] !== undefined) c[r.status]++; });
-      setCounts(c);
+    try {
+      const { data } = await supabase
+        .from('bug_reports')
+        .select('status');
+      if (data) {
+        const c = { pending: 0, in_progress: 0, resolved: 0, dismissed: 0 };
+        data.forEach(r => { if (c[r.status] !== undefined) c[r.status]++; });
+        setCounts(c);
+      }
+    } catch (err) {
+      console.error('[BugReports loadAll]', err);
     }
   }
 
   async function loadTab() {
     setLoading(true);
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    const { data, count, error } = await supabase
-      .from('bug_reports')
-      .select('*', { count: 'exact' })
-      .eq('status', tab)
-      .order('created_at', { ascending: false })
-      .range(from, to);
-    if (!error) {
-      setReports(data || []);
-      setTotal(count || 0);
+    try {
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, count, error } = await supabase
+        .from('bug_reports')
+        .select('*', { count: 'exact' })
+        .eq('status', tab)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (!error) {
+        setReports(data || []);
+        setTotal(count || 0);
+      }
+    } catch (err) {
+      console.error('[BugReports loadTab]', err);
     }
     setLoading(false);
   }
@@ -137,7 +145,7 @@ export default function BugReports() {
         r.id === selected.id ? { ...r, admin_reply: adminReply.trim(), replied_at: now } : r
       ));
       setSelected(s => ({ ...s, admin_reply: adminReply.trim(), replied_at: now }));
-      const actionUrl = selected.role === 'company' ? '/company/bug-reports' : '/panel/bug-reports';
+      const actionUrl = selected.role === 'company' ? '/company/notifications' : '/panel/notifications';
       sendNotification(selected.user_id, {
         type: 'info', icon: '💬',
         title: '버그/건의 답변이 도착했습니다',

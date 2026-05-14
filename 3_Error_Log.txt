@@ -771,3 +771,18 @@ D-67. 부모 데이터가 바뀌어도 자식 컴포넌트 내부 useState가 �
      → 원칙: "부모 데이터(선택된 항목 등)가 바뀔 때 자식 내부 상태를 전부 초기화해야 한다"면
              useEffect 개별 초기화보다 key={parent.id} 리마운트 패턴을 우선 검토할 것
              단, key 교체는 DOM 완전 재생성이므로 애니메이션·포커스가 초기화되는 부작용에 주의
+
+D-68. 집계 쿼리(count, head:true)에서 draft 필터 누락 시 통계 왜곡 패턴 ✅ 해결
+     → 증상: 어드민 Dashboard의 "검증 통과율"이 실제보다 낮게 표시됨 (예: 실제 80%인데 40%로 표시)
+     → 원인: passed 카운트는 purity_passed=true인 feedbacks를 세지만,
+             전체(total) 카운트에 status='draft'(패널이 수락만 하고 미제출인) 피드백이 포함됨
+             purityRate = passed / total → total이 부풀어 통과율이 낮게 왜곡됨
+             목록 쿼리에는 .neq('status','draft') 를 반사적으로 추가하지만,
+             count/통계 전용 쿼리(select('*', { count:'exact', head:true }))에서는 같은 필터를 누락하기 쉬움
+     → 해결: 집계용 count 쿼리에도 동일한 exclusion 필터 적용
+             feedbacks count: .neq('status', 'draft')
+             missions count: .neq('status', 'draft')
+             적용 파일: admin/Dashboard.jsx, 기업·패널 포털 통계 카드 전반
+     → 원칙: 동일 테이블에서 목록 쿼리와 통계(count/sum/avg) 쿼리를 동시에 작성할 때
+             목록 쿼리의 exclusion 필터(draft 제외, cancelled 제외 등)를 통계 쿼리에도 반드시 복사할 것
+             통계 왜곡은 UI 오류처럼 즉시 눈에 띄지 않아 오랫동안 방치되는 경향이 있음

@@ -177,6 +177,7 @@ export default function PurityFilter() {
       const { data } = await supabase
         .from('feedbacks')
         .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name)')
+        .neq('status', 'draft')
         .order('created_at', { ascending: true });
       const fbs = data || [];
       setFeedbacks(fbs);
@@ -262,10 +263,10 @@ export default function PurityFilter() {
   }, [selected, feedbacks]);
 
   const approve = async (id) => {
-    setActing(true);
+    setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
     const { error } = await supabase.from('feedbacks').update({ purity_passed: true, status: 'approved' }).eq('id', id);
-    if (error) { alert('승인 실패: ' + error.message); setActing(false); return; }
+    if (error) { setStatusError('승인 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: true, status: 'approved' } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
@@ -281,10 +282,10 @@ export default function PurityFilter() {
   };
 
   const reject = async (id) => {
-    setActing(true);
+    setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
     const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected' }).eq('id', id);
-    if (error) { alert('반려 실패: ' + error.message); setActing(false); return; }
+    if (error) { setStatusError('반려 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected' } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
@@ -301,10 +302,10 @@ export default function PurityFilter() {
   };
 
   const reset = async (id) => {
-    setActing(true);
+    setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
     const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted' }).eq('id', id);
-    if (error) { alert('취소 실패: ' + error.message); setActing(false); return; }
+    if (error) { setStatusError('취소 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted' } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
