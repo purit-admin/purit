@@ -393,12 +393,17 @@ export default function CompanyManagement() {
   const [page, setPage]                   = useState(1);
 
   // 필터
+  const [searchInput, setSearchInput]     = useState('');
   const [searchQuery, setSearchQuery]     = useState('');
   const [planFilter, setPlanFilter]       = useState('all');
   const [creditFilter, setCreditFilter]   = useState('all');
   const [sortBy, setSortBy]               = useState('recent');
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => { setSearchQuery(searchInput); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   async function load() {
     try {
@@ -517,8 +522,8 @@ export default function CompanyManagement() {
         <input
           type="text"
           placeholder="기업명 검색..."
-          value={searchQuery}
-          onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
           style={{
             padding: '6px 12px', borderRadius: 8, fontSize: 12, width: 180,
             border: '1px solid var(--border)', background: '#fff',

@@ -657,6 +657,20 @@ D-58. RLS 정책에서 user_metadata 사용 시 보안 취약점 패턴 ✅ 해�
              SECURITY DEFINER 함수·트리거 내부에서 raw_user_meta_data 사용은 허용 (유저 접근 불가)
      → 적용 파일: supabase/migrations/026_fix_rls_user_metadata.sql
 
+D-59. 자동저장 JSON에서 제출 gate 조건이 되는 state를 빠뜨리면 드래프트 복원 후 제출 영구 불가 패턴 ✅ 해결
+     → 증상: 이미지 미션을 중간에 나갔다가 이어하기로 복귀하면 제출 버튼이 비활성화된 채로 풀리지 않음
+     → 원인: 자동저장 useEffect 의존 배열과 저장 대상이 customAnswers만 포함하고
+             overallComment(총평)·skippedDims(건너뛴 차원) 를 누락
+             canSubmitImage 조건: overallComment.trim().length > 0 AND 모든 차원 완료(또는 skip)
+             복원 후 overallComment='' / skippedDims={} 초기값으로 남아 조건 미충족 → 제출 불가
+     → 해결: 자동저장 useEffect 의존 배열에 overallComment, skippedDims 추가
+             저장 객체: { customAnswers, overallComment, skippedDims } (값 있는 것만 포함)
+             복원 코드: s.overallComment → setOverallComment / s.skippedDims → setSkippedDims 추가
+     → 원칙: 자동저장(strengths JSON) 설계 시 제출 버튼 활성화 조건(canSubmit*)에 사용되는
+             모든 state를 저장 대상에 포함할 것
+             저장 대상 누락 = 복원 후 해당 state가 초기값으로 남음 = 제출 gate 영구 잠김
+             canSubmit 조건식과 strengths 저장 객체 키를 나란히 놓고 빠진 것 없는지 대조 확인할 것
+
 D-56. 점수 함수가 실제 저장 구조와 다른 필드를 검사해 항상 0점 반환하는 패턴 ✅ 해결
      → 증상: PurityFilter calcPurityScore 섹션균형이 모든 피드백에서 항상 0/10점
      → 원인: `[fb.strengths, fb.weaknesses, fb.suggestions].filter(10자+)` 로 3개 필드를 검사했지만

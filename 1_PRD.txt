@@ -488,8 +488,10 @@
        - feedback_annotations 테이블에 실시간 저장/삭제
        - 제출 시: dimension별 평균점수 → score 컬럼, suggestions = 어노테이션 요약+총평
                   custom_answers: customAnswers → feedbacks.custom_answers JSONB 컬럼 저장
-       - 자동저장: customAnswers 변경 시 1.5초 debounce → strengths에 { customAnswers } 저장
-       - 드래프트 복원: fb.strengths에서 customAnswers 배열 복원
+       - 자동저장: customAnswers·overallComment·skippedDims 변경 시 1.5초 debounce
+                  → strengths에 { customAnswers, overallComment, skippedDims } 저장 (비어있는 값은 제외)
+       - 드래프트 복원: fb.strengths에서 customAnswers·overallComment·skippedDims 복원
+                  (미복원 시 제출 gate canSubmitImage 조건 미충족으로 제출 영구 불가)
      ※ 텍스트 미션 (image_urls 없음, 하위 호환):
        - "이어하기" 클릭 시 점수가 비어있는 첫 번째 단계로 직접 이동 (resume)
        - 중복 제출 방지: 동일 mission+panel 조합 사전 체크

@@ -61,6 +61,7 @@ export default function AdminPanels() {
   const [acting, setActing]             = useState(false);
   const [page, setPage]                 = useState(1);
   const [feedbackDetailPage, setFeedbackDetailPage] = useState(1);
+  const [searchInput, setSearchInput]   = useState('');
   const [searchQuery, setSearchQuery]   = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [levelFilter, setLevelFilter]   = useState('all');
@@ -70,6 +71,10 @@ export default function AdminPanels() {
 
   useEffect(() => { load(); }, []);
   useEffect(() => { loadStats(periodFilter); }, [periodFilter]);
+  useEffect(() => {
+    const t = setTimeout(() => { setSearchQuery(searchInput); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
   useEffect(() => {
     if (selected) loadPanelDetail(selected);
     else setPanelFeedbacks([]);
@@ -217,8 +222,8 @@ export default function AdminPanels() {
         <input
           type="text"
           placeholder="패널명 검색..."
-          value={searchQuery}
-          onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
           style={{
             padding: '6px 12px', borderRadius: 8, fontSize: 12, width: 180,
             border: '1px solid var(--border)', background: '#fff',

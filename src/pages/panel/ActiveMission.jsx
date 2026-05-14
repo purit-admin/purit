@@ -342,10 +342,13 @@ export default function ActiveMission() {
                   .eq('feedback_id', fb.id)
                   .order('created_at');
                 setAnnotations(anns || []);
+                setViewedImages(new Set(ms.image_urls.map((_, i) => i)));
                 if (fb.strengths) {
                   try {
                     const s = JSON.parse(fb.strengths);
                     if (Array.isArray(s.customAnswers)) setCustomAnswers(s.customAnswers);
+                    if (s.overallComment) setOverallComment(s.overallComment);
+                    if (s.skippedDims) setSkippedDims(prev => ({ ...prev, ...s.skippedDims }));
                   } catch {}
                 }
               }
@@ -375,17 +378,22 @@ export default function ActiveMission() {
     };
   }, [scores, comments, customAnswers]);
 
-  // 이미지 미션 LP 질문 자동 저장
+  // 이미지 미션 자동 저장 (LP 질문 응답 + 총평 + 차원 건너뛰기)
   useEffect(() => {
-    if (!draftId || !hasImages || isSubMission || step < 1 || !customAnswers.length) return;
+    if (!draftId || !hasImages || isSubMission || step < 1) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
+      const toSave = {};
+      if (customAnswers.length) toSave.customAnswers = customAnswers;
+      if (overallComment) toSave.overallComment = overallComment;
+      if (Object.values(skippedDims).some(Boolean)) toSave.skippedDims = skippedDims;
+      if (Object.keys(toSave).length === 0) return;
       supabase.from('feedbacks')
-        .update({ strengths: JSON.stringify({ customAnswers }) })
+        .update({ strengths: JSON.stringify(toSave) })
         .eq('id', draftId);
     }, 1500);
     return () => clearTimeout(autoSaveTimer.current);
-  }, [customAnswers]);
+  }, [customAnswers, overallComment, skippedDims]);
 
   // 서브 미션 자동 저장
   useEffect(() => {

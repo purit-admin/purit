@@ -149,7 +149,6 @@ export default function MissionList() {
   // feedbackMap: { [missionId]: { status, id, suggestions } }
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]               = useState(null);
-  const [panelTier, setPanelTier]           = useState('ROOKIE');
   const [panelHonorPoints, setPanelHonorPoints] = useState(0);
   const [panelExperience, setPanelExperience]   = useState('');
   const [loading, setLoading]         = useState(true);
@@ -167,10 +166,9 @@ export default function MissionList() {
       if (!user) return;
 
       const { data: p } = await supabase
-        .from('panels').select('id, tier, honor_points, experience').eq('user_id', user.id).single();
+        .from('panels').select('id, honor_points, experience').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
-      setPanelTier(p.tier || 'ROOKIE');
       setPanelHonorPoints(p.honor_points ?? 0);
       setPanelExperience(p.experience || '');
 
@@ -272,8 +270,6 @@ export default function MissionList() {
     }
   };
 
-  const isHighTier = panelTier === 'EXPERT' || panelTier === 'ELITE';
-
   const filtered = (() => {
     if (filter === 'new') {
       const panelKey = panelExperience ? getExperienceCareerKey(panelExperience) : null;
@@ -288,7 +284,6 @@ export default function MissionList() {
         }
         return true;
       });
-      if (isHighTier) list = [...list].sort((a, b) => (b.reward_amount || 0) - (a.reward_amount || 0));
       return list;
     }
     if (filter === 'inProgress')    return missions.filter(m => feedbackMap[m.id]?.status === 'draft');
