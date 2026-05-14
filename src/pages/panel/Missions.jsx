@@ -155,6 +155,7 @@ export default function MissionList() {
   const [filter, setFilter]           = useState('new');
   const [modal, setModal]             = useState(null);
   const [confirming, setConfirming]   = useState(false);
+  const [acceptError, setAcceptError] = useState('');
   const [mainPage, setMainPage]       = useState(1);
   const [subPage, setSubPage]         = useState(1);
 
@@ -220,7 +221,7 @@ export default function MissionList() {
 
     if (!pid) {
       setConfirming(false);
-      alert('패널 계정을 찾을 수 없습니다. 패널로 가입된 계정인지 확인해주세요.');
+      setAcceptError('패널 계정을 찾을 수 없습니다. 패널로 가입된 계정인지 확인해주세요.');
       return;
     }
 
@@ -240,7 +241,7 @@ export default function MissionList() {
     }).select('id').single();
     setConfirming(false);
     if (error) {
-      alert('수락 중 오류: ' + error.message);
+      setAcceptError('수락 중 오류: ' + error.message);
       return;
     }
     setFeedbackMap(prev => ({ ...prev, [modal.mission.id]: { status: 'draft', id: newFb?.id || null, suggestions: null } }));
@@ -315,7 +316,7 @@ export default function MissionList() {
 
       {/* ── 수락 모달 (portal) ── */}
       {modal?.type === 'accept' && ReactDOM.createPortal(
-        <div onClick={() => setModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
+        <div onClick={() => { setModal(null); setAcceptError(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 440, width: '90%', border: '1px solid var(--border)', animation: 'fadeUp 0.2s ease both' }}>
             <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 10, letterSpacing: '0.1em' }}>MISSION ACCEPT</div>
             <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>미션을 수락하시겠어요?</h2>
@@ -332,8 +333,13 @@ export default function MissionList() {
                 </div>
               ))}
             </div>
+            {acceptError && (
+              <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+                {acceptError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <Btn variant="secondary" onClick={() => setModal(null)} disabled={confirming}>취소</Btn>
+              <Btn variant="secondary" onClick={() => { setModal(null); setAcceptError(''); }} disabled={confirming}>취소</Btn>
               <Btn onClick={handleConfirmAccept} disabled={confirming}>
                 {confirming ? '처리 중...' : '수락하기 →'}
               </Btn>

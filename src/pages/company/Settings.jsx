@@ -19,6 +19,8 @@ export default function AccountSettings() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [removeError, setRemoveError] = useState('');
   const [confirmRemoveMemberId, setConfirmRemoveMemberId] = useState(null);
 
   const NOTIF_KEY = 'purit_notif_prefs';
@@ -66,13 +68,21 @@ export default function AccountSettings() {
     if (!error) {
       setMembers(m => [...m, data]);
       setInviteEmail('');
+      setInviteError('');
+    } else {
+      setInviteError('초대 실패: ' + error.message);
     }
     setInviting(false);
   }
 
   async function handleRemove(id) {
     const { error } = await supabase.from('team_members').update({ status: 'inactive' }).eq('id', id);
-    if (!error) setMembers(m => m.filter(x => x.id !== id));
+    if (!error) {
+      setMembers(m => m.filter(x => x.id !== id));
+      setRemoveError('');
+    } else {
+      setRemoveError('팀원 제거 실패: ' + error.message);
+    }
   }
 
   if (loading) return (
@@ -122,8 +132,13 @@ export default function AccountSettings() {
                   <option value="viewer">뷰어</option>
                 </select>
               </div>
-              <Btn size="md" onClick={handleInvite} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>
+              <Btn size="md" onClick={() => { setInviteError(''); handleInvite(); }} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>
             </div>
+            {inviteError && (
+              <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+                {inviteError}
+              </div>
+            )}
             {inviteRole && (
               <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-3)' }}>
                 {ROLE_LABELS[inviteRole]} 권한: {ROLE_PERMS[inviteRole].join(' · ')}
@@ -131,6 +146,11 @@ export default function AccountSettings() {
             )}
           </Card>
 
+          {removeError && (
+            <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+              {removeError}
+            </div>
+          )}
           {members.length === 0 ? (
             <Card><div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>팀원이 없습니다. 위에서 초대하세요.</div></Card>
           ) : (
@@ -231,7 +251,7 @@ export default function AccountSettings() {
           title="팀원 제거"
           desc="이 팀원을 제거합니까? 즉시 액세스가 취소되며, 다시 초대하려면 이메일을 재발송해야 합니다."
           confirmLabel="제거"
-          onConfirm={() => { handleRemove(confirmRemoveMemberId); setConfirmRemoveMemberId(null); }}
+          onConfirm={async () => { await handleRemove(confirmRemoveMemberId); setConfirmRemoveMemberId(null); }}
           onCancel={() => setConfirmRemoveMemberId(null)}
           danger
         />

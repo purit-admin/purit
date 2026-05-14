@@ -864,6 +864,7 @@ export default function Results() {
   const [shareToken, setShareToken]       = useState(null);
   const [shareLoading, setShareLoading]   = useState(false);
   const [shareCopied, setShareCopied]     = useState(false);
+  const [shareError, setShareError]       = useState('');
   const [panelProfiles, setPanelProfiles] = useState({});
   const [companyId, setCompanyId]         = useState(null);
   const [helpRatings, setHelpRatings]     = useState({});
@@ -1030,11 +1031,14 @@ export default function Results() {
   const handleGenerateShare = async () => {
     if (!selected) return;
     setShareLoading(true);
+    setShareError('');
     const token = crypto.randomUUID().replace(/-/g, '');
     const { error } = await supabase.from('missions').update({ share_token: token }).eq('id', selected);
     if (!error) {
       setShareToken(token);
       setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_token: token } : m));
+    } else {
+      setShareError('공유 링크 생성 실패: ' + error.message);
     }
     setShareLoading(false);
   };
@@ -1049,7 +1053,12 @@ export default function Results() {
 
   const handleRevokeShare = async () => {
     if (!selected) return;
-    await supabase.from('missions').update({ share_token: null }).eq('id', selected);
+    setShareError('');
+    const { error } = await supabase.from('missions').update({ share_token: null }).eq('id', selected);
+    if (error) {
+      setShareError('공유 해제 실패: ' + error.message);
+      return;
+    }
     setShareToken(null);
     setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_token: null } : m));
   };
@@ -1116,17 +1125,24 @@ export default function Results() {
                     피드백 {feedbacks.length}개 수신
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                  {shareToken ? (
-                    <>
-                      <span style={{ fontSize: 12, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>🔗 공유 중</span>
-                      <Btn size="sm" variant="outline" onClick={handleCopyShare}>{shareCopied ? '✓ 복사됨' : 'URL 복사'}</Btn>
-                      <Btn size="sm" variant="ghost" onClick={handleRevokeShare} style={{ fontSize: 11, color: 'var(--text-3)' }}>공유 해제</Btn>
-                    </>
-                  ) : (
-                    <Btn size="sm" variant="secondary" onClick={handleGenerateShare} disabled={shareLoading}>
-                      {shareLoading ? '생성 중...' : '🔗 공유 링크 생성'}
-                    </Btn>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {shareToken ? (
+                      <>
+                        <span style={{ fontSize: 12, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>🔗 공유 중</span>
+                        <Btn size="sm" variant="outline" onClick={handleCopyShare}>{shareCopied ? '✓ 복사됨' : 'URL 복사'}</Btn>
+                        <Btn size="sm" variant="ghost" onClick={handleRevokeShare} style={{ fontSize: 11, color: 'var(--text-3)' }}>공유 해제</Btn>
+                      </>
+                    ) : (
+                      <Btn size="sm" variant="secondary" onClick={handleGenerateShare} disabled={shareLoading}>
+                        {shareLoading ? '생성 중...' : '🔗 공유 링크 생성'}
+                      </Btn>
+                    )}
+                  </div>
+                  {shareError && (
+                    <div style={{ fontSize: 12, color: 'var(--red,#ef4444)', fontWeight: 600 }}>
+                      {shareError}
+                    </div>
                   )}
                 </div>
               </div>
