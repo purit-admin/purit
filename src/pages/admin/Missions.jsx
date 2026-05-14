@@ -166,10 +166,10 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
               <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onCancelMission(m.id); }}>취소</Btn>
             )}
             {m.status === 'completed' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: '완료된 미션을 다시 진행 상태로 되돌립니까? 패널이 추가 피드백을 제출할 수 있게 됩니다.' }); }}>재진행</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
             )}
             {m.status === 'cancelled' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다.' }); }}>재개</Btn>
+              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다.', fromStatus: 'cancelled' }); }}>재개</Btn>
             )}
             {m.status === 'cancelled' && (
               <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}>삭제</Btn>
@@ -282,6 +282,22 @@ export default function AdminMissions() {
     }
   };
 
+  const reactivateCompleted = async (id) => {
+    setStatusError('');
+    const { data, error } = await supabase.rpc('reactivate_mission_and_reclaim', { p_mission_id: id });
+    if (error || !data?.success) {
+      const errCode = data?.error || error?.message || '재진행 처리 실패';
+      if (errCode === 'INSUFFICIENT_CREDITS') {
+        setStatusError(`기업 잔여 크레딧(${data.balance?.toFixed(2)}cr)이 회수 필요액(${data.required?.toFixed(2)}cr)보다 부족합니다. 재진행할 수 없습니다.`);
+      } else {
+        setStatusError(errCode);
+      }
+      return;
+    }
+    setMissions(ms => ms.map(m => m.id === id ? { ...m, status: 'active' } : m));
+    setSelectedMission(prev => prev?.id === id ? { ...prev, status: 'active' } : prev);
+  };
+
   const deleteMission = async (id) => {
     await supabase.from('missions').delete().eq('id', id);
     setMissions(ms => ms.filter(m => m.id !== id));
@@ -380,7 +396,14 @@ export default function AdminMissions() {
           desc={confirmReactivate.desc}
           confirmLabel={confirmReactivate.label}
           cancelLabel="돌아가기"
-          onConfirm={() => { updateStatus(confirmReactivate.id, 'active'); setConfirmReactivate(null); }}
+          onConfirm={() => {
+            if (confirmReactivate.fromStatus === 'completed') {
+              reactivateCompleted(confirmReactivate.id);
+            } else {
+              updateStatus(confirmReactivate.id, 'active');
+            }
+            setConfirmReactivate(null);
+          }}
           onCancel={() => setConfirmReactivate(null)}
         />
       )}

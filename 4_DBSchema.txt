@@ -431,6 +431,17 @@
     → admin/Missions.jsx 완료 처리 버튼에서 호출
     → 파일: supabase/migrations/018_credits_numeric.sql (016 버전 대체)
 
+  reactivate_mission_and_reclaim(p_mission_id UUID) RETURNS jsonb
+    → 어드민 전용 (raw_app_meta_data.role='admin' 검사)
+    → 완료(completed) 상태 미션만 허용 — 그 외 상태는 'mission_not_found_or_not_completed' 에러
+    → v_reclaim = GREATEST(0, credits_reserved - credits_consumed) — 기업에 환불됐던 크레딧
+    → v_reclaim > 0이면 기업 credit_balance 잔액 확인 → 부족 시 'INSUFFICIENT_CREDITS' 에러 반환
+      (balance, required 금액 함께 반환 — 프론트에서 에러 메시지 표시에 활용)
+    → 잔액 충분: companies.credit_balance -= v_reclaim + missions.status = 'active' 원자적 업데이트
+    → {success: true, credits_reclaimed: N} 반환
+    → admin/Missions.jsx 재진행 버튼(fromStatus='completed')에서 호출
+    → 파일: supabase/migrations/027_reactivate_mission_and_reclaim.sql
+
   check_and_award_badges(p_panel_id UUID) RETURNS void
     → 12개 뱃지 조건 순서대로 검사 후 panels.badges TEXT[]에 신규 달성분 추가 (중복 방지)
     → 피드백 제출 완료 후 ActiveMission.jsx에서 fire-and-forget 호출

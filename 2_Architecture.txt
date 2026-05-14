@@ -202,7 +202,11 @@ purit/
 │   │                    onCancelMission(id) / onCompleteMission(m) / onReactivateMission({id,label,desc}) props — 각각 setConfirmCancel / setConfirmComplete / setConfirmReactivate 연결
 │   │                  confirmCancel state: ConfirmModal(danger) → updateStatus(id, 'cancelled')
 │   │                  confirmComplete state: ConfirmModal → 승인 건수(m.feedbacks.filter(f.purity_passed).length) 동적 표시 → complete_mission_and_refund RPC
-│   │                  confirmReactivate state: ConfirmModal → updateStatus(id, 'active') (재진행=completed→active / 재개=cancelled→active)
+│   │                  confirmReactivate state: { id, label, desc, fromStatus } — fromStatus로 completed/cancelled 분기
+│   │                    fromStatus='completed': reactivateCompleted(id) 호출 → reactivate_mission_and_reclaim RPC
+│   │                      INSUFFICIENT_CREDITS 에러 시 잔액/필요량 표시 + 상태 변경 없음
+│   │                      성공 시 missions/selectedMission state를 status:'active'로 동기화
+│   │                    fromStatus='cancelled': updateStatus(id, 'active') — 취소→재개는 크레딧 처리 없음
 │   │                  updateStatus/deleteMission 후 setSelectedMission 동기화
 │   │                  location.state.missionId → 해당 미션 status로 setFilter + mainPage/subPage 계산 + MissionCard isHighlighted prop
 │   │                  isHighlighted: outline 2px solid var(--accent) 3초 후 자동 해제, window.history.replaceState로 state 클리어
@@ -248,6 +252,7 @@ purit/
 │   │                024(admin_company_management: admin_add_credits RPC — 어드민 전용 크레딧 직접 지급)
 │   │                025(admin_change_plan: admin_change_plan RPC — 어드민 전용 플랜+크레딧 동시 변경, grant_plan_credits의 owner 제한 우회)
 │   │                026(fix_rls_user_metadata: RLS 정책 user_metadata→app_metadata 교체 + 어드민 app_metadata role 설정 — D-58 참조)
+│   │                027(reactivate_mission_and_reclaim: 완료 미션 재진행 시 환불 크레딧 회수 RPC — D-60 참조)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json

@@ -692,3 +692,17 @@ D-55. useMemo 의존 배열 누락으로 검색·필터 상태 변경 시 메모
      → 원칙: useMemo/useCallback 작성 시 콜백 내부에서 참조하는 모든 state/prop을 의존 배열에 포함할 것
              "아무 상태나 바꾸면 되는 필터는 정상인데 특정 state만 반응 없음" = 해당 state의 deps 누락 신호
              ESLint react-hooks/exhaustive-deps 규칙이 이를 자동 감지하므로 린터 경고 무시 금지
+
+D-60. 상태 A→B 전환이 금전 처리를 수반할 때, B→A 역전환에서 반방향 금전 처리를 누락하는 패턴 ✅ 해결
+     → 증상: 어드민이 완료 처리(A→B, refund) 후 재진행(B→A)을 눌러도 기업 크레딧이 회수되지 않음
+     → 원인: updateStatus() 의 'completed' 특수 브랜치(complete_mission_and_refund RPC)는 구현했으나
+             역방향인 'active'로 되돌리는 브랜치는 단순 status UPDATE만 수행 — 환불 역전 로직 없음
+             금전 처리는 상태 기계의 단방향 흐름처럼 보이지만 상태를 되돌릴 때도 반드시 역방향 처리가 필요
+     → 해결: fromStatus 필드로 재진행 경로를 completed/cancelled로 분기
+             completed→active: reactivate_mission_and_reclaim RPC 호출 (크레딧 회수 + 상태 변경 원자적)
+             cancelled→active: 일반 updateStatus 호출 (취소 시 환불 없었으므로 회수도 없음)
+     → 추가 안전장치: RPC 내부에서 기업 잔여 크레딧 < 회수금액이면 INSUFFICIENT_CREDITS 에러로 차단
+             → 기업 크레딧 부족 시 재진행 불가 (어드민에게 "잔액 N / 필요 N" 에러 메시지 표시)
+     → 원칙: 상태 전환과 금전 처리가 연결된 시스템에서는 모든 전환 방향(정방향·역방향)에 대해
+             금전 처리의 역연산이 필요한지 설계 단계에서 명시적으로 검토할 것
+             "상태 변경 RPC"와 "금전 처리 RPC"가 분리되어 있으면 역전환 시 금전 RPC만 빠지는 실수가 흔함
