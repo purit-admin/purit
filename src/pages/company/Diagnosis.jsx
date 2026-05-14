@@ -108,7 +108,7 @@ export default function Diagnosis() {
       const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
       if (!co) { setLoading(false); return; }
 
-      const { data: ms } = await supabase.from('missions').select('id, title').eq('company_id', co.id);
+      const { data: ms } = await supabase.from('missions').select('id, title').eq('company_id', co.id).neq('status', 'draft');
       setMissions(ms || []);
 
       await loadFeedbacks('all', ms?.map(m => m.id) || []);

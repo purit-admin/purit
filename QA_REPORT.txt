@@ -320,7 +320,9 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / Phase 1+2 무한 로딩 고착 13건 수정 완료: 신규-F/G/H/I/M/N/O/T/U/V/W/X/Y
                             / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료
                             / 기업 포털 심층 검사: 기업-A~G 7건 발견 및 수정 완료 — 총 55건 완료
-                            / 수평 전개 조사 2차: 수평-A~G 7건 발견 및 수정 완료 — 총 62건 완료)
+                            / 수평 전개 조사 2차: 수평-A~G 7건 발견 및 수정 완료 — 총 62건 완료
+                            / 패널 포털 심층 검사: 패널-A~I 9건 발견 및 수정 완료 — 총 71건 완료
+                            / 수평 전개 조사 3차: 수평-H~J 3건 발견 및 수정 완료 — 총 74건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -347,7 +349,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   ────────   ──────────────  ──────────────────────────────────────
   (수정 대기 항목 없음 — 전체 완료)
   ────────   ──────────────  ──────────────────────────────────────
-  잔여 합계  0건             (전체 62건 중 62건 완료·스킵 / 0건 수정 대기)
+  잔여 합계  0건             (전체 74건 중 74건 완료·스킵 / 0건 수정 대기)
 
 ================================================================
 ## 🗄️ 완료·스킵 아카이브 (✅ / ⏭)
@@ -426,5 +428,21 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [수평-E] 어드민 내 계정 (admin/Account.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
 [수평-F] 어드민 수익 & 정산 (admin/Revenue.jsx) — loadAll() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
 [수평-G] 어드민 미션 관리 (admin/Missions.jsx) — deleteMission() error 미캡처, DB 삭제 실패 시에도 항상 로컬 상태 제거 (기업-D 동일 패턴)  ✅
+
+-- 패널 포털 심층 검사 (2026-05-14) — panel/Dashboard·Missions·ActiveMission·History·Profile 전수 조사 --
+[패널-A] 패널 미션 수행 (panel/ActiveMission.jsx) — 목록 뷰 load() catch에서 setDrafts([]) 미호출, 로드 실패 시 빈 목록 대신 이전 상태 잔류  ✅
+[패널-B] 패널 미션 수행 (panel/ActiveMission.jsx) — canSubmit 이메일 조건에서 emailCuriosity 누락, curiosity_score 0점으로도 제출 가능  ✅
+[패널-C] 패널 대시보드 (panel/Dashboard.jsx) — 수익 현황 집계에 missions.reward_amount 고정값 사용, getPanelReward 동적 계산과 불일치  ✅
+[패널-D] 패널 미션 수행 (panel/ActiveMission.jsx) — willResubmit 이미지 미션 분기에서 setViewedImages 복원 누락, 재작성 모드 진입 시 제출 불가  ✅
+[패널-E] 패널 미션 수행 (panel/ActiveMission.jsx) — handleStart() DB 에러 시에도 setStep(1) 실행, draftId 없는 상태로 폼 진행  ✅
+[패널-F] 패널 프로필 (panel/Profile.jsx) — handleSelectBadge() 낙관적 UI 업데이트 후 DB 실패 시 롤백 없음  ✅
+[패널-G] 패널 프로필 (panel/Profile.jsx) — toggleExpertise() 최대 5개 제한 없어 무제한 전문 분야 선택 가능  ✅
+[패널-H] 패널 미션 관리 (panel/Missions.jsx) — missions 쿼리에 .neq('status','draft') 누락, 기업 임시저장 미션이 패널 목록에 노출  ✅
+[패널-I] 패널 미션 수행 (panel/ActiveMission.jsx) — hasSavedProgress 이메일 조건에서 emailCuriosity 누락, 저장된 진행 상황 있어도 "이어하기" 미표시  ✅
+
+-- 수평 전개 조사 3차 (2026-05-14) — 패널-H draft 필터 누락 패턴 전체 코드베이스 수평 전개 --
+[수평-H] 어드민 플랫폼 대시보드 (admin/Dashboard.jsx) — missions·feedbacks 카운트 쿼리에 .neq('status','draft') 누락, "총 의뢰" 부풀림 및 "검증 통과율" 왜곡  ✅
+[수평-I] 기업 5차원 진단 (company/Diagnosis.jsx) — missions 쿼리 draft 필터 누락, 임시저장 의뢰가 분석 드롭다운에 노출  ✅
+[수평-J] 기업 시계열 추적 (company/TimelineTracker.jsx) — missions 쿼리 draft 필터 누락, 임시저장 의뢰가 타임라인 선택 목록에 노출  ✅
 
 ================================================================
