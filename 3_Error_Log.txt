@@ -786,3 +786,19 @@ D-68. 집계 쿼리(count, head:true)에서 draft 필터 누락 시 통계 왜�
      → 원칙: 동일 테이블에서 목록 쿼리와 통계(count/sum/avg) 쿼리를 동시에 작성할 때
              목록 쿼리의 exclusion 필터(draft 제외, cancelled 제외 등)를 통계 쿼리에도 반드시 복사할 것
              통계 왜곡은 UI 오류처럼 즉시 눈에 띄지 않아 오랫동안 방치되는 경향이 있음
+
+D-69. ConfirmModal onConfirm에 async 함수를 await 없이 호출하면 DB 완료 전 모달이 닫혀 에러 영구 비노출 ✅ 해결
+     → 증상: 팀원 제거 확인 모달에서 "제거" 클릭 시 모달이 즉시 닫히고, DB 실패 여부와 관계없이 성공처럼 보임
+     → 원인: `onConfirm={() => { handleRemove(id); setConfirmX(null); }}`
+             handleRemove()는 async 함수이므로 Promise를 반환하지만 호출자가 이를 await하지 않음
+             → JS 이벤트 루프 특성상 setConfirmX(null)이 즉시(동기적으로) 실행 → 모달 닫힘
+             → handleRemove()의 DB 작업은 모달이 닫힌 이후에 비동기로 완료
+             → catch/error 분기가 있어도 모달이 이미 없는 상태라 에러를 표시할 방법이 없음
+     → 해결: `onConfirm={async () => { await handleRemove(id); setConfirmX(null); }}`
+             async 화살표 함수로 변경 + await 추가 → DB 완료 후 모달 닫힘
+             handleRemove() 내부에서 에러 시 setRemoveError(msg)로 외부에 에러 표시
+             (에러를 모달 내부에 표시하려면 D-65 패턴 사용, 외부 배너로 표시하려면 현재 패턴 사용)
+     → 원칙: JSX 이벤트 핸들러에서 async 함수를 호출할 때는 반드시 async 콜백 + await 조합을 사용할 것
+             `onXxx={() => { asyncFn(); cleanup(); }}` 패턴은 항상 cleanup이 선행 실행됨
+             특히 ConfirmModal의 onConfirm처럼 "DB 완료 후 닫아야 한다"는 의도가 있을 때 이 함정에 빠지기 쉬움
+             → 올바른 패턴: `onConfirm={async () => { await asyncFn(); setModal(null); }}`
