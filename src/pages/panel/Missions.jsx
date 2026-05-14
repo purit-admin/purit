@@ -262,7 +262,7 @@ export default function MissionList() {
             if (co?.user_id) sendNotification(co.user_id, {
               type: 'info', icon: '👤',
               title: '패널 참여 취소',
-              body: `[${modal.mission.title}] 패널이 미션 참여를 취소했습니다.`,
+              body: `[${modal.mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
               actionUrl: `/company/results?id=${modal.mission.id}`,
             });
           });

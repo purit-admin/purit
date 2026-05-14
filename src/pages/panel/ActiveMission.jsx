@@ -473,7 +473,7 @@ export default function ActiveMission() {
           body: resubmitMode
             ? `[${mission.title}] 패널이 피드백을 수정하여 재제출했습니다.`
             : `[${mission.title}] 패널이 피드백을 제출했습니다.`,
-          actionUrl: '/company/results',
+          actionUrl: `/company/results?id=${mission.id}`,
         });
       }
     }
@@ -490,8 +490,8 @@ export default function ActiveMission() {
           if (co?.user_id) sendNotification(co.user_id, {
             type: 'info', icon: '👤',
             title: '패널 참여 취소',
-            body: `[${mission.title}] 패널이 미션 참여를 취소했습니다.`,
-            actionUrl: '/company/results',
+            body: `[${mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
+            actionUrl: `/company/results?id=${mission.id}`,
           });
         });
     }

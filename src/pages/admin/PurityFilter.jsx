@@ -289,7 +289,7 @@ export default function PurityFilter() {
     const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
     if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions' });
-    if (companyUserId) sendNotification(companyUserId, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${missionTitle}] 품질 기준 미달 피드백이 반려 처리되었습니다.`, actionUrl: `/company/results?id=${fb.mission_id}` });
+    if (companyUserId) sendNotification(companyUserId, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${missionTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${fb.mission_id}` });
 
     setSelected(null);
     setActing(false);
@@ -318,6 +318,13 @@ export default function PurityFilter() {
     setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved' } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
+    ids.forEach(id => {
+      const f = feedbacks.find(fb => fb.id === id);
+      if (!f) return;
+      const mTitle = f.missions?.title || '미션';
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history' });
+      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${mTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${f.mission_id}` });
+    });
     setCheckedIds(new Set()); setBulkActing(false);
   };
 
@@ -331,6 +338,13 @@ export default function PurityFilter() {
     setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected' } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
+    ids.forEach(id => {
+      const f = feedbacks.find(fb => fb.id === id);
+      if (!f) return;
+      const mTitle = f.missions?.title || '미션';
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions' });
+      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${mTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${f.mission_id}` });
+    });
     setCheckedIds(new Set()); setBulkActing(false);
   };
 
