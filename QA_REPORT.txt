@@ -335,7 +335,8 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 5차 전체 재조사: 5차-A~N 14건 신규 발견 — 총 116건 중 102건 완료·14건 수정 대기
                             / 5차 추가 조사: 5차-O~U 7건 신규 발견 — 총 123건 중 102건 완료·21건 수정 대기
                             / 5차 재검증: A/B/D/H/I/O/P/T/U 9건 ⏭ 처리 — 총 123건 중 111건 완료·스킵·12건 수정 대기
-                            / 5차 잔여 12건 전부 수정 완료: 5차-C/E/F/G/J/K/L/M/N/Q/R/S — 총 123건 전원 완료·스킵)
+                            / 5차 잔여 12건 전부 수정 완료: 5차-C/E/F/G/J/K/L/M/N/Q/R/S — 총 123건 전원 완료·스킵
+                            / 수평 전개 조사 5차: 수평-O 1건 발견 및 즉시 수정 완료 — 총 124건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -361,7 +362,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   🟠 P2      5차-S           Sidebar 패널 뱃지 — rejection_deadline 만료 stale  ✅
   🟡 P3      5차-N           company/AIReport load() — D-51 위반             ✅
   ────────   ──────────────  ────────────────────────────────────────────  ──────
-  잔여 합계  0건             (전체 123건 전원 완료·스킵)
+  잔여 합계  0건             (전체 124건 전원 완료·스킵)
 
   → 완료 항목 전체는 하단 아카이브 참조
 
@@ -464,6 +465,11 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [수평-L] 기업 팀 & 설정 (company/Settings.jsx) — handleRemove() ConfirmModal onConfirm에서 async await 누락, DB 결과 전에 모달 닫혀 실패 에러 영구 비노출  ✅
 [수평-M] 기업 피드백 결과 (company/Results.jsx) — handleGenerateShare() DB 실패 시 shareError state 없어 사용자에게 공유 링크 생성 실패 피드백 없음  ✅
 [수평-N] 기업 피드백 결과 (company/Results.jsx) — handleRevokeShare() error 캡처 없이 await 결과 폐기, DB 실패 시 낙관적 UI 롤백 없이 화면만 공유 해제 처리  ✅
+
+-- 수평 전개 조사 5차 (2026-05-15) — rejection_deadline 만료 필터 수평 전개 --
+[수평-O] 패널 미션 관리 (panel/Missions.jsx) — "수정 필요" 탭 뱃지 숫자(rejectedCount)가 rejection_deadline 만료 여부를 체크하지 않아 실제 목록 항목 수보다 크게 표시됨
+  패턴: Sidebar.jsx(5차-S)에서 loadRejected()에 만료 필터를 적용했으나, 동일 파일 내 탭 뱃지 count 계산에는 누락
+  수정: rejectedCount 계산에 `const now = new Date()` + `.rejection_deadline` 만료 조건 추가  ✅
 
 -- 5차 전체 재조사 (2026-05-15) — 12건 전부 수정 완료 --
 [5차-C] PanelTargetStep handlePurchase() — companies 직접 UPDATE D-5 위반. handlePurchase() 제거 + 크레딧 부족 팝업 버튼을 /company/plans 이동으로 교체  ✅

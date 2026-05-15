@@ -336,7 +336,11 @@ export default function MissionList() {
 
   const changeTab = (key) => { setFilter(key); setMainPage(1); setSubPage(1); };
 
-  const rejectedCount = Object.values(feedbackMap).filter(f => f.status === 'rejected').length;
+  const now = new Date();
+  const rejectedCount = Object.values(feedbackMap).filter(f =>
+    f.status === 'rejected' &&
+    (!f.rejection_deadline || new Date(f.rejection_deadline) >= now)
+  ).length;
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
