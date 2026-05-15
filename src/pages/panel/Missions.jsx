@@ -49,7 +49,17 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function MissionCard({ m, mode, feedbackId, navigate, setModal, panelHonorPoints = 0, panelExperience = '' }) {
+function formatRemaining(deadline) {
+  if (!deadline) return null;
+  const diff = new Date(deadline) - new Date();
+  if (diff <= 0) return '만료됨';
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h > 0) return `${h}시간 ${m}분 남음`;
+  return `${m}분 남음`;
+}
+
+function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModal, panelHonorPoints = 0, panelExperience = '' }) {
   const [reasonOpen, setReasonOpen] = useState(false);
   const slots  = m.panel_count  || 0;
   const filled = m.filled_count || 0;
@@ -81,14 +91,25 @@ function MissionCard({ m, mode, feedbackId, navigate, setModal, panelHonorPoints
           {m.target_url && (
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
           )}
-          {mode === 'needsRevision' && (
-            <button
-              onClick={() => setReasonOpen(r => !r)}
-              style={{ marginTop: 6, fontSize: 12, color: 'var(--text-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-            >
-              {reasonOpen ? '탈락 사유 닫기 ▲' : '탈락 사유 보기 ▼'}
-            </button>
-          )}
+          {mode === 'needsRevision' && (() => {
+            const remaining = formatRemaining(rejectionDeadline);
+            const isExpiring = rejectionDeadline && (new Date(rejectionDeadline) - new Date()) < 3600000;
+            return (
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {remaining && (
+                  <div style={{ fontSize: 11, fontWeight: 700, color: isExpiring ? 'var(--red,#ef4444)' : '#F59E0B', fontFamily: 'var(--font-sans)' }}>
+                    ⏱ 재제출 마감: {remaining}
+                  </div>
+                )}
+                <button
+                  onClick={() => setReasonOpen(r => !r)}
+                  style={{ fontSize: 12, color: 'var(--text-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', textAlign: 'left' }}
+                >
+                  {reasonOpen ? '탈락 사유 닫기 ▲' : '탈락 사유 보기 ▼'}
+                </button>
+              </div>
+            );
+          })()}
           {mode === 'needsRevision' && reasonOpen && (
             <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface)', borderRadius: 6, padding: '8px 12px', lineHeight: 1.6 }}>
               Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함하여 재작성해주세요.
@@ -174,14 +195,17 @@ export default function MissionList() {
       setPanelHonorPoints(p.honor_points ?? 0);
       setPanelExperience(p.experience || '');
 
+      // 만료된 draft/rejected 정리 (fire-and-forget 아님 — feedbacks 로드 전 완료 필요)
+      await supabase.rpc('expire_panel_drafts').then(({ error: e }) => { if (e) console.warn('[expire_drafts]', e.message); });
+
       const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
-        supabase.from('feedbacks').select('mission_id, status, id, suggestions').eq('panel_id', p.id),
+        supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline').eq('panel_id', p.id),
         supabase.from('missions').select('*').neq('status', 'draft').order('created_at', { ascending: false }),
       ]);
 
       const map = {};
       (myFeedbacks || []).forEach(f => {
-        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions };
+        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline };
       });
       setFeedbackMap(map);
       setMissions(ms || []);
@@ -225,26 +249,23 @@ export default function MissionList() {
       return;
     }
 
-    const { data: newFb, error } = await supabase.from('feedbacks').insert({
-      mission_id:            modal.mission.id,
-      panel_id:              pid,
-      clarity_score:         null,
-      relevance_score:       null,
-      value_score:           null,
-      differentiation_score: null,
-      trust_score:           null,
-      strengths:             null,
-      weaknesses:            null,
-      suggestions:           null,
-      purity_passed:         false,
-      status:                'draft',
-    }).select('id').single();
+    const isSubM = ['preference', 'pricing', 'email'].includes(modal.mission.type);
+    const subDl  = new Date(Date.now() + (isSubM ? 2 : 4) * 60 * 60 * 1000).toISOString();
+    // 원자적 슬롯 예약: filled_count < panel_count 조건부 증가 + feedbacks INSERT (동시성 안전)
+    const { data: newFbId, error } = await supabase.rpc('accept_mission_slot', {
+      p_mission_id:          modal.mission.id,
+      p_submission_deadline: subDl,
+    });
     setConfirming(false);
     if (error) {
       setAcceptError('수락 중 오류: ' + error.message);
       return;
     }
-    setFeedbackMap(prev => ({ ...prev, [modal.mission.id]: { status: 'draft', id: newFb?.id || null, suggestions: null } }));
+    if (!newFbId) {
+      setAcceptError('슬롯이 마감되었습니다. 다른 의뢰를 선택해주세요.');
+      return;
+    }
+    setFeedbackMap(prev => ({ ...prev, [modal.mission.id]: { status: 'draft', id: newFbId, suggestions: null } }));
     const target = modal.mission.id;
     setModal(null);
     navigate(`/panel/active?id=${target}`);
@@ -294,7 +315,13 @@ export default function MissionList() {
       return list;
     }
     if (filter === 'inProgress')    return missions.filter(m => feedbackMap[m.id]?.status === 'draft');
-    if (filter === 'needsRevision') return missions.filter(m => feedbackMap[m.id]?.status === 'rejected');
+    if (filter === 'needsRevision') return missions.filter(m => {
+      const fb = feedbackMap[m.id];
+      if (fb?.status !== 'rejected') return false;
+      // rejection_deadline이 설정되어 있고 이미 만료됐으면 목록에서 제외
+      if (fb.rejection_deadline && new Date(fb.rejection_deadline) < new Date()) return false;
+      return true;
+    });
     return [];
   })();
 
@@ -326,6 +353,7 @@ export default function MissionList() {
                 '피드백은 구체적인 근거와 함께 성의 있게 작성해야 합니다.',
                 '단순 감상·짧은 답변은 Purit Filter에서 자동 반려됩니다.',
                 '반려된 피드백은 보상이 지급되지 않습니다.',
+                `수락 후 ${['preference','pricing','email'].includes(modal.mission.type) ? 2 : 4}시간 내에 제출을 완료해야 합니다.`,
               ].map((t, i) => (
                 <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
                   <span style={{ color: '#F59E0B', flexShrink: 0, marginTop: 1 }}>⚠</span>
@@ -429,6 +457,7 @@ export default function MissionList() {
                       m={m}
                       mode={filter}
                       feedbackId={feedbackMap[m.id]?.id}
+                      rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
                       navigate={navigate}
                       setModal={setModal}
                       panelHonorPoints={panelHonorPoints}
@@ -460,6 +489,7 @@ export default function MissionList() {
                       m={m}
                       mode={filter}
                       feedbackId={feedbackMap[m.id]?.id}
+                      rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
                       navigate={navigate}
                       setModal={setModal}
                       panelHonorPoints={panelHonorPoints}

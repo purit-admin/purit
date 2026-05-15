@@ -37,106 +37,102 @@ export default function AIReport() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
 
-    const { data: co } = await supabase.from('companies').select('id, name').eq('user_id', user.id).single();
-    if (!co) { setLoading(false); return; }
+      const { data: co } = await supabase.from('companies').select('id, name').eq('user_id', user.id).single();
+      if (!co) { setLoading(false); return; }
 
-    const { data: missions } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).order('created_at', { ascending: false }).limit(1);
-    const latestMission = missions?.[0];
+      const { data: missions } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(1);
+      const latestMission = missions?.[0];
 
-    const missionIds = (await supabase.from('missions').select('id').eq('company_id', co.id)).data?.map(m => m.id) || [];
-    if (!missionIds.length) { setLoading(false); return; }
+      const missionIds = (await supabase.from('missions').select('id').eq('company_id', co.id).eq('status', 'completed')).data?.map(m => m.id) || [];
+      if (!missionIds.length) { setLoading(false); return; }
 
-    if (latestMission?.id) setLatestMissionId(latestMission.id);
+      if (latestMission?.id) setLatestMissionId(latestMission.id);
 
-    let { data: feedbacks } = await supabase.from('feedbacks')
-      .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,created_at')
-      .in('mission_id', missionIds)
-      .eq('purity_passed', true);
-
-    // purity_passed 없으면 submitted 전체로 폴백
-    if (!feedbacks?.length) {
-      const { data: fallback } = await supabase.from('feedbacks')
+      const { data: feedbacks } = await supabase.from('feedbacks')
         .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,created_at')
         .in('mission_id', missionIds)
-        .eq('status', 'submitted');
-      feedbacks = fallback || [];
-    }
+        .eq('purity_passed', true);
 
-    if (!feedbacks?.length) { setLoading(false); return; }
+      if (!feedbacks?.length) { setLoading(false); return; }
 
-    // 로컬 계산 (폴백용)
-    const dimAvgs = {};
-    DIMS.forEach(d => {
-      const vals = feedbacks.map(f => f[d.key]).filter(Boolean);
-      dimAvgs[d.key] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-    });
-    const overallAvg = Object.values(dimAvgs).reduce((a, b) => a + b, 0) / DIMS.length;
-    const verdict = getVerdict(overallAvg);
-    const sortedDims = [...DIMS].sort((a, b) => dimAvgs[a.key] - dimAvgs[b.key]);
-    const localPriorityFixes = sortedDims.slice(0, 3).map((d, i) => ({
-      priority: i + 1,
-      area: d.label,
-      impact: IMPACT_MAP[d.key][0],
-      issue: IMPACT_MAP[d.key][1],
-      action: IMPACT_MAP[d.key][2],
-    }));
-    const topStrengths = [...DIMS].sort((a, b) => dimAvgs[b.key] - dimAvgs[a.key]).slice(0, 2);
-    const localStrengths = [
-      ...feedbacks.slice(0, 2).map(f => f.strengths).filter(Boolean),
-      ...topStrengths.map(d => `${d.label} 영역 점수 ${dimAvgs[d.key].toFixed(1)}/5 — 유지 권장`),
-    ].filter(Boolean).slice(0, 3);
-    const localRiskFlags = feedbacks.map(f => f.weaknesses).filter(Boolean).slice(0, 2).map((text, i) => ({
-      level: i === 0 ? 'high' : 'mid',
-      text,
-    }));
+      // 로컬 계산 (폴백용)
+      const dimAvgs = {};
+      DIMS.forEach(d => {
+        const vals = feedbacks.map(f => f[d.key]).filter(Boolean);
+        dimAvgs[d.key] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      });
+      const overallAvg = Object.values(dimAvgs).reduce((a, b) => a + b, 0) / DIMS.length;
+      const verdict = getVerdict(overallAvg);
+      const sortedDims = [...DIMS].sort((a, b) => dimAvgs[a.key] - dimAvgs[b.key]);
+      const localPriorityFixes = sortedDims.slice(0, 3).map((d, i) => ({
+        priority: i + 1,
+        area: d.label,
+        impact: IMPACT_MAP[d.key][0],
+        issue: IMPACT_MAP[d.key][1],
+        action: IMPACT_MAP[d.key][2],
+      }));
+      const topStrengths = [...DIMS].sort((a, b) => dimAvgs[b.key] - dimAvgs[a.key]).slice(0, 2);
+      const localStrengths = [
+        ...feedbacks.slice(0, 2).map(f => f.strengths).filter(Boolean),
+        ...topStrengths.map(d => `${d.label} 영역 점수 ${dimAvgs[d.key].toFixed(1)}/5 — 유지 권장`),
+      ].filter(Boolean).slice(0, 3);
+      const localRiskFlags = feedbacks.map(f => f.weaknesses).filter(Boolean).slice(0, 2).map((text, i) => ({
+        level: i === 0 ? 'high' : 'mid',
+        text,
+      }));
 
-    const baseReport = {
-      mission: latestMission?.title || '최근 의뢰',
-      company: co.name,
-      generatedAt: new Date().toLocaleString('ko-KR'),
-      panelCount: feedbacks.length,
-      overallVerdict: verdict.text,
-      verdictColor: verdict.color,
-      tldr: `${co.name}의 LP는 종합 전환 점수 ${overallAvg.toFixed(1)}/5입니다. ${sortedDims[0].label} 개선이 가장 시급하며, ${topStrengths[0].label}은 강점으로 유지하세요.`,
-      priorityFixes: localPriorityFixes,
-      strengths: localStrengths,
-      riskFlags: localRiskFlags,
-    };
+      const baseReport = {
+        mission: latestMission?.title || '최근 의뢰',
+        company: co.name,
+        generatedAt: new Date().toLocaleString('ko-KR'),
+        panelCount: feedbacks.length,
+        overallVerdict: verdict.text,
+        verdictColor: verdict.color,
+        tldr: `${co.name}의 LP는 종합 전환 점수 ${overallAvg.toFixed(1)}/5입니다. ${sortedDims[0].label} 개선이 가장 시급하며, ${topStrengths[0].label}은 강점으로 유지하세요.`,
+        priorityFixes: localPriorityFixes,
+        strengths: localStrengths,
+        riskFlags: localRiskFlags,
+      };
 
-    // 기존 AI 리포트 확인
-    if (latestMission?.id) {
-      const { data: aiRow } = await supabase
-        .from('ai_reports')
-        .select('*')
-        .eq('mission_id', latestMission.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      // 기존 AI 리포트 확인
+      if (latestMission?.id) {
+        const { data: aiRow } = await supabase
+          .from('ai_reports')
+          .select('*')
+          .eq('mission_id', latestMission.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-      if (aiRow) {
-        const aiVerdict = getVerdict(aiRow.overall_score ?? overallAvg);
-        setReport({
-          ...baseReport,
-          panelCount: aiRow.panel_count ?? feedbacks.length,
-          generatedAt: new Date(aiRow.created_at).toLocaleString('ko-KR') + ' (AI 분석)',
-          overallVerdict: aiVerdict.text,
-          verdictColor: aiVerdict.color,
-          tldr: aiRow.tldr ?? baseReport.tldr,
-          priorityFixes: (aiRow.priority_fixes ?? []).map((f, i) => ({ ...f, priority: i + 1 })),
-          strengths: aiRow.strengths ?? baseReport.strengths,
-          riskFlags: aiRow.risk_flags ?? baseReport.riskFlags,
-        });
-        setAiGenerated(true);
-        setLoading(false);
-        return;
+        if (aiRow) {
+          const aiVerdict = getVerdict(aiRow.overall_score ?? overallAvg);
+          setReport({
+            ...baseReport,
+            panelCount: aiRow.panel_count ?? feedbacks.length,
+            generatedAt: new Date(aiRow.created_at).toLocaleString('ko-KR') + ' (AI 분석)',
+            overallVerdict: aiVerdict.text,
+            verdictColor: aiVerdict.color,
+            tldr: aiRow.tldr ?? baseReport.tldr,
+            priorityFixes: (aiRow.priority_fixes ?? []).map((f, i) => ({ ...f, priority: i + 1 })),
+            strengths: aiRow.strengths ?? baseReport.strengths,
+            riskFlags: aiRow.risk_flags ?? baseReport.riskFlags,
+          });
+          setAiGenerated(true);
+          setLoading(false);
+          return;
+        }
       }
-    }
 
-    setReport(baseReport);
-    setLoading(false);
+      setReport(baseReport);
+      setLoading(false);
+    } catch (err) {
+      console.error('[AIReport load error]', err);
+      setLoading(false);
+    }
   }
 
   async function generateReport() {

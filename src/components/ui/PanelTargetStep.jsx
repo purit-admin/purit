@@ -2,7 +2,6 @@ import { useState, forwardRef, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn } from './index';
-import { supabase } from '../../lib/supabase';
 
 export const CAREER_LEVELS = [
   { key: 'junior', label: '주니어',       sub: '1–3년차',    multiplier: 1.0, proOnly: false },
@@ -62,9 +61,6 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState(null);
-  const [purchasing, setPurchasing] = useState(false);
-  const [purchaseError, setPurchaseError] = useState('');
-  const [purchaseDone, setPurchaseDone] = useState(false);
 
   const isStarter = !plan || plan === 'starter';
   const isPro     = plan === 'pro';
@@ -94,33 +90,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
 
   function openCreditModal() {
     setSelectedBundle(null);
-    setPurchaseError('');
-    setPurchaseDone(false);
     setShowCreditModal(true);
-  }
-
-  async function handlePurchase() {
-    if (!selectedBundle || !companyId) return;
-    setPurchasing(true);
-    setPurchaseError('');
-    const newBalance = (creditBalance ?? 0) + selectedBundle;
-    const { error } = await supabase
-      .from('companies')
-      .update({ credit_balance: newBalance })
-      .eq('id', companyId);
-    if (error) {
-      setPurchaseError('결제 처리 중 오류가 발생했습니다: ' + error.message);
-      setPurchasing(false);
-      return;
-    }
-    onCreditBalanceUpdate?.(newBalance);
-    setPurchaseDone(true);
-    setPurchasing(false);
-    setTimeout(() => {
-      setShowCreditModal(false);
-      setPurchaseDone(false);
-      setSelectedBundle(null);
-    }, 1800);
   }
 
   if (!plan) return (
@@ -328,7 +298,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
       {/* ── 크레딧 충전 / 업그레이드 모달 ── */}
       {showCreditModal && ReactDOM.createPortal(
         <div
-          onClick={() => { if (!purchasing) setShowCreditModal(false); }}
+          onClick={() => setShowCreditModal(false)}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -373,15 +343,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
               ))}
             </div>
 
-            {purchaseDone ? (
-              <div style={{ textAlign: 'center', padding: '28px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>충전 완료!</div>
-                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-                  {selectedBundle}크레딧이 충전됐습니다. 새 잔액: {(creditBalance ?? 0) + selectedBundle}cr
-                </div>
-              </div>
-            ) : (
+            <>
               <>
                 {/* Starter: 업그레이드 섹션 */}
                 {isStarter && (
@@ -469,26 +431,21 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
                     </div>
                   )}
 
-                  {purchaseError && (
-                    <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 10 }}>{purchaseError}</div>
-                  )}
-
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <Btn variant="secondary" size="sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowCreditModal(false)} disabled={purchasing}>
+                    <Btn variant="secondary" size="sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowCreditModal(false)}>
                       취소
                     </Btn>
                     <Btn
                       size="sm"
                       style={{ flex: 2, justifyContent: 'center' }}
-                      disabled={!selectedBundle || purchasing || !companyId}
-                      onClick={handlePurchase}
+                      onClick={() => { setShowCreditModal(false); navigate('/company/plans'); }}
                     >
-                      {purchasing ? '처리 중…' : selectedBundle ? `${fmtKRW(selectedBundle * unitPrice)} 결제하기` : '충전량을 선택하세요'}
+                      플랜 페이지에서 충전하기 →
                     </Btn>
                   </div>
                 </div>
               </>
-            )}
+            </>
           </div>
         </div>,
         document.body

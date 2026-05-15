@@ -84,7 +84,7 @@ export default function Landing() {
             onMouseLeave={e => e.currentTarget.style.color = TEXT2}
             >로그인</button>
 
-            <button onClick={() => navigate('/login?role=company')} style={{
+            <button onClick={() => navigate('/signup?role=company')} style={{
               padding: '10px 20px', borderRadius: 8,
               background: PRIMARY, color: BG,
               fontSize: 14, fontWeight: 600, border: 'none',
@@ -131,7 +131,7 @@ export default function Landing() {
           </p>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
-            <button onClick={() => navigate('/login?role=company')} style={{
+            <button onClick={() => navigate('/signup?role=company')} style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '16px 32px', borderRadius: 12,
               background: PRIMARY, color: BG,
@@ -479,7 +479,7 @@ export default function Landing() {
             48시간 안에 전환을 막고 있는 원인을 확인하세요.
           </p>
           <button
-            onClick={() => navigate('/login?role=company')}
+            onClick={() => navigate('/signup?role=company')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
               padding: '18px 40px', borderRadius: 12,
@@ -520,6 +520,7 @@ export default function Landing() {
                       style={{ fontSize: 14, color: TEXT2, marginBottom: 12, cursor: 'pointer', transition: 'color 0.15s' }}
                       onMouseEnter={e => e.currentTarget.style.color = TEXT}
                       onMouseLeave={e => e.currentTarget.style.color = TEXT2}
+                      onClick={() => alert('준비 중입니다.')}
                     >{link}</div>
                   ))}
                 </div>

@@ -22,7 +22,7 @@ const C = {
 };
 
 const STATUS_LABEL = { draft: '임시 저장', active: '진행 중', in_review: '검토 중', completed: '완료', cancelled: '취소' };
-const STATUS_COLOR = { draft: 'gold', active: 'green', in_review: 'blue', completed: 'gold', cancelled: 'red' };
+const STATUS_COLOR = { draft: 'gold', active: 'green', in_review: 'blue', completed: 'blue', cancelled: 'red' };
 
 const DRAFT_ROUTE = { landing_page: '/company/new', preference: '/company/preference', pricing: '/company/pricing-test', email: '/company/email-test' };
 
@@ -341,16 +341,22 @@ export default function CompanyDashboard() {
           setMissions(ms || []);
 
           if (ms?.length) {
-            const { data: fb } = await supabase
-              .from('feedbacks')
-              .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,mission_id')
-              .in('status', ['submitted', 'approved'])
-              .in('mission_id', ms.map(m => m.id));
-            setFeedbacks(fb || []);
+            // 완료 미션의 승인된 피드백만 차트에 집계 (검토 중인 피드백 제외)
+            const completedIds = ms.filter(m => m.status === 'completed').map(m => m.id);
+            if (completedIds.length > 0) {
+              const { data: fb } = await supabase
+                .from('feedbacks')
+                .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,mission_id')
+                .eq('purity_passed', true)
+                .in('mission_id', completedIds);
+              setFeedbacks(fb || []);
+            } else {
+              setFeedbacks([]);
+            }
 
-          const prefIds  = ms.filter(m => m.type === 'preference').map(m => m.id);
-          const priceIds = ms.filter(m => m.type === 'pricing').map(m => m.id);
-          const emailIds = ms.filter(m => m.type === 'email').map(m => m.id);
+          const prefIds  = ms.filter(m => m.type === 'preference' && m.status === 'completed').map(m => m.id);
+          const priceIds = ms.filter(m => m.type === 'pricing'    && m.status === 'completed').map(m => m.id);
+          const emailIds = ms.filter(m => m.type === 'email'      && m.status === 'completed').map(m => m.id);
           if (prefIds.length) {
             const { data: pr } = await supabase.from('preference_responses')
               .select('mission_id, message_clarity, purchase_intent')
@@ -462,7 +468,7 @@ export default function CompanyDashboard() {
           { label: '전체 의뢰',  value: String(missions.length),                                        sub: '누적' },
           { label: '진행 중',    value: String(missions.filter(m => m.status === 'active').length),    sub: '현재 활성' },
           { label: '완료',       value: String(missions.filter(m => m.status === 'completed').length), sub: '검증 완료' },
-          { label: '수집 피드백', value: String(feedbacks.length),         sub: '제출 완료', accent: feedbacks.length > 0 },
+          { label: '수집 피드백', value: String(feedbacks.length),         sub: 'Purit 승인 완료', accent: feedbacks.length > 0 },
         ].map(s => (
           <motion.div key={s.label} variants={staggerItem} style={{ background: C.cardBg, borderRadius: 16, padding: '20px 20px', boxShadow: C.shadow }}>
             <Stat {...s} />
@@ -478,7 +484,7 @@ export default function CompanyDashboard() {
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>전환 메시지 5차원 진단</div>
             <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>
-              {feedbacks.length > 0 ? `패널 ${feedbacks.length}명 제출 기준 · 플랫폼 벤치마크 비교` : '피드백 수집 시 실데이터로 업데이트됩니다'}
+              {feedbacks.length > 0 ? `승인된 피드백 ${feedbacks.length}건 기준 · 플랫폼 벤치마크 비교` : '의뢰 완료 후 실데이터로 업데이트됩니다'}
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>

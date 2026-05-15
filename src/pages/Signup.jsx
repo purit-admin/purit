@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -29,15 +29,22 @@ const DEST = { company: '/company', panel: '/panel' };
 
 export default function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signUp } = useAuth();
 
-  const [role, setRole]         = useState('company');
+  const initialRole = useMemo(() => {
+    const r = new URLSearchParams(location.search).get('role');
+    return ['company', 'panel'].includes(r) ? r : 'company';
+  }, [location.search]);
+
+  const [role, setRole]         = useState(initialRole);
   const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [error, setError]         = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,7 +55,12 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      const { user } = await signUp({ email, password, name, role });
+      const { user, session } = await signUp({ email, password, name, role });
+      if (!session) {
+        // 이메일 인증 활성화 환경 — 세션 없음, 인증 이메일 발송됨
+        setSuccessMsg('인증 이메일이 발송되었습니다. 이메일을 확인 후 로그인해 주세요.');
+        return;
+      }
       const userRole = user?.user_metadata?.role ?? role;
       navigate(DEST[userRole] ?? '/company', { replace: true });
     } catch (err) {
@@ -168,6 +180,15 @@ export default function Signup() {
             </div>
           </div>
 
+          {/* 성공 메시지 (이메일 인증 대기) */}
+          {successMsg && (
+            <div style={{
+              fontSize: 13, color: '#065F46',
+              background: '#ECFDF5', border: '1px solid #6EE7B7',
+              borderRadius: 8, padding: '10px 14px', marginBottom: 14,
+            }}>{successMsg}</div>
+          )}
+
           {/* 에러 */}
           {error && (
             <div style={{
@@ -178,7 +199,7 @@ export default function Signup() {
           )}
 
           {/* 가입 버튼 */}
-          <button type="submit" disabled={loading} style={{
+          <button type="submit" disabled={loading || !!successMsg} style={{
             marginTop: 20, width: '100%', padding: '14px 0', borderRadius: 10,
             background: loading ? T3 : ACCENT,
             color: '#fff', fontSize: 15, fontWeight: 700, border: 'none',

@@ -111,11 +111,13 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
     });
     if (error) {
       setActionMsg({ type: 'err', text: '플랜 변경 실패: ' + error.message });
-    } else {
-      setActionMsg({ type: 'ok', text: `플랜이 ${PLAN_LABEL[actionPlan]}으로 변경되었습니다.` });
-      onPlanChange(co.id, actionPlan);
+      setActionLoading(false);
+      return;
     }
+    setActionMsg({ type: 'ok', text: `플랜이 ${PLAN_LABEL[actionPlan]}으로 변경되었습니다.` });
+    onPlanChange(co.id, actionPlan);
     setActionLoading(false);
+    return true;
   }
 
   async function handleAddCredits() {
@@ -374,8 +376,9 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
           title="플랜 변경"
           desc={`플랜을 ${PLAN_LABEL[actionPlan]}으로 변경합니다.\n크레딧이 ${PLAN_CREDITS[actionPlan]}cr으로 재설정됩니다. 현재 잔여 크레딧은 초기화됩니다.`}
           confirmLabel="플랜 변경"
-          onConfirm={() => { setConfirmPlan(false); handlePlanChange(); }}
-          onCancel={() => setConfirmPlan(false)}
+          errorMsg={actionMsg?.type === 'err' ? actionMsg.text : ''}
+          onConfirm={async () => { setActionMsg(null); const ok = await handlePlanChange(); if (ok) setConfirmPlan(false); }}
+          onCancel={() => { setActionMsg(null); setConfirmPlan(false); }}
           danger
         />
       )}

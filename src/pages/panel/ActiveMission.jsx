@@ -164,6 +164,8 @@ export default function ActiveMission() {
   const autoSaveTimer = useRef(null);
   const commentUpdateTimers = useRef({});
   const [isResubmit, setIsResubmit]           = useState(false);
+  const [deadlineExpired, setDeadlineExpired] = useState(false);
+  const [deadlineBanner, setDeadlineBanner]   = useState(null); // { label, value: Date }
   const [cancelModal, setCancelModal]         = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
   const [cancelError, setCancelError]         = useState('');
@@ -232,7 +234,7 @@ export default function ActiveMission() {
         if (ms && p) {
           const { data: existing } = await supabase
             .from('feedbacks')
-            .select('id, status, clarity_score, relevance_score, value_score, differentiation_score, trust_score, strengths')
+            .select('id, status, clarity_score, relevance_score, value_score, differentiation_score, trust_score, strengths, submission_deadline, rejection_deadline')
             .eq('mission_id', ms.id)
             .eq('panel_id', p.id)
             .limit(1);
@@ -242,10 +244,26 @@ export default function ActiveMission() {
             const willResubmit = Boolean(resubmitId && fb.id === resubmitId && fb.status === 'rejected');
 
             if (willResubmit) {
-              // 반려된 피드백을 draft로 되돌려 재작성 모드 진입
-              await supabase.from('feedbacks').update({ status: 'draft' }).eq('id', fb.id);
+              // 클라이언트 사전 만료 체크 (서버 왕복 최소화)
+              if (fb.rejection_deadline && new Date(fb.rejection_deadline) < new Date()) {
+                setDeadlineExpired(true);
+                setLoading(false);
+                return;
+              }
+              // 원자적 슬롯 재예약 + status='draft' 복원 (동시 경쟁 처리 포함)
+              const { data: reaccepted, error: reErr } = await supabase.rpc('reaccept_rejected_feedback', {
+                p_feedback_id: fb.id,
+              });
+              if (reErr || !reaccepted) {
+                setDeadlineExpired(true);
+                setLoading(false);
+                return;
+              }
               setDraftId(fb.id);
               setIsResubmit(true);
+              if (fb.rejection_deadline) {
+                setDeadlineBanner({ label: '재제출 마감', value: new Date(fb.rejection_deadline) });
+              }
               setScores({
                 clarity:         fb.clarity_score         || 0,
                 relevance:       fb.relevance_score       || 0,
@@ -298,6 +316,15 @@ export default function ActiveMission() {
             } else if (['submitted', 'approved', 'rejected'].includes(fb.status)) {
               setAlreadySubmitted(true);
             } else {
+              // submission_deadline 만료 체크 (최초 draft)
+              if (fb.submission_deadline && new Date(fb.submission_deadline) < new Date()) {
+                setDeadlineExpired(true);
+                setLoading(false);
+                return;
+              }
+              if (fb.submission_deadline) {
+                setDeadlineBanner({ label: '제출 마감', value: new Date(fb.submission_deadline) });
+              }
               setDraftId(fb.id);
               setScores({
                 clarity:         fb.clarity_score         || 0,
@@ -471,22 +498,6 @@ export default function ActiveMission() {
       supabase.rpc('recalc_mission_consumed', { p_mission_id: mission.id })
         .then(({ error }) => { if (error) console.warn('[recalc_consumed]', error.message); });
     }
-    if (mission?.company_id) {
-      const { data: company } = await supabase
-        .from('companies').select('user_id').eq('id', mission.company_id).single();
-      if (company?.user_id) {
-        sendNotification(company.user_id, {
-          type: 'success',
-          icon: '📊',
-          title: resubmitMode ? '피드백 재제출' : '새 피드백 도착',
-          body: resubmitMode
-            ? `[${mission.title}] 패널이 피드백을 수정하여 재제출했습니다.`
-            : `[${mission.title}] 패널이 피드백을 제출했습니다.`,
-          actionUrl: `/company/results?id=${mission.id}`,
-          targetRole: 'company',
-        });
-      }
-    }
   };
 
   const handleCancelAccept = async () => {
@@ -638,8 +649,8 @@ export default function ActiveMission() {
       }).eq('id', draftId);
       if (fbError) throw fbError;
 
+      // filled_count는 수락/재수락 시점에 이미 처리됨 — 제출 시 변동 없음
       if (!isResubmit) {
-        await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
         await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
       }
       await postSubmitActions(isResubmit);
@@ -719,8 +730,8 @@ export default function ActiveMission() {
       const { error: fbError } = await supabase.from('feedbacks').update(updatePayload).eq('id', draftId);
       if (fbError) throw fbError;
 
+      // filled_count는 수락/재수락 시점에 이미 처리됨 — 제출 시 변동 없음
       if (!isResubmit) {
-        await supabase.rpc('increment_mission_filled_count', { mission_id: mission.id });
         await supabase.rpc('increment_panel_mission_count', { panel_id: panel.id });
       }
       await postSubmitActions(isResubmit);
@@ -874,6 +885,38 @@ export default function ActiveMission() {
     </div>
   );
 
+  /* ─── 마감 배너 공용 엘리먼트 (브리핑·서브·이미지·텍스트 폼 공통) ─── */
+  const deadlineBannerEl = deadlineBanner ? (() => {
+    const now = new Date();
+    const diff = deadlineBanner.value - now;
+    const totalMin = Math.max(0, Math.floor(diff / 60000));
+    const hrs  = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
+    const remaining   = diff <= 0 ? '만료됨' : hrs > 0 ? `${hrs}시간 ${mins}분 남음` : `${mins}분 남음`;
+    const isUrgent    = diff > 0 && diff < 60 * 60 * 1000;
+    const bgColor     = isUrgent ? 'rgba(239,68,68,0.07)' : 'rgba(245,158,11,0.07)';
+    const borderColor = isUrgent ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.3)';
+    const textColor   = isUrgent ? 'var(--red, #ef4444)' : '#D97706';
+    return (
+      <div style={{ marginBottom: 16, padding: '10px 14px', background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+        <span>⏱</span>
+        <span style={{ fontWeight: 600, color: textColor }}>{deadlineBanner.label}: {remaining}</span>
+      </div>
+    );
+  })() : null;
+
+  if (deadlineExpired) return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
+      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>제출 기한이 만료되었습니다</h2>
+      <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
+        미션 제출 또는 재제출 기한이 지났습니다.<br />
+        슬롯이 자동 해제되어 다른 패널이 참여할 수 있습니다.
+      </p>
+      <Btn onClick={() => navigate('/panel/missions')}>미션 관리로 돌아가기</Btn>
+    </div>
+  );
+
   /* ─── 브리핑 화면 ─── */
   if (step === 0) return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
@@ -900,6 +943,7 @@ export default function ActiveMission() {
           </div>
         </div>
       )}
+      {deadlineBannerEl}
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <Badge type="gold">{isResubmit ? '재작성 중' : '진행 중'}</Badge>
@@ -1066,6 +1110,7 @@ export default function ActiveMission() {
           </div>
           <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
         </div>
+        {deadlineBannerEl}
 
         {/* 소재 비교 A/B */}
         {missionType === 'preference' && (
@@ -1210,6 +1255,7 @@ export default function ActiveMission() {
 
     return (
       <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
+        {deadlineBannerEl}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
@@ -1490,6 +1536,7 @@ export default function ActiveMission() {
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.4s ease both' }}>
+      {deadlineBannerEl}
       <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
         {SECTIONS.map((s, i) => (
           <div key={s.key} style={{

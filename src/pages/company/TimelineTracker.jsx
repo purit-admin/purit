@@ -39,7 +39,7 @@ export default function TimelineTracker() {
       const { data: ms } = await supabase
         .from('missions').select('id, title, created_at, status')
         .eq('company_id', co.id)
-        .neq('status', 'draft')
+        .eq('status', 'completed')
         .order('created_at', { ascending: false });
 
       const missionList = ms || [];

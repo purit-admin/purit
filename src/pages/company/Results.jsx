@@ -134,6 +134,9 @@ function calcAvg(arr, key) {
 /* ─── 미션 목록 아이템 ─── */
 function MissionItem({ m, isSelected, onClick }) {
   const typeInfo = TYPE_INFO[m.type] || TYPE_INFO.landing_page;
+  const isActive    = m.status === 'active';
+  const isCompleted = m.status === 'completed';
+  const isCancelled = m.status === 'cancelled';
   return (
     <div
       onClick={onClick}
@@ -156,8 +159,13 @@ function MissionItem({ m, isSelected, onClick }) {
       <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: 'var(--text)', lineHeight: 1.4 }}>
         {m.title}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
-        피드백 {m.filled_count || 0}개
+      <div style={{ fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+        {isActive    && <span style={{ color: '#f59e0b', fontWeight: 700 }}>🔒 검토 진행 중</span>}
+        {isCompleted && <span style={{ color: '#22c55e', fontWeight: 700 }}>✅ 완료</span>}
+        {isCancelled && <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>취소됨</span>}
+        <span style={{ color: 'var(--text-3)' }}>
+          {isActive ? `${m.filled_count || 0}건 수집` : `피드백 ${m.filled_count || 0}개`}
+        </span>
       </div>
     </div>
   );
@@ -923,13 +931,24 @@ export default function Results() {
     const hasImgs = Array.isArray(m?.image_urls) && m.image_urls.length > 0;
 
     async function loadFeedback() {
+      // active 미션: 검토 중 — 기업에게 피드백 내용 비공개
+      if (m?.status === 'active') {
+        setFeedbacks([]);
+        setSubResponses(null);
+        setFbLoading(false);
+        return;
+      }
+
+      // completed / cancelled: 승인된(purity_passed=true) 피드백만 표시
       const { data: fbs } = await supabase
         .from('feedbacks')
         .select('*')
         .eq('mission_id', selected)
-        .neq('status', 'draft')
+        .eq('purity_passed', true)
         .order('created_at', { ascending: false });
       setFeedbacks(fbs || []);
+
+      const approvedPanelIds = (fbs || []).map(f => f.panel_id).filter(Boolean);
 
       const { data: ppRows } = await supabase.rpc('get_panel_public_profiles', { p_mission_id: selected });
       if (ppRows) {
@@ -943,30 +962,35 @@ export default function Results() {
           .from('feedback_annotations')
           .select('*')
           .eq('mission_id', selected)
+          .in('panel_id', approvedPanelIds.length > 0 ? approvedPanelIds : ['none'])
           .order('created_at');
         setAllAnnotations(anns || []);
       }
 
       let subData = null;
-      if (mType === 'preference') {
-        const { data } = await supabase.from('preference_responses').select('*').eq('mission_id', selected);
-        subData = data || [];
-        setSubResponses(subData);
-      } else if (mType === 'pricing') {
-        const { data } = await supabase.from('pricing_responses').select('*').eq('mission_id', selected);
-        subData = data || [];
-        setSubResponses(subData);
-      } else if (mType === 'email') {
-        const { data } = await supabase.from('email_responses').select('*').eq('mission_id', selected);
-        subData = data || [];
-        setSubResponses(subData);
+      if (approvedPanelIds.length > 0) {
+        if (mType === 'preference') {
+          const { data } = await supabase.from('preference_responses').select('*').eq('mission_id', selected).in('panel_id', approvedPanelIds);
+          subData = data || [];
+          setSubResponses(subData);
+        } else if (mType === 'pricing') {
+          const { data } = await supabase.from('pricing_responses').select('*').eq('mission_id', selected).in('panel_id', approvedPanelIds);
+          subData = data || [];
+          setSubResponses(subData);
+        } else if (mType === 'email') {
+          const { data } = await supabase.from('email_responses').select('*').eq('mission_id', selected).in('panel_id', approvedPanelIds);
+          subData = data || [];
+          setSubResponses(subData);
+        }
+      } else if (['preference', 'pricing', 'email'].includes(mType)) {
+        setSubResponses([]);
       }
 
       // helpfulness ratings 배치 로드
       const currentCompanyId = companyId;
-      if (currentCompanyId) {
+      if (currentCompanyId && approvedPanelIds.length > 0) {
         const annsData = hasImgs && !['preference', 'pricing', 'email'].includes(mType)
-          ? (await supabase.from('feedback_annotations').select('id').eq('mission_id', selected)).data || []
+          ? (await supabase.from('feedback_annotations').select('id').eq('mission_id', selected).in('panel_id', approvedPanelIds)).data || []
           : [];
         const allRefIds = [
           ...(fbs || []).map(f => f.id),
@@ -1122,38 +1146,58 @@ export default function Results() {
                 <div>
                   <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 2 }}>{mission.title}</h2>
                   <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
-                    피드백 {feedbacks.length}개 수신
+                    {mission?.status === 'active'
+                      ? `패널 ${mission.filled_count || 0}/${mission.panel_count || 0}명 수집 중 · 어드민 검토 후 공개`
+                      : `승인된 피드백 ${feedbacks.length}개`}
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {shareToken ? (
-                      <>
-                        <span style={{ fontSize: 12, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>🔗 공유 중</span>
-                        <Btn size="sm" variant="outline" onClick={handleCopyShare}>{shareCopied ? '✓ 복사됨' : 'URL 복사'}</Btn>
-                        <Btn size="sm" variant="ghost" onClick={handleRevokeShare} style={{ fontSize: 11, color: 'var(--text-3)' }}>공유 해제</Btn>
-                      </>
-                    ) : (
-                      <Btn size="sm" variant="secondary" onClick={handleGenerateShare} disabled={shareLoading}>
-                        {shareLoading ? '생성 중...' : '🔗 공유 링크 생성'}
-                      </Btn>
+                {mission?.status === 'completed' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      {shareToken ? (
+                        <>
+                          <span style={{ fontSize: 12, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>🔗 공유 중</span>
+                          <Btn size="sm" variant="outline" onClick={handleCopyShare}>{shareCopied ? '✓ 복사됨' : 'URL 복사'}</Btn>
+                          <Btn size="sm" variant="ghost" onClick={handleRevokeShare} style={{ fontSize: 11, color: 'var(--text-3)' }}>공유 해제</Btn>
+                        </>
+                      ) : (
+                        <Btn size="sm" variant="secondary" onClick={handleGenerateShare} disabled={shareLoading}>
+                          {shareLoading ? '생성 중...' : '🔗 공유 링크 생성'}
+                        </Btn>
+                      )}
+                    </div>
+                    {shareError && (
+                      <div style={{ fontSize: 12, color: 'var(--red,#ef4444)', fontWeight: 600 }}>
+                        {shareError}
+                      </div>
                     )}
                   </div>
-                  {shareError && (
-                    <div style={{ fontSize: 12, color: 'var(--red,#ef4444)', fontWeight: 600 }}>
-                      {shareError}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             )}
 
             {/* 콘텐츠 */}
             {fbLoading ? (
               <div style={{ color: 'var(--text-3)', fontSize: 14 }}>피드백 불러오는 중...</div>
+            ) : mission?.status === 'active' ? (
+              <div style={{ padding: '60px 40px', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+                <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>검토 진행 중입니다</div>
+                <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.8, maxWidth: 360, margin: '0 auto 20px' }}>
+                  수집된 피드백을 어드민이 Purit Filter로 검토하고 있습니다.<br />
+                  완료 처리 후 결과를 한 번에 확인하실 수 있습니다.
+                </p>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 20px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+                  <span style={{ color: 'var(--text-3)' }}>피드백 수집</span>
+                  <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--accent)', fontFamily: 'var(--font-sans)' }}>
+                    {mission.filled_count || 0}
+                  </span>
+                  <span style={{ color: 'var(--text-3)' }}>/ {mission.panel_count || 0}명</span>
+                </div>
+              </div>
             ) : feedbacks.length === 0 && !isSubMission ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-                아직 제출된 피드백이 없습니다.
+                승인된 피드백이 없습니다.
               </div>
             ) : (
               <>

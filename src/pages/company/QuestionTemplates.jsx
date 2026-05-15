@@ -43,6 +43,7 @@ export default function QuestionTemplates() {
   const [savingQ, setSavingQ] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [confirmDeleteQid, setConfirmDeleteQid] = useState(null);
+  const [deleteQError, setDeleteQError]         = useState('');
 
   useEffect(() => { load(); }, []);
   useEffect(() => { setSelected(null); }, [activeTab]);
@@ -170,8 +171,13 @@ export default function QuestionTemplates() {
   }
 
   async function handleDeleteCustomQ(qid) {
-    await supabase.from('template_questions').delete().eq('id', qid);
+    const { error } = await supabase.from('template_questions').delete().eq('id', qid);
+    if (error) {
+      setDeleteQError('삭제 중 오류가 발생했습니다: ' + error.message);
+      return;
+    }
     setCustomQList(prev => prev.filter(q => q.id !== qid));
+    return true;
   }
 
   async function handleUse(template) {
@@ -572,8 +578,9 @@ export default function QuestionTemplates() {
           title="커스텀 질문 삭제"
           desc="이 커스텀 질문을 삭제합니까? 삭제 후 복구할 수 없으며, 다른 의뢰 폼의 질문 목록에서도 즉시 제거됩니다."
           confirmLabel="삭제"
-          onConfirm={() => { handleDeleteCustomQ(confirmDeleteQid); setConfirmDeleteQid(null); }}
-          onCancel={() => setConfirmDeleteQid(null)}
+          errorMsg={deleteQError}
+          onConfirm={async () => { setDeleteQError(''); const ok = await handleDeleteCustomQ(confirmDeleteQid); if (ok) setConfirmDeleteQid(null); }}
+          onCancel={() => { setDeleteQError(''); setConfirmDeleteQid(null); }}
           danger
         />
       )}

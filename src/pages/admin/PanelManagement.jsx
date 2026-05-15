@@ -154,6 +154,7 @@ export default function AdminPanels() {
     }
     setPanels(ps => ps.map(p => p.id === id ? { ...p, ...fields } : p));
     setActing(false);
+    return true;
   }
 
   // 필터 + 정렬
@@ -504,6 +505,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
   const hl = getHonorLevel(panel.honor_points ?? 0);
   const cm = HONOR_COLOR_META[hl.colorTier];
   const [confirmAction, setConfirmAction] = useState(null);
+  const [updateError, setUpdateError]     = useState('');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -735,8 +737,9 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           title={confirmAction.label}
           desc={confirmAction.desc}
           confirmLabel={confirmAction.label}
-          onConfirm={() => { onUpdate(panel.id, { status: confirmAction.status }); setConfirmAction(null); }}
-          onCancel={() => setConfirmAction(null)}
+          errorMsg={updateError}
+          onConfirm={async () => { setUpdateError(''); const ok = await onUpdate(panel.id, { status: confirmAction.status }); if (ok) setConfirmAction(null); else setUpdateError('처리 중 오류가 발생했습니다. 다시 시도해 주세요.'); }}
+          onCancel={() => { setUpdateError(''); setConfirmAction(null); }}
           danger
         />
       )}

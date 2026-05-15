@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Btn } from './index';
 
 const DIMENSIONS = [
@@ -235,8 +236,8 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
         </div>
       )}
 
-      {/* 영역 설정 팝업 */}
-      {popup && (
+      {/* 영역 설정 팝업 — Framer Motion CSS transform 컨텍스트를 벗어나도록 portal 사용 (D-19) */}
+      {popup && ReactDOM.createPortal(
         <div
           onClick={() => setPopup(null)}
           style={{
@@ -300,7 +301,8 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
               <Btn size="sm" onClick={handleConfirm}>추가</Btn>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

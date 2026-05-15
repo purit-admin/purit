@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -38,11 +38,17 @@ function GoogleIcon() {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn, signInWithGoogle } = useAuth();
 
   const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
-  const [role, setRole]       = useState('company');
+  const initialRole = useMemo(() => {
+    const r = new URLSearchParams(location.search).get('role');
+    return ['company', 'panel'].includes(r) ? r : 'company';
+  }, [location.search]);
+
+  const [role, setRole]       = useState(initialRole);
   const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]   = useState(false);
@@ -215,14 +221,14 @@ export default function Login() {
           )}
 
           {/* 로그인 버튼 */}
-          <button type="submit" disabled={loading} style={{
+          <button type="submit" disabled={loading || googleLoading} style={{
             marginTop: 20, width: '100%', padding: '14px 0', borderRadius: 10,
-            background: loading ? T3 : ACCENT,
+            background: (loading || googleLoading) ? T3 : ACCENT,
             color: '#fff', fontSize: 15, fontWeight: 700, border: 'none',
-            cursor: loading ? 'not-allowed' : 'pointer',
+            cursor: (loading || googleLoading) ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit', transition: 'opacity 0.15s',
           }}
-          onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = '0.85'; }}
+          onMouseEnter={e => { if (!loading && !googleLoading) e.currentTarget.style.opacity = '0.85'; }}
           onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
           >
             {loading ? '로그인 중...' : '로그인'}

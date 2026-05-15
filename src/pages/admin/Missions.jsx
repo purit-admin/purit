@@ -303,6 +303,7 @@ export default function AdminMissions() {
         }
       }
     }
+    return true;
   };
 
   const reactivateCompleted = async (id) => {
@@ -323,6 +324,7 @@ export default function AdminMissions() {
     if (foundM?.companies?.user_id) {
       sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: `/company/results?id=${id}`, targetRole: 'company' });
     }
+    return true;
   };
 
   const deleteMission = async (id) => {
@@ -402,8 +404,9 @@ export default function AdminMissions() {
           confirmLabel="미션 취소"
           cancelLabel="돌아가기"
           danger
-          onConfirm={() => { updateStatus(confirmCancel, 'cancelled'); setConfirmCancel(null); }}
-          onCancel={() => setConfirmCancel(null)}
+          errorMsg={statusError}
+          onConfirm={async () => { setStatusError(''); const ok = await updateStatus(confirmCancel, 'cancelled'); if (ok) setConfirmCancel(null); }}
+          onCancel={() => { setStatusError(''); setConfirmCancel(null); }}
         />
       )}
 
@@ -416,8 +419,9 @@ export default function AdminMissions() {
             desc={`완료 처리 시 승인된 ${approvedCount}건 피드백 기준으로 크레딧이 정산되며, 잔여 크레딧은 기업 계정에 환불됩니다. 계속하시겠습니까?`}
             confirmLabel="완료 처리"
             cancelLabel="돌아가기"
-            onConfirm={() => { updateStatus(confirmComplete.id, 'completed'); setConfirmComplete(null); }}
-            onCancel={() => setConfirmComplete(null)}
+            errorMsg={statusError}
+            onConfirm={async () => { setStatusError(''); const ok = await updateStatus(confirmComplete.id, 'completed'); if (ok) setConfirmComplete(null); }}
+            onCancel={() => { setStatusError(''); setConfirmComplete(null); }}
           />
         );
       })()}
@@ -429,15 +433,15 @@ export default function AdminMissions() {
           desc={confirmReactivate.desc}
           confirmLabel={confirmReactivate.label}
           cancelLabel="돌아가기"
-          onConfirm={() => {
-            if (confirmReactivate.fromStatus === 'completed') {
-              reactivateCompleted(confirmReactivate.id);
-            } else {
-              updateStatus(confirmReactivate.id, 'active');
-            }
-            setConfirmReactivate(null);
+          errorMsg={statusError}
+          onConfirm={async () => {
+            setStatusError('');
+            const ok = confirmReactivate.fromStatus === 'completed'
+              ? await reactivateCompleted(confirmReactivate.id)
+              : await updateStatus(confirmReactivate.id, 'active');
+            if (ok) setConfirmReactivate(null);
           }}
-          onCancel={() => setConfirmReactivate(null)}
+          onCancel={() => { setStatusError(''); setConfirmReactivate(null); }}
         />
       )}
 

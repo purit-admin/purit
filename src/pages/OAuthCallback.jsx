@@ -31,7 +31,9 @@ export default function OAuthCallback() {
     }
 
     // 신규 OAuth 유저 — role 설정 및 DB 레코드 생성
-    const savedRole = localStorage.getItem('purit_oauth_role') || 'company';
+    const ALLOWED_ROLES = ['company', 'panel'];
+    const raw = localStorage.getItem('purit_oauth_role');
+    const savedRole = ALLOWED_ROLES.includes(raw) ? raw : 'company';
     localStorage.removeItem('purit_oauth_role');
 
     // user_metadata에 role 저장
@@ -52,6 +54,8 @@ export default function OAuthCallback() {
           status: 'active',
           trust_score: 100,
           total_missions: 0,
+          honor_points: 0,
+          selected_badge: null,
         });
       }
     } else {

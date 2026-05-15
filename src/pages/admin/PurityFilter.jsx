@@ -280,10 +280,8 @@ export default function PurityFilter() {
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
 
     const panelUserId = fb?.panels?.user_id;
-    const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
     if (panelUserId) sendNotification(panelUserId, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${missionTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel' });
-    if (companyUserId) sendNotification(companyUserId, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${missionTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${fb.mission_id}`, targetRole: 'company' });
 
     setSelected(null);
     setActing(false);
@@ -292,21 +290,26 @@ export default function PurityFilter() {
   const reject = async (id) => {
     setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
-    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true }).eq('id', id);
+    const isSub = ['preference', 'pricing', 'email'].includes(fb?.missions?.type);
+    const hoursOffset = isSub ? 2 : 4;
+    const rejectionDeadline = new Date(Date.now() + hoursOffset * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline }).eq('id', id);
     if (error) { setStatusError('반려 실패: ' + error.message); setActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true } : f));
+    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline } : f));
 
-    if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
-    if (fb?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 }).then(({ error }) => { if (error) console.warn('[honor_penalty]', error.message); });
+    if (fb?.mission_id) {
+      supabase.rpc('decrement_mission_filled_count', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[decrement_slot]', e.message); });
+      supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
+    }
+    if (fb?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 }).then(({ error: e }) => { if (e) console.warn('[honor_penalty]', e.message); });
 
     const panelUserId = fb?.panels?.user_id;
-    const companyUserId = fb?.missions?.companies?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
-    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
-    if (companyUserId) sendNotification(companyUserId, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${missionTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${fb.mission_id}`, targetRole: 'company' });
+    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. ${hoursOffset}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
 
     setSelected(null);
     setActing(false);
+    return true;
   };
 
   const reset = async (id) => {
@@ -351,7 +354,6 @@ export default function PurityFilter() {
         supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: 5 }).then(({ error: he }) => { if (he) console.warn('[bulk_honor_restore]', he.message); });
       }
       if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel' });
-      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'success', icon: '📊', title: '피드백 승인 완료', body: `[${mTitle}] 패널 피드백이 최종 승인되었습니다.`, actionUrl: `/company/results?id=${f.mission_id}`, targetRole: 'company' });
     });
     setCheckedIds(new Set()); setBulkActing(false);
   };
@@ -360,18 +362,33 @@ export default function PurityFilter() {
     if (checkedIds.size === 0 || bulkActing) return;
     setBulkActing(true); setStatusError('');
     const ids = [...checkedIds];
+    const now = Date.now();
+    // rejection_deadline은 미션 타입별로 다르므로 feedbackId → deadline 맵 사전 계산
+    const deadlineMap = {};
+    ids.forEach(id => {
+      const f = feedbacks.find(fb => fb.id === id);
+      if (!f) return;
+      const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
+      deadlineMap[id] = new Date(now + (isSub ? 2 : 4) * 60 * 60 * 1000).toISOString();
+    });
     const { error } = await supabase.from('feedbacks')
       .update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true }).in('id', ids);
     if (error) { setStatusError('일괄 반려 실패: ' + error.message); setBulkActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true } : f));
+    // rejection_deadline 개별 저장 + filled_count 차감 (타입별 deadline이 다르므로 개별 처리)
+    await Promise.all(ids.map(async id => {
+      await supabase.from('feedbacks').update({ rejection_deadline: deadlineMap[id] }).eq('id', id);
+      const f = feedbacks.find(fb => fb.id === id);
+      if (f?.mission_id) supabase.rpc('decrement_mission_filled_count', { p_mission_id: f.mission_id }).then(({ error: e }) => { if (e) console.warn('[bulk_decrement_slot]', e.message); });
+    }));
+    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: deadlineMap[f.id] } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
     ids.forEach(id => {
       const f = feedbacks.find(fb => fb.id === id);
       if (!f) return;
       const mTitle = f.missions?.title || '미션';
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. 미션 관리 > 수정 필요 탭에서 재제출할 수 있습니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
-      if (f.missions?.companies?.user_id) sendNotification(f.missions.companies.user_id, { type: 'info', icon: '📋', title: '피드백 반려 처리', body: `[${mTitle}] 패널 피드백 1건이 품질 검증을 통과하지 못했습니다. 추후 재제출될 수 있습니다.`, actionUrl: `/company/results?id=${f.mission_id}`, targetRole: 'company' });
+      const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. ${isSub ? 2 : 4}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
       if (f.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 })
         .then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
     });
@@ -1030,8 +1047,9 @@ export default function PurityFilter() {
           title="피드백 반려"
           desc="이 피드백을 반려 처리합니까? 패널에게 반려 알림이 발송됩니다."
           confirmLabel="✕ 반려"
-          onConfirm={() => { reject(confirmRejectId); setConfirmRejectId(null); }}
-          onCancel={() => setConfirmRejectId(null)}
+          errorMsg={statusError}
+          onConfirm={async () => { setStatusError(''); const ok = await reject(confirmRejectId); if (ok) setConfirmRejectId(null); }}
+          onCancel={() => { setStatusError(''); setConfirmRejectId(null); }}
           danger
         />
       )}

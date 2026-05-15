@@ -43,6 +43,7 @@ export default function BugReports() {
   const [selected, setSelected] = useState(null);
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [adminReply, setAdminReply] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [page, setPage] = useState(1);
@@ -103,23 +104,27 @@ export default function BugReports() {
 
   async function handleStatusChange(reportId, newStatus) {
     setSaving(true);
+    setSaveError('');
     const { error } = await supabase
       .from('bug_reports')
       .update({ status: newStatus, admin_memo: memo })
       .eq('id', reportId);
-    if (!error) {
-      setReports(rs => rs.filter(r => r.id !== reportId));
-      setSelected(null);
-      setMemo('');
-      setAdminReply('');
-      setCounts(prev => {
-        const next = { ...prev };
-        next[selected.status] = Math.max(0, next[selected.status] - 1);
-        next[newStatus] = (next[newStatus] || 0) + 1;
-        return next;
-      });
-      setTotal(t => Math.max(0, t - 1));
+    if (error) {
+      setSaveError('상태 변경 중 오류가 발생했습니다: ' + error.message);
+      setSaving(false);
+      return;
     }
+    setReports(rs => rs.filter(r => r.id !== reportId));
+    setSelected(null);
+    setMemo('');
+    setAdminReply('');
+    setCounts(prev => {
+      const next = { ...prev };
+      next[selected.status] = Math.max(0, next[selected.status] - 1);
+      next[newStatus] = (next[newStatus] || 0) + 1;
+      return next;
+    });
+    setTotal(t => Math.max(0, t - 1));
     setSaving(false);
   }
 
@@ -455,6 +460,11 @@ export default function BugReports() {
                 })}
               </div>
             </div>
+            {saveError && (
+              <div style={{ marginTop: 10, fontSize: 13, color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '8px 12px' }}>
+                {saveError}
+              </div>
+            )}
           </Card>
         ) : (
           <div style={{

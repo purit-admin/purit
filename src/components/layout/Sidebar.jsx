@@ -158,11 +158,13 @@ export default function Layout({ role, children }) {
     let sub;
 
     async function loadRejected() {
+      const now = new Date().toISOString();
       const { count } = await supabase
         .from('feedbacks')
         .select('*', { count: 'exact', head: true })
         .eq('panel_id', panelId)
-        .eq('status', 'rejected');
+        .eq('status', 'rejected')
+        .or(`rejection_deadline.is.null,rejection_deadline.gte.${now}`);
       setRejectedCount(count || 0);
     }
 

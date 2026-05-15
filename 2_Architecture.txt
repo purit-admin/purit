@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-14 (031 payout_amount 스냅샷 + 032 HP RPC 보안 패치 + PurityFilter 정산 금액 저장 + Revenue.jsx feedbacks 기반 재작성)
+최종 업데이트: 2026-05-15 (035 슬롯 예약 타이밍 재설계 + deadline 시간값·동시 경쟁 처리 문서 보완)
 ================================================================
 
 ## 기술 스택
@@ -160,7 +160,11 @@ purit/
 │   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
 │   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 2, "sub"), PricingTest(Step 2, "sub"), ColdEmailTest(Step 2, "sub")
-│   │   ※ pages/company/Results.jsx: 좌측 패널 미션 목록 — 타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
+│   │   ※ pages/company/Results.jsx: 피드백 공개 정책 — loadFeedback() 내 mission.status 분기 ★
+│   │                  m.status === 'active' → setFeedbacks([]) 즉시 반환 (기업에게 피드백 완전 비공개)
+│   │                  m.status === 'completed' | 'cancelled' → feedbacks.eq('purity_passed', true) 조회 후 표시
+│   │                  기업이 피드백을 처음 볼 수 있는 시점: 어드민 "완료 처리" → mission.status='completed' 이후
+│   │                좌측 패널 미션 목록 — 타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
 │   │                좌측 패널 페이지네이션: mainPage/subPage state, PAGE_SIZE=5, ‹ › 화살표 버튼 ★
 │   │                  URL ?id 파라미터 진입 시 해당 미션이 속한 페이지로 자동 이동 (auto-page 로직)
 │   │                ExpandableText(text, limit=200) — 텍스트 길이 초과 시 더보기/접기 토글
@@ -284,6 +288,24 @@ purit/
 │   │                030(notifications_target_role: notifications.target_role TEXT 컬럼 추가, notify_admin/notify_company 트리거 target_role 포함 재정의)
 │   │                031(feedbacks_payout_tracking: feedbacks.payout_amount NUMERIC(10,2) + rejection_penalty_applied BOOLEAN 컬럼 추가 — 정산 금액 스냅샷·HP 복원 추적)
 │   │                032(fix_honor_rpc_app_metadata: add_panel_honor_points·apply_honor_decay RPC의 admin 검증을 raw_user_meta_data→raw_app_meta_data로 교체 — D-58 보안 패치)
+│   │                033(redirect_slots_full_to_admin: 슬롯 완료 알림 수신자 기업→어드민으로 변경 — notify_company_on_slots_full 트리거 재정의)
+│   │                034(feedback_timeout_slots: feedbacks.submission_deadline·rejection_deadline 컬럼 추가 + decrement_mission_filled_count·expire_panel_drafts·cancel_panel_feedback RPC 정의)
+│   │                  submission_deadline: 수락 후 제출 마감 — 메인 4h / 서브 2h (클라이언트 계산, RPC p_submission_deadline 파라미터로 전달)
+│   │                  rejection_deadline:  반려 후 재제출 마감 — 메인 4h / 서브 2h (어드민 PurityFilter에서 반려 시점 기준으로 설정)
+│   │                035(redesign_slot_on_accept: 슬롯 예약 타이밍 재설계 — accept_mission_slot·reaccept_rejected_feedback 신규 RPC + cancel_panel_feedback·expire_panel_drafts 재정의)
+│   │                  수락 클릭 → filled_count +1 (accept_mission_slot 원자적), 제출 시 filled_count 변동 없음
+│   │                  반려 → filled_count -1 (decrement_mission_filled_count), 재작성 클릭 → +1 (reaccept_rejected_feedback 원자적)
+│   │                  동시 경쟁 처리: WHERE filled_count < panel_count + PostgreSQL 행 잠금 → 마지막 슬롯 동시 수락 / 반려 패널 재진행 vs 신규 수락 동시 경쟁 모두 직렬화
+│   │                  draft 만료: decrement + 삭제 / rejected 만료: 삭제만 (expire_panel_drafts)
+│   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline } }
+│   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
+│   │                  수락 핸들러: isSubM = type in ['preference','pricing','email'] → subDl = now + (isSubM?2:4)h → accept_mission_slot RPC(p_submission_deadline=subDl) 호출
+│   │   ※ pages/panel/ActiveMission.jsx: 폼 뷰 진입 시 deadline 처리
+│   │                  deadlineBanner state: { label: '제출 마감'|'재제출 마감', value: Date } → 브리핑·폼 상단 배너 표시
+│   │                  deadlineExpired state: true 시 "제출 기간이 만료되었습니다" 화면 (폼 미렌더)
+│   │                  최초 draft 진입: fb.submission_deadline < now → deadlineExpired=true / 유효 → deadlineBanner 설정
+│   │                  재작성 모드 진입: fb.rejection_deadline < now(클라이언트 사전 체크) → deadlineExpired=true, RPC 미호출
+│   │                    체크 통과 → reaccept_rejected_feedback RPC(원자적 슬롯 재예약, 슬롯 마감 or 서버 만료 시 false 반환) → 실패 시 deadlineExpired=true
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 ├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
@@ -392,9 +414,11 @@ purit/
   .dash-stat-grid-3     — 3열 통계 카드 (768px↓: 2열, 480px↓: 1열) — panel/Dashboard
   .dash-two-col         — 1fr+300px 2열 (768px↓: 1열) — admin/Dashboard
   ※ company/Dashboard 차트 섹션: className="chart-three-col" + 인라인 repeat(3, 1fr)
+    - 차트 데이터 소스: completedIds(status='completed' 미션) + feedbacks.eq('purity_passed', true) ★ 수정
+      활성(active) 의뢰·미승인 피드백은 차트에서 제외 — 어드민 완료 처리 이후에야 반영
     - 3열: 레이더 / KPI 게이지+5축 바 / 긍부정 분포(메인+서브 섹션)
     - 긍부정 분포: mainSentPage·subSentPage state, SENT_SIZE=4, ‹ › 화살표 캐러셀
-    - DB 추가 fetch: preference_responses·pricing_responses·email_responses (서브 의뢰 긍정 비율용)
+    - DB 추가 fetch: preference_responses·pricing_responses·email_responses (서브 의뢰 긍정 비율용, 완료 미션만)
   ※ 전체 페이지(28개): className="page-wrap" 적용 완료 → 모바일 패딩 자동 축소
 
   ### 반응형 레이아웃 클래스 (★ 2026-05-08 추가)
