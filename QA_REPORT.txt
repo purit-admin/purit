@@ -27,8 +27,7 @@
 - 🕵️‍♂️ 재현 방법: [이 버그를 확인하려면 어떤 순서로 클릭해야 하는지]
 - 🤦‍♂️ 현재 상황: [지금 코드는 어떻게 짜여 있어서 무슨 문제가 생기는지]
 - ✨ 기대 화면: [코드를 어떻게 고쳐야 정상 작동하는지]
-- 🔍 추가 확인(수평 전개): [이 문제랑 비슷한 로직을 쓴 다른 파일도 찾아봤는지,
-  거긴 괜찮은지 O/X로 표시]
+- 🔍 추가 확인(수평 전개): [이 문제랑 비슷한 로직을 쓴 다른 파일도 찾아봤는지 표시]
 
 [🚫 조사 범위 제한]
 - ✅(수정 완료) / ⏭(스킵) 항목은 재조사하지 말 것.
@@ -345,7 +344,8 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 5차 잔여 12건 전부 수정 완료: 5차-C/E/F/G/J/K/L/M/N/Q/R/S — 총 123건 전원 완료·스킵
                             / 수평 전개 조사 5차: 수평-O 1건 발견 및 즉시 수정 완료 — 총 124건 완료
                             / 어드민 포털 2차 심층 검사: A-18~A-22 4건 발견·수정 완료, A-20·A-23 오진단 철회 — 총 128건 완료
-                            / 행동 강령 규칙 13 추가: 패턴·변수명 추론으로 버그 확정 금지)
+                            / 행동 강령 규칙 13 추가: 패턴·변수명 추론으로 버그 확정 금지
+                            / 기업 포털 2차 심층 검사: 기업-H~Q 10건 발견 및 즉시 수정 완료 — 총 138건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -370,8 +370,18 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   🟠 P2      5차-R           company/QuestionTemplates 커스텀 질문 삭제 — D-69  ✅
   🟠 P2      5차-S           Sidebar 패널 뱃지 — rejection_deadline 만료 stale  ✅
   🟡 P3      5차-N           company/AIReport load() — D-51 위반             ✅
+  🟠 P2      기업-H          Results.jsx loadFeedback — D-51 위반 (무한 로딩)  ✅
+  🟠 P2      기업-I          Results.jsx 서브미션 결과 컴포넌트 key 누락 — D-67  ✅
+  🟠 P2      기업-J          Results.jsx DimTabView key 누락 — D-67 위반     ✅
+  🟠 P2      기업-K          Results.jsx TextMissionResults key 누락 — D-67   ✅
+  🟡 P3      기업-L          NewMission.jsx loadMissions — D-51 위반           ✅
+  🟡 P3      기업-M          NewMission.jsx handleSubmit — submittingRef 누락 D-22  ✅
+  🟠 P2      기업-N          Settings.jsx handleRemove — D-65 위반 (모달 즉시 닫힘)  ✅
+  🟡 P3      기업-O          ICPResearch.jsx load — D-51 위반                  ✅
+  🟡 P3      기업-P          ICPPulse.jsx load — D-51 위반                     ✅
+  🟡 P3      기업-Q          BrandTracking.jsx load — D-51 위반                ✅
   ────────   ──────────────  ────────────────────────────────────────────  ──────
-  잔여 합계  0건             (전체 124건 전원 완료·스킵)
+  잔여 합계  0건             (전체 138건 전원 완료·스킵)
 
   → 완료 항목 전체는 하단 아카이브 참조
 
@@ -540,5 +550,17 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [A-21] 어드민 미션 관리 (admin/Missions.jsx) — statusError 외부 배너에 "완료 처리 실패:" 접두사 하드코딩, recalcCredits 에러 시 이중 접두사 표시. 하드코딩 접두사 제거 → {statusError} 단독 표시로 교체  ✅
 [A-22] 어드민 수익 & 정산 (admin/Revenue.jsx) — GMV=0 시 margin/gmv 나누기 연산으로 NaN%/Infinity% 렌더. gmv > 0 가드 3곳(marginRate 계산 / Tooltip formatter / Line dataKey) 추가  ✅
 [A-23] 어드민 수익 & 정산 (admin/Revenue.jsx) — --red/--red-dim CSS 변수 미정의 오진단. 실제 index.css 확인 결과 line 23-24에 정의됨. 철회  ⏭
+
+-- 기업 포털 2차 심층 검사 (2026-05-16) — company 17개 페이지 전수 D-51/D-22/D-65/D-67 패턴 조사 --
+[기업-H] 기업 피드백 결과 (company/Results.jsx) — loadFeedback() try-catch 없어 helpfulness ratings 쿼리 등 중간 await 실패 시 fbLoading 영구 true 고착. D-51 위반. try-catch-finally 감싸기 + early return의 setFbLoading(false) finally로 이동  ✅
+[기업-I] 기업 피드백 결과 (company/Results.jsx) — PreferenceResults/PricingResults/EmailResults에 key 미부여. 동일 타입의 다른 의뢰로 전환 시 CommentList 내부 page state가 초기화되지 않아 잘못된 페이지 표시. D-67 위반. 각 컴포넌트에 key={mission?.id} 추가  ✅
+[기업-J] 기업 피드백 결과 (company/Results.jsx) — DimTabView에 key 미부여. 의뢰 전환 시 내부 annPage state가 유지되어 존재하지 않는 페이지 표시. D-67 위반. key={mission?.id} 추가  ✅
+[기업-K] 기업 피드백 결과 (company/Results.jsx) — TextMissionResults에 key 미부여. 의뢰 전환 시 내부 activeFb/panelPage state가 유지되어 이전 패널 선택 상태 잔류. D-67 위반. key={mission?.id} 추가  ✅
+[기업-L] 기업 의뢰 등록 (company/NewMission.jsx) — loadMissions() try-catch 없어 getUser/DB 쿼리 실패 시 loadingList 영구 true 고착. D-51 위반. try-catch-finally 감싸기 + early return의 setLoadingList 제거  ✅
+[기업-M] 기업 의뢰 등록 (company/NewMission.jsx) — handleSubmit() submittingRef 없음. setSubmitting(true) state 기반 방어만 존재. React의 비동기 setState 특성으로 빠른 연타 시 중복 제출 가능. D-22 위반. submittingRef = useRef(false) + if(submittingRef.current) return + finally에서 false 초기화 추가  ✅
+[기업-N] 기업 팀 & 설정 (company/Settings.jsx) — handleRemove()가 error를 throw하지 않고 setRemoveError()로만 처리. ConfirmModal onConfirm에서 await 후 항상 setConfirmRemoveMemberId(null) 실행 → DB 실패 시에도 모달 닫힘. D-65 위반. handleRemove()에서 throw new Error() 패턴으로 변경 + onConfirm에 try-catch 감싸기 + errorMsg={removeError} prop 추가  ✅
+[기업-O] ICP 리서치 (company/ICPResearch.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
+[기업-P] ICP Pulse (company/ICPPulse.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
+[기업-Q] 브랜드 트래킹 (company/BrandTracking.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
 
 ================================================================

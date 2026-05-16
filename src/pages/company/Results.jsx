@@ -931,11 +931,11 @@ export default function Results() {
     const hasImgs = Array.isArray(m?.image_urls) && m.image_urls.length > 0;
 
     async function loadFeedback() {
+      try {
       // active 미션: 검토 중 — 기업에게 피드백 내용 비공개
       if (m?.status === 'active') {
         setFeedbacks([]);
         setSubResponses(null);
-        setFbLoading(false);
         return;
       }
 
@@ -1013,7 +1013,11 @@ export default function Results() {
         }
       }
 
-      setFbLoading(false);
+      } catch (err) {
+        console.error('[loadFeedback error]', err);
+      } finally {
+        setFbLoading(false);
+      }
     }
     loadFeedback();
   }, [selected, companyId]);
@@ -1204,9 +1208,9 @@ export default function Results() {
                 {/* 서브 미션 */}
                 {isSubMission && (
                   <Card style={{ padding: '24px' }}>
-                    {mission.type === 'preference' && <PreferenceResults responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
-                    {mission.type === 'pricing'    && <PricingResults    responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
-                    {mission.type === 'email'      && <EmailResults      responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
+                    {mission.type === 'preference' && <PreferenceResults key={mission?.id} responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
+                    {mission.type === 'pricing'    && <PricingResults    key={mission?.id} responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
+                    {mission.type === 'email'      && <EmailResults      key={mission?.id} responses={subResponses} mission={mission} panelProfiles={panelProfiles} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />}
                     {!subResponses && <div style={{ color: 'var(--text-3)', fontSize: 14 }}>응답 데이터 로드 중...</div>}
                   </Card>
                 )}
@@ -1245,6 +1249,7 @@ export default function Results() {
                       <SummaryTabView key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
                     ) : (
                       <DimTabView
+                        key={mission?.id}
                         dim={activeDimTab}
                         imageUrls={mission.image_urls}
                         currentImageIdx={currentImageIdx}
@@ -1258,7 +1263,7 @@ export default function Results() {
 
                 {/* 텍스트 미션 (이미지 없는 구형) */}
                 {!isSubMission && !hasImages && feedbacks.length > 0 && (
-                  <TextMissionResults feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
+                  <TextMissionResults key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
                 )}
               </>
             )}

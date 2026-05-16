@@ -77,12 +77,9 @@ export default function AccountSettings() {
 
   async function handleRemove(id) {
     const { error } = await supabase.from('team_members').update({ status: 'inactive' }).eq('id', id);
-    if (!error) {
-      setMembers(m => m.filter(x => x.id !== id));
-      setRemoveError('');
-    } else {
-      setRemoveError('팀원 제거 실패: ' + error.message);
-    }
+    if (error) throw new Error('팀원 제거 실패: ' + error.message);
+    setMembers(m => m.filter(x => x.id !== id));
+    setRemoveError('');
   }
 
   if (loading) return (
@@ -251,8 +248,9 @@ export default function AccountSettings() {
           title="팀원 제거"
           desc="이 팀원을 제거합니까? 즉시 액세스가 취소되며, 다시 초대하려면 이메일을 재발송해야 합니다."
           confirmLabel="제거"
-          onConfirm={async () => { await handleRemove(confirmRemoveMemberId); setConfirmRemoveMemberId(null); }}
-          onCancel={() => setConfirmRemoveMemberId(null)}
+          errorMsg={removeError}
+          onConfirm={async () => { try { await handleRemove(confirmRemoveMemberId); setRemoveError(''); setConfirmRemoveMemberId(null); } catch (err) { setRemoveError(err.message); } }}
+          onCancel={() => { setRemoveError(''); setConfirmRemoveMemberId(null); }}
           danger
         />
       )}

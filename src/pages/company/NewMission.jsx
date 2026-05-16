@@ -217,6 +217,7 @@ export default function NewMission() {
 
   const fileInputRef = useRef(null);
   const panelStepRef = useRef(null);
+  const submittingRef = useRef(false);
   const [view, setView]         = useState(isEditMode ? 'form' : 'list');
   const [step, setStep]         = useState(0);
   const [missionUuid] = useState(() => editMissionId || crypto.randomUUID());
@@ -309,18 +310,23 @@ export default function NewMission() {
     if (view !== 'list') return;
     async function loadMissions() {
       setLoadingList(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoadingList(false); return; }
-      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
-      if (co) {
-        const { data } = await supabase.from('missions')
-          .select('id, title, status, panel_count, filled_count, created_at')
-          .eq('company_id', co.id)
-          .or('type.is.null,type.eq.landing_page')
-          .order('created_at', { ascending: false });
-        setMissions(data || []);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+        if (co) {
+          const { data } = await supabase.from('missions')
+            .select('id, title, status, panel_count, filled_count, created_at')
+            .eq('company_id', co.id)
+            .or('type.is.null,type.eq.landing_page')
+            .order('created_at', { ascending: false });
+          setMissions(data || []);
+        }
+      } catch (err) {
+        console.error('[loadMissions error]', err);
+      } finally {
+        setLoadingList(false);
       }
-      setLoadingList(false);
     }
     loadMissions();
   }, [view]);
@@ -612,6 +618,8 @@ export default function NewMission() {
   };
 
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitError('');
     try {
@@ -699,6 +707,7 @@ export default function NewMission() {
     } catch (err) {
       setSubmitError(err.message);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

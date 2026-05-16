@@ -22,16 +22,21 @@ export default function ICPResearch() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
-    setCompanyId(co?.id);
-    if (co) {
-      const { data } = await supabase.from('icp_research').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
-      setResearches(data || []);
-      if (data?.length) await loadDetail(data[0]);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      setCompanyId(co?.id);
+      if (co) {
+        const { data } = await supabase.from('icp_research').select('*').eq('company_id', co.id).order('created_at', { ascending: false });
+        setResearches(data || []);
+        if (data?.length) await loadDetail(data[0]);
+      }
+    } catch (err) {
+      console.error('[ICPResearch load error]', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function loadDetail(research) {

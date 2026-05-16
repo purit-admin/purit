@@ -16,20 +16,25 @@ export default function ICPPulse() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
-    setCompanyId(co?.id);
-    if (co) {
-      const { data: sub } = await supabase.from('icp_pulse_subscriptions').select('*').eq('company_id', co.id).eq('status', 'active').single();
-      setSubscription(sub);
-      if (sub) {
-        const { data: qs } = await supabase.from('icp_pulse_quarters').select('*').eq('subscription_id', sub.id).order('collected_at', { ascending: false });
-        setQuarters(qs || []);
-        if (qs?.length) await loadQuarterDetail(qs[0]);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      setCompanyId(co?.id);
+      if (co) {
+        const { data: sub } = await supabase.from('icp_pulse_subscriptions').select('*').eq('company_id', co.id).eq('status', 'active').single();
+        setSubscription(sub);
+        if (sub) {
+          const { data: qs } = await supabase.from('icp_pulse_quarters').select('*').eq('subscription_id', sub.id).order('collected_at', { ascending: false });
+          setQuarters(qs || []);
+          if (qs?.length) await loadQuarterDetail(qs[0]);
+        }
       }
+    } catch (err) {
+      console.error('[ICPPulse load error]', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function loadQuarterDetail(q) {

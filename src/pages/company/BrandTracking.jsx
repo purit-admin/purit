@@ -15,23 +15,28 @@ export default function BrandTracking() {
 
   async function load() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-    const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
-    setCompanyId(co?.id);
-    if (co) {
-      const { data: cam } = await supabase.from('brand_tracking_campaigns').select('*').eq('company_id', co.id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single();
-      setCampaign(cam);
-      if (cam) {
-        const [mRes, pRes] = await Promise.all([
-          supabase.from('brand_tracking_monthly').select('*').eq('campaign_id', cam.id).order('month_label'),
-          supabase.from('brand_perception_items').select('*').eq('campaign_id', cam.id).order('agreement_percent', { ascending: false }),
-        ]);
-        setMonthlyData(mRes.data || []);
-        setPerceptions(pRes.data || []);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      setCompanyId(co?.id);
+      if (co) {
+        const { data: cam } = await supabase.from('brand_tracking_campaigns').select('*').eq('company_id', co.id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single();
+        setCampaign(cam);
+        if (cam) {
+          const [mRes, pRes] = await Promise.all([
+            supabase.from('brand_tracking_monthly').select('*').eq('campaign_id', cam.id).order('month_label'),
+            supabase.from('brand_perception_items').select('*').eq('campaign_id', cam.id).order('agreement_percent', { ascending: false }),
+          ]);
+          setMonthlyData(mRes.data || []);
+          setPerceptions(pRes.data || []);
+        }
       }
+    } catch (err) {
+      console.error('[BrandTracking load error]', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleStart() {
