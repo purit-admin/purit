@@ -66,7 +66,7 @@ export default function RevenueManagement() {
 
   const lastMonth = gmvData[gmvData.length - 1];
   const monthlyGMV = lastMonth ? lastMonth.gmv * 10000 : 0;
-  const marginRate = lastMonth ? Math.round((lastMonth.margin / lastMonth.gmv) * 100) : 0;
+  const marginRate = lastMonth && lastMonth.gmv > 0 ? Math.round((lastMonth.margin / lastMonth.gmv) * 100) : 0;
   const pendingSettlements = feedbackSettlements.filter(f => f.missions?.status !== 'completed');
   const pendingAmt = pendingSettlements.reduce((a, f) => a + calcSettleAmt(f), 0);
   const pendingInvAmt = invoices.filter(i => i.status === 'pending').reduce((a, i) => a + Number(i.amount), 0);
@@ -154,9 +154,9 @@ export default function RevenueManagement() {
                   <YAxis tick={{ fill: 'var(--text-3)', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" domain={[30, 50]} />
                   <Tooltip
                     contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }}
-                    formatter={(v, n, p) => [`${Math.round((p.payload.margin / p.payload.gmv) * 100)}%`, '마진율']}
+                    formatter={(v, n, p) => [`${p.payload.gmv > 0 ? Math.round((p.payload.margin / p.payload.gmv) * 100) : 0}%`, '마진율']}
                   />
-                  <Line type="monotone" dataKey={(d) => Math.round((d.margin / d.gmv) * 100)} stroke="var(--green)" strokeWidth={2.5} dot={{ fill: 'var(--green)', r: 4 }} name="마진율" />
+                  <Line type="monotone" dataKey={(d) => d.gmv > 0 ? Math.round((d.margin / d.gmv) * 100) : 0} stroke="var(--green)" strokeWidth={2.5} dot={{ fill: 'var(--green)', r: 4 }} name="마진율" />
                 </LineChart>
               </ResponsiveContainer>
             )}

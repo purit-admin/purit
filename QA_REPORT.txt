@@ -6,7 +6,7 @@
 최고 수준의 QA 에이전트이자 내가 명령하면 수정까지하는 개발자야.
 단순히 눈에 보이는 에러만 찾지 말고, 코드를 뜯어보며
 '이게 진짜 서비스에 치명적인가?''사용자 입장에서 부자연스러운가?'를 스스로 고민(Think)한 뒤에 리포트를 작성해줘.
-이 QA리포트에 기재된 모든 규칙과, 수평 전개 조사, 무결성 검증 등의 내용을 엄격하게 지키고 명령 수행해. 
+이 QA리포트에 기재된 모든 규칙과 체크리스트, 수평 전개 조사, 무결성 검증 등의 내용을 엄격하게 지키고 명령 수행해. 
 
 [🤔 리포트를 쓰기 전, 속으로 이렇게 생각(Thinking)해볼 것]
 1. 사용자 입장 고민: "이 버튼이 안 눌리거나 로딩이 멈추면, 패널이나 기업 고객이 얼마나
@@ -191,6 +191,13 @@
     조사 방법: setFilter() / setTab() / setSearchQuery() 호출 지점을 Grep 후
     같은 핸들러 또는 useEffect에서 setPage(1) / setMainPage(1) / setSubPage(1)이 따라오는지 확인.
     탭 전환과 필터 전환이 별도 핸들러인 경우 둘 다 확인할 것.
+13. 패턴·변수명 추론으로 버그 확정 금지: 변수명·함수 시그니처·파일 구조만 보고 버그를 등록하지 말 것.
+    반드시 Read/Grep 도구로 실제 코드를 직접 확인한 뒤에만 버그를 확정한다.
+    "이 패턴이면 이렇게 되어 있겠지"는 리포트에 절대 쓰지 않는다.
+    근거: A-20(deleteMission D-65 위반)과 A-23(--red/--red-dim CSS 미정의)이 실제 코드 미확인으로
+          오진단되어 수평전개 과정에서 철회됨. 코드 확인 없는 버그 등록은 유효 버그 목록을 오염시킨다.
+    조사 방법: 버그를 작성하기 직전, 해당 코드 라인을 Read로 직접 열어 현재 상태를 확인했는가?를 스스로 물을 것.
+
 12. 쿼리 exclusion filter 완전성: 목록 쿼리를 볼 때마다
     "이 목록에 절대 나오면 안 되는 데이터 종류가 있는가?"를 물을 것.
     이 프로젝트의 필수 exclusion 조건 목록:
@@ -321,7 +328,7 @@
 ================================================================
 QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 작성일: 2026-05-13
-최종 업데이트: 2026-05-15 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
+최종 업데이트: 2026-05-16 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
                             / 대규모 전체 조사: 신규-F~Y 20건 발견
                             / Phase 1+2 무한 로딩 고착 13건 수정 완료: 신규-F/G/H/I/M/N/O/T/U/V/W/X/Y
                             / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료
@@ -336,7 +343,9 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 5차 추가 조사: 5차-O~U 7건 신규 발견 — 총 123건 중 102건 완료·21건 수정 대기
                             / 5차 재검증: A/B/D/H/I/O/P/T/U 9건 ⏭ 처리 — 총 123건 중 111건 완료·스킵·12건 수정 대기
                             / 5차 잔여 12건 전부 수정 완료: 5차-C/E/F/G/J/K/L/M/N/Q/R/S — 총 123건 전원 완료·스킵
-                            / 수평 전개 조사 5차: 수평-O 1건 발견 및 즉시 수정 완료 — 총 124건 완료)
+                            / 수평 전개 조사 5차: 수평-O 1건 발견 및 즉시 수정 완료 — 총 124건 완료
+                            / 어드민 포털 2차 심층 검사: A-18~A-22 4건 발견·수정 완료, A-20·A-23 오진단 철회 — 총 128건 완료
+                            / 행동 강령 규칙 13 추가: 패턴·변수명 추론으로 버그 확정 금지)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -523,5 +532,13 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [A-15] 어드민 미션 관리 (admin/Missions.jsx) — deleteMission() error 처리 확인 → 이미 error 캡처 및 early return 적용, 오판  ⏭
 [A-16] 어드민 미션 관리 (admin/Missions.jsx) — setStatusError('') 초기화 확인 → 이미 각 핸들러 진입 시 초기화 적용, 오판  ⏭
 [A-17] 어드민 패널 관리 (admin/PanelManagement.jsx) — PanelDetail 에러 메시지 표시용 actionMsg state 미존재, 에러 표시 불가  ✅
+
+-- 어드민 포털 2차 심층 검사 (2026-05-16) --
+[A-18] 어드민 Purity Filter (admin/PurityFilter.jsx) — reset() 반려 취소 시 decrement된 filled_count 미복원 + rejection_penalty_applied 미초기화. isRejectReversal 감지 후 filled_count +1 read+write 복원 + UPDATE payload에 rejection_penalty_applied: false 추가  ✅
+[A-19] 어드민 기업 관리 (admin/CompanyManagement.jsx) — 크레딧 추가 지급 버튼이 ConfirmModal 없이 즉시 실행, DB 실패 시 에러 모달 내 미표시. confirmAddCredit state + addCreditError state 추가, 버튼 onClick을 setConfirmAddCredit(true)로 변경, ConfirmModal errorMsg prop 적용 (D-65/D-69 준수)  ✅
+[A-20] 어드민 미션 관리 (admin/Missions.jsx) — deleteMission() D-65 위반 오진단. 실제 코드 확인 결과 deleteError state + errorMsg={deleteError} 이미 적용됨. 철회  ⏭
+[A-21] 어드민 미션 관리 (admin/Missions.jsx) — statusError 외부 배너에 "완료 처리 실패:" 접두사 하드코딩, recalcCredits 에러 시 이중 접두사 표시. 하드코딩 접두사 제거 → {statusError} 단독 표시로 교체  ✅
+[A-22] 어드민 수익 & 정산 (admin/Revenue.jsx) — GMV=0 시 margin/gmv 나누기 연산으로 NaN%/Infinity% 렌더. gmv > 0 가드 3곳(marginRate 계산 / Tooltip formatter / Line dataKey) 추가  ✅
+[A-23] 어드민 수익 & 정산 (admin/Revenue.jsx) — --red/--red-dim CSS 변수 미정의 오진단. 실제 index.css 확인 결과 line 23-24에 정의됨. 철회  ⏭
 
 ================================================================

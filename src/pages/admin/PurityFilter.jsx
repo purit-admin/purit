@@ -315,11 +315,20 @@ export default function PurityFilter() {
   const reset = async (id) => {
     setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
-    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted' }).eq('id', id);
+    const isRejectReversal = fb?.status === 'rejected';
+    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted', rejection_penalty_applied: false }).eq('id', id);
     if (error) { setStatusError('취소 실패: ' + error.message); setActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted' } : f));
+    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted', rejection_penalty_applied: false } : f));
 
-    if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
+    if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
+    // 반려 취소 시 decrement된 슬롯을 복원
+    if (isRejectReversal && fb?.mission_id) {
+      supabase.from('missions').select('filled_count').eq('id', fb.mission_id).single()
+        .then(({ data: mData }) => {
+          if (mData != null) supabase.from('missions').update({ filled_count: (mData.filled_count || 0) + 1 }).eq('id', fb.mission_id)
+            .then(({ error: e }) => { if (e) console.warn('[restore_slot]', e.message); });
+        });
+    }
 
     setSelected(null);
     setActing(false);

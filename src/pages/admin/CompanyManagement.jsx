@@ -84,7 +84,9 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMsg, setActionMsg]       = useState(null);
   const [missionPage, setMissionPage]   = useState(1);
-  const [confirmPlan, setConfirmPlan]   = useState(false);
+  const [confirmPlan, setConfirmPlan]       = useState(false);
+  const [confirmAddCredit, setConfirmAddCredit] = useState(false);
+  const [addCreditError, setAddCreditError]     = useState('');
 
   // co가 바뀌면 선택 플랜·페이지 리셋
   useEffect(() => {
@@ -124,19 +126,21 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
     const amount = Number(addAmount);
     if (!amount || amount <= 0) return;
     setActionLoading(true);
-    setActionMsg(null);
+    setAddCreditError('');
     const { data, error } = await supabase.rpc('admin_add_credits', {
       p_company_id: co.id,
       p_amount: amount,
     });
     if (error) {
-      setActionMsg({ type: 'err', text: '지급 실패: ' + error.message });
-    } else {
-      setActionMsg({ type: 'ok', text: `${amount} 크레딧이 지급되었습니다. (잔액: ${data})` });
-      setAddAmount('');
-      onAddCredits(co.id, data);
+      setAddCreditError('지급 실패: ' + error.message);
+      setActionLoading(false);
+      return;
     }
+    setActionMsg({ type: 'ok', text: `${amount} 크레딧이 지급되었습니다. (잔액: ${data})` });
+    setAddAmount('');
+    onAddCredits(co.id, data);
     setActionLoading(false);
+    return true;
   }
 
   return (
@@ -350,7 +354,7 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
             <Btn
               variant="primary"
               disabled={actionLoading || !addAmount || Number(addAmount) <= 0}
-              onClick={handleAddCredits}
+              onClick={() => setConfirmAddCredit(true)}
               style={{ whiteSpace: 'nowrap', fontSize: 12 }}
             >
               지급
@@ -380,6 +384,16 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
           onConfirm={async () => { setActionMsg(null); const ok = await handlePlanChange(); if (ok) setConfirmPlan(false); }}
           onCancel={() => { setActionMsg(null); setConfirmPlan(false); }}
           danger
+        />
+      )}
+      {confirmAddCredit && (
+        <ConfirmModal
+          title="크레딧 추가 지급"
+          desc={`${co.name || '해당 기업'}에게 ${addAmount} 크레딧을 추가 지급합니다.`}
+          confirmLabel="지급"
+          errorMsg={addCreditError}
+          onConfirm={async () => { const ok = await handleAddCredits(); if (ok) { setConfirmAddCredit(false); setAddCreditError(''); } }}
+          onCancel={() => { setAddCreditError(''); setConfirmAddCredit(false); }}
         />
       )}
     </div>

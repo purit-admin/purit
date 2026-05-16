@@ -366,7 +366,7 @@ export default function AdminMissions() {
 
       {statusError && (
         <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', fontSize: 13, color: '#ef4444' }}>
-          완료 처리 실패: {statusError}
+          {statusError}
         </div>
       )}
 
