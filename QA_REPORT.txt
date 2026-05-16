@@ -345,7 +345,8 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 수평 전개 조사 5차: 수평-O 1건 발견 및 즉시 수정 완료 — 총 124건 완료
                             / 어드민 포털 2차 심층 검사: A-18~A-22 4건 발견·수정 완료, A-20·A-23 오진단 철회 — 총 128건 완료
                             / 행동 강령 규칙 13 추가: 패턴·변수명 추론으로 버그 확정 금지
-                            / 기업 포털 2차 심층 검사: 기업-H~Q 10건 발견 및 즉시 수정 완료 — 총 138건 완료)
+                            / 기업 포털 2차 심층 검사: 기업-H~Q 10건 발견 및 즉시 수정 완료 — 총 138건 완료
+                            / 패널 포털 파일 수준 전수 재조사: Pnl-A~F 6건 발견 및 즉시 수정 완료 — 총 144건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -381,7 +382,14 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   🟡 P3      기업-P          ICPPulse.jsx load — D-51 위반                     ✅
   🟡 P3      기업-Q          BrandTracking.jsx load — D-51 위반                ✅
   ────────   ──────────────  ────────────────────────────────────────────  ──────
-  잔여 합계  0건             (전체 138건 전원 완료·스킵)
+  🔴 P1      Pnl-A           ActiveMission.jsx — setLoading 미선언 ReferenceError 3곳  ✅
+  🟠 P2      Pnl-B           Missions.jsx — 수락 취소 D-65 위반 (에러 시 모달 즉시 닫힘)  ✅
+  🟠 P2      Pnl-C           Dashboard.jsx — 이번 주 활동에 streak_count(연속 횟수) 표시  ✅
+  🟠 P2      Pnl-D           ActiveMission.jsx — 어노테이션 뷰에서 cancelError 미표시  ✅
+  🟡 P3      Pnl-E           Missions.jsx / History.jsx — 선형 페이지네이션 (슬라이딩 5-윈도우 미적용)  ✅
+  🟡 P3      Pnl-F           Profile.jsx — TIER_META 데드코드 잔류  ✅
+  ────────   ──────────────  ────────────────────────────────────────────  ──────
+  잔여 합계  0건             (전체 144건 전원 완료·스킵)
 
   → 완료 항목 전체는 하단 아카이브 참조
 
@@ -562,5 +570,13 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [기업-O] ICP 리서치 (company/ICPResearch.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
 [기업-P] ICP Pulse (company/ICPPulse.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
 [기업-Q] 브랜드 트래킹 (company/BrandTracking.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
+
+-- 패널 포털 파일 수준 전수 재조사 (2026-05-16) --
+[Pnl-A] 패널 미션 수행 (panel/ActiveMission.jsx) — loadMission() 내 deadlineExpired 분기 3곳에서 선언되지 않은 setLoading(false) 호출. loading state가 존재하지 않아 ReferenceError 발생 → try-catch가 삼켜 무증상. setLoading(false) 3곳 제거로 수정.  ✅
+[Pnl-B] 패널 미션 관리 (panel/Missions.jsx) — handleConfirmCancel() 에러 시 setConfirming(false)만 호출하고 사용자에게 에러를 표시하지 않음. D-65 위반. cancelError state 추가 + 에러 시 모달 유지 + ConfirmModal errorMsg prop 추가.  ✅
+[Pnl-C] 패널 대시보드 (panel/Dashboard.jsx) — "이번 주 활동" stat card가 PRD 명세("7일 내 제출")와 달리 panel.streak_count(연속 수락 횟수)를 표시함. hFbs 쿼리에 updated_at 추가 + weeklyCount(7일 내) 계산 후 stat card에 적용.  ✅
+[Pnl-D] 패널 미션 수행 (panel/ActiveMission.jsx) — handleCancelAccept() 에러 시 setCancelError()를 호출하나, 이미지 어노테이션 뷰(step≥1)에는 cancelError를 렌더하는 UI 요소가 없어 에러가 무음 처리됨. 어노테이션 뷰 submitError 블록 아래 cancelError 표시 추가 + ConfirmModal errorMsg prop 추가 + "수락 취소" 버튼 클릭 시 cancelError 초기화.  ✅
+[Pnl-E] 패널 미션 관리/정산 내역 (panel/Missions.jsx, panel/History.jsx) — 페이지네이션이 선형 Array.from 방식으로 페이지 수 많을 시 버튼이 화면을 넘침. 2_Architecture.txt에 명시된 "슬라이딩 5-윈도우 + «/» 5페이지 점프" 패턴 미적용. 두 파일 모두 슬라이딩 윈도우 Pagination으로 교체.  ✅
+[Pnl-F] 패널 프로필 설정 (panel/Profile.jsx) — 구 티어 시스템(ROOKIE/PRO/EXPERT/ELITE)의 TIER_META 상수가 현재 코드 어디에서도 참조되지 않는 데드코드로 잔류. 삭제.  ✅
 
 ================================================================

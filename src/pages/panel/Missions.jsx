@@ -26,25 +26,35 @@ const EMPTY_MSG = {
   needsRevision: { icon: '✅', title: '수정 필요한 미션이 없어요', desc: '반려된 피드백이 없습니다.' },
 };
 
+const WINDOW = 5;
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
+  const winStart = Math.max(1, page - 2);
+  const winEnd   = Math.min(totalPages, winStart + WINDOW - 1);
+  const pageNums = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
+  const btnStyle = (active) => ({
+    padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)',
+    background: active ? 'var(--accent)' : 'var(--surface)',
+    color: active ? '#fff' : 'var(--text)',
+    cursor: 'pointer', fontSize: 13, fontWeight: active ? 700 : 400,
+  });
+  const disabledStyle = { padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'not-allowed', opacity: 0.4, fontSize: 13 };
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
+      {page > WINDOW && (
+        <button onClick={() => onPage(Math.max(1, page - WINDOW))} style={btnStyle(false)}>«</button>
+      )}
       <button onClick={() => onPage(page - 1)} disabled={page === 1}
-        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>
-        이전
-      </button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-        <button key={n} onClick={() => onPage(n)}
-          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>
-          {n}
-        </button>
+        style={page === 1 ? disabledStyle : btnStyle(false)}>이전</button>
+      {pageNums.map(n => (
+        <button key={n} onClick={() => onPage(n)} style={btnStyle(page === n)}>{n}</button>
       ))}
       <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
-        style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>
-        다음
-      </button>
+        style={page === totalPages ? disabledStyle : btnStyle(false)}>다음</button>
+      {page <= totalPages - WINDOW && (
+        <button onClick={() => onPage(Math.min(totalPages, page + WINDOW))} style={btnStyle(false)}>»</button>
+      )}
     </div>
   );
 }
@@ -177,6 +187,7 @@ export default function MissionList() {
   const [modal, setModal]             = useState(null);
   const [confirming, setConfirming]   = useState(false);
   const [acceptError, setAcceptError] = useState('');
+  const [cancelError, setCancelError] = useState('');
   const [mainPage, setMainPage]       = useState(1);
   const [subPage, setSubPage]         = useState(1);
 
@@ -278,23 +289,26 @@ export default function MissionList() {
       p_mission_id: modal.mission.id,
     });
     setConfirming(false);
-    if (!error) {
-      const newMap = { ...feedbackMap };
-      delete newMap[modal.mission.id];
-      setFeedbackMap(newMap);
-      setModal(null);
-      if (modal.mission.company_id) {
-        supabase.from('companies').select('user_id').eq('id', modal.mission.company_id).single()
-          .then(({ data: co }) => {
-            if (co?.user_id) sendNotification(co.user_id, {
-              type: 'info', icon: '👤',
-              title: '패널 참여 취소',
-              body: `[${modal.mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
-              actionUrl: `/company/results?id=${modal.mission.id}`,
-              targetRole: 'company',
-            });
+    if (error) {
+      setCancelError('수락 취소 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      return;
+    }
+    setCancelError('');
+    const newMap = { ...feedbackMap };
+    delete newMap[modal.mission.id];
+    setFeedbackMap(newMap);
+    setModal(null);
+    if (modal.mission.company_id) {
+      supabase.from('companies').select('user_id').eq('id', modal.mission.company_id).single()
+        .then(({ data: co }) => {
+          if (co?.user_id) sendNotification(co.user_id, {
+            type: 'info', icon: '👤',
+            title: '패널 참여 취소',
+            body: `[${modal.mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
+            actionUrl: `/company/results?id=${modal.mission.id}`,
+            targetRole: 'company',
           });
-      }
+        });
     }
   };
 
@@ -390,7 +404,8 @@ export default function MissionList() {
           cancelLabel="계속 작성하기"
           danger
           onConfirm={handleConfirmCancel}
-          onCancel={() => setModal(null)}
+          onCancel={() => { setModal(null); setCancelError(''); }}
+          errorMsg={cancelError}
         />
       )}
 

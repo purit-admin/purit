@@ -247,7 +247,6 @@ export default function ActiveMission() {
               // 클라이언트 사전 만료 체크 (서버 왕복 최소화)
               if (fb.rejection_deadline && new Date(fb.rejection_deadline) < new Date()) {
                 setDeadlineExpired(true);
-                setLoading(false);
                 return;
               }
               // 원자적 슬롯 재예약 + status='draft' 복원 (동시 경쟁 처리 포함)
@@ -256,7 +255,6 @@ export default function ActiveMission() {
               });
               if (reErr || !reaccepted) {
                 setDeadlineExpired(true);
-                setLoading(false);
                 return;
               }
               setDraftId(fb.id);
@@ -319,7 +317,6 @@ export default function ActiveMission() {
               // submission_deadline 만료 체크 (최초 draft)
               if (fb.submission_deadline && new Date(fb.submission_deadline) < new Date()) {
                 setDeadlineExpired(true);
-                setLoading(false);
                 return;
               }
               if (fb.submission_deadline) {
@@ -1500,11 +1497,16 @@ export default function ActiveMission() {
             {submitError}
           </div>
         )}
+        {cancelError && (
+          <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+            {cancelError}
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
             {draftId && (
-              <Btn variant="ghost" onClick={() => setCancelModal(true)} style={{ fontSize: 12, color: 'var(--text-3)' }}>수락 취소</Btn>
+              <Btn variant="ghost" onClick={() => { setCancelError(''); setCancelModal(true); }} style={{ fontSize: 12, color: 'var(--text-3)' }}>수락 취소</Btn>
             )}
           </div>
           <Btn
@@ -1524,6 +1526,7 @@ export default function ActiveMission() {
             danger
             onConfirm={handleCancelAccept}
             onCancel={() => setCancelModal(false)}
+            errorMsg={cancelError}
           />
         )}
       </div>

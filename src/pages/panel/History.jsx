@@ -23,16 +23,33 @@ const TABS = [
 
 const PAGE_SIZE = 5;
 
+const WINDOW = 5;
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
+  const winStart = Math.max(1, page - 2);
+  const winEnd   = Math.min(totalPages, winStart + WINDOW - 1);
+  const pageNums = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
+  const btnBase  = { padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 13 };
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 16, justifyContent: 'center' }}>
-      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      {page > WINDOW && (
+        <button onClick={() => onPage(Math.max(1, page - WINDOW))} style={btnBase}>«</button>
+      )}
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ ...btnBase, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>이전</button>
+      {pageNums.map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ ...btnBase,
+          background: page === n ? 'var(--accent)' : 'var(--surface)',
+          color: page === n ? '#fff' : 'var(--text-2)',
+          border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'),
+          fontWeight: page === n ? 700 : 400 }}>{n}</button>
       ))}
-      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ ...btnBase, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}>다음</button>
+      {page <= totalPages - WINDOW && (
+        <button onClick={() => onPage(Math.min(totalPages, page + WINDOW))} style={btnBase}>»</button>
+      )}
     </div>
   );
 }

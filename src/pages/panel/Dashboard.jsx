@@ -71,7 +71,7 @@ export default function PanelDashboard() {
           .order('created_at', { ascending: false }),
         supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p?.id),
         supabase.from('feedbacks')
-          .select('status, purity_passed, payout_amount, missions(type)')
+          .select('status, purity_passed, payout_amount, updated_at, missions(type)')
           .eq('panel_id', p?.id)
           .neq('status', 'draft'),
       ]);
@@ -152,6 +152,10 @@ export default function PanelDashboard() {
   const name        = panel?.name || '패널';
   const trustScore  = panel?.trust_score || 0;
   const streakCount = panel?.streak_count || 0;
+  const weeklyCount = histFeedbacks.filter(f => {
+    if (!f.updated_at) return false;
+    return new Date(f.updated_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  }).length;
 
   // 명예 레벨 파생 값
   const honorPoints = panel?.honor_points ?? 0;
@@ -311,7 +315,7 @@ export default function PanelDashboard() {
           {[
             { label: '완료 미션',   value: String(panel?.total_missions || 0), sub: '총 누적' },
             { label: '참여 가능',   value: String(missions.length),            sub: '현재 오픈 미션' },
-            { label: '이번 주 활동', value: String(streakCount),               sub: '7일 내 제출', accent: streakCount >= 3 },
+            { label: '이번 주 활동', value: String(weeklyCount),               sub: '7일 내 제출', accent: weeklyCount >= 3 },
           ].map(s => (
             <div key={s.label} style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
               <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>{s.label}</div>

@@ -5,13 +5,6 @@ import { supabase } from '../../lib/supabase';
 const INDUSTRIES = ['이커머스 마케터', 'B2B SaaS 세일즈', '스타트업 PM', 'B2B 영업', '퍼포먼스 마케터', '브랜드 마케터', 'CRO 전문가', '콘텐츠 마케터', '스타트업 대표', '기타'];
 const EXPERTISE  = ['랜딩페이지 전환', '카피라이팅', '가격 전략', 'B2B 세일즈 카피', 'UX 설계', '이메일 마케팅', 'SNS 광고', '고객 인터뷰', '데이터 분석'];
 
-const TIER_META = {
-  ROOKIE:  { label: 'ROOKIE',  color: 'var(--text-3)',        bg: 'var(--surface-2)', desc: '0~4개 미션 완료' },
-  PRO:     { label: 'PRO',     color: 'var(--text-2)',         bg: '#E8EEF8',          desc: '5~14개 미션 완료' },
-  EXPERT:  { label: 'EXPERT',  color: '#92400E',              bg: '#fffbeb',          desc: '15~29개 미션 완료' },
-  ELITE:   { label: 'ELITE',   color: 'var(--green)',         bg: '#f0fdf4',          desc: '30개+ 미션 완료' },
-};
-
 const BADGE_CATALOG = [
   { key: '영점_조준',    name: '영점 조준',    tier: 'rookie', hidden: false, desc: 'Purit Filter를 처음으로 통과했습니다.' },
   { key: '유효_타격',    name: '유효 타격',    tier: 'rookie', hidden: false, desc: '기업에게 "도움 됨" 평가를 처음 받았습니다.' },
