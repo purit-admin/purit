@@ -327,7 +327,7 @@
 ================================================================
 QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 작성일: 2026-05-13
-최종 업데이트: 2026-05-16 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
+최종 업데이트: 2026-05-18 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
                             / 대규모 전체 조사: 신규-F~Y 20건 발견
                             / Phase 1+2 무한 로딩 고착 13건 수정 완료: 신규-F/G/H/I/M/N/O/T/U/V/W/X/Y
                             / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료
@@ -346,7 +346,8 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 어드민 포털 2차 심층 검사: A-18~A-22 4건 발견·수정 완료, A-20·A-23 오진단 철회 — 총 128건 완료
                             / 행동 강령 규칙 13 추가: 패턴·변수명 추론으로 버그 확정 금지
                             / 기업 포털 2차 심층 검사: 기업-H~Q 10건 발견 및 즉시 수정 완료 — 총 138건 완료
-                            / 패널 포털 파일 수준 전수 재조사: Pnl-A~F 6건 발견 및 즉시 수정 완료 — 총 144건 완료)
+                            / 패널 포털 파일 수준 전수 재조사: Pnl-A~F 6건 발견 및 즉시 수정 완료 — 총 144건 완료
+                            / 기간 필터 무결성 검증: B-145 1건 발견 및 즉시 수정 완료 — 총 145건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -570,6 +571,15 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [기업-O] ICP 리서치 (company/ICPResearch.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
 [기업-P] ICP Pulse (company/ICPPulse.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
 [기업-Q] 브랜드 트래킹 (company/BrandTracking.jsx) — load() try-catch 없어 네트워크/DB 오류 시 loading 영구 true 고착. D-51 위반. try-catch-finally 감싸기  ✅
+
+-- 기간 필터 무결성 검증 (2026-05-18) — company/Dashboard.jsx chartPeriod 기능 전수 조사 --
+[B-145] 기업 대시보드 — 기간 필터 전환 시 긍/부정 분포 캐러셀 페이지 미리셋 ✅
+  패턴: D-72(필터 조건 수정 시 카운트·목록 두 경로 모두 업데이트) / 규칙 11(페이지네이션 리셋 트리거 점검)
+  위치: src/pages/company/Dashboard.jsx Line 492
+  재현: 긍/부정 분포 캐러셀 2페이지로 이동 → 기간 필터('최근 1개월' 등)를 전환
+  현재: setChartPeriod(val)만 호출 — setMainSentPage/setSubSentPage 리셋 없음
+  수정: onClick={() => { setChartPeriod(val); setMainSentPage(1); setSubSentPage(1); }}
+  수평전개: missionFilter 탭(Line 655)은 setMainMissionPage(1)/setSubMissionPage(1) 리셋 ✅ — 동일 패턴 dashboard 내 유일 누락 지점. 다른 파일의 독립적 period 필터 없음.
 
 -- 패널 포털 파일 수준 전수 재조사 (2026-05-16) --
 [Pnl-A] 패널 미션 수행 (panel/ActiveMission.jsx) — loadMission() 내 deadlineExpired 분기 3곳에서 선언되지 않은 setLoading(false) 호출. loading state가 존재하지 않아 ReferenceError 발생 → try-catch가 삼켜 무증상. setLoading(false) 3곳 제거로 수정.  ✅

@@ -61,6 +61,12 @@
      · CompanyMissionCard: status='completed' 카드 우측 하단에 "삭제" 버튼 표시
        클릭 시 ConfirmModal(danger) 확인 → missions DELETE + 카드 즉시 제거 (복구 불가)
    - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
+   - 차트 기간 필터 (차트 섹션 우측 상단): ★ 신규
+     · 3가지 선택: 전체 / 최근 3개월 / 최근 1개월 (기본: 전체)
+     · Stats 카드 5개(잔여 크레딧·전체 의뢰·진행·완료·수집 피드백): 항상 전체 기간 표시 (필터 미적용)
+     · 레이더·게이지·긍부정 차트 3개: 기간 필터 적용 (chartFeedbacks/chartPrefResps 등 파생 배열 사용)
+     · 기간 전환 시 긍부정 분포 캐러셀 페이지(mainSentPage·subSentPage) 자동 리셋
+     · 추가 DB 쿼리 없음 — 마운트 시 전체 데이터 로드 후 클라이언트에서 created_at 기준 필터링
    ※ 차트 데이터 소스: 완료(status='completed') 미션의 feedbacks(purity_passed=true) + 서브 응답 테이블 ★ 수정
      ※ 활성(active) 의뢰·검토 중 피드백은 차트에서 제외 — 어드민 완료 처리 후에야 레이더/게이지 반영
      - computeRadar(fbs): 5개 score 컬럼 평균 → 레이더 + 게이지

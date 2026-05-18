@@ -133,8 +133,7 @@ function calcAvg(arr, key) {
 
 /* ─── 미션 목록 아이템 ─── */
 function MissionItem({ m, isSelected, onClick }) {
-  const typeInfo = TYPE_INFO[m.type] || TYPE_INFO.landing_page;
-  const isActive    = m.status === 'active';
+  const typeInfo    = TYPE_INFO[m.type] || TYPE_INFO.landing_page;
   const isCompleted = m.status === 'completed';
   const isCancelled = m.status === 'cancelled';
   return (
@@ -160,12 +159,9 @@ function MissionItem({ m, isSelected, onClick }) {
         {m.title}
       </div>
       <div style={{ fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-        {isActive    && <span style={{ color: '#f59e0b', fontWeight: 700 }}>🔒 검토 진행 중</span>}
         {isCompleted && <span style={{ color: '#22c55e', fontWeight: 700 }}>✅ 완료</span>}
-        {isCancelled && <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>취소됨</span>}
-        <span style={{ color: 'var(--text-3)' }}>
-          {isActive ? `${m.filled_count || 0}건 수집` : `피드백 ${m.filled_count || 0}개`}
-        </span>
+        {isCancelled && <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>조기 종료</span>}
+        <span style={{ color: 'var(--text-3)' }}>피드백 {m.filled_count || 0}개</span>
       </div>
     </div>
   );
@@ -879,6 +875,7 @@ export default function Results() {
   const [ratingInFlight, setRatingInFlight] = useState(new Set());
   const [mainPage, setMainPage]           = useState(1);
   const [subPage, setSubPage]             = useState(1);
+  const [missionTab, setMissionTab]       = useState('all');
 
   // 미션 목록 로드
   useEffect(() => {
@@ -889,7 +886,7 @@ export default function Results() {
       const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
-      const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id).neq('status', 'draft').order('created_at', { ascending: false });
+      const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id).in('status', ['completed', 'cancelled']).order('created_at', { ascending: false });
       setMissions(ms || []);
       if (ms?.length > 0) {
         const paramId = searchParams.get('id');
@@ -1098,10 +1095,18 @@ export default function Results() {
   const mission = missions.find(m => m.id === selected) || null;
   const isSubMission  = mission && ['preference', 'pricing', 'email'].includes(mission.type);
   const hasImages     = mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0 && !isSubMission;
-  const mainMissions  = missions.filter(m => !m.type || m.type === 'landing_page');
-  const subMissions   = missions.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+
+  const tabFiltered   = missionTab === 'all' ? missions : missions.filter(m => m.status === missionTab);
+  const mainMissions  = tabFiltered.filter(m => !m.type || m.type === 'landing_page');
+  const subMissions   = tabFiltered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
   const pagedMain     = mainMissions.slice((mainPage - 1) * PAGE_SIZE, mainPage * PAGE_SIZE);
   const pagedSub      = subMissions.slice((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE);
+
+  const handleMissionTab = (tab) => {
+    setMissionTab(tab);
+    setMainPage(1);
+    setSubPage(1);
+  };
 
   const DIM_TABS = [...DIMS, 'summary'];
 
@@ -1113,15 +1118,34 @@ export default function Results() {
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>피드백 결과</h1>
       </div>
 
-      {missions.length === 0 ? (
-        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-          등록된 의뢰가 없습니다.
-        </div>
-      ) : (
-        <div className="results-layout" style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, alignItems: 'flex-start' }}>
+      <div className="results-layout" style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, alignItems: 'flex-start' }}>
 
-          {/* 좌측: 미션 선택 패널 */}
-          <div className="results-sidebar" style={{ position: 'sticky', top: 24 }}>
+        {/* 좌측: 미션 선택 패널 */}
+        <div className="results-sidebar" style={{ position: 'sticky', top: 24 }}>
+          {/* 탭 필터 */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: '100%' }}>
+            {[
+              { key: 'all',       label: '전체' },
+              { key: 'completed', label: '완료' },
+              { key: 'cancelled', label: '취소' },
+            ].map(({ key, label }) => {
+              const isActive = missionTab === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleMissionTab(key)}
+                  style={{
+                    flex: 1, padding: '6px 8px', fontSize: 13, fontWeight: 500,
+                    borderRadius: 4, border: 'none',
+                    background: isActive ? 'var(--bg)' : 'transparent',
+                    color: isActive ? 'var(--text)' : 'var(--text-3)',
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >{label}</button>
+              );
+            })}
+          </div>
+
             {mainMissions.length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>메인 의뢰</div>
@@ -1140,6 +1164,11 @@ export default function Results() {
                 <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
               </div>
             )}
+            {mainMissions.length === 0 && subMissions.length === 0 && (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+                {missions.length === 0 ? '완료된 의뢰가 없습니다.' : '해당 의뢰가 없습니다.'}
+              </div>
+            )}
           </div>
 
           {/* 우측: 콘텐츠 영역 */}
@@ -1149,10 +1178,13 @@ export default function Results() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
                 <div>
                   <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 2 }}>{mission.title}</h2>
-                  <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
-                    {mission?.status === 'active'
-                      ? `패널 ${mission.filled_count || 0}/${mission.panel_count || 0}명 수집 중 · 어드민 검토 후 공개`
-                      : `승인된 피드백 ${feedbacks.length}개`}
+                  <div style={{ fontSize: 13, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>승인된 피드백 {feedbacks.length}개</span>
+                    {mission?.status === 'cancelled' && (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'rgba(148,163,184,0.15)', color: 'var(--text-3)', border: '1px solid var(--border)' }}>
+                        조기 종료
+                      </span>
+                    )}
                   </div>
                 </div>
                 {mission?.status === 'completed' && (
@@ -1181,24 +1213,8 @@ export default function Results() {
             )}
 
             {/* 콘텐츠 */}
-            {fbLoading ? (
+            {!mission ? null : fbLoading ? (
               <div style={{ color: 'var(--text-3)', fontSize: 14 }}>피드백 불러오는 중...</div>
-            ) : mission?.status === 'active' ? (
-              <div style={{ padding: '60px 40px', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-                <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>검토 진행 중입니다</div>
-                <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.8, maxWidth: 360, margin: '0 auto 20px' }}>
-                  수집된 피드백을 어드민이 Purit Filter로 검토하고 있습니다.<br />
-                  완료 처리 후 결과를 한 번에 확인하실 수 있습니다.
-                </p>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 20px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-3)' }}>피드백 수집</span>
-                  <span style={{ fontWeight: 800, fontSize: 18, color: 'var(--accent)', fontFamily: 'var(--font-sans)' }}>
-                    {mission.filled_count || 0}
-                  </span>
-                  <span style={{ color: 'var(--text-3)' }}>/ {mission.panel_count || 0}명</span>
-                </div>
-              </div>
             ) : feedbacks.length === 0 && !isSubMission ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
                 승인된 피드백이 없습니다.
@@ -1269,7 +1285,6 @@ export default function Results() {
             )}
           </div>
         </div>
-      )}
     </div>
   );
 }

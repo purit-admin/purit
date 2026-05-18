@@ -280,6 +280,7 @@ export default function CompanyDashboard() {
   const [emailResps, setEmailResps] = useState([]);
   const [mainSentPage, setMainSentPage] = useState(1);
   const [subSentPage, setSubSentPage]   = useState(1);
+  const [chartPeriod, setChartPeriod]   = useState('all');
 
   const dismissBanner = () => {
     localStorage.setItem(NDA_KEY, String(Date.now()));
@@ -346,7 +347,7 @@ export default function CompanyDashboard() {
             if (completedIds.length > 0) {
               const { data: fb } = await supabase
                 .from('feedbacks')
-                .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,mission_id')
+                .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,mission_id,created_at')
                 .eq('purity_passed', true)
                 .in('mission_id', completedIds);
               setFeedbacks(fb || []);
@@ -359,19 +360,19 @@ export default function CompanyDashboard() {
           const emailIds = ms.filter(m => m.type === 'email'      && m.status === 'completed').map(m => m.id);
           if (prefIds.length) {
             const { data: pr } = await supabase.from('preference_responses')
-              .select('mission_id, message_clarity, purchase_intent')
+              .select('mission_id, message_clarity, purchase_intent, created_at')
               .in('mission_id', prefIds);
             setPrefResps(pr || []);
           }
           if (priceIds.length) {
             const { data: pr } = await supabase.from('pricing_responses')
-              .select('mission_id, price_fairness, value_perception')
+              .select('mission_id, price_fairness, value_perception, created_at')
               .in('mission_id', priceIds);
             setPriceResps(pr || []);
           }
           if (emailIds.length) {
             const { data: er } = await supabase.from('email_responses')
-              .select('mission_id, open_intent, hook_score, clarity_score, curiosity_score')
+              .select('mission_id, open_intent, hook_score, clarity_score, curiosity_score, created_at')
               .in('mission_id', emailIds);
             setEmailResps(er || []);
           }
@@ -406,12 +407,19 @@ export default function CompanyDashboard() {
   const mainPaged    = mainMissions.slice((mainMissionPage - 1) * PAGE_SIZE, mainMissionPage * PAGE_SIZE);
   const subPaged     = subMissions.slice((subMissionPage - 1) * PAGE_SIZE, subMissionPage * PAGE_SIZE);
 
-  const radarData     = computeRadar(feedbacks);
+  const periodCutoff = chartPeriod === 'all' ? null
+    : new Date(Date.now() - (chartPeriod === '3m' ? 90 : 30) * 24 * 60 * 60 * 1000);
+  const chartFeedbacks  = periodCutoff ? feedbacks.filter(f => new Date(f.created_at) >= periodCutoff) : feedbacks;
+  const chartPrefResps  = periodCutoff ? prefResps.filter(r => new Date(r.created_at) >= periodCutoff) : prefResps;
+  const chartPriceResps = periodCutoff ? priceResps.filter(r => new Date(r.created_at) >= periodCutoff) : priceResps;
+  const chartEmailResps = periodCutoff ? emailResps.filter(r => new Date(r.created_at) >= periodCutoff) : emailResps;
+
+  const radarData     = computeRadar(chartFeedbacks);
   const overallScore  = radarData.reduce((acc, d) => acc + d.score, 0) / radarData.length;
-  const gaugeValue    = feedbacks.length > 0 ? Math.round((overallScore / 5) * 100) : 0;
+  const gaugeValue    = chartFeedbacks.length > 0 ? Math.round((overallScore / 5) * 100) : 0;
   const gaugeData     = [{ name: '전환 지수', value: gaugeValue, fill: '#6366f1' }];
-  const mainSentiment = computeSentiment(missions, feedbacks);
-  const subSentiment  = computeSubSentiment(missions, prefResps, priceResps, emailResps);
+  const mainSentiment = computeSentiment(missions, chartFeedbacks);
+  const subSentiment  = computeSubSentiment(missions, chartPrefResps, chartPriceResps, chartEmailResps);
   const SENT_SIZE = 4;
   const mainSentSlice = mainSentiment.slice((mainSentPage - 1) * SENT_SIZE, mainSentPage * SENT_SIZE);
   const subSentSlice  = subSentiment.slice((subSentPage - 1) * SENT_SIZE, subSentPage * SENT_SIZE);
@@ -476,6 +484,23 @@ export default function CompanyDashboard() {
         ))}
       </motion.div>
 
+      {/* Chart Row header */}
+      <motion.div {...fadeUp(0.08)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text2, letterSpacing: '0.04em', textTransform: 'uppercase' }}>전환 지표 분석</div>
+        <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 8, padding: 3 }}>
+          {[['all', '전체'], ['3m', '최근 3개월'], ['1m', '최근 1개월']].map(([val, label]) => (
+            <button key={val} onClick={() => { setChartPeriod(val); setMainSentPage(1); setSubSentPage(1); }} style={{
+              padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: chartPeriod === val ? 700 : 500,
+              background: chartPeriod === val ? '#fff' : 'transparent',
+              color: chartPeriod === val ? C.text : C.text3,
+              border: 'none', cursor: 'pointer',
+              boxShadow: chartPeriod === val ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              transition: 'all 0.15s',
+            }}>{label}</button>
+          ))}
+        </div>
+      </motion.div>
+
       {/* Chart Row: 레이더 + KPI + 긍부정 3열 */}
       <motion.div {...fadeUp(0.1)} className="chart-three-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 24 }}>
 
@@ -484,7 +509,7 @@ export default function CompanyDashboard() {
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>전환 메시지 5차원 진단</div>
             <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>
-              {feedbacks.length > 0 ? `승인된 피드백 ${feedbacks.length}건 기준 · 플랫폼 벤치마크 비교` : '의뢰 완료 후 실데이터로 업데이트됩니다'}
+              {chartFeedbacks.length > 0 ? `승인된 피드백 ${chartFeedbacks.length}건 기준 · 플랫폼 벤치마크 비교` : '의뢰 완료 후 실데이터로 업데이트됩니다'}
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
@@ -519,11 +544,11 @@ export default function CompanyDashboard() {
               </RadialBarChart>
             </ResponsiveContainer>
             <div style={{ position: 'absolute', bottom: 10, textAlign: 'center' }}>
-              <div style={{ fontSize: 34, fontWeight: 900, color: feedbacks.length > 0 ? C.primary : C.text3, lineHeight: 1 }}>
-                {feedbacks.length > 0 ? gaugeValue : '—'}
+              <div style={{ fontSize: 34, fontWeight: 900, color: chartFeedbacks.length > 0 ? C.primary : C.text3, lineHeight: 1 }}>
+                {chartFeedbacks.length > 0 ? gaugeValue : '—'}
               </div>
               <div style={{ fontSize: 12, color: C.text3, marginTop: 3 }}>
-                {feedbacks.length > 0 ? '/ 100점' : '데이터 없음'}
+                {chartFeedbacks.length > 0 ? '/ 100점' : '데이터 없음'}
               </div>
             </div>
           </div>

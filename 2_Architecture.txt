@@ -419,6 +419,12 @@ purit/
     - 3열: 레이더 / KPI 게이지+5축 바 / 긍부정 분포(메인+서브 섹션)
     - 긍부정 분포: mainSentPage·subSentPage state, SENT_SIZE=4, ‹ › 화살표 캐러셀
     - DB 추가 fetch: preference_responses·pricing_responses·email_responses (서브 의뢰 긍정 비율용, 완료 미션만)
+    - 차트 기간 필터: chartPeriod state ('all'|'3m'|'1m', 기본 'all') ★ 신규
+      · 전체 / 최근 3개월(90일) / 최근 1개월(30일) pill 버튼 — 차트 섹션 우측 상단 배치
+      · periodCutoff = chartPeriod==='all' ? null : new Date(Date.now() - N*86400000)
+      · 파생 배열: chartFeedbacks·chartPrefResps·chartPriceResps·chartEmailResps (periodCutoff 기준 created_at 필터)
+      · Stats 카드: 원본 feedbacks/prefResps 등 전체 기간 배열 사용 (필터 미적용)
+      · 기간 전환 onClick: setChartPeriod(val) + setMainSentPage(1) + setSubSentPage(1) 동시 호출 (D-74 참조)
   ※ 전체 페이지(28개): className="page-wrap" 적용 완료 → 모바일 패딩 자동 축소
 
   ### 반응형 레이아웃 클래스 (★ 2026-05-08 추가)
