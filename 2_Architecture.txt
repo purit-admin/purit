@@ -160,11 +160,15 @@ purit/
 │   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
 │   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 2, "sub"), PricingTest(Step 2, "sub"), ColdEmailTest(Step 2, "sub")
-│   │   ※ pages/company/Results.jsx: 피드백 공개 정책 — loadFeedback() 내 mission.status 분기 ★
-│   │                  m.status === 'active' → setFeedbacks([]) 즉시 반환 (기업에게 피드백 완전 비공개)
-│   │                  m.status === 'completed' | 'cancelled' → feedbacks.eq('purity_passed', true) 조회 후 표시
+│   │   ※ pages/company/Results.jsx: 미션 목록 쿼리 — .in('status',['completed','cancelled']) ★ 변경 (active 제외)
+│   │                  loadFeedback() 내 mission.status 분기: completed|cancelled → purity_passed=true 피드백 표시
 │   │                  기업이 피드백을 처음 볼 수 있는 시점: 어드민 "완료 처리" → mission.status='completed' 이후
-│   │                좌측 패널 미션 목록 — 타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
+│   │                좌측 패널: missionTab state('all'|'completed'|'cancelled') + 탭 UI(전체/완료/취소) ★ 개편
+│   │                  tabFiltered: missionTab='all'→missions 전체 / 그 외→status 일치 필터
+│   │                  mainMissions/subMissions: tabFiltered 기준 타입 분리
+│   │                  handleMissionTab(tab): setMissionTab + setMainPage(1) + setSubPage(1) 동시 호출
+│   │                  타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
+│   │                  빈 상태: missions.length===0 → "완료된 의뢰가 없습니다." / tabFiltered 0건 → "해당 의뢰가 없습니다." ★ 통합
 │   │                좌측 패널 페이지네이션: mainPage/subPage state, PAGE_SIZE=5, ‹ › 화살표 버튼 ★
 │   │                  URL ?id 파라미터 진입 시 해당 미션이 속한 페이지로 자동 이동 (auto-page 로직)
 │   │                ExpandableText(text, limit=200) — 텍스트 길이 초과 시 더보기/접기 토글

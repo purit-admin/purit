@@ -159,15 +159,19 @@
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
    - reward_amount = calcPanelPayout(careerLevels, 'main') — 패널 1인당 예상 정산금 (메인 주니어 기준 8,000원)
 
-3. 피드백 결과 (/company/results) — Results.jsx  ★ 서브 미션 제출 소재 표시 + 더보기 토글 추가 (2026-05-04)
+3. 피드백 결과 (/company/results) — Results.jsx  ★ 완료/취소 전용 탭 + 빈 상태 통합 (2026-05-18)
    - 피드백 공개 정책 ★ 핵심:
-     · 의뢰 status='active': 피드백 완전 비공개 — feedbacks=[] 반환 (어드민 검토 진행 중)
+     · active 의뢰는 목록 자체에서 제외 — 쿼리 .in('status',['completed','cancelled']) ★ 변경
      · 의뢰 status='completed' 또는 'cancelled': purity_passed=true 피드백만 표시
      · 기업이 피드백을 처음 볼 수 있는 시점: 어드민이 admin/Missions에서 "완료 처리" 클릭 →
        complete_mission_and_refund RPC → mission.status='completed' + 기업에 완료 알림 발송
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
-   - 좌측 패널: 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시
-     · status='draft' 의뢰는 목록에서 제외 (.neq('status','draft')) ★ 신규
+   - 좌측 패널: 탭 3개(전체/완료/취소) + 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시 ★ 개편
+     · missionTab state: 'all'|'completed'|'cancelled' (기본 'all')
+     · 탭 전환 시 mainPage/subPage 자동 리셋 (handleMissionTab 헬퍼)
+     · 취소 의뢰: "조기 종료" 뱃지 표시 (미션 헤더 subtitle 및 MissionItem)
+     · 빈 상태 메시지 좌측 탭 하단 단일 표시: 의뢰 0건 → "완료된 의뢰가 없습니다." / 탭 필터 결과 0건 → "해당 의뢰가 없습니다." ★ 통합
+     · 우측 콘텐츠는 미션 미선택 시 null 렌더 (빈 상태 박스 제거)
    - 내부 목록 페이지네이션 (PAGE_SIZE=5): ★ 추가
      · 차원 탭(DimTabView): 어노테이션 코멘트 목록 5개씩, 전환 시 페이지 리셋 (useRef 패턴)
      · 종합 탭(SummaryTabView): 패널 총평 목록 5개씩
