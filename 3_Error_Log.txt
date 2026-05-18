@@ -998,3 +998,24 @@ D-79. Supabase 뮤테이션 { error } 미캡처 + 낙관적 UI 조합 시 새로
              4) 로컬 state 변경이 `if (!error)` 조건 안에서만 이루어지는가?
              → 이 4가지 중 하나라도 빠지면 낙관적 UI + 조용한 DB 실패 조합으로 데이터가 유령처럼 살아남음
              ※ QA_REPORT.txt 규칙 15(DELETE/UPDATE 권한 명시성 검증)와 연계 — QA 시 체계적 검증 방법 참조
+
+D-80. DB 공개 게이트 컬럼 추가 시 기존 알림 actionUrl의 접근 가능성을 재검증하지 않으면 클릭해도 대상 없는 페이지로 이동하는 패턴 ✅ 해결
+     → 증상: 어드민이 의뢰를 취소 처리 후 기업에게 알림 발송 → 기업이 알림 클릭 →
+             Results.jsx로 이동했으나 해당 의뢰가 목록에 없음 (잘못된 첫 번째 의뢰가 자동 선택됨)
+     → 원인: DB 공개 게이트 패턴(company_notified_at IS NULL이면 Results.jsx 쿼리에서 제외) 도입 전에
+             작성된 알림 actionUrl이 `/company/results?id=xxx` 형태였음
+             게이트가 없는 상태에서는 cancelled 의뢰가 Results.jsx에 그냥 표시되었으므로 문제 없었으나,
+             게이트 도입 후 company_notified_at=NULL인 의뢰는 Results.jsx에서 영구 미노출
+             → 기존 알림 actionUrl들이 더 이상 유효하지 않게 됨 — 하지만 알림 코드는 그대로 남아있음
+     → 추가 피해: 재개(cancelled→active) 알림도 `/company/results?id=xxx` 가리켰으나
+             Results.jsx가 active 의뢰를 완전히 제외하므로 동일 문제 발생 (B-152)
+     → 해결: DB 게이트 도입 시 해당 테이블을 참조하는 알림 actionUrl 전수 검색 후 접근 가능성 재확인
+             - company_notified_at 없는 cancelled 의뢰 → Results.jsx 접근 불가 → actionUrl: '/company'
+             - active 의뢰 → Results.jsx 접근 불가 → actionUrl: '/company'
+             - company_notified_at SET 후 cancelled 의뢰(earlyComplete) → Results.jsx 접근 가능 → actionUrl 유지
+     → 원칙: 새 DB 게이트 컬럼(공개 제어, 가시성 필터)을 추가할 때는 반드시 아래 순서로 점검:
+             1) 해당 테이블의 목록 쿼리가 어떤 조건에서 행을 제외하는지 파악
+             2) 그 페이지를 가리키는 알림 actionUrl 전체를 grep으로 검색
+             3) 각 알림이 발송되는 시점에 기업/패널이 해당 URL로 이동했을 때 대상 데이터가 실제로 보이는지 검증
+             4) 보이지 않는 경우 → 대시보드('/company' 등) 또는 다른 접근 가능 URL로 수정
+             DB 게이트는 데이터 보안을 강화하지만, 기존 코드가 게이트를 모르고 쓴 URL들을 잘못되게 만드는 부작용이 있음

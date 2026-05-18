@@ -897,6 +897,7 @@ export default function Results() {
         const target = initialMission || ms[0];
         setSelected(target.id);
         setShareToken(target.share_token || null);
+        if (target.status === 'cancelled') setMissionTab('cancelled');
         // 초기 선택 미션이 속한 페이지로 이동
         const mains = ms.filter(m => !m.type || m.type === 'landing_page');
         const subs  = ms.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
@@ -932,13 +933,6 @@ export default function Results() {
 
     async function loadFeedback() {
       try {
-      // active 미션: 검토 중 — 기업에게 피드백 내용 비공개
-      if (m?.status === 'active') {
-        setFeedbacks([]);
-        setSubResponses(null);
-        return;
-      }
-
       // completed / cancelled: 승인된(purity_passed=true) 피드백만 표시
       const { data: fbs } = await supabase
         .from('feedbacks')

@@ -362,9 +362,9 @@ export default function AdminMissions() {
       const foundM = missions.find(m => m.id === id);
       if (foundM?.companies?.user_id) {
         if (newStatus === 'cancelled') {
-          sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: `/company/results?id=${id}`, targetRole: 'company' });
+          sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: '/company', targetRole: 'company' });
         } else if (newStatus === 'active') {
-          sendNotification(foundM.companies.user_id, { type: 'success', icon: '▶️', title: '의뢰 재개', body: `[${foundM.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`, actionUrl: `/company/results?id=${id}`, targetRole: 'company' });
+          sendNotification(foundM.companies.user_id, { type: 'success', icon: '▶️', title: '의뢰 재개', body: `[${foundM.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`, actionUrl: '/company', targetRole: 'company' });
         }
       }
     }
@@ -387,7 +387,7 @@ export default function AdminMissions() {
     setSelectedMission(prev => prev?.id === id ? { ...prev, status: 'active' } : prev);
     const foundM = missions.find(m => m.id === id);
     if (foundM?.companies?.user_id) {
-      sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: `/company/results?id=${id}`, targetRole: 'company' });
+      sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: '/company', targetRole: 'company' });
     }
     return true;
   };
@@ -425,7 +425,7 @@ export default function AdminMissions() {
       .update({ company_notified_at: new Date().toISOString() })
       .eq('id', m.id);
     if (updateErr) { setEarlyCompleteError('완료 처리 중 오류가 발생했습니다.'); return; }
-    await sendNotification(m.companies.user_id, {
+    sendNotification(m.companies.user_id, {
       type: 'success', icon: '🏁',
       title: '조기 종료 의뢰 피드백 검토 완료',
       body: `[${m.title}] 의뢰의 피드백 검토가 완료되었습니다. 피드백 결과 페이지에서 확인하세요.`,
@@ -439,7 +439,10 @@ export default function AdminMissions() {
       .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')
       .neq('status', 'draft')
       .order('created_at', { ascending: false });
-    if (data) setMissions(data);
+    if (data) {
+      setMissions(data);
+      setSelectedMission(prev => prev ? (data.find(mm => mm.id === prev.id) || null) : null);
+    }
   };
 
   const filtered = filter === 'all' ? missions : missions.filter(m => m.status === filter);

@@ -161,10 +161,13 @@
 
 3. 피드백 결과 (/company/results) — Results.jsx  ★ 완료/취소 전용 탭 + 빈 상태 통합 (2026-05-18)
    - 피드백 공개 정책 ★ 핵심:
-     · active 의뢰는 목록 자체에서 제외 — 쿼리 .in('status',['completed','cancelled']) ★ 변경
+     · active 의뢰는 목록 자체에서 제외
+     · cancelled 의뢰는 company_notified_at IS NOT NULL인 경우에만 표시 (earlyCompleteMission 이후) ★
+     · 쿼리: .or('status.eq.completed,and(status.eq.cancelled,company_notified_at.not.is.null)') ★ 변경
      · 의뢰 status='completed' 또는 'cancelled': purity_passed=true 피드백만 표시
-     · 기업이 피드백을 처음 볼 수 있는 시점: 어드민이 admin/Missions에서 "완료 처리" 클릭 →
-       complete_mission_and_refund RPC → mission.status='completed' + 기업에 완료 알림 발송
+     · 기업이 피드백을 처음 볼 수 있는 시점:
+       - 완료 의뢰: 어드민 "완료 처리" → complete_mission_and_refund RPC → mission.status='completed' + 기업 완료 알림
+       - 취소 의뢰: 어드민 취소 탭 "완료 처리"(earlyCompleteMission) → missions.company_notified_at SET + 기업 알림
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
    - 좌측 패널: 탭 3개(전체/완료/취소) + 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시 ★ 개편
      · missionTab state: 'all'|'completed'|'cancelled' (기본 'all')
@@ -727,9 +730,10 @@
      · 검토 중 피드백 존재 → 버튼 비활성화 + "검토 중 N건 먼저 처리 필요" 경고 (노란색, 진행·취소 공통)
    - ★ 조기 종료 완료 처리 (earlyCompleteMission) ★ 개편 (2026-05-18)
      · 취소 탭 "완료 처리" 버튼: allFbs.length > 0 && pendingFbs.length === 0 일 때만 활성화
-     · 클릭 → ConfirmModal(승인된 피드백 N건 기업 공개 안내) → 확인 시 기업에 알림 발송
+     · 클릭 → ConfirmModal(승인된 피드백 N건 기업 공개 안내) → 확인 시:
+       missions.company_notified_at = now() SET → sendNotification(기업, actionUrl='/company/results?id=...') fire-and-forget
      · "그래도 완료 처리" 이스케이프 없음 — 퓨릿 필터에서 모든 피드백 처리 후에만 완료 가능
-     · 완료 후 missions 최신 데이터 리로드 (PurityFilter 변경 반영)
+     · 완료 후 missions 최신 데이터 리로드 + selectedMission 동기화 (PurityFilter 변경 반영)
    - ★ 크레딧 완료 처리: "완료 처리" 버튼 클릭 시 ConfirmModal 표시 (승인 건수 동적 계산) → 확인 시 complete_mission_and_refund RPC 호출
      · "취소" 버튼도 ConfirmModal(danger) 경유 — 즉시 실행 없음
      · purity_passed=true 패널의 experience 기반 실소비량 계산(소수, CEIL 없음) 후 잔여분 기업 계정에 자동 환불

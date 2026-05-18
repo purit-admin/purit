@@ -180,9 +180,11 @@ purit/
 │   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
 │   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
 │   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 2, "sub"), PricingTest(Step 2, "sub"), ColdEmailTest(Step 2, "sub")
-│   │   ※ pages/company/Results.jsx: 미션 목록 쿼리 — .in('status',['completed','cancelled']) ★ 변경 (active 제외)
-│   │                  loadFeedback() 내 mission.status 분기: completed|cancelled → purity_passed=true 피드백 표시
-│   │                  기업이 피드백을 처음 볼 수 있는 시점: 어드민 "완료 처리" → mission.status='completed' 이후
+│   │   ※ pages/company/Results.jsx: 미션 목록 쿼리 — .or('status.eq.completed,and(status.eq.cancelled,company_notified_at.not.is.null)') ★ 변경
+│   │                  cancelled 의뢰: earlyCompleteMission → company_notified_at SET 이후에만 목록 노출 (DB 공개 게이트, migration 039)
+│   │                  loadFeedback(): purity_passed=true 피드백 표시 (completed|cancelled 공통)
+│   │                  기업이 피드백을 처음 볼 수 있는 시점: 완료→complete_mission_and_refund RPC / 취소→earlyCompleteMission(company_notified_at SET)
+│   │                  ?id param 진입 시 cancelled 미션이면 setMissionTab('cancelled') 자동 전환 ★
 │   │                좌측 패널: missionTab state('all'|'completed'|'cancelled') + 탭 UI(전체/완료/취소) ★ 개편
 │   │                  tabFiltered: missionTab='all'→missions 전체 / 그 외→status 일치 필터
 │   │                  mainMissions/subMissions: tabFiltered 기준 타입 분리
@@ -255,8 +257,11 @@ purit/
 │   │                  confirmCancel state: ConfirmModal(danger) → updateStatus(id, 'cancelled') + 기업 취소 알림 발송
 │   │                  confirmComplete state: ConfirmModal → 승인 건수(m.feedbacks.filter(f.purity_passed).length) 동적 표시 → complete_mission_and_refund RPC + 기업 완료 알림 발송
 │   │                  confirmEarlyComplete state: 조기 종료 미션 완료 처리 — status 유지(cancelled), 크레딧 변경 없음
-│   │                    earlyCompleteError state + earlyCompleteMission(m) 핸들러 → sendNotification(기업) → 기업 취소탭 결과 확인 유도
-│   │                    "완료 처리" 버튼: m.status==='cancelled' && hasPending(미처리 피드백 있음)인 카드에만 표시
+│   │                    earlyCompleteError state + earlyCompleteMission(m) 핸들러:
+│   │                      → missions.company_notified_at = now() UPDATE (기업 공개 게이트 해제, migration 039)
+│   │                      → sendNotification(기업, actionUrl='/company/results?id=...') fire-and-forget
+│   │                      → setMissions 리로드 + setSelectedMission(prev→data.find) 동기화 ★
+│   │                    "완료 처리" 버튼: m.status==='cancelled' && allFbs.length>0 && pendingFbs.length===0 일 때만 활성화
 │   │                  confirmReactivate state: { id, label, desc, fromStatus } — fromStatus로 completed/cancelled 분기
 │   │                    fromStatus='completed': reactivateCompleted(id) 호출 → reactivate_mission_and_reclaim RPC + 기업 재진행 알림 발송
 │   │                      INSUFFICIENT_CREDITS 에러 시 잔액/필요량 표시 + 상태 변경 없음
