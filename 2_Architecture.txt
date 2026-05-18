@@ -137,12 +137,20 @@ purit/
 │   │                    - 일반 카드 클릭 (active/completed) → navigate('/company/results?id=…')
 │   │                  서브 의뢰 폼 단계 (4단계 공통 구조): ★ 개편
 │   │                    PreferenceTest: STEPS=['소재 입력','질문 설정','패널 설정','검토']
-│   │                      Step 0: 소재유형+소재A/B+이미지+제품설명+산업군 통합
+│   │                      Step 0: 의뢰명(missionTitle, 선택)+소재유형+소재A/B+이미지+제품설명+산업군 통합 ★ 의뢰명 추가
 │   │                    PricingTest: STEPS=['가격 페이지','질문 설정','패널 설정','검토']
-│   │                      Step 0: 가격내용+이미지+제품설명+산업군 통합
+│   │                      Step 0: 의뢰명(missionTitle, 선택)+가격내용+이미지+제품설명+산업군 통합 ★ 의뢰명 추가
 │   │                    ColdEmailTest: STEPS=['이메일 입력','질문 설정','패널 설정','검토']
-│   │                      Step 0: 이메일원문+제품설명+산업군 통합
-│   │                    Step 3 '검토': 입력 내용 요약 + 패널수·직급·크레딧 표시 + 제출 버튼 (메인의뢰 Step 4와 동일 패턴)
+│   │                      Step 0: 의뢰명(missionTitle, 선택)+이메일원문+제품설명+산업군 통합 ★ 의뢰명 추가
+│   │                    Step 3 '검토': 의뢰명 포함 입력 내용 요약 + 패널수·직급·크레딧 표시 + 제출 버튼 (메인의뢰 Step 4와 동일 패턴) ★
+│   │                    missionTitle 공통 패턴 (3개 파일):
+│   │                      - state: missionTitle ('' 초기값)
+│   │                      - shouldBlockNav: missionTitle 포함 (|| missionTitle)
+│   │                      - saveDraft: description JSON에 missionTitle 포함
+│   │                      - openDraftOrActiveForEdit: parsed.missionTitle 우선 복원 + ms.title 폴백
+│   │                      - useEffect editMode 블록: parsed.missionTitle 우선 복원 + ms.title 폴백 (D-77 참조)
+│   │                      - handleSubmit: finalTitle = missionTitle.trim() || 타입별 기본값
+│   │                      - missions INSERT: title=finalTitle, description JSON에도 missionTitle 저장
 │   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|➕ 커스텀 질문
 │   │                탭 이모지: lp/preference/pricing/email 탭은 icon: null (이모지 없음), 커스텀 탭만 icon: '➕'
 │   │                "질문 만들기" → "커스텀 질문" (탭 레이블 + 탭 콘텐츠 헤더 모두 변경)

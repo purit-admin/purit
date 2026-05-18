@@ -130,6 +130,8 @@ export default function ColdEmailTest() {
         if (!ms) return;
         let parsed = {};
         try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+        if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
+        else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);
         if (parsed.content) setEmailText(parsed.content);
         if (parsed.productDescription) setProductDescription(parsed.productDescription);
         if (parsed.industry) setIndustry(parsed.industry);
@@ -835,6 +837,7 @@ export default function ColdEmailTest() {
                   <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
                     <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.06em' }}>이메일 입력</div>
                     {[
+                      missionTitle.trim() && { label: '의뢰명', value: missionTitle.trim() },
                       { label: '이메일 원문', value: emailText.trim() },
                       productDescription.trim() && { label: '제품/타겟 설명', value: productDescription.trim() },
                       industry && { label: '산업군', value: industry },

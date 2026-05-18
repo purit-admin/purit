@@ -345,6 +345,7 @@
 QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 작성일: 2026-05-13
 최종 업데이트: 2026-05-18 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
+                            / missionTitle 신규 기능 전수 조사: 기능-A·B 2건 발견 및 즉시 수정 완료 — 총 151건 완료
                             / 대규모 전체 조사: 신규-F~Y 20건 발견
                             / Phase 1+2 무한 로딩 고착 13건 수정 완료: 신규-F/G/H/I/M/N/O/T/U/V/W/X/Y
                             / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료
@@ -410,7 +411,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   🟡 P3      Pnl-E           Missions.jsx / History.jsx — 선형 페이지네이션 (슬라이딩 5-윈도우 미적용)  ✅
   🟡 P3      Pnl-F           Profile.jsx — TIER_META 데드코드 잔류  ✅
   ────────   ──────────────  ────────────────────────────────────────────  ──────
-  잔여 합계  0건             (전체 149건 전원 완료·스킵)
+  잔여 합계  0건             (전체 151건 전원 완료·스킵)
 
   → 완료 항목 전체는 하단 아카이브 참조
 
@@ -596,69 +597,14 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [B-145] 기업 대시보드 — 기간 필터 전환 시 긍/부정 분포 캐러셀 페이지 미리셋 ✅
 
 -- 알림 시스템 무결성 검증 (2026-05-18) — submission_deadline 시스템과 기존 알림 로직 충돌 --
-[B-146] 패널 대시보드 — 24h draft 알림이 submission_deadline(메인 4h/서브 2h)과 충돌 ✅
-  패턴: 규칙 14 (Migration 변경 후 기존 알림 로직 역방향 추적 누락)
-  위치: src/pages/panel/Dashboard.jsx (알림 로직) + supabase/migrations/035 (deadline 시스템)
-  재현: 패널이 미션을 수락 후 4시간 경과 → 대시보드 방문 → 이미 만료된 draft에 알림 생성
-        → 패널이 알림 클릭 → "제출 기간이 만료되었습니다" 화면만 노출
-  현재: created_at < now-24h 조건 → deadline과 무관하게 24h 후 알림 발동
-  수정 1 (Dashboard.jsx): 24h 로직 → submission_deadline 기준 1시간 이내 draft에 "마감 임박 알림" 발송
-         중복 방지: 오늘 발송된 '%마감 임박%' 제목 알림 체크 유지
-  수정 2 (migration 037): expire_panel_drafts RPC 재정의 — 만료 draft 삭제 시
-         notifications INSERT ('🚫 [미션명] 수락 취소됨', body: '제출 기간 만료로 자동 취소')
-         panels.user_id를 함께 조회해 알림 수신자 설정 / rejected 만료는 알림 없이 삭제만(기존 동일)
-  패턴: D-72(필터 조건 수정 시 카운트·목록 두 경로 모두 업데이트) / 규칙 11(페이지네이션 리셋 트리거 점검)
-  위치: src/pages/company/Dashboard.jsx Line 492
-  재현: 긍/부정 분포 캐러셀 2페이지로 이동 → 기간 필터('최근 1개월' 등)를 전환
-  현재: setChartPeriod(val)만 호출 — setMainSentPage/setSubSentPage 리셋 없음
-  수정: onClick={() => { setChartPeriod(val); setMainSentPage(1); setSubSentPage(1); }}
-  수평전개: missionFilter 탭(Line 655)은 setMainMissionPage(1)/setSubMissionPage(1) 리셋 ✅ — 동일 패턴 dashboard 내 유일 누락 지점. 다른 파일의 독립적 period 필터 없음.
+[B-146] 패널 대시보드 — 24h draft 알림 로직이 submission_deadline(메인 4h/서브 2h)과 충돌해 이미 만료된 draft에 임박 알림 발송. created_at < now-24h 조건 → submission_deadline 1시간 이내 기준으로 교체. expire_panel_drafts RPC(migration 037) 재정의로 만료 시 '수락 취소됨' 알림 추가.  ✅
 
 -- 알림 시스템 무결성 검증 2차 (2026-05-18) — B-146 수정 후 누락 케이스 추적 --
-[B-147] 패널 대시보드 — 마감 임박 알림이 rejection_deadline 기반 draft·미수락 반려 케이스를 커버하지 못함 ✅
-  패턴: B-146 수정(submission_deadline 기준 1h 임박 알림)이 실제로 3가지 케이스 중 1가지만 커버함
-  위치: src/pages/panel/Dashboard.jsx (알림 로직)
-  재현 케이스 1 (미커버): 패널이 반려 후 재수락(reaccept) 클릭 → 재작성 draft 상태
-    → rejection_deadline 임박해도 알림 없음 (이 draft는 rejection_deadline이 있고 submission_deadline은 만료)
-  재현 케이스 2 (미커버): 패널이 반려를 받았으나 아직 재수락 클릭 안 한 상태(status='rejected')
-    → rejection_deadline 임박해도 알림 없음 (feedbacks.status='rejected' 쿼리 자체가 없었음)
-  현재: 단일 쿼리 — status='draft' AND rejection_deadline IS NULL AND submission_deadline 1h 이내 — 케이스 1·2 모두 누락
-  수정: 3개 병렬 쿼리로 분리
-    Query 1 (기존): 최초 draft, rejection_deadline IS NULL, submission_deadline 1h 이내
-                    → action_url: /panel/active?id=<missionId>
-    Query 2 (신규): 재작성 draft, rejection_deadline IS NOT NULL, rejection_deadline 1h 이내
-                    → title: '재제출 마감 임박 알림', action_url: /panel/active?id=<missionId>&resubmit=<feedbackId>
-    Query 3 (신규): 미수락 반려(status='rejected'), rejection_deadline 1h 이내
-                    → title: '재제출 마감 임박 알림', body: '재제출 기회 만료', action_url: /panel/missions
-  중복 방지: 기존 '%마감 임박%' title 체크 유지 — Query 2 title('재제출 마감 임박')도 포함됨
-  참고: Query 3의 action_url이 /panel/missions인 이유 — 재수락 클릭 전 상태이므로
-        /panel/active?id=...로 이동 시 'alreadySubmitted=true'(rejected 상태) 화면이 나옴
+[B-147] 패널 대시보드 — 마감 임박 알림이 재작성 draft(rejection_deadline 기반)·미수락 반려(status='rejected') 케이스를 미커버. 3개 병렬 쿼리로 분리: ①최초 draft(submission_deadline 1h), ②재작성 draft(rejection_deadline 1h), ③미수락 반려(rejection_deadline 1h).  ✅
+[B-148] 패널 대시보드 — expire_panel_drafts RPC 호출이 panel/Missions.jsx에만 있어 Dashboard 전용 사용자에게 만료 시 '수락 취소됨' 알림 미발송·filled_count 미복원. Dashboard.jsx load() 내 apply_honor_decay 직후에 추가.  ✅
 
-[B-148] 패널 대시보드 — expire_panel_drafts RPC가 Missions.jsx에서만 호출되어 Dashboard 전용 사용자에게 '수락 취소됨' 알림 미발송 ✅
-  패턴: RPC 호출 위치가 단일 페이지에만 있어 다른 진입점 사용자가 side effect를 받지 못하는 패턴
-  위치: src/pages/panel/Missions.jsx (기존 호출) + src/pages/panel/Dashboard.jsx (신규 추가)
-  재현: 패널이 미션 수락 후 4시간 경과 → Missions.jsx를 방문하지 않고 Dashboard만 방문
-    → expire_panel_drafts RPC 미호출 → 만료 draft가 DB에 잔류
-    → filled_count 미복원 + '수락 취소됨' 알림 미발송 (migration 037 기능이 트리거 안 됨)
-  현재: expire_panel_drafts 호출이 panel/Missions.jsx 내 load()에만 있음
-  수정: Dashboard.jsx load() 내 apply_honor_decay 호출 직후, Promise.all 병렬 쿼리 전에 expire_panel_drafts 추가
-         순서 보장: 정리 먼저 → feedbacks 재조회에서 이미 삭제된 draft는 반영 안 됨 → 올바른 "참여 가능" 수 계산
-  중요: migration 037을 Supabase SQL Editor에서 실행해야 expire_panel_drafts가 알림 발송 기능을 포함함
-
-[B-149] 패널 미션 수행 — 재작성 draft 두 번째 방문 시 "제출 기간이 만료되었습니다" 오표시 + isResubmit 미설정으로 서브미션 INSERT 충돌 / 미션 카운트 중복 발생 ✅
-  패턴: else 분기(정상 draft 처리)가 submission_deadline만 체크하고 rejection_deadline(재작성 draft 기준) 미확인
-  위치: src/pages/panel/ActiveMission.jsx (loadMission 내 else 분기, ~line 315)
-  재현: ① 패널이 반려 피드백 "재작성 →" 클릭 → reaccept RPC → status='draft', rejection_deadline 설정
-        ② 일부 입력 후 페이지 이탈 (자동저장 완료 여부 무관)
-        ③ Missions.jsx [이어하기] 탭 → "이어하기 →" → /panel/active?id=... (resubmit 파라미터 없음)
-        ④ fb.status='draft' → willResubmit=false → else 분기 진입
-        ⑤ fb.submission_deadline(최초 수락 시 4h/2h — 이미 만료) 체크 → deadlineExpired=true → 오류 화면
-  현재: else 분기가 fb.rejection_deadline 존재를 확인하지 않고 fb.submission_deadline만 검사
-        isResubmit 미설정 → 서브미션 재제출 시 INSERT 시도 → unique constraint 충돌
-        isResubmit 미설정 → increment_panel_mission_count 재호출 → 카운트 중복
-  수정: else 분기 내 fb.rejection_deadline 유무로 재작성 draft / 최초 draft 분기
-        rejection_deadline 있으면: 해당 시간 기준으로 만료 체크 + setIsResubmit(true) + '재제출 마감' 배너
-        rejection_deadline 없으면: 기존 submission_deadline 체크 로직 유지
+-- 재작성 draft 재진입 무결성 검증 (2026-05-18) — panel/ActiveMission.jsx 재진입 로직 검증 --
+[B-149] 패널 미션 수행 — 재작성 draft 두 번째 방문 시 else 분기가 submission_deadline(이미 만료)만 체크해 deadlineExpired=true 오표시·isResubmit 미설정으로 서브미션 INSERT 충돌·미션 카운트 중복. else 분기 내 fb.rejection_deadline 유무로 재작성/최초 draft 분기하여 수정.  ✅
 
 -- 패널 포털 파일 수준 전수 재조사 (2026-05-16) --
 [Pnl-A] 패널 미션 수행 (panel/ActiveMission.jsx) — loadMission() 내 deadlineExpired 분기 3곳에서 선언되지 않은 setLoading(false) 호출. loading state가 존재하지 않아 ReferenceError 발생 → try-catch가 삼켜 무증상. setLoading(false) 3곳 제거로 수정.  ✅
@@ -673,5 +619,25 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [기업-S] 기업 서브미션 폼 이어쓰기 (company/ColdEmailTest.jsx, PreferenceTest.jsx, PricingTest.jsx, NewMission.jsx) — openDraftOrActiveForEdit()가 .then({data:ms}) 패턴으로 구현되어 있고 .catch()가 없음. DB 오류 시 빈 callback으로 끝나 UI가 '목록' 뷰에 멈추고 사용자는 아무 피드백도 받지 못함. .catch(e => console.error(...)) 추가로 최소 가드 처리.  ✅
 [기업-T] 기업 서브미션 폼 임시 저장 (company/ColdEmailTest.jsx, PreferenceTest.jsx, PricingTest.jsx, NewMission.jsx) — saveDraft()가 try-catch 내부에서 에러를 삼킴(console.error만 출력). DraftSaveModal의 "임시 저장 후 나가기" 버튼이 await saveDraft() 후 무조건 navigate() 실행 → DB 실패 시 사용자는 저장됐다고 착각하지만 데이터가 소실됨. saveDraft() catch에서 re-throw → 버튼 핸들러에서 try-catch로 잡아 에러 시 이동 차단 + 모달 내 에러 메시지 표시.  ✅
 [기업-U] 기업 서브미션 폼 템플릿 저장 (company/ColdEmailTest.jsx, PreferenceTest.jsx, PricingTest.jsx, NewMission.jsx) — handleSaveTmpl() catch 블록이 console.error만 호출하고 UI에 에러를 표시하지 않음. 실패 시 ConfirmModal이 열린 채로 남아 사용자는 버튼을 눌렀는데 아무 일도 없는 것처럼 보임. saveTmplError state 추가 + catch에서 setSaveTmplError() 호출 + ConfirmModal errorMsg prop 전달.  ✅
+
+-- missionTitle 신규 기능 전수 조사 (2026-05-18) — PreferenceTest/PricingTest/ColdEmailTest 3개 파일 전수 조사 --
+[기능-A] 기업 서브미션 폼 editMode 진입 (company/PreferenceTest.jsx, PricingTest.jsx, ColdEmailTest.jsx) — useEffect editMode 블록에서 parsed.missionTitle 복원 누락 ✅
+  패턴: 규칙 10 (저장·복원 대칭성) — saveDraft description JSON에 missionTitle 저장하나 useEffect editMode 블록 복원 코드에 누락
+  위치: 3개 파일 모두 — useEffect editMode 블록 (PreferenceTest line 151, PricingTest line 141, ColdEmailTest line 131)
+  재현: Dashboard에서 active 미션 수정(filled=0, location.state.editMode=true) 진입 → missionTitle 필드 빈 상태
+  현재: openDraftOrActiveForEdit()에는 missionTitle 복원 코드 추가됐으나,
+        useEffect 내 editMode 블록(location.state.editMode=true 경로)에는 복원 코드 없음
+  수정: 3개 파일 useEffect editMode 블록에 parsed.missionTitle 복원 + ms.title 폴백 추가
+        `if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);`
+        `else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);`
+  수평전개: openDraftOrActiveForEdit() — 이미 동일 복원 로직 적용됨 ✅
+
+[기능-B] 기업 서브미션 폼 Step 3 검토 (company/PreferenceTest.jsx, PricingTest.jsx, ColdEmailTest.jsx) — 검토 화면에 missionTitle(의뢰명) 행 미표시 ✅
+  패턴: 신규 필드 추가 시 Step 3 검토 화면 rows 배열 미갱신
+  위치: PreferenceTest.jsx line ~937 / PricingTest.jsx line ~888 / ColdEmailTest.jsx line ~839
+  재현: 서브미션 폼 Step 0에서 의뢰명 입력 → Step 3 검토 화면 → 의뢰명 행 미표시
+  현재: rows 배열이 소재유형/소재A/B/제품설명/산업군만 포함, missionTitle 누락
+  수정: 각 파일 Step 3 rows 배열 최상단에 `missionTitle.trim() && { label: '의뢰명', value: missionTitle.trim() }` 추가
+  고객 관점: Step 0에서 입력한 의뢰명이 최종 제출 전 검토 화면에 보이지 않아 제출 전 확인 불가
 
 ================================================================

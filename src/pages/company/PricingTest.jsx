@@ -140,6 +140,8 @@ export default function PricingTest() {
         if (!ms) return;
         let parsed = {};
         try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+        if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
+        else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);
         if (parsed.content) setPricingDesc(parsed.content);
         if (parsed.image) setPricingImage(parsed.image);
         if (parsed.productDescription) setProductDescription(parsed.productDescription);
@@ -884,6 +886,7 @@ export default function PricingTest() {
                   <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
                     <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.06em' }}>가격 페이지</div>
                     {[
+                      missionTitle.trim() && { label: '의뢰명', value: missionTitle.trim() },
                       pricingDesc.trim() && { label: '가격 내용', value: pricingDesc.trim() },
                       productDescription.trim() && { label: '제품/타겟 설명', value: productDescription.trim() },
                       industry && { label: '산업군', value: industry },

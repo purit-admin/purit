@@ -149,6 +149,8 @@ export default function PreferenceTest() {
         if (!ms) return;
         let parsed = {};
         try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+        if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
+        else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);
         if (parsed.variantA) setVariantA(parsed.variantA);
         if (parsed.variantB) setVariantB(parsed.variantB);
         if (parsed.variantAImage) setVariantAImage(parsed.variantAImage);
@@ -932,6 +934,7 @@ export default function PreferenceTest() {
               const reqCredits = calcCredits(panelSize, careerLevels, 'sub');
               const notEnough = creditBalance != null && reqCredits > creditBalance;
               const rows = [
+                missionTitle.trim() && { label: '의뢰명', value: missionTitle.trim() },
                 { label: '소재 유형', value: ASSET_TYPES.find(a => a.key === assetType)?.label || '-' },
                 { label: '소재 A', value: variantA.trim() || '-' },
                 { label: '소재 B', value: variantB.trim() || '-' },

@@ -237,7 +237,7 @@
    - Recharts LineChart: 5차원 점수 시계열 변화
    - 하단 요약 테이블 (점수 색상 코딩)
 
-5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06)
+5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06) + 의뢰명 입력 (2026-05-18)
    - 목록: missions 테이블에서 type='preference' 필터로 로드 (cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
      · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue)/취소(red) 뱃지, 수정/조기종료 버튼 ★
@@ -249,27 +249,28 @@
      · "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: navigationGuard + showDraftModal + window.beforeunload (NewMission과 동일 패턴)
-     · hasUnsavedChanges: variantA || variantB || productDescription
+     · hasUnsavedChanges: missionTitle || variantA || variantB || productDescription
      · draftId 상태로 draft 이어쓰기 추적, 제출 시 draftId 있으면 UPDATE + active 전환 + 크레딧 예약
    - 목록 완료·임시저장 카드 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
    - 목록 active 카드: 수정(filled=0) / 조기종료(filled≥1) 버튼 → terminateTarget ConfirmModal → status='cancelled' ★
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - STEPS = ['소재 입력', '질문 설정', '패널 설정', '검토'] (총 4단계) ★ 개편
-   - Step 0 '소재 입력': 소재 유형 선택(헤드라인 카피/CTA 문구/가치 제안/LP 섹션/광고 소재/이메일 제목) + 소재 A/B 입력 + 이미지 업로드 + 제품/타겟 설명 + 산업군 (1개 스텝으로 통합)
+   - Step 0 '소재 입력': 검증할 서비스명(의뢰명) 입력(선택, 미입력 시 소재 유형명 자동 사용) + 소재 유형 선택(헤드라인 카피/CTA 문구/가치 제안/LP 섹션/광고 소재/이메일 제목) + 소재 A/B 입력 + 이미지 업로드 + 제품/타겟 설명 + 산업군 (1개 스텝으로 통합) ★
+     · missionTitle state → missions.title DB 컬럼 저장 / saveDraft description JSON에도 포함 ★
      · variantA / variantB 텍스트 필수, 업로드 경로: {companyId}/{missionUuid}/va.{ext} / vb.{ext}
      · 산업군: ▼ 드롭다운 — 20개 칩 + "✏️ 직접 쓰기" 모드
    - Step 1 '질문 설정': 아코디언 그룹 1 — 내 커스텀 질문 / 그룹 2~4 — QUESTION_TEMPLATES.preference 3종
      · 최대 5개 / 서술형 최대 2개 / 질문 만들기 → localCustomQs 또는 템플릿 저장
    - Step 2 '패널 설정': PanelTargetStep (NewMission Step 3과 동일 컴포넌트)
-   - Step 3 '검토': 소재유형·소재A/B·제품설명·산업군·추가질문 수·패널수·직급·최대예상크레딧 요약 표시
+   - Step 3 '검토': 의뢰명·소재유형·소재A/B·제품설명·산업군·추가질문 수·패널수·직급·최대예상크레딧 요약 표시 ★
      · 크레딧 부족 시 빨간 경고 배너 표시, 의뢰 제출 버튼
-   - 등록 시: missions INSERT(type='preference', description=JSON.stringify({
-       variantA, variantB, variantAImage, variantBImage,
-       productDescription, industry, selectedQuestions, careerLevels})) + preference_tests INSERT
+   - 등록 시: missions INSERT(type='preference', title=finalTitle, description=JSON.stringify({
+       missionTitle, variantA, variantB, variantAImage, variantBImage,
+       productDescription, industry, selectedQuestions, careerLevels})) + preference_tests INSERT ★
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: A/B 선택 비율 바 + message_clarity / purchase_intent 평균 + CustomQuestionsSection
 
-6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06)
+6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06) + 의뢰명 입력 (2026-05-18)
    - 목록: missions 테이블에서 type='pricing' 필터로 로드 (cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
      · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue)/취소(red) 뱃지, 수정/조기종료 버튼 ★
@@ -278,24 +279,25 @@
      · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
      · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
-   - 임시 저장 기능: hasUnsavedChanges = pricingDesc, draftId 패턴 (PreferenceTest와 동일)
+   - 임시 저장 기능: hasUnsavedChanges = missionTitle || pricingDesc, draftId 패턴 (PreferenceTest와 동일) ★
    - 목록 완료·임시저장 카드 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
    - 목록 active 카드: 수정(filled=0) / 조기종료(filled≥1) 버튼 → terminateTarget ConfirmModal ★
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - STEPS = ['가격 페이지', '질문 설정', '패널 설정', '검토'] (총 4단계) ★ 개편
-   - Step 0 '가격 페이지': 가격 페이지 내용 입력(textarea) + 이미지 업로드(선택, 1장) + 제품/타겟 설명 + 산업군 (통합)
+   - Step 0 '가격 페이지': 검증할 서비스명(의뢰명) 입력(선택, 미입력 시 '가격 페이지 검증' 자동 사용) + 가격 페이지 내용 입력(textarea) + 이미지 업로드(선택, 1장) + 제품/타겟 설명 + 산업군 (통합) ★
+     · missionTitle state → missions.title DB 컬럼 저장 / saveDraft description JSON에도 포함 ★
      · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
      · 산업군: ▼ 드롭다운 — 20개 칩 + "✏️ 직접 쓰기" 모드
    - Step 1 '질문 설정': category='가격', PreferenceTest Step 1과 동일 구조
    - Step 2 '패널 설정': PanelTargetStep
-   - Step 3 '검토': 가격내용·제품설명·산업군·추가질문 수·패널수·직급·최대예상크레딧 요약 + 제출 버튼
-   - 등록 시: missions INSERT(type='pricing', description=JSON.stringify({
-       content: pricingDesc, image, productDescription, industry,
-       selectedQuestions, careerLevels})) + pricing_tests INSERT
+   - Step 3 '검토': 의뢰명·가격내용·제품설명·산업군·추가질문 수·패널수·직급·최대예상크레딧 요약 + 제출 버튼 ★
+   - 등록 시: missions INSERT(type='pricing', title=finalTitle, description=JSON.stringify({
+       missionTitle, content: pricingDesc, image, productDescription, industry,
+       selectedQuestions, careerLevels})) + pricing_tests INSERT ★
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: 구매 의향 비율 + price_fairness / value_perception 평균 + CustomQuestionsSection
 
-7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06)
+7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06) + 의뢰명 입력 (2026-05-18)
    - 목록: missions 테이블에서 type='email' 필터로 로드 (cold_email_tests 테이블 의존 제거, cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
      · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue)/취소(red) 뱃지, 수정/조기종료 버튼 ★
@@ -305,19 +307,20 @@
      · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…')
      · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
-   - 임시 저장 기능: hasUnsavedChanges = emailText, draftId 패턴 (PreferenceTest와 동일)
+   - 임시 저장 기능: hasUnsavedChanges = missionTitle || emailText, draftId 패턴 (PreferenceTest와 동일) ★
    - 목록 완료·임시저장 카드 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
    - 목록 active 카드: 수정(filled=0) / 조기종료(filled≥1) 버튼 → terminateTarget ConfirmModal → status='cancelled' ★
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - STEPS = ['이메일 입력', '질문 설정', '패널 설정', '검토'] (총 4단계) ★ 개편
-   - Step 0 '이메일 입력': 이메일 원문 입력(textarea rows=10) + 제품/타겟 설명 + 산업군 (통합)
+   - Step 0 '이메일 입력': 검증할 서비스명(의뢰명) 입력(선택, 미입력 시 '이메일 검증' 자동 사용) + 이메일 원문 입력(textarea rows=10) + 제품/타겟 설명 + 산업군 (통합) ★
+     · missionTitle state → missions.title DB 컬럼 저장 / saveDraft description JSON에도 포함 ★
      · 산업군: ▼ 드롭다운 — 20개 칩 + "✏️ 직접 쓰기" 모드
    - Step 1 '질문 설정': category='이메일', PricingTest Step 1과 동일 구조
    - Step 2 '패널 설정': PanelTargetStep
-   - Step 3 '검토': 이메일원문·제품설명·산업군·추가질문 수·패널수·직급·최대예상크레딧 요약 + 제출 버튼
-   - 등록 시: missions INSERT(type='email', title='이메일 검증'(고정), description=JSON.stringify({
-       content: emailText, productDescription, industry,
-       selectedQuestions, careerLevels})) + cold_email_tests INSERT
+   - Step 3 '검토': 의뢰명·이메일원문·제품설명·산업군·추가질문 수·패널수·직급·최대예상크레딧 요약 + 제출 버튼 ★
+   - 등록 시: missions INSERT(type='email', title=finalTitle(사용자 입력 or '이메일 검증' 폴백), description=JSON.stringify({
+       missionTitle, content: emailText, productDescription, industry,
+       selectedQuestions, careerLevels})) + cold_email_tests INSERT ★
    - reward_amount = calcPanelPayout(careerLevels, 'sub') — 패널 1인당 예상 정산금 (서브 주니어 기준 4,500원)
    - 결과 화면: 답장 의향 비율 + open_intent / curiosity_score / hook_score / clarity_score 평균 + CustomQuestionsSection
 

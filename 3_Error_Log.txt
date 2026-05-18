@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-18 (D-76 추가 — 알림 발송만 구현하고 DB 변경이 없는 "절반 구현" 액션이 UI에 노출되면 클릭해도 아무 효과가 없는 패턴)
+최종 업데이트: 2026-05-18 (D-77 추가 — 동일 컴포넌트 내 두 가지 editMode 진입 경로 중 하나에서만 신규 필드 복원 코드를 추가하면 다른 경로에서 해당 필드가 비어있는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -914,6 +914,28 @@ D-74. 하나의 필터가 여러 페이지네이션 state를 공유할 때 일�
              새 필터를 추가할 때마다 "이 필터가 영향을 주는 데이터를 표시하는 페이지네이션이 무엇인가"를
              기존 필터의 onClick 구현을 참조해 동일하게 적용할 것
              기존 필터의 "리셋 패턴"이 레퍼런스다 — 새 필터가 그보다 리셋 호출 수가 적으면 버그 신호
+
+D-77. 동일 컴포넌트 내 두 가지 editMode 진입 경로 중 하나에서만 신규 필드 복원 코드를 추가하면 다른 경로에서 해당 필드가 비어있는 패턴 ✅ 해결
+     → 증상: Dashboard에서 "수정" 버튼으로 서브미션 폼(PreferenceTest 등)에 진입하면 의뢰명(missionTitle)이 빈 필드로 표시됨
+             목록에서 "이어 작성하기" 버튼 클릭 시에는 정상적으로 의뢰명이 복원됨
+     → 원인: 같은 폼 컴포넌트에 두 가지 진입 경로가 공존:
+             경로 A. openDraftOrActiveForEdit(id) — 목록 내부 버튼 클릭 시 (D-43 참조)
+             경로 B. location.state.editMode + missionId — 외부 경로(Dashboard) navigate 진입 시
+             경로 A의 헬퍼 함수에만 missionTitle 복원 코드를 추가하고 경로 B의 useEffect editMode 블록을 누락
+     → 해결: 경로 B의 useEffect editMode 블록에도 동일 복원 코드 추가
+             ```js
+             let parsed = {};
+             try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+             if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
+             else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);
+             ```
+             ms.title 폴백: 구 포맷 미션(description JSON에 missionTitle 없는 경우) + 임시저장 자동제목 제외
+     → 원칙: 한 컴포넌트에 "같은 목적의 편집 진입 경로"가 복수로 존재하면,
+             신규 필드를 추가할 때 모든 진입 경로의 복원 코드를 동시에 갱신해야 함
+             경로를 grep으로 전수 확인하는 방법: editMode / openDraftOrActiveForEdit 두 키워드로 검색
+             새 state 추가 체크리스트: ①state 선언 ②shouldBlockNav 포함 ③saveDraft JSON 포함
+             ④openDraftOrActiveForEdit 복원 ⑤useEffect editMode 블록 복원 ⑥Step N 검토 rows 포함
+             체크리스트 ⑤를 빠뜨리는 실수가 가장 흔함 (경로 A 수정 후 B를 동일한 코드로 인식하고 건너뜀)
 
 D-76. 동일 status 값이지만 컬럼 유무에 따라 의미가 다른 두 종류를 단일 분기로 처리하면 잘못된 deadline을 체크하는 패턴 ✅ 해결
      → 증상: 재작성 draft(rejection_deadline IS NOT NULL) 두 번째 방문 시 "제출 기간이 만료되었습니다" 화면 오표시

@@ -1,11 +1,11 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Bell, Plus, BarChart2, Layers, Columns2,
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
   Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
-  LogOut, Menu, X as CloseIcon, Flag, Building2,
+  LogOut, Menu, X as CloseIcon, Flag, Building2, Pin, PinOff,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -112,7 +112,9 @@ export default function Layout({ role, children }) {
   const location = useLocation();
   const { user, role: authRole, signOut } = useAuth();
   const navGroups = NAV[role] || [];
-  const [collapsed, setCollapsed] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const collapseTimer = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
   const [panelId, setPanelId] = useState(null);
@@ -190,6 +192,19 @@ export default function Layout({ role, children }) {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  const isExpanded = isMobile ? true : (pinned || hovered);
+  const sidebarWidth = isMobile ? 220 : (isExpanded ? 220 : 60);
+
+  const handleMouseEnter = () => {
+    if (isMobile) return;
+    clearTimeout(collapseTimer.current);
+    setHovered(true);
+  };
+  const handleMouseLeave = () => {
+    if (isMobile) return;
+    collapseTimer.current = setTimeout(() => setHovered(false), 200);
+  };
+
   const handleSignOut = async () => {
     await signOut();
     setMobileOpen(false);
@@ -215,42 +230,49 @@ export default function Layout({ role, children }) {
         onClick={() => setMobileOpen(false)}
       />
 
-      <aside className={`sidebar-drawer${mobileOpen ? ' is-open' : ''}`} style={{
-        width: collapsed ? 60 : 220, flexShrink: 0,
-        background: '#FFFFFF',
-        borderRight: '1px solid #E9ECF0',
-        display: 'flex', flexDirection: 'column',
-        transition: 'width 0.22s cubic-bezier(0.22,1,0.36,1)',
-        position: 'sticky', top: 0, height: '100vh', zIndex: 10, overflow: 'hidden',
-      }}>
+      <aside
+        className={`sidebar-drawer${mobileOpen ? ' is-open' : ''}`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          width: sidebarWidth, flexShrink: 0,
+          background: '#FFFFFF',
+          borderRight: '1px solid #E9ECF0',
+          display: 'flex', flexDirection: 'column',
+          transition: 'width 0.22s cubic-bezier(0.22,1,0.36,1)',
+          position: 'sticky', top: 0, height: '100vh', zIndex: 10, overflow: 'hidden',
+        }}
+      >
         {/* Logo */}
         <div style={{
-          padding: collapsed ? '18px 0' : '20px 18px',
+          padding: isExpanded ? '20px 18px' : '18px 0',
           borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between', flexShrink: 0,
+          justifyContent: isExpanded ? 'space-between' : 'center', flexShrink: 0,
         }}>
-          {!collapsed && (
+          {isExpanded && (
             <div>
               <div style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.01em', fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', color: 'var(--text)', lineHeight: 1 }}>Purit</div>
               <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{ROLE_LABEL[role]} 포털</div>
             </div>
           )}
-          <button className="sidebar-collapse-btn" onClick={() => setCollapsed(c => !c)} style={{
-            background: 'var(--surface)', color: 'var(--text-3)',
-            width: 28, height: 28, borderRadius: 8,
-            border: '1px solid var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', flexShrink: 0, transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-3)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
-          >
-            {collapsed
-              ? <ChevronRight size={14} />
-              : <ChevronLeft size={14} />
-            }
-          </button>
+          {/* 핀 버튼 — 데스크탑에서 hover 시 표시 */}
+          {!isMobile && isExpanded && (
+            <button className="sidebar-collapse-btn" onClick={() => setPinned(p => !p)} style={{
+              background: pinned ? 'var(--accent-dim)' : 'var(--surface)',
+              color: pinned ? 'var(--accent)' : 'var(--text-3)',
+              width: 28, height: 28, borderRadius: 8,
+              border: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s',
+            }}
+            title={pinned ? '고정 해제' : '사이드바 고정'}
+            onMouseEnter={e => { e.currentTarget.style.background = pinned ? 'var(--accent-dim)' : 'var(--bg-3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = pinned ? 'var(--accent-dim)' : 'var(--surface)'; }}
+            >
+              {pinned ? <PinOff size={13} /> : <Pin size={13} />}
+            </button>
+          )}
           {isMobile && (
             <button onClick={() => setMobileOpen(false)} style={{
               background: 'none', border: 'none', cursor: 'pointer',
@@ -264,8 +286,8 @@ export default function Layout({ role, children }) {
 
         {/* Admin portal switcher */}
         {authRole === 'admin' && (
-          <div style={{ padding: collapsed ? '8px 6px' : '8px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-            {collapsed ? (
+          <div style={{ padding: isExpanded ? '8px 10px' : '8px 6px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            {!isExpanded ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
                 {[['admin', 'AD', '/admin'], ['company', 'CO', '/company'], ['panel', 'PN', '/panel']].map(([p, abbr, path]) => (
                   <button key={p} onClick={() => handleNav(path)} title={ROLE_LABEL[p] + ' 포털'}
@@ -311,7 +333,7 @@ export default function Layout({ role, children }) {
         <nav style={{ flex: 1, padding: '10px 0', overflowY: 'auto', overflowX: 'hidden' }}>
           {navGroups.map((group, gi) => (
             <div key={group.group} style={{ marginBottom: 2 }}>
-              {!collapsed && (
+              {isExpanded && (
                 <div style={{
                   fontSize: 11, fontWeight: 600, color: 'var(--text-3)',
                   textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -320,7 +342,7 @@ export default function Layout({ role, children }) {
                   {group.group}
                 </div>
               )}
-              {collapsed && gi > 0 && (
+              {!isExpanded && gi > 0 && (
                 <div style={{ height: 1, background: 'var(--border)', margin: '8px 10px' }} />
               )}
               {group.items.map(item => {
@@ -328,18 +350,18 @@ export default function Layout({ role, children }) {
                 const Icon = item.icon;
                 return (
                   <button key={item.path} onClick={() => handleNav(item.path)}
-                    title={collapsed ? item.label : undefined}
+                    title={!isExpanded ? item.label : undefined}
                     style={{
-                      width: collapsed ? '100%' : 'calc(100% - 12px)', display: 'flex', alignItems: 'center',
-                      gap: 9, padding: collapsed ? '9px 0' : '8px 12px',
+                      width: isExpanded ? 'calc(100% - 12px)' : '100%', display: 'flex', alignItems: 'center',
+                      gap: 9, padding: isExpanded ? '8px 12px' : '9px 0',
                       margin: '1px 0',
-                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      justifyContent: isExpanded ? 'flex-start' : 'center',
                       background: active ? 'var(--surface)' : 'none',
                       color: active ? 'var(--text)' : 'var(--text-3)',
                       fontSize: 14, fontWeight: active ? 600 : 400,
-                      borderRadius: collapsed ? 0 : 10,
-                      marginLeft: collapsed ? 0 : 6,
-                      marginRight: collapsed ? 0 : 6,
+                      borderRadius: isExpanded ? 10 : 0,
+                      marginLeft: isExpanded ? 6 : 0,
+                      marginRight: isExpanded ? 6 : 0,
                       boxShadow: active ? 'var(--shadow)' : 'none',
                       transition: 'all 0.12s ease', position: 'relative',
                       whiteSpace: 'nowrap', overflow: 'hidden',
@@ -348,8 +370,8 @@ export default function Layout({ role, children }) {
                     onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'none'; }}
                   >
                     <Icon size={16} strokeWidth={active ? 2 : 1.75} style={{ flexShrink: 0 }} />
-                    {!collapsed && <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>}
-                    {!collapsed && item.path === `/${role}/notifications` && unreadCount > 0 && (
+                    {isExpanded && <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>}
+                    {isExpanded && item.path === `/${role}/notifications` && unreadCount > 0 && (
                       <span style={{
                         minWidth: 18, height: 18, borderRadius: 9,
                         background: 'var(--red)', color: '#fff',
@@ -358,13 +380,13 @@ export default function Layout({ role, children }) {
                         padding: '0 5px', flexShrink: 0,
                       }}>{unreadCount}</span>
                     )}
-                    {collapsed && item.path === `/${role}/notifications` && unreadCount > 0 && (
+                    {!isExpanded && item.path === `/${role}/notifications` && unreadCount > 0 && (
                       <div style={{
                         position: 'absolute', top: 7, right: 10,
                         width: 6, height: 6, borderRadius: '50%', background: 'var(--red)',
                       }} />
                     )}
-                    {!collapsed && item.path === '/panel/missions' && rejectedCount > 0 && (
+                    {isExpanded && item.path === '/panel/missions' && rejectedCount > 0 && (
                       <span style={{
                         minWidth: 18, height: 18, borderRadius: 9,
                         background: 'var(--red)', color: '#fff',
@@ -373,7 +395,7 @@ export default function Layout({ role, children }) {
                         padding: '0 5px', flexShrink: 0,
                       }}>{rejectedCount}</span>
                     )}
-                    {collapsed && item.path === '/panel/missions' && rejectedCount > 0 && (
+                    {!isExpanded && item.path === '/panel/missions' && rejectedCount > 0 && (
                       <div style={{
                         position: 'absolute', top: 7, right: 10,
                         width: 6, height: 6, borderRadius: '50%', background: 'var(--red)',
