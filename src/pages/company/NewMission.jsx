@@ -192,17 +192,34 @@ const DEFAULT_PLACEHOLDERS = {
 };
 
 const PAGE_SIZE = 5;
+const WINDOW = 5;
 
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
+  const winStart = Math.max(1, page - 2);
+  const winEnd   = Math.min(totalPages, winStart + WINDOW - 1);
+  const pageNums = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
+  const btnBase  = { padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 13 };
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
-      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>이전</button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-        <button key={n} onClick={() => onPage(n)} style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? 'var(--accent)' : 'var(--surface)', color: page === n ? '#fff' : 'var(--text-2)', border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'), cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>{n}</button>
+      {page > WINDOW && (
+        <button onClick={() => onPage(Math.max(1, page - WINDOW))} style={btnBase}>«</button>
+      )}
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ ...btnBase, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>이전</button>
+      {pageNums.map(n => (
+        <button key={n} onClick={() => onPage(n)} style={{ ...btnBase,
+          background: page === n ? 'var(--accent)' : 'var(--surface)',
+          color: page === n ? '#fff' : 'var(--text-2)',
+          border: '1px solid ' + (page === n ? 'var(--accent)' : 'var(--border)'),
+          fontWeight: page === n ? 700 : 400 }}>{n}</button>
       ))}
-      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--surface)', color: 'var(--text-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>다음</button>
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ ...btnBase, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}>다음</button>
+      {page <= totalPages - WINDOW && (
+        <button onClick={() => onPage(Math.min(totalPages, page + WINDOW))} style={btnBase}>»</button>
+      )}
     </div>
   );
 }
@@ -245,6 +262,7 @@ export default function NewMission() {
   const [listFilter, setListFilter]       = useState('active');
   const [listPage, setListPage]           = useState(1);
   const [savingDraft, setSavingDraft]     = useState(false);
+  const [draftSaveError, setDraftSaveError] = useState('');
   const [isDraftMode, setIsDraftMode]     = useState(false);
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [deleteTarget, setDeleteTarget]     = useState(null);
@@ -266,6 +284,7 @@ export default function NewMission() {
   const [newQScaleMax,       setNewQScaleMax]      = useState('');
   const [showSaveModal,      setShowSaveModal]     = useState(false);
   const [savingToTemplate,   setSavingToTemplate]  = useState(false);
+  const [saveTmplError,      setSaveTmplError]     = useState('');
 
   // 플랜 & company id 로드
   useEffect(() => {
@@ -436,9 +455,11 @@ export default function NewMission() {
       setCustomLPQs(prev => [...prev, saved]);
       setLocalCustomQs(prev => [...prev, { ...saved, id: `local-${Date.now()}` }]);
       setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
+      setSaveTmplError('');
       setShowSaveModal(false);
     } catch (e) {
       console.error('[NewMission] 템플릿 저장 실패:', e.message);
+      setSaveTmplError('템플릿 저장에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setSavingToTemplate(false);
     }
@@ -538,7 +559,7 @@ export default function NewMission() {
       if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
       if (parsed.step != null) setStep(parsed.step);
       setView('form');
-    });
+    }).catch(e => console.error('[NewMission] 이어쓰기 로드 실패:', e.message));
   }
 
   async function handleDeleteMission() {
@@ -602,9 +623,10 @@ export default function NewMission() {
       }
     } catch (e) {
       console.error('[NewMission] 임시 저장 실패:', e.message);
-    } finally {
       setSavingDraft(false);
+      throw e;
     }
+    setSavingDraft(false);
   }
 
   const buildDescription = () => {
@@ -1557,7 +1579,8 @@ export default function NewMission() {
           desc={"이 질문을 템플릿에 추가하겠습니까?\n저장된 질문은 이후 의뢰 등록 시 자동으로 표시됩니다."}
           confirmLabel={savingToTemplate ? '저장 중…' : '저장'}
           onConfirm={handleSaveTmpl}
-          onCancel={() => setShowSaveModal(false)}
+          onCancel={() => { setShowSaveModal(false); setSaveTmplError(''); }}
+          errorMsg={saveTmplError}
         />
       )}
 
@@ -1594,8 +1617,19 @@ export default function NewMission() {
             <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 12 }}>
               의뢰 등록을 완료하지 않았습니다.<br />임시 저장하고 나가시겠습니까?
             </p>
+            {draftSaveError && (
+              <div style={{ fontSize: 12, color: '#ef4444', background: 'rgba(239,68,68,0.08)', borderRadius: 6, padding: '8px 12px', marginBottom: 4 }}>
+                {draftSaveError}
+              </div>
+            )}
             <Btn onClick={async () => {
-              await saveDraft();
+              setDraftSaveError('');
+              try {
+                await saveDraft();
+              } catch {
+                setDraftSaveError('임시 저장에 실패했습니다. 다시 시도해 주세요.');
+                return;
+              }
               navigationGuard.unregister();
               setShowDraftModal(false);
               const dest = pendingNavPath;
