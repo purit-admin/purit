@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -130,7 +130,7 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
+function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick }) {
   const filled = m.filled_count ?? 0;
   const isLive = m.status === 'active' && filled >= 1;
   const isDraft = m.status === 'draft';
@@ -148,6 +148,8 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete }) {
     if (isDraft) {
       const route = DRAFT_ROUTE[m.type || 'landing_page'] || '/company/new';
       navigate(route, { state: { editMode: true, missionId: m.id } });
+    } else if (m.status === 'active') {
+      onActiveClick();
     } else {
       navigate(`/company/results?id=${m.id}`);
     }
@@ -281,6 +283,14 @@ export default function CompanyDashboard() {
   const [mainSentPage, setMainSentPage] = useState(1);
   const [subSentPage, setSubSentPage]   = useState(1);
   const [chartPeriod, setChartPeriod]   = useState('all');
+  const [activeToast, setActiveToast]   = useState(false);
+  const activeToastTimer = useRef(null);
+
+  const handleActiveCardClick = () => {
+    if (activeToastTimer.current) clearTimeout(activeToastTimer.current);
+    setActiveToast(true);
+    activeToastTimer.current = setTimeout(() => setActiveToast(false), 2500);
+  };
 
   const dismissBanner = () => {
     localStorage.setItem(NDA_KEY, String(Date.now()));
@@ -685,7 +695,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} />)}
+                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} onActiveClick={handleActiveCardClick} />)}
                   </div>
                   <Pagination page={mainMissionPage} total={mainMissions.length} onPage={setMainMissionPage} />
                 </>
@@ -705,7 +715,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} />)}
+                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} onActiveClick={handleActiveCardClick} />)}
                   </div>
                   <Pagination page={subMissionPage} total={subMissions.length} onPage={setSubMissionPage} />
                 </>
@@ -740,6 +750,17 @@ export default function CompanyDashboard() {
         onConfirm={handleDeleteMission}
         onCancel={() => { setDeleteTarget(null); setDeleteError(''); }}
       />
+    )}
+    {activeToast && (
+      <div style={{
+        position: 'fixed', bottom: 28, left: 28, zIndex: 9999,
+        background: '#fff', borderLeft: '4px solid var(--accent)',
+        borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+        padding: '14px 20px', fontSize: 13, color: 'var(--text)',
+        maxWidth: 300, lineHeight: 1.6,
+      }}>
+        피드백은 의뢰 완료 후 확인할 수 있습니다.
+      </div>
     )}
     </>
   );

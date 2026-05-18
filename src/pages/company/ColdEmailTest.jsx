@@ -105,6 +105,8 @@ export default function ColdEmailTest() {
   const [deleteError, setDeleteError] = useState('');
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [terminateError, setTerminateError] = useState('');
+  const [activeToast, setActiveToast] = useState(false);
+  const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
 
   const initTemplateName = location.state?.templateName || null;
@@ -949,7 +951,13 @@ export default function ColdEmailTest() {
                 <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                   onClick={() => {
                     if (isDraft) { openDraftOrActiveForEdit(m.id); }
-                    else navigate(`/company/results?id=${m.id}`);
+                    else if (m.status === 'active') {
+                      if (activeToastTimerRef.current) clearTimeout(activeToastTimerRef.current);
+                      setActiveToast(true);
+                      activeToastTimerRef.current = setTimeout(() => setActiveToast(false), 2500);
+                    } else {
+                      navigate(`/company/results?id=${m.id}`);
+                    }
                   }}>
                   <div className="mc-row">
                     <div style={{ flex: 1 }}>
@@ -1082,6 +1090,18 @@ export default function ColdEmailTest() {
             }}>저장 없이 나가기</Btn>
             <Btn variant="ghost" onClick={() => { setShowDraftModal(false); setPendingNavPath(null); }}>계속 작성하기</Btn>
           </div>
+        </div>,
+        document.body
+      )}
+      {activeToast && ReactDOM.createPortal(
+        <div style={{
+          position: 'fixed', bottom: 28, left: 28, zIndex: 9999,
+          background: '#fff', borderLeft: '4px solid var(--accent)',
+          borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+          padding: '14px 20px', fontSize: 13, color: 'var(--text)',
+          maxWidth: 300, lineHeight: 1.6,
+        }}>
+          피드백은 의뢰 완료 후 확인할 수 있습니다.
         </div>,
         document.body
       )}

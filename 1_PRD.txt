@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-18 (알림 발송 이벤트 목록 코드 기준으로 정정 — 미구현 항목 분리, 패널 참여 취소 → 기업 알림 제거)
+최종 업데이트: 2026-05-18 (진행 중 카드 클릭 → 토스트 표시로 변경)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -48,7 +48,8 @@
      · CompanyMissionCard 뱃지: LP검증 뱃지 미표시, 서브 의뢰(소재비교/가격검증/이메일검증)만 타입 뱃지 표시 ★
        뱃지 색상: 소재비교=blue(진한회색) / 가격검증=gold / 이메일검증=blue(진한회색) ★ 이메일 green→blue 변경
      · CompanyMissionCard 상태 뱃지: active+filled=0 → "매칭 대기"(gray), active+filled≥1 → "진행 중"(green), completed → "완료"(blue), cancelled → "취소"(red) ★
-     · CompanyMissionCard: 카드 클릭 시 navigate('/company/results?id=<missionId>') → Results.jsx가 해당 의뢰 즉시 선택
+     · CompanyMissionCard: 카드 클릭 시 status='active' → 뷰포트 좌하단 토스트 "피드백은 의뢰 완료 후 확인할 수 있습니다." 표시 (2.5초 자동 소멸) ★ 변경
+       status='completed'|'cancelled' → navigate('/company/results?id=<missionId>') → Results.jsx가 해당 의뢰 즉시 선택
      · CompanyMissionCard: status='active' && filled_count=0 조건 시 "수정" 버튼 표시
        클릭 시 DRAFT_ROUTE 맵으로 타입별 올바른 폼 경로로 navigate (메인→/company/new, 서브→각 서브 페이지)
      · CompanyMissionCard: status='active' && filled_count≥1 조건 시 "의뢰 조기 종료" 버튼 표시
@@ -248,7 +249,8 @@
        → DB에서 직접 데이터 로드 후 각 필드 복원 + setView('create') (navigate 미사용 — D-43 참조)
      · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
      · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
-     · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…')
+     · active 카드 클릭 → 뷰포트 좌하단 토스트 "피드백은 의뢰 완료 후 확인할 수 있습니다." (2.5초 자동 소멸) ★ 변경
+     · completed 카드 클릭 → navigate('/company/results?id=…')
      · "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: navigationGuard + showDraftModal + window.beforeunload (NewMission과 동일 패턴)
@@ -280,7 +282,8 @@
      · 임시 저장(draft) 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
      · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
      · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
-     · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
+     · active 카드 클릭 → 뷰포트 좌하단 토스트 "피드백은 의뢰 완료 후 확인할 수 있습니다." (2.5초 자동 소멸) ★ 변경
+     · completed 카드 클릭 → navigate('/company/results?id=…') / "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: hasUnsavedChanges = missionTitle || pricingDesc, draftId 패턴 (PreferenceTest와 동일) ★
    - 목록 완료·임시저장 카드 "삭제" 버튼 → ConfirmModal(danger) → missions DELETE
@@ -307,7 +310,8 @@
      · 임시 저장(draft) 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
      · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
      · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
-     · 목록 카드 클릭 (active/completed/cancelled) → navigate('/company/results?id=…')
+     · active 카드 클릭 → 뷰포트 좌하단 토스트 "피드백은 의뢰 완료 후 확인할 수 있습니다." (2.5초 자동 소멸) ★ 변경
+     · completed 카드 클릭 → navigate('/company/results?id=…')
      · 미션 있을 때 우측 상단 "+ 새 테스트" 버튼 표시
    - 목록 빈 상태: 중앙 "+ 새 테스트" 버튼 하나만 표시
    - 임시 저장 기능: hasUnsavedChanges = missionTitle || emailText, draftId 패턴 (PreferenceTest와 동일) ★
