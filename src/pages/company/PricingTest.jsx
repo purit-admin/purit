@@ -71,6 +71,7 @@ export default function PricingTest() {
   const [missionUuid, setMissionUuid] = useState(() => crypto.randomUUID());
 
   // Step 0
+  const [missionTitle, setMissionTitle] = useState('');
   const [pricingDesc, setPricingDesc] = useState('');
   const [pricingImage, setPricingImage] = useState(null);
   const [uploadingImg, setUploadingImg] = useState(false);
@@ -184,7 +185,7 @@ export default function PricingTest() {
     }
   }
 
-  const shouldBlockNav = view === 'create' && Boolean(pricingDesc || productDescription || industry);
+  const shouldBlockNav = view === 'create' && Boolean(missionTitle || pricingDesc || productDescription || industry);
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -236,13 +237,14 @@ export default function PricingTest() {
     setSavingDraft(true);
     try {
       const desc = JSON.stringify({
+        missionTitle,
         content: pricingDesc, image: pricingImage,
         productDescription, industry,
         selectedQuestions: [...selectedQuestions, ...localCustomQs],
         careerLevels, panelSize,
       });
       const payload = {
-        company_id: companyId, title: '가격 페이지 검증 (임시 저장)',
+        company_id: companyId, title: missionTitle.trim() || '가격 페이지 검증 (임시 저장)',
         type: 'pricing', status: 'draft',
         description: desc, panel_count: panelSize,
         reward_amount: calcPanelPayout(careerLevels, 'sub'), assets: [],
@@ -267,6 +269,8 @@ export default function PricingTest() {
       if (!ms) return;
       let parsed = {};
       try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+      if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
+      else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);
       if (parsed.content) setPricingDesc(parsed.content);
       if (parsed.image) setPricingImage(parsed.image);
       if (parsed.productDescription) setProductDescription(parsed.productDescription);
@@ -377,15 +381,16 @@ export default function PricingTest() {
       careerLevels,
     });
     try {
+      const finalTitle = missionTitle.trim() || '가격 페이지 검증';
       if (draftId) {
         const { error: mErr } = await supabase.from('missions').update({
-          title: '가격 페이지 검증', description: descJson,
+          title: finalTitle, description: descJson,
           panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'), status: 'active',
         }).eq('id', draftId);
         if (mErr) throw mErr;
       } else {
         const { error: mErr } = await supabase.from('missions').insert({
-          id: targetId, company_id: companyId, title: '가격 페이지 검증',
+          id: targetId, company_id: companyId, title: finalTitle,
           type: 'pricing', description: descJson,
           panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'),
           status: 'active', assets: [],
@@ -489,6 +494,18 @@ export default function PricingTest() {
             {/* Step 0: 가격 페이지 (가격 내용 + 제품 설명 통합) */}
             {createStep === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                {/* 검증할 서비스명(의뢰명) */}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>검증할 서비스명(의뢰명)</div>
+                  <input
+                    type="text"
+                    value={missionTitle}
+                    onChange={e => setMissionTitle(e.target.value)}
+                    placeholder="예) 우리 서비스 가격 페이지 검증"
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ height: 1, background: 'var(--border)' }} />
                 {/* 가격 페이지 내용 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>가격 페이지</div>

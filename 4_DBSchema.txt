@@ -460,3 +460,42 @@
     → Returns: {applied: bool, weeks_decayed: N, points_removed: N}
     → 보안: raw_app_meta_data ->> 'role' = 'admin' 검사 (032 마이그레이션) ← D-58 패턴
     → 파일: supabase/migrations/015_honor_level_system.sql (원본) + 032_fix_honor_rpc_app_metadata.sql (보안 패치)
+
+  accept_mission_slot(p_mission_id UUID, p_panel_id UUID, p_submission_deadline TIMESTAMPTZ) RETURNS jsonb
+    → 패널 미션 수락 시 원자적 슬롯 예약 (PostgreSQL 행 잠금 — 동시 수락 경쟁 직렬화)
+    → WHERE filled_count < panel_count 조건으로 UPDATE → 슬롯 마감이면 null 반환 (슬롯 마감 신호)
+    → 성공 시: missions.filled_count +1 + feedbacks INSERT(status='draft', submission_deadline=p_submission_deadline)
+    → Returns: feedbacks 행 (id, panel_id, mission_id 등) 또는 null (슬롯 마감)
+    → panel/Missions.jsx 수락 핸들러에서 호출
+    → 파일: supabase/migrations/035_redesign_slot_on_accept.sql
+
+  reaccept_rejected_feedback(p_feedback_id UUID) RETURNS boolean
+    → 반려된 피드백 재작성 시 원자적 슬롯 재예약 (반려 패널 재진행 vs 신규 수락 동시 경쟁 직렬화)
+    → feedbacks WHERE id=p_feedback_id AND status='rejected' AND rejection_deadline > NOW() 체크
+    → 만료 또는 슬롯 마감이면 false 반환 (프론트에서 deadlineExpired=true 처리)
+    → 성공 시: missions.filled_count +1 + feedbacks.status='draft' UPDATE
+    → Returns: true(성공) / false(만료·슬롯마감·미해당)
+    → panel/ActiveMission.jsx 재작성 모드 진입 시 호출
+    → 파일: supabase/migrations/035_redesign_slot_on_accept.sql
+
+  decrement_mission_filled_count(p_mission_id UUID) RETURNS void
+    → missions.filled_count = GREATEST(0, filled_count - 1) 원자적 감소
+    → 반려 시 PurityFilter.jsx reject()에서 호출 (반려 → 슬롯 해제)
+    → 파일: supabase/migrations/034_feedback_timeout_slots.sql
+
+  cancel_panel_feedback(p_mission_id UUID) RETURNS void
+    → SECURITY DEFINER — auth.uid() 기준 본인 draft 피드백만 삭제
+    → feedbacks DELETE (status='draft', panel_id=auth.uid()) + missions.filled_count -1
+    → panel/ActiveMission.jsx 수락 취소 버튼에서 호출
+    → 파일: supabase/migrations/034_feedback_timeout_slots.sql (최신: 035에서 재정의)
+
+  expire_panel_drafts() RETURNS integer
+    → SECURITY DEFINER — auth.uid() 기준 본인 패널의 만료 draft/rejected 피드백 정리
+    → draft 만료 조건:
+        최초 draft (rejection_deadline IS NULL): submission_deadline < NOW()
+        재작성 draft (rejection_deadline IS NOT NULL): rejection_deadline < NOW()
+    → draft 만료 처리: feedbacks DELETE + missions.filled_count -1 + notifications INSERT("수락 취소됨")
+    → rejected 만료 처리 (rejection_deadline < NOW()): feedbacks DELETE 만 (알림 없음, 이미 -1 완료)
+    → Returns: 처리된 총 행 수 (draft + rejected)
+    → panel/Dashboard.jsx 마운트 시 호출
+    → 파일: supabase/migrations/034_feedback_timeout_slots.sql (원본) + 037_expire_with_notification.sql (알림 발송 재정의)

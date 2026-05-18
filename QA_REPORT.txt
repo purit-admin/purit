@@ -207,6 +207,23 @@
     개발자가 명시적으로 추가해야 할 exclusion 조건 누락을 다루는 별개 패턴.
     조사 방법: 새 목록 쿼리 추가 시 위 목록과 대조 후 누락 여부 확인.
 
+14. 파일 조사 시 타겟 버그 외 전체 로직 검토 + Migration 변경 후 기존 기능 역방향 추적:
+    파일을 열어 특정 버그를 수정할 때, 해당 버그 패턴에만 집중하고 같은 파일의 나머지
+    로직을 스캔하지 않으면 인접한 버그를 놓친다.
+    또한 Migration·RPC·새 시스템(deadline, 크레딧, 슬롯 등) 추가 시,
+    기존에 작동 중이던 알림·타이머·스케줄 로직이 새 시스템과 충돌하거나 무효화되지 않는지
+    역방향 추적이 필요하다.
+    근거: panel/Dashboard.jsx의 24h 미완료 draft 알림이 Migration 034/035에서
+          submission_deadline(메인 4h / 서브 2h) 시스템이 추가된 후에도 그대로 남아,
+          알림 발동 시점(24h)에는 이미 deadline이 만료되어 패널이 클릭해도 "제출 기간 만료" 화면만
+          노출되는 버그가 Pnl-C 조사 시 같은 파일을 열었음에도 발견되지 않았음.
+    조사 방법 1 (파일 전체 스캔): 버그 수정 후 같은 파일의 다른 함수·useEffect·핸들러를
+      위에서 아래로 한 번 더 훑어, "이 로직이 현재 시스템 상태와 여전히 정합한가?"를 확인할 것.
+    조사 방법 2 (역방향 추적): 새 Migration·시스템이 추가됐을 때, 해당 도메인(알림·타이머·
+      카운터·상태머신)에 관련된 기존 코드를 Grep으로 찾아 "새 시스템이 이 코드를 무효화하는가?"를
+      명시적으로 물을 것. actionUrl 추적: 알림이 보내는 URL의 수신 페이지에서
+      실제로 어떤 화면이 뜨는지 끝까지 시나리오를 추적할 것.
+
 ################################################################
 ## ⭐ 런타임 시뮬레이션 트리거 (코드에서 패턴 발견 즉시 해당 시뮬레이션 실행)
 ################################################################
@@ -333,6 +350,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / Phase 3~6 잔여 7건 전부 수정 완료: 신규-K/J/L/P/Q/R/S — 전체 48건 완료
                             / 기업 포털 심층 검사: 기업-A~G 7건 발견 및 수정 완료 — 총 55건 완료
                             / 수평 전개 조사 2차: 수평-A~G 7건 발견 및 수정 완료 — 총 62건 완료
+                            / 알림 시스템 무결성 검증: B-146 1건 발견 및 즉시 수정 완료 — 총 146건 완료)
                             / 패널 포털 심층 검사: 패널-A~I 9건 발견 및 수정 완료 — 총 71건 완료
                             / 수평 전개 조사 3차: 수평-H~J 3건 발견 및 수정 완료 — 총 74건 완료
                             / 어드민 포털 심층 검사: A-01~A-17 17건 발견, 14건 수정·3건 오판 확인 — 총 91건 완료
@@ -347,7 +365,9 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 행동 강령 규칙 13 추가: 패턴·변수명 추론으로 버그 확정 금지
                             / 기업 포털 2차 심층 검사: 기업-H~Q 10건 발견 및 즉시 수정 완료 — 총 138건 완료
                             / 패널 포털 파일 수준 전수 재조사: Pnl-A~F 6건 발견 및 즉시 수정 완료 — 총 144건 완료
-                            / 기간 필터 무결성 검증: B-145 1건 발견 및 즉시 수정 완료 — 총 145건 완료)
+                            / 기간 필터 무결성 검증: B-145 1건 발견 및 즉시 수정 완료 — 총 145건 완료
+                            / 알림 시스템 무결성 검증 2차: B-147·B-148 2건 발견 및 즉시 수정 완료 — 총 148건 완료
+                            / 재작성 draft 재진입 무결성 검증: B-149 1건 발견 및 즉시 수정 완료 — 총 149건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -390,7 +410,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   🟡 P3      Pnl-E           Missions.jsx / History.jsx — 선형 페이지네이션 (슬라이딩 5-윈도우 미적용)  ✅
   🟡 P3      Pnl-F           Profile.jsx — TIER_META 데드코드 잔류  ✅
   ────────   ──────────────  ────────────────────────────────────────────  ──────
-  잔여 합계  0건             (전체 144건 전원 완료·스킵)
+  잔여 합계  0건             (전체 149건 전원 완료·스킵)
 
   → 완료 항목 전체는 하단 아카이브 참조
 
@@ -574,12 +594,71 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 
 -- 기간 필터 무결성 검증 (2026-05-18) — company/Dashboard.jsx chartPeriod 기능 전수 조사 --
 [B-145] 기업 대시보드 — 기간 필터 전환 시 긍/부정 분포 캐러셀 페이지 미리셋 ✅
+
+-- 알림 시스템 무결성 검증 (2026-05-18) — submission_deadline 시스템과 기존 알림 로직 충돌 --
+[B-146] 패널 대시보드 — 24h draft 알림이 submission_deadline(메인 4h/서브 2h)과 충돌 ✅
+  패턴: 규칙 14 (Migration 변경 후 기존 알림 로직 역방향 추적 누락)
+  위치: src/pages/panel/Dashboard.jsx (알림 로직) + supabase/migrations/035 (deadline 시스템)
+  재현: 패널이 미션을 수락 후 4시간 경과 → 대시보드 방문 → 이미 만료된 draft에 알림 생성
+        → 패널이 알림 클릭 → "제출 기간이 만료되었습니다" 화면만 노출
+  현재: created_at < now-24h 조건 → deadline과 무관하게 24h 후 알림 발동
+  수정 1 (Dashboard.jsx): 24h 로직 → submission_deadline 기준 1시간 이내 draft에 "마감 임박 알림" 발송
+         중복 방지: 오늘 발송된 '%마감 임박%' 제목 알림 체크 유지
+  수정 2 (migration 037): expire_panel_drafts RPC 재정의 — 만료 draft 삭제 시
+         notifications INSERT ('🚫 [미션명] 수락 취소됨', body: '제출 기간 만료로 자동 취소')
+         panels.user_id를 함께 조회해 알림 수신자 설정 / rejected 만료는 알림 없이 삭제만(기존 동일)
   패턴: D-72(필터 조건 수정 시 카운트·목록 두 경로 모두 업데이트) / 규칙 11(페이지네이션 리셋 트리거 점검)
   위치: src/pages/company/Dashboard.jsx Line 492
   재현: 긍/부정 분포 캐러셀 2페이지로 이동 → 기간 필터('최근 1개월' 등)를 전환
   현재: setChartPeriod(val)만 호출 — setMainSentPage/setSubSentPage 리셋 없음
   수정: onClick={() => { setChartPeriod(val); setMainSentPage(1); setSubSentPage(1); }}
   수평전개: missionFilter 탭(Line 655)은 setMainMissionPage(1)/setSubMissionPage(1) 리셋 ✅ — 동일 패턴 dashboard 내 유일 누락 지점. 다른 파일의 독립적 period 필터 없음.
+
+-- 알림 시스템 무결성 검증 2차 (2026-05-18) — B-146 수정 후 누락 케이스 추적 --
+[B-147] 패널 대시보드 — 마감 임박 알림이 rejection_deadline 기반 draft·미수락 반려 케이스를 커버하지 못함 ✅
+  패턴: B-146 수정(submission_deadline 기준 1h 임박 알림)이 실제로 3가지 케이스 중 1가지만 커버함
+  위치: src/pages/panel/Dashboard.jsx (알림 로직)
+  재현 케이스 1 (미커버): 패널이 반려 후 재수락(reaccept) 클릭 → 재작성 draft 상태
+    → rejection_deadline 임박해도 알림 없음 (이 draft는 rejection_deadline이 있고 submission_deadline은 만료)
+  재현 케이스 2 (미커버): 패널이 반려를 받았으나 아직 재수락 클릭 안 한 상태(status='rejected')
+    → rejection_deadline 임박해도 알림 없음 (feedbacks.status='rejected' 쿼리 자체가 없었음)
+  현재: 단일 쿼리 — status='draft' AND rejection_deadline IS NULL AND submission_deadline 1h 이내 — 케이스 1·2 모두 누락
+  수정: 3개 병렬 쿼리로 분리
+    Query 1 (기존): 최초 draft, rejection_deadline IS NULL, submission_deadline 1h 이내
+                    → action_url: /panel/active?id=<missionId>
+    Query 2 (신규): 재작성 draft, rejection_deadline IS NOT NULL, rejection_deadline 1h 이내
+                    → title: '재제출 마감 임박 알림', action_url: /panel/active?id=<missionId>&resubmit=<feedbackId>
+    Query 3 (신규): 미수락 반려(status='rejected'), rejection_deadline 1h 이내
+                    → title: '재제출 마감 임박 알림', body: '재제출 기회 만료', action_url: /panel/missions
+  중복 방지: 기존 '%마감 임박%' title 체크 유지 — Query 2 title('재제출 마감 임박')도 포함됨
+  참고: Query 3의 action_url이 /panel/missions인 이유 — 재수락 클릭 전 상태이므로
+        /panel/active?id=...로 이동 시 'alreadySubmitted=true'(rejected 상태) 화면이 나옴
+
+[B-148] 패널 대시보드 — expire_panel_drafts RPC가 Missions.jsx에서만 호출되어 Dashboard 전용 사용자에게 '수락 취소됨' 알림 미발송 ✅
+  패턴: RPC 호출 위치가 단일 페이지에만 있어 다른 진입점 사용자가 side effect를 받지 못하는 패턴
+  위치: src/pages/panel/Missions.jsx (기존 호출) + src/pages/panel/Dashboard.jsx (신규 추가)
+  재현: 패널이 미션 수락 후 4시간 경과 → Missions.jsx를 방문하지 않고 Dashboard만 방문
+    → expire_panel_drafts RPC 미호출 → 만료 draft가 DB에 잔류
+    → filled_count 미복원 + '수락 취소됨' 알림 미발송 (migration 037 기능이 트리거 안 됨)
+  현재: expire_panel_drafts 호출이 panel/Missions.jsx 내 load()에만 있음
+  수정: Dashboard.jsx load() 내 apply_honor_decay 호출 직후, Promise.all 병렬 쿼리 전에 expire_panel_drafts 추가
+         순서 보장: 정리 먼저 → feedbacks 재조회에서 이미 삭제된 draft는 반영 안 됨 → 올바른 "참여 가능" 수 계산
+  중요: migration 037을 Supabase SQL Editor에서 실행해야 expire_panel_drafts가 알림 발송 기능을 포함함
+
+[B-149] 패널 미션 수행 — 재작성 draft 두 번째 방문 시 "제출 기간이 만료되었습니다" 오표시 + isResubmit 미설정으로 서브미션 INSERT 충돌 / 미션 카운트 중복 발생 ✅
+  패턴: else 분기(정상 draft 처리)가 submission_deadline만 체크하고 rejection_deadline(재작성 draft 기준) 미확인
+  위치: src/pages/panel/ActiveMission.jsx (loadMission 내 else 분기, ~line 315)
+  재현: ① 패널이 반려 피드백 "재작성 →" 클릭 → reaccept RPC → status='draft', rejection_deadline 설정
+        ② 일부 입력 후 페이지 이탈 (자동저장 완료 여부 무관)
+        ③ Missions.jsx [이어하기] 탭 → "이어하기 →" → /panel/active?id=... (resubmit 파라미터 없음)
+        ④ fb.status='draft' → willResubmit=false → else 분기 진입
+        ⑤ fb.submission_deadline(최초 수락 시 4h/2h — 이미 만료) 체크 → deadlineExpired=true → 오류 화면
+  현재: else 분기가 fb.rejection_deadline 존재를 확인하지 않고 fb.submission_deadline만 검사
+        isResubmit 미설정 → 서브미션 재제출 시 INSERT 시도 → unique constraint 충돌
+        isResubmit 미설정 → increment_panel_mission_count 재호출 → 카운트 중복
+  수정: else 분기 내 fb.rejection_deadline 유무로 재작성 draft / 최초 draft 분기
+        rejection_deadline 있으면: 해당 시간 기준으로 만료 체크 + setIsResubmit(true) + '재제출 마감' 배너
+        rejection_deadline 없으면: 기존 submission_deadline 체크 로직 유지
 
 -- 패널 포털 파일 수준 전수 재조사 (2026-05-16) --
 [Pnl-A] 패널 미션 수행 (panel/ActiveMission.jsx) — loadMission() 내 deadlineExpired 분기 3곳에서 선언되지 않은 setLoading(false) 호출. loading state가 존재하지 않아 ReferenceError 발생 → try-catch가 삼켜 무증상. setLoading(false) 3곳 제거로 수정.  ✅

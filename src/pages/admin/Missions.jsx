@@ -137,11 +137,15 @@ function MissionDetail({ mission, onFeedbackClick }) {
 }
 
 function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, onEarlyComplete, isHighlighted, isSelected, onSelect }) {
+  const allFbs     = (m.feedbacks || []).filter(f => f.status !== 'draft');
+  const pendingFbs = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
+
   return (
-    <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer' }}>
-      <div className="mc-row">
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+    <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer', padding: '10px 14px' }}>
+      {/* 상단: 좌측 정보 + 우측 슬롯·버튼 */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 5, alignItems: 'center', flexWrap: 'wrap' }}>
             <Badge type={m.status === 'active' ? ((m.filled_count ?? 0) === 0 ? 'gray' : 'green') : (STATUS_TYPE[m.status] || 'gray')}>
               {m.status === 'active' ? ((m.filled_count ?? 0) === 0 ? '매칭 대기' : '진행 중') : (STATUS_LABEL[m.status] || m.status)}
             </Badge>
@@ -152,57 +156,77 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
               {m.id.slice(0, 8).toUpperCase()}
             </span>
           </div>
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{m.title}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 3 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{m.title}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
             {m.companies?.name || '—'}{m.persona ? ` · ${m.persona}` : ''}
           </div>
-          {m.target_url && (
-            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
-          )}
         </div>
-        <div className="mc-right">
-          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 16 }}>
-            {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+          {/* 슬롯 카운트 인라인 */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15 }}>
+              {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>패널 슬롯</span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>패널 슬롯</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {m.status === 'active' && (
-              <Btn size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onCompleteMission(m); }}>완료 처리</Btn>
-            )}
-            {m.status === 'active' && (
-              <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onCancelMission(m.id); }}>취소</Btn>
-            )}
-            {m.status === 'completed' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다. 기업에게 재진행 알림이 발송됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
-            )}
-            {m.status === 'cancelled' && (() => {
-              const hasPending = (m.feedbacks || []).some(f => f.status !== 'draft' && !f.purity_passed && f.status !== 'rejected');
-              return hasPending ? (
-                <Btn size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onEarlyComplete(m); }}>완료 처리</Btn>
-              ) : null;
-            })()}
-            {m.status === 'cancelled' && (
-              <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다. 기업에게 재개 알림이 발송됩니다.', fromStatus: 'cancelled' }); }}>재개</Btn>
-            )}
-            {m.status === 'cancelled' && (
-              <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}>삭제</Btn>
-            )}
-          </div>
-          {m.credits_reserved > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-              <span>{`예상 ${fmtCr(m.credits_reserved)} / 사용 ${fmtCr(m.credits_consumed)} (환불 ${fmtCr(Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)))} cr)`}</span>
-              {m.status !== 'cancelled' && (
-                <button onClick={(e) => { e.stopPropagation(); onRecalc(m.id); }} title="크레딧 재계산"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 13, padding: 0, lineHeight: 1 }}>
-                  ↺
-                </button>
+          {/* 버튼 + 안내 문구 */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {m.status === 'active' && (() => {
+                const completeBlocked = allFbs.length === 0 || pendingFbs.length > 0;
+                return (
+                  <Btn size="sm" variant="secondary"
+                    disabled={completeBlocked}
+                    onClick={(e) => { e.stopPropagation(); onCompleteMission(m); }}>
+                    완료 처리
+                  </Btn>
+                );
+              })()}
+              {m.status === 'active' && (
+                <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onCancelMission(m.id); }}>취소</Btn>
+              )}
+              {m.status === 'completed' && (
+                <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다. 기업에게 재진행 알림이 발송됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
+              )}
+              {m.status === 'cancelled' && allFbs.length > 0 && (
+                <Btn size="sm" variant="secondary"
+                  disabled={pendingFbs.length > 0}
+                  onClick={(e) => { e.stopPropagation(); onEarlyComplete(m); }}>
+                  완료 처리
+                </Btn>
+              )}
+              {m.status === 'cancelled' && (
+                <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다. 기업에게 재개 알림이 발송됩니다.', fromStatus: 'cancelled' }); }}>재개</Btn>
+              )}
+              {m.status === 'cancelled' && (
+                <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}>삭제</Btn>
               )}
             </div>
-          )}
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
-            {new Date(m.created_at).toLocaleDateString('ko-KR')}
+            {m.status === 'active' && allFbs.length === 0 && (
+              <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>수집된 피드백이 없습니다</div>
+            )}
+            {(m.status === 'active' || m.status === 'cancelled') && allFbs.length > 0 && pendingFbs.length > 0 && (
+              <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {pendingFbs.length}건 먼저 처리 필요</div>
+            )}
           </div>
         </div>
+      </div>
+      {/* 하단: 날짜(좌) + 크레딧(우) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--border-light)' }}>
+        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+          {new Date(m.created_at).toLocaleDateString('ko-KR')}
+        </div>
+        {m.credits_reserved > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)' }}>
+            <span>{`예상 ${fmtCr(m.credits_reserved)} / 사용 ${fmtCr(m.credits_consumed)} (환불 ${fmtCr(Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)))} cr)`}</span>
+            {m.status !== 'cancelled' && (
+              <button onClick={(e) => { e.stopPropagation(); onRecalc(m.id); }} title="크레딧 재계산"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 13, padding: 0, lineHeight: 1 }}>
+                ↺
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -400,6 +424,13 @@ export default function AdminMissions() {
       targetRole: 'company',
     });
     setConfirmEarlyComplete(null);
+    // 버튼 중복 노출 방지 및 PurityFilter 변경 반영: 최신 데이터 리로드
+    const { data } = await supabase
+      .from('missions')
+      .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')
+      .neq('status', 'draft')
+      .order('created_at', { ascending: false });
+    if (data) setMissions(data);
   };
 
   const filtered = filter === 'all' ? missions : missions.filter(m => m.status === filter);
@@ -491,17 +522,20 @@ export default function AdminMissions() {
       })()}
 
       {/* 조기 종료 완료 처리 modal */}
-      {confirmEarlyComplete && (
-        <ConfirmModal
-          title="조기 종료 완료 처리"
-          desc={`"${confirmEarlyComplete.title}" 의뢰의 피드백 검토가 완료됐습니다.\n승인된 피드백이 기업에게 공개되며, 기업에게 완료 알림이 발송됩니다.\n(status는 취소 상태 유지, 크레딧 환불 없음)`}
-          confirmLabel="완료 처리"
-          cancelLabel="돌아가기"
-          errorMsg={earlyCompleteError}
-          onConfirm={async () => { await earlyCompleteMission(confirmEarlyComplete); }}
-          onCancel={() => { setConfirmEarlyComplete(null); setEarlyCompleteError(''); }}
-        />
-      )}
+      {confirmEarlyComplete && (() => {
+        const ecApproved = (confirmEarlyComplete.feedbacks || []).filter(f => f.purity_passed).length;
+        return (
+          <ConfirmModal
+            title="조기 종료 완료 처리"
+            desc={`"${confirmEarlyComplete.title}" 의뢰의 피드백 검토가 완료됐습니다.\n승인된 피드백 ${ecApproved}건이 기업에게 공개됩니다.\n(취소 상태 유지, 크레딧 환불 없음)`}
+            confirmLabel="완료 처리"
+            cancelLabel="돌아가기"
+            errorMsg={earlyCompleteError}
+            onConfirm={async () => { await earlyCompleteMission(confirmEarlyComplete); }}
+            onCancel={() => { setConfirmEarlyComplete(null); setEarlyCompleteError(''); }}
+          />
+        );
+      })()}
 
       {/* Reactivate confirm modal */}
       {confirmReactivate && (

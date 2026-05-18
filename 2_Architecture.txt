@@ -230,9 +230,13 @@ purit/
 │   │                    DETAIL_PAGE_SIZE=5, getFeedbackStatus(f): purity_passed→green / rejected→red / else→gold
 │   │                    피드백 행 클릭: navigate('/admin/purity', { state: { feedbackId } })
 │   │                  MissionCard: isSelected/onSelect props + Card onClick + e.stopPropagation() on inner Btns
-│   │                    onCancelMission(id) / onCompleteMission(m) / onReactivateMission({id,label,desc}) props — 각각 setConfirmCancel / setConfirmComplete / setConfirmReactivate 연결
+│   │                    onCancelMission(id) / onCompleteMission(m) / onReactivateMission({id,label,desc}) / onEarlyComplete(m) props
+│   │                    → 각각 setConfirmCancel / setConfirmComplete / setConfirmReactivate / setConfirmEarlyComplete 연결
 │   │                  confirmCancel state: ConfirmModal(danger) → updateStatus(id, 'cancelled') + 기업 취소 알림 발송
 │   │                  confirmComplete state: ConfirmModal → 승인 건수(m.feedbacks.filter(f.purity_passed).length) 동적 표시 → complete_mission_and_refund RPC + 기업 완료 알림 발송
+│   │                  confirmEarlyComplete state: 조기 종료 미션 완료 처리 — status 유지(cancelled), 크레딧 변경 없음
+│   │                    earlyCompleteError state + earlyCompleteMission(m) 핸들러 → sendNotification(기업) → 기업 취소탭 결과 확인 유도
+│   │                    "완료 처리" 버튼: m.status==='cancelled' && hasPending(미처리 피드백 있음)인 카드에만 표시
 │   │                  confirmReactivate state: { id, label, desc, fromStatus } — fromStatus로 completed/cancelled 분기
 │   │                    fromStatus='completed': reactivateCompleted(id) 호출 → reactivate_mission_and_reclaim RPC + 기업 재진행 알림 발송
 │   │                      INSUFFICIENT_CREDITS 에러 시 잔액/필요량 표시 + 상태 변경 없음
@@ -242,7 +246,9 @@ purit/
 │   │                    missions select 쿼리에 companies(name, user_id) 포함 → foundM.companies.user_id 접근 가능
 │   │                    확인 모달 desc에 "기업에게 [상태변경] 알림이 발송됩니다." 문구 포함
 │   │                  updateStatus/deleteMission 후 setSelectedMission 동기화
-│   │                  location.state.missionId → 해당 미션 status로 setFilter + mainPage/subPage 계산 + MissionCard isHighlighted prop
+│   │                  취소 탭 뱃지: cancelledPendingCount — status='cancelled' 미션 중 미처리(검토중) 피드백 있는 건수 실시간 표시
+│   │                  딥링크 2경로: location.state.missionId (내부 navigate) + ?missionId= 쿼리 파라미터 (알림 클릭)
+│   │                    쿼리 파라미터 처리: useSearchParams → 동일 setFilter + 페이지 계산 + highlight → navigate(pathname, {replace:true}) 클리어
 │   │                  isHighlighted: outline 2px solid var(--accent) 3초 후 자동 해제, window.history.replaceState로 state 클리어
 │   │   ※ pages/admin/CompanyManagement.jsx: 의뢰 내역 전체 페이지네이션 ★
 │   │                  recentMissions: 5건 제한 제거 → 전체 저장, missionPage state + DETAIL_PAGE_SIZE=5

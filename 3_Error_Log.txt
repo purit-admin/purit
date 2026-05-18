@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-18 (D-75 추가 — async 함수가 내부에서 에러를 삼키면 호출자가 항상 성공으로 인식해 데이터 소실을 유발하는 패턴)
+최종 업데이트: 2026-05-18 (D-76 추가 — 알림 발송만 구현하고 DB 변경이 없는 "절반 구현" 액션이 UI에 노출되면 클릭해도 아무 효과가 없는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -887,6 +887,20 @@ D-75. async 함수가 내부에서 try-catch-console.error만 하고 re-throw �
              반드시 에러를 re-throw해 호출 체인 전체가 실패를 인지할 수 있게 해야 함
              catch 안에 re-throw 없음 = "에러를 삼킴" = 호출자 입장에서 항상 성공
 
+D-76. "절반만 구현된 액션" — 알림 발송만 하고 DB 변경이 없는 핸들러가 UI에 노출되면 클릭해도 아무 효과가 없는 패턴
+     → 증상: 조기 종료 완료 처리 모달에서 "그래도 완료 처리" 클릭 시 모달이 닫히지만 아무것도 바뀌지 않음
+             기업 Results.jsx 취소 탭에서 피드백이 공개되지 않음, 버튼이 다시 나타남
+     → 원인: earlyCompleteMission()이 sendNotification(기업) 호출만 하고 DB를 전혀 변경하지 않음
+             기업이 Results.jsx에서 피드백을 보려면 purity_passed=true인 피드백이 필요한데,
+             그건 PurityFilter에서 개별 승인/반려해야만 생김 — 알림 발송만으로는 아무것도 공개되지 않음
+             "알림을 보냈으니 완료됐다"는 착각 — 실제 데이터 공개의 원인은 다른 곳(PurityFilter 승인)에 있음
+     → 해결: UI에 노출되는 액션 버튼은 반드시 "사용자가 기대하는 결과"를 DB에 실제로 만들어야 함
+             알림은 결과의 통보수단이지, 결과 자체가 아님
+             탈출구("그래도 완료 처리") 제거 + 퓨릿 필터에서 모든 피드백 처리 후에만 버튼 활성화로 단순화
+     → 원칙: 새 핸들러를 작성할 때 "이 함수를 실행하면 사용자가 기대하는 상태 변화가 DB에 실제로 일어나는가"를
+             먼저 확인할 것. 알림·로그·분석 등 부가 동작만 하고 핵심 상태 변경이 없는 핸들러는
+             UI에 절대 노출하지 말 것 — 클릭해도 아무것도 안 된 것처럼 보여 사용자를 혼란에 빠뜨림
+
 D-74. 하나의 필터가 여러 페이지네이션 state를 공유할 때 일부 페이지만 리셋하는 패턴
      → 증상: 기업 대시보드 기간 필터 전환 시 긍/부정 분포 캐러셀이 2페이지에 있으면 데이터가 비어 보임
      → 원인: `onClick={() => setChartPeriod(val)}` 호출이 chartPeriod만 변경하고
@@ -900,3 +914,30 @@ D-74. 하나의 필터가 여러 페이지네이션 state를 공유할 때 일�
              새 필터를 추가할 때마다 "이 필터가 영향을 주는 데이터를 표시하는 페이지네이션이 무엇인가"를
              기존 필터의 onClick 구현을 참조해 동일하게 적용할 것
              기존 필터의 "리셋 패턴"이 레퍼런스다 — 새 필터가 그보다 리셋 호출 수가 적으면 버그 신호
+
+D-76. 동일 status 값이지만 컬럼 유무에 따라 의미가 다른 두 종류를 단일 분기로 처리하면 잘못된 deadline을 체크하는 패턴 ✅ 해결
+     → 증상: 재작성 draft(rejection_deadline IS NOT NULL) 두 번째 방문 시 "제출 기간이 만료되었습니다" 화면 오표시
+     → 원인: status='draft'인 feedbacks가 최초 수락 draft(rejection_deadline IS NULL)와
+             재작성 draft(rejection_deadline IS NOT NULL)의 두 종류로 존재하는데,
+             else 분기가 rejection_deadline 유무를 확인하지 않고 submission_deadline만 체크함
+             재작성 draft의 submission_deadline은 최초 수락 시 4h/2h 기준으로 이미 만료된 상태
+             → 잘못된 deadline 체크 → deadlineExpired=true → 오류 화면 오표시
+             2차 피해: isResubmit 미설정 → 서브미션 재제출 시 INSERT 시도 → unique constraint 충돌
+                       isResubmit 미설정 → increment_panel_mission_count 재호출 → 카운트 중복
+     → 해결: rejection_deadline IS NOT NULL → 재작성 draft → rejection_deadline 기준 체크 + setIsResubmit(true)
+             rejection_deadline IS NULL → 최초 draft → submission_deadline 기준 체크 (기존 로직 유지)
+             ```js
+             if (fb.rejection_deadline) {
+               if (new Date(fb.rejection_deadline) < new Date()) { setDeadlineExpired(true); return; }
+               setDeadlineBanner({ label: '재제출 마감', value: new Date(fb.rejection_deadline) });
+               setIsResubmit(true);
+             } else {
+               if (fb.submission_deadline && new Date(fb.submission_deadline) < new Date()) { setDeadlineExpired(true); return; }
+               if (fb.submission_deadline) setDeadlineBanner({ label: '제출 마감', value: new Date(fb.submission_deadline) });
+             }
+             ```
+     → 원칙: 동일 status 값이 컬럼 조합에 따라 다른 의미를 가질 때(state machine의 sub-state),
+             단일 분기로 처리하면 다른 sub-state에 잘못된 로직이 적용됨
+             반드시 구분 컬럼(여기서는 rejection_deadline IS NULL vs IS NOT NULL)을 먼저 체크해 분기할 것
+             이 패턴은 "같은 테이블 같은 status인데 왜 동작이 다르냐"는 버그 리포트로 나타나므로
+             sub-state를 DB 설계 시 별도 컬럼이나 별도 enum 값으로 명시하는 것이 장기적으로 안전함

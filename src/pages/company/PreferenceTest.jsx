@@ -73,6 +73,7 @@ export default function PreferenceTest() {
   const [missionUuid, setMissionUuid] = useState(() => crypto.randomUUID());
 
   // Step 0
+  const [missionTitle, setMissionTitle] = useState('');
   const [assetType, setAssetType] = useState('');
   // Step 1
   const [variantA, setVariantA] = useState('');
@@ -196,7 +197,7 @@ export default function PreferenceTest() {
     }
   }
 
-  const shouldBlockNav = view === 'create' && Boolean(variantA || variantB || productDescription);
+  const shouldBlockNav = view === 'create' && Boolean(missionTitle || variantA || variantB || productDescription);
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -248,6 +249,7 @@ export default function PreferenceTest() {
     setSavingDraft(true);
     try {
       const desc = JSON.stringify({
+        missionTitle,
         variantA, variantB, variantAImage, variantBImage,
         productDescription, industry, assetType,
         selectedQuestions: [...selectedQuestions, ...localCustomQs],
@@ -255,7 +257,7 @@ export default function PreferenceTest() {
       });
       const payload = {
         company_id: companyId,
-        title: `소재 비교 (임시 저장)`,
+        title: missionTitle.trim() || `소재 비교 (임시 저장)`,
         type: 'preference', status: 'draft',
         description: desc, panel_count: panelSize,
         reward_amount: calcPanelPayout(careerLevels, 'sub'), assets: [],
@@ -281,6 +283,8 @@ export default function PreferenceTest() {
       if (!ms) return;
       let parsed = {};
       try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+      if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
+      else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);
       if (parsed.variantA) setVariantA(parsed.variantA);
       if (parsed.variantB) setVariantB(parsed.variantB);
       if (parsed.variantAImage) setVariantAImage(parsed.variantAImage);
@@ -400,9 +404,10 @@ export default function PreferenceTest() {
       careerLevels,
     });
     try {
+      const finalTitle = missionTitle.trim() || `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`;
       if (draftId) {
         const { error: mErr } = await supabase.from('missions').update({
-          title: `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`,
+          title: finalTitle,
           description: descJson, panel_count: panelSize,
           reward_amount: calcPanelPayout(careerLevels, 'sub'), status: 'active',
         }).eq('id', draftId);
@@ -410,7 +415,7 @@ export default function PreferenceTest() {
       } else {
         const { error: mErr } = await supabase.from('missions').insert({
           id: targetId, company_id: companyId,
-          title: `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`,
+          title: finalTitle,
           type: 'preference', description: descJson,
           panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'),
           status: 'active', assets: [],
@@ -517,6 +522,18 @@ export default function PreferenceTest() {
             {/* Step 0: 소재 입력 (유형 + A/B + 제품 설명 통합) */}
             {createStep === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {/* 검증할 서비스명(의뢰명) */}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>검증할 서비스명(의뢰명)</div>
+                  <input
+                    type="text"
+                    value={missionTitle}
+                    onChange={e => setMissionTitle(e.target.value)}
+                    placeholder="예) 우리 서비스 소재 A/B 비교"
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ height: 1, background: 'var(--border)' }} />
                 {/* 소재 유형 */}
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>소재 유형</div>

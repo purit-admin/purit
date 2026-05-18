@@ -700,6 +700,10 @@
    - 전체(all) 탭: 메인 미션 / 서브 미션 섹션 분리, 각 섹션 5개씩 페이지네이션
    - 취소(cancelled) 상태 미션 영구 삭제: 확인 모달(ConfirmModal) → missions DELETE
    - draft 상태 기업 미션 목록 제외: .neq('status', 'draft') ★
+   - ★ 미션 카드 레이아웃 (MissionCard) ★ 개편 (2026-05-18)
+     · 상단: 좌측(뱃지·제목·기업명) + 우측(슬롯 카운트 인라인 "N/N 패널 슬롯" + 버튼 그룹)
+     · 하단 구분선 아래: 등록일(좌) + 크레딧 현황(우) 같은 줄 배치
+     · 카드 패딩 축소(10px 14px)로 전체적으로 컴팩트
    - ★ 미션 카드 클릭 → 클릭한 카드 바로 아래 인라인으로 MissionDetail 펼침 (우측 고정 패널 폐지)
      · 좌측 파란 세로 선 들여쓰기로 상위 카드와 시각적 연결
      · 미션 정보 카드: 제목 / 회사명 / 패널 슬롯 현황
@@ -712,10 +716,21 @@
      · 같은 카드 재클릭 → 인라인 패널 닫힘 / 탭 전환 → 패널 자동 닫힘
      · MissionCard 내부 버튼(완료 처리·취소 등): e.stopPropagation()으로 카드 클릭과 분리
      · updateStatus / deleteMission 후 selectedMission 로컬 동기화
+   - ★ 완료 처리 버튼 블락 조건 (진행·취소 탭 공통) ★ 개편 (2026-05-18)
+     · completeBlocked = allFbs.length === 0 || pendingFbs.length > 0
+       - allFbs: feedbacks 중 status≠'draft'인 건
+       - pendingFbs: allFbs 중 purity_passed=false && status≠'rejected'인 건(검토 중)
+     · 피드백 0건 → 버튼 비활성화 + "수집된 피드백이 없습니다" 안내 (진행 탭만)
+     · 검토 중 피드백 존재 → 버튼 비활성화 + "검토 중 N건 먼저 처리 필요" 경고 (노란색, 진행·취소 공통)
+   - ★ 조기 종료 완료 처리 (earlyCompleteMission) ★ 개편 (2026-05-18)
+     · 취소 탭 "완료 처리" 버튼: allFbs.length > 0 && pendingFbs.length === 0 일 때만 활성화
+     · 클릭 → ConfirmModal(승인된 피드백 N건 기업 공개 안내) → 확인 시 기업에 알림 발송
+     · "그래도 완료 처리" 이스케이프 없음 — 퓨릿 필터에서 모든 피드백 처리 후에만 완료 가능
+     · 완료 후 missions 최신 데이터 리로드 (PurityFilter 변경 반영)
    - ★ 크레딧 완료 처리: "완료 처리" 버튼 클릭 시 ConfirmModal 표시 (승인 건수 동적 계산) → 확인 시 complete_mission_and_refund RPC 호출
      · "취소" 버튼도 ConfirmModal(danger) 경유 — 즉시 실행 없음
      · purity_passed=true 패널의 experience 기반 실소비량 계산(소수, CEIL 없음) 후 잔여분 기업 계정에 자동 환불
-     · 미션 카드 크레딧 표시 (credits_reserved > 0): "예상 N / 사용 N (환불 N cr)"
+     · 미션 카드 크레딧 표시 (credits_reserved > 0): "예상 N / 사용 N (환불 N cr)" — 하단 우측 배치
        - 사용 N: recalc_mission_consumed 결과 (퓨릿 필터 승인/반려 시 자동 갱신)
        - ↺ 재계산 버튼: 취소 제외 모든 미션 — 클릭 시 recalc 호출 후 로컬 상태 즉시 반영
      · ₩N/건 표시 제거 (경력별 단가 상이로 의미 없음)
@@ -864,14 +879,19 @@
     · draft → active 전환 (DB 트리거 on_mission_activated) → 어드민 (임시저장 후 제출 경로)
     · 슬롯 완료 (DB 트리거 on_mission_slots_full) → 어드민 (migration 033에서 기업→어드민으로 변경)
     · 버그/불편 신고 접수 (DB 트리거 on_bug_report_insert) → 어드민
+    · 기업 조기 종료 (company 포털 handleTerminate 성공 후) → 어드민 (notify_early_termination RPC, migration 036)
+      actionUrl: /admin/missions?missionId=xxx → 취소 탭 자동 이동 + 미션 하이라이트
     [기업]
     · 의뢰 완료 처리 (admin/Missions.jsx) → 기업
     · 의뢰 취소 처리 (admin/Missions.jsx) → 기업
     · 의뢰 재개 취소→진행 (admin/Missions.jsx) → 기업
     · 의뢰 재진행 완료→진행 (admin/Missions.jsx) → 기업
+    · 조기 종료 의뢰 피드백 검토 완료 (admin/Missions.jsx earlyCompleteMission) → 기업
+      actionUrl: /company/results?id=xxx → 취소 탭 피드백 확인
     [패널]
     · 피드백 승인 개별/일괄 (PurityFilter.jsx) → 패널
     · 피드백 반려 개별/일괄 (PurityFilter.jsx) → 패널
-    · 24h 미완료 draft (panel/Dashboard.jsx) → 패널
+    · 만료 1시간 전 임박 알림 — 최초 draft(submission_deadline 1h 이내), 재작성 draft(rejection_deadline 1h 이내), 미수락 반려(rejection_deadline 1h 이내) (panel/Dashboard.jsx) → 패널
+    · 수락 취소됨 알림 — draft 만료 시 자동 삭제 (expire_panel_drafts RPC, migration 037) → 패널
     ※ 미구현 (PRD 계획만 있고 코드에 없음):
        피드백 제출/재제출 → 기업 / 패널 참여 취소 → 기업 / 피드백 승인·반려 → 기업 / Enterprise 문의 접수 → 기업

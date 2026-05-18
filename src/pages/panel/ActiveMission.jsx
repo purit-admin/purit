@@ -313,13 +313,24 @@ export default function ActiveMission() {
             } else if (['submitted', 'approved', 'rejected'].includes(fb.status)) {
               setAlreadySubmitted(true);
             } else {
-              // submission_deadline 만료 체크 (최초 draft)
-              if (fb.submission_deadline && new Date(fb.submission_deadline) < new Date()) {
-                setDeadlineExpired(true);
-                return;
-              }
-              if (fb.submission_deadline) {
-                setDeadlineBanner({ label: '제출 마감', value: new Date(fb.submission_deadline) });
+              // 재작성 draft vs 최초 draft: rejection_deadline 유무로 구분
+              if (fb.rejection_deadline) {
+                // 재작성 draft(재수락 후 작성 중): rejection_deadline이 만료 기준
+                if (new Date(fb.rejection_deadline) < new Date()) {
+                  setDeadlineExpired(true);
+                  return;
+                }
+                setDeadlineBanner({ label: '재제출 마감', value: new Date(fb.rejection_deadline) });
+                setIsResubmit(true); // 서브미션 UPDATE 경로 + 미션 카운트 중복 방지
+              } else {
+                // 최초 draft: submission_deadline이 만료 기준
+                if (fb.submission_deadline && new Date(fb.submission_deadline) < new Date()) {
+                  setDeadlineExpired(true);
+                  return;
+                }
+                if (fb.submission_deadline) {
+                  setDeadlineBanner({ label: '제출 마감', value: new Date(fb.submission_deadline) });
+                }
               }
               setDraftId(fb.id);
               setScores({

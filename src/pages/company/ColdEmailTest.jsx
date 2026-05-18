@@ -65,6 +65,7 @@ export default function ColdEmailTest() {
   const [missionUuid, setMissionUuid] = useState(() => crypto.randomUUID());
 
   // Step 0
+  const [missionTitle, setMissionTitle] = useState('');
   const [emailText, setEmailText] = useState('');
   // Step 1
   const [productDescription, setProductDescription] = useState('');
@@ -173,7 +174,7 @@ export default function ColdEmailTest() {
     }
   }
 
-  const shouldBlockNav = view === 'create' && Boolean(emailText || productDescription || industry);
+  const shouldBlockNav = view === 'create' && Boolean(missionTitle || emailText || productDescription || industry);
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -225,12 +226,13 @@ export default function ColdEmailTest() {
     setSavingDraft(true);
     try {
       const desc = JSON.stringify({
+        missionTitle,
         content: emailText, productDescription, industry,
         selectedQuestions: [...selectedQuestions, ...localCustomQs],
         careerLevels, panelSize,
       });
       const payload = {
-        company_id: companyId, title: '이메일 검증 (임시 저장)',
+        company_id: companyId, title: missionTitle.trim() || '이메일 검증 (임시 저장)',
         type: 'email', status: 'draft',
         description: desc, panel_count: panelSize,
         reward_amount: calcPanelPayout(careerLevels, 'sub'), assets: [],
@@ -255,6 +257,8 @@ export default function ColdEmailTest() {
       if (!ms) return;
       let parsed = {};
       try { parsed = JSON.parse(ms.description || '{}'); } catch {}
+      if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
+      else if (ms.title && !ms.title.includes('임시 저장')) setMissionTitle(ms.title);
       if (parsed.content) setEmailText(parsed.content);
       if (parsed.productDescription) setProductDescription(parsed.productDescription);
       if (parsed.industry) setIndustry(parsed.industry);
@@ -344,15 +348,16 @@ export default function ColdEmailTest() {
       selectedQuestions: [...selectedQuestions, ...localCustomQs], careerLevels,
     });
     try {
+      const finalTitle = missionTitle.trim() || '이메일 검증';
       if (draftId) {
         const { error: mErr } = await supabase.from('missions').update({
-          title: '이메일 검증', description: descJson,
+          title: finalTitle, description: descJson,
           panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'), status: 'active',
         }).eq('id', draftId);
         if (mErr) throw mErr;
       } else {
         const { error: mErr } = await supabase.from('missions').insert({
-          id: targetId, company_id: companyId, title: '이메일 검증',
+          id: targetId, company_id: companyId, title: finalTitle,
           type: 'email', description: descJson,
           panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'),
           status: 'active', assets: [],
@@ -457,6 +462,18 @@ export default function ColdEmailTest() {
             {/* Step 0: 이메일 입력 (이메일 원문 + 제품 설명 통합) */}
             {createStep === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                {/* 검증할 서비스명(의뢰명) */}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>검증할 서비스명(의뢰명)</div>
+                  <input
+                    type="text"
+                    value={missionTitle}
+                    onChange={e => setMissionTitle(e.target.value)}
+                    placeholder="예) 콜드 이메일 검증"
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ height: 1, background: 'var(--border)' }} />
                 {/* 이메일 원문 */}
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>이메일 원문</div>
