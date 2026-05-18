@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-18 (D-77 추가 — 동일 컴포넌트 내 두 가지 editMode 진입 경로 중 하나에서만 신규 필드 복원 코드를 추가하면 다른 경로에서 해당 필드가 비어있는 패턴)
+최종 업데이트: 2026-05-18 (D-78 추가 — justifyContent는 CSS transition 불가 속성 — paddingLeft로 아이콘 정렬 애니메이션 대체 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -936,6 +936,23 @@ D-77. 동일 컴포넌트 내 두 가지 editMode 진입 경로 중 하나에서
              새 state 추가 체크리스트: ①state 선언 ②shouldBlockNav 포함 ③saveDraft JSON 포함
              ④openDraftOrActiveForEdit 복원 ⑤useEffect editMode 블록 복원 ⑥Step N 검토 rows 포함
              체크리스트 ⑤를 빠뜨리는 실수가 가장 흔함 (경로 A 수정 후 B를 동일한 코드로 인식하고 건너뜀)
+
+D-78. justifyContent는 CSS transition 불가 속성 — 값이 바뀌면 즉각 점프, paddingLeft로 대체 ✅ 해결
+     → 증상: 사이드바 열림/닫힘 시 아이콘이 smooth하게 이동하지 않고 center ↔ flex-start 사이에서 즉시 튀어 버벅이는 것처럼 보임
+     → 원인: `justifyContent: isExpanded ? 'flex-start' : 'center'` 토글에 CSS transition을 걸어도 효과 없음
+             justifyContent, alignItems, display, whiteSpace 등 레이아웃 계산 방식을 바꾸는 속성은 브라우저가 보간(interpolate) 자체를 지원하지 않아 transition 대상이 될 수 없음
+             → `transition: '... justify-content 0.3s'` 을 추가해도 transition이 발동되지 않고 값이 즉시 점프
+     → 해결: `justifyContent: 'flex-start'` 고정 (절대 변경 안 함)
+             아이콘 중앙 정렬 효과는 paddingLeft로 시뮬레이션:
+               - 접힘(60px 사이드바, 버튼 48px, 아이콘 16px): paddingLeft = (48-16)/2 = 16px → 아이콘 시각적 중앙
+               - 펼침: paddingLeft = 12px (좌측 정렬 기준점)
+             `paddingLeft: isExpanded ? 12 : 16` + `transition: 'padding-left 0.3s cubic-bezier(0.4,0,0.2,1)'`
+             → paddingLeft는 CSS-animatable — 아이콘이 0.3s 동안 부드럽게 슬라이드
+     → CSS transition 불가 속성 목록 (대표): justifyContent, alignItems, display, flexDirection, whiteSpace, position
+     → CSS transition 가능 속성 목록 (레이아웃 관련): width, height, maxWidth, maxHeight, padding-left/right/top/bottom, margin, gap(Chrome 99+), opacity, border-radius
+     → 원칙: flexbox 정렬 방식을 전환하며 smooth 애니메이션이 필요할 때는
+             justifyContent/alignItems 토글 대신 padding/margin 보간으로 시각적 동등 효과를 구현할 것
+             "transition을 걸었는데 여전히 튀는" 현상 = 해당 CSS 속성이 animatable하지 않다는 신호
 
 D-76. 동일 status 값이지만 컬럼 유무에 따라 의미가 다른 두 종류를 단일 분기로 처리하면 잘못된 deadline을 체크하는 패턴 ✅ 해결
      → 증상: 재작성 draft(rejection_deadline IS NOT NULL) 두 번째 방문 시 "제출 기간이 만료되었습니다" 화면 오표시
