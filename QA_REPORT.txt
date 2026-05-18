@@ -223,6 +223,16 @@
       카운터·상태머신)에 관련된 기존 코드를 Grep으로 찾아 "새 시스템이 이 코드를 무효화하는가?"를
       명시적으로 물을 것. actionUrl 추적: 알림이 보내는 URL의 수신 페이지에서
       실제로 어떤 화면이 뜨는지 끝까지 시나리오를 추적할 것.
+    조사 방법 3 (navigate 전진 추적): 수신 페이지의 쿼리 필터가 특정 상태(active·draft 등)를
+      제외하도록 변경됐을 때, 해당 상태를 들고 수신 페이지로 이동시키는 모든 진입 경로를
+      Grep으로 전수 확인할 것.
+      대상: sendNotification() actionUrl 뿐만 아니라 컴포넌트 카드 클릭·버튼 클릭의
+      navigate() 호출까지 포함 (알림 외 UI 직접 이동 경로도 동일하게 dead link가 될 수 있음).
+      Grep 패턴 예시: navigate('/company/results') + navigate(`/company/results?id=`)
+      근거: Results.jsx 쿼리가 active 미션을 제외하도록 변경됐을 때, sendNotification()
+      actionUrl(B-151·B-152)은 수정됐으나 Dashboard·NewMission·PreferenceTest·PricingTest·
+      ColdEmailTest 5개 파일의 active 카드 클릭 navigate()는 누락 — 기업이 진행 중 의뢰를
+      클릭하면 피드백이 없는 Results.jsx로 이동하는 UX 버그가 사용자 직접 수정으로 발견됨.
 
 15. DELETE/UPDATE 권한 명시성 검증: Supabase 테이블에서 .delete() 또는 .update()를 호출하는
     코드를 볼 때마다 아래 4가지를 순서대로 확인할 것.
@@ -389,6 +399,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
                             / 알림 시스템 무결성 검증 2차: B-147·B-148 2건 발견 및 즉시 수정 완료 — 총 148건 완료
                             / 재작성 draft 재진입 무결성 검증: B-149 1건 발견 및 즉시 수정 완료 — 총 149건 완료
                             / 신규 개발 기능 전수 조사 (earlyComplete·알림 actionUrl·Results.jsx 무결성): B-150~B-155 6건 발견 및 즉시 수정 완료 — 총 157건 완료)
+                            / navigate 전진 추적 수평전개 조사: B-156~B-157 2건 발견 및 즉시 수정 완료 — 총 159건 완료)
 ================================================================
 ## 표기 규칙
   ✅  수정 완료 항목: 하단 아카이브 섹션으로 이동
@@ -667,5 +678,9 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [B-153] 어드민 미션 관리 (admin/Missions.jsx) — earlyCompleteMission()이 sendNotification()을 await로 호출. 같은 파일의 모든 다른 sendNotification 호출은 fire-and-forget으로 일관성 위반. sendNotification throw 시 setConfirmEarlyComplete(null) 및 데이터 리로드가 미실행(DB는 정상이나 UI 상태 고착). await 제거하여 fire-and-forget으로 통일.  ✅
 [B-154] 기업 피드백 결과 (company/Results.jsx) — loadFeedback() 내 `if (m?.status === 'active')` 분기(dead code). Results.jsx 미션 쿼리가 `.or('status.eq.completed,and(status.eq.cancelled,...)')` 로 active 미션을 원천 제외해 selected에 active 미션이 들어올 수 없음. dead code 블록 제거.  ✅
 [B-155] 기업 피드백 결과 (company/Results.jsx) — ?id 파라미터로 취소(cancelled) 미션 진입 시 missionTab이 'all'로 유지되어 '취소' 탭이 자동 선택되지 않음. earlyComplete 알림 actionUrl(`/company/results?id=xxx`) 클릭 후 탭 컨텍스트가 불명확. paramId 미션의 status==='cancelled' 감지 → setMissionTab('cancelled') 자동 전환 추가.  ✅
+
+-- navigate 전진 추적 수평전개 조사 (2026-05-18) — B-151~B-152 수정 후 UI navigate() 경로 전수 확인 --
+[B-156] 기업 포털 5개 페이지 카드 클릭 — cancelled+company_notified_at IS NULL 미션이 Results.jsx ?id로 이동, Results.jsx 쿼리 게이트(company_notified_at IS NOT NULL 조건)에서 제외되어 ms[0] 자동 선택(엉뚱한 의뢰 표시). 규칙 14(navigate 전진 추적) 위반. 5개 파일(Dashboard/NewMission/PreferenceTest/PricingTest/ColdEmailTest) 카드 onClick의 조건 분기에 `|| (m.status === 'cancelled' && !m.company_notified_at)` 추가 → active 카드와 동일하게 토스트 표시로 변경.  ✅
+[B-157] 기업 대시보드 (company/Dashboard.jsx) — CompanyMissionCard 컴포넌트 내 activeToast가 ReactDOM.createPortal 없이 렌더됨. Sidebar.jsx 래퍼(overflow:'auto')가 position:fixed를 뷰포트 기준이 아닌 컨테이너 기준으로 가두어 스크롤 시 토스트가 사라짐. D-19 위반. import ReactDOM from 'react-dom' 추가 + 토스트 블록을 ReactDOM.createPortal(..., document.body)로 감싸 수정. 나머지 4개 파일은 이미 createPortal 적용됨.  ✅
 
 ================================================================

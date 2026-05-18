@@ -951,7 +951,7 @@ export default function ColdEmailTest() {
                 <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                   onClick={() => {
                     if (isDraft) { openDraftOrActiveForEdit(m.id); }
-                    else if (m.status === 'active') {
+                    else if (m.status === 'active' || (m.status === 'cancelled' && !m.company_notified_at)) {
                       if (activeToastTimerRef.current) clearTimeout(activeToastTimerRef.current);
                       setActiveToast(true);
                       activeToastTimerRef.current = setTimeout(() => setActiveToast(false), 2500);

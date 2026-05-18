@@ -1019,3 +1019,9 @@ D-80. DB 공개 게이트 컬럼 추가 시 기존 알림 actionUrl의 접근 �
              3) 각 알림이 발송되는 시점에 기업/패널이 해당 URL로 이동했을 때 대상 데이터가 실제로 보이는지 검증
              4) 보이지 않는 경우 → 대시보드('/company' 등) 또는 다른 접근 가능 URL로 수정
              DB 게이트는 데이터 보안을 강화하지만, 기존 코드가 게이트를 모르고 쓴 URL들을 잘못되게 만드는 부작용이 있음
+     → 수평전개: 알림 actionUrl뿐 아니라 UI 카드 클릭 navigate() 경로도 동일하게 검증 필요 ★
+             기업 포털 5개 페이지(Dashboard·NewMission·PreferenceTest·PricingTest·ColdEmailTest)의
+             cancelled 카드 클릭이 모두 navigate('/company/results?id=…')를 호출했으나
+             company_notified_at IS NULL인 경우 Results.jsx 쿼리에서 제외되어 ms[0] 자동 선택 버그 발생 (B-156)
+             검증 방법: navigate('/company/results') 전체 grep → 수신 페이지 쿼리 필터와 교차 확인
+             → excluded status + 게이트 컬럼 IS NULL 조합에서 dead link 여부 점검

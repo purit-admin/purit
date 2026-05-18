@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -148,7 +149,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick 
     if (isDraft) {
       const route = DRAFT_ROUTE[m.type || 'landing_page'] || '/company/new';
       navigate(route, { state: { editMode: true, missionId: m.id } });
-    } else if (m.status === 'active') {
+    } else if (m.status === 'active' || (m.status === 'cancelled' && !m.company_notified_at)) {
       onActiveClick();
     } else {
       navigate(`/company/results?id=${m.id}`);
@@ -751,7 +752,7 @@ export default function CompanyDashboard() {
         onCancel={() => { setDeleteTarget(null); setDeleteError(''); }}
       />
     )}
-    {activeToast && (
+    {activeToast && ReactDOM.createPortal(
       <div style={{
         position: 'fixed', bottom: 28, left: 28, zIndex: 9999,
         background: '#fff', borderLeft: '4px solid var(--accent)',
@@ -760,7 +761,8 @@ export default function CompanyDashboard() {
         maxWidth: 300, lineHeight: 1.6,
       }}>
         피드백은 의뢰 완료 후 확인할 수 있습니다.
-      </div>
+      </div>,
+      document.body
     )}
     </>
   );
