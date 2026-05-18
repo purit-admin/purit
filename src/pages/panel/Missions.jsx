@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward, getExperienceCareerKey } from '../../lib/honorLevels';
-import { sendNotification } from '../../lib/notify';
 
 const DIFF_META = {
   easy:   { label: '쉬움',   color: 'var(--green)' },
@@ -298,18 +297,6 @@ export default function MissionList() {
     delete newMap[modal.mission.id];
     setFeedbackMap(newMap);
     setModal(null);
-    if (modal.mission.company_id) {
-      supabase.from('companies').select('user_id').eq('id', modal.mission.company_id).single()
-        .then(({ data: co }) => {
-          if (co?.user_id) sendNotification(co.user_id, {
-            type: 'info', icon: '👤',
-            title: '패널 참여 취소',
-            body: `[${modal.mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
-            actionUrl: `/company/results?id=${modal.mission.id}`,
-            targetRole: 'company',
-          });
-        });
-    }
   };
 
   const filtered = (() => {

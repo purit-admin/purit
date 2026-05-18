@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-15 (submission_deadline 4h/2h + 동시 수락 경쟁 + reaccept 재진행 경쟁 처리 문서 보완)
+최종 업데이트: 2026-05-18 (알림 발송 이벤트 목록 코드 기준으로 정정 — 미구현 항목 분리, 패널 참여 취소 → 기업 알림 제거)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -846,17 +846,20 @@
     · 탭별 읽지 않은 수 뱃지 표시 / 모두 읽음·삭제는 현재 탭 기준
   - 10개씩 페이지네이션 (탭·페이지 전환 시 선택 자동 초기화)
   - 선택·전체선택·삭제 기능: 체크박스 + 툴바 (선택 시 삭제 버튼 표시) ★
-  - 알림 발송 이벤트 전체 목록:
+  - 알림 발송 이벤트 전체 목록 (코드 기준):
+    [어드민]
     · 새 의뢰 등록 (DB 트리거 on_mission_created) → 어드민 (draft INSERT 제외)
     · draft → active 전환 (DB 트리거 on_mission_activated) → 어드민 (임시저장 후 제출 경로)
-    · 피드백 제출/재제출 (ActiveMission.jsx) → 기업
-    · 패널 참여 취소 (ActiveMission.jsx, panel/Missions.jsx) → 기업
-    · 슬롯 완료 (DB 트리거 on_mission_slots_full) → 기업 (actionUrl에 mission id 포함)
-    · 피드백 승인 개별/일괄 (PurityFilter.jsx) → 패널 + 기업
-    · 피드백 반려 개별/일괄 (PurityFilter.jsx) → 패널 + 기업
+    · 슬롯 완료 (DB 트리거 on_mission_slots_full) → 어드민 (migration 033에서 기업→어드민으로 변경)
+    · 버그/불편 신고 접수 (DB 트리거 on_bug_report_insert) → 어드민
+    [기업]
     · 의뢰 완료 처리 (admin/Missions.jsx) → 기업
     · 의뢰 취소 처리 (admin/Missions.jsx) → 기업
     · 의뢰 재개 취소→진행 (admin/Missions.jsx) → 기업
     · 의뢰 재진행 완료→진행 (admin/Missions.jsx) → 기업
+    [패널]
+    · 피드백 승인 개별/일괄 (PurityFilter.jsx) → 패널
+    · 피드백 반려 개별/일괄 (PurityFilter.jsx) → 패널
     · 24h 미완료 draft (panel/Dashboard.jsx) → 패널
-    · Enterprise 문의 접수 (Pricing.jsx) → 기업(본인)
+    ※ 미구현 (PRD 계획만 있고 코드에 없음):
+       피드백 제출/재제출 → 기업 / 패널 참여 취소 → 기업 / 피드백 승인·반려 → 기업 / Enterprise 문의 접수 → 기업

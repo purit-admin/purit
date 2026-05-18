@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
-import { sendNotification } from '../../lib/notify';
 import { getPanelReward } from '../../lib/honorLevels';
 
 const SECTIONS = [
@@ -502,18 +501,6 @@ export default function ActiveMission() {
     const { error } = await supabase.rpc('cancel_panel_feedback', { p_mission_id: mission.id });
     setCancelConfirming(false);
     if (error) { setCancelModal(false); setCancelError('취소 중 오류: ' + error.message); return; }
-    if (mission?.company_id) {
-      supabase.from('companies').select('user_id').eq('id', mission.company_id).single()
-        .then(({ data: co }) => {
-          if (co?.user_id) sendNotification(co.user_id, {
-            type: 'info', icon: '👤',
-            title: '패널 참여 취소',
-            body: `[${mission.title}] 패널이 의뢰 참여를 취소했습니다.`,
-            actionUrl: `/company/results?id=${mission.id}`,
-            targetRole: 'company',
-          });
-        });
-    }
     navigate('/panel/missions');
   };
 
