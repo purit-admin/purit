@@ -1,11 +1,11 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Bell, Plus, BarChart2, Layers, Columns2,
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
   Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
-  LogOut, Menu, X as CloseIcon, Flag, Building2, Pin, PinOff,
+  LogOut, Menu, X as CloseIcon, Flag, Building2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -112,9 +112,7 @@ export default function Layout({ role, children }) {
   const location = useLocation();
   const { user, role: authRole, signOut } = useAuth();
   const navGroups = NAV[role] || [];
-  const [pinned, setPinned] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const collapseTimer = useRef(null);
+  const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
   const [panelId, setPanelId] = useState(null);
@@ -192,18 +190,8 @@ export default function Layout({ role, children }) {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const isExpanded = isMobile ? true : (pinned || hovered);
+  const isExpanded = isMobile ? true : !collapsed;
   const sidebarWidth = isMobile ? 220 : (isExpanded ? 220 : 60);
-
-  const handleMouseEnter = () => {
-    if (isMobile) return;
-    clearTimeout(collapseTimer.current);
-    setHovered(true);
-  };
-  const handleMouseLeave = () => {
-    if (isMobile) return;
-    collapseTimer.current = setTimeout(() => setHovered(false), 200);
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -232,8 +220,6 @@ export default function Layout({ role, children }) {
 
       <aside
         className={`sidebar-drawer${mobileOpen ? ' is-open' : ''}`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
         style={{
           width: sidebarWidth, flexShrink: 0,
           background: '#FFFFFF',
@@ -259,22 +245,20 @@ export default function Layout({ role, children }) {
             <div style={{ whiteSpace: 'nowrap', fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{ROLE_LABEL[role]} 포털</div>
           </div>
           {!isMobile && (
-            <button className="sidebar-collapse-btn" onClick={() => setPinned(p => !p)}
-              title={pinned ? '고정 해제' : '사이드바 고정'}
+            <button className="sidebar-collapse-btn" onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
               style={{
                 marginLeft: 'auto', flexShrink: 0,
-                opacity: isExpanded ? 1 : 0,
-                pointerEvents: isExpanded ? 'auto' : 'none',
-                background: pinned ? 'var(--accent-dim)' : 'var(--surface)',
-                color: pinned ? 'var(--accent)' : 'var(--text-3)',
+                background: 'var(--surface)',
+                color: 'var(--text-3)',
                 width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', transition: 'opacity 0.2s ease, background 0.15s, color 0.15s',
+                cursor: 'pointer', transition: 'background 0.15s, color 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = pinned ? 'var(--accent-dim)' : 'var(--bg-3)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = pinned ? 'var(--accent-dim)' : 'var(--surface)'; }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-3)'; e.currentTarget.style.color = 'var(--text)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.color = 'var(--text-3)'; }}
             >
-              {pinned ? <PinOff size={13} /> : <Pin size={13} />}
+              {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
             </button>
           )}
           {isMobile && (

@@ -165,7 +165,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
           {/* 슬롯 카운트 인라인 */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
             <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15 }}>
-              {m.feedbacks?.length ?? m.filled_count ?? 0}/{m.panel_count}
+              {m.filled_count ?? 0}/{m.panel_count}
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-3)' }}>패널 슬롯</span>
           </div>

@@ -123,9 +123,16 @@ export default function NotificationCenter({ role = 'company' }) {
     if (selected.size === 0) return;
     setDeleting(true);
     const ids = [...selected];
-    await supabase.from('notifications').delete().in('id', ids);
-    setNotifs(ns => ns.filter(n => !ids.includes(n.id)));
-    setSelected(new Set());
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .in('id', ids);
+    if (!error) {
+      setNotifs(ns => ns.filter(n => !ids.includes(n.id)));
+      setSelected(new Set());
+    } else {
+      console.error('[deleteSelected]', error);
+    }
     setDeleting(false);
   }
 
