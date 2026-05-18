@@ -302,6 +302,8 @@ export default function CompanyDashboard() {
     if (co) setCompany(co);
     supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
       .then(({ error: re }) => { if (re) console.warn('[recalc]', re.message); });
+    supabase.rpc('notify_early_termination', { p_mission_id: terminateTarget.id })
+      .then(({ error: ne }) => { if (ne) console.warn('[notify_early_termination]', ne.message); });
     setTerminateError('');
     setTerminateTarget(null);
   };
@@ -718,7 +720,7 @@ export default function CompanyDashboard() {
     {terminateTarget && (
       <ConfirmModal
         title="의뢰를 조기 종료할까요?"
-        desc={`"${terminateTarget.title}" 의뢰를 지금 종료하면 패널 매칭이 즉시 중단됩니다.\n\n⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 피드백 결과 페이지에서 계속 확인하실 수 있습니다.\n\n이 작업은 되돌릴 수 없습니다.`}
+        desc="⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 계속 확인 가능합니다."
         confirmLabel="조기 종료 (크레딧 환불 불가)"
         cancelLabel="유지"
         danger

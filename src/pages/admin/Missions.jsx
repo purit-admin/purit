@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -136,7 +136,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
   );
 }
 
-function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, isHighlighted, isSelected, onSelect }) {
+function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, onEarlyComplete, isHighlighted, isSelected, onSelect }) {
   return (
     <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer' }}>
       <div className="mc-row">
@@ -175,6 +175,12 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             {m.status === 'completed' && (
               <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다. 기업에게 재진행 알림이 발송됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
             )}
+            {m.status === 'cancelled' && (() => {
+              const hasPending = (m.feedbacks || []).some(f => f.status !== 'draft' && !f.purity_passed && f.status !== 'rejected');
+              return hasPending ? (
+                <Btn size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onEarlyComplete(m); }}>완료 처리</Btn>
+              ) : null;
+            })()}
             {m.status === 'cancelled' && (
               <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다. 기업에게 재개 알림이 발송됩니다.', fromStatus: 'cancelled' }); }}>재개</Btn>
             )}
@@ -205,6 +211,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
 export default function AdminMissions() {
   const location = useLocation();
   const navigate  = useNavigate();
+  const [searchParams] = useSearchParams();
   const [missions, setMissions] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('active');
@@ -213,6 +220,8 @@ export default function AdminMissions() {
   const [confirmCancel, setConfirmCancel] = useState(null);
   const [confirmComplete, setConfirmComplete] = useState(null);
   const [confirmReactivate, setConfirmReactivate] = useState(null);
+  const [confirmEarlyComplete, setConfirmEarlyComplete] = useState(null);
+  const [earlyCompleteError, setEarlyCompleteError] = useState('');
   const [mainPage, setMainPage] = useState(1);
   const [subPage, setSubPage]   = useState(1);
   const [statusError, setStatusError] = useState('');
@@ -265,6 +274,35 @@ export default function AdminMissions() {
     const t = setTimeout(() => setHighlightId(null), 3000);
     return () => clearTimeout(t);
   }, [loading, location.state?.missionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 알림 클릭 딥링크: ?missionId=xxx 쿼리 파라미터 처리
+  useEffect(() => {
+    if (loading) return;
+    const targetId = searchParams.get('missionId');
+    if (!targetId) return;
+    const target = missions.find(m => m.id === targetId);
+    if (!target) return;
+
+    const targetStatus = target.status === 'draft' ? 'all' : target.status;
+    setFilter(targetStatus);
+
+    const isMain = !target.type || target.type === 'landing_page';
+    const filteredMs = targetStatus === 'all' ? missions : missions.filter(m => m.status === targetStatus);
+    const category = filteredMs.filter(m =>
+      isMain ? (!m.type || m.type === 'landing_page')
+             : ['preference', 'pricing', 'email'].includes(m.type)
+    );
+    const idx = category.findIndex(m => m.id === targetId);
+    if (idx !== -1) {
+      const pg = Math.floor(idx / PAGE_SIZE) + 1;
+      if (isMain) setMainPage(pg); else setSubPage(pg);
+    }
+
+    setHighlightId(targetId);
+    navigate(location.pathname, { replace: true });
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [loading, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateStatus = async (id, newStatus) => {
     setStatusError('');
@@ -345,6 +383,25 @@ export default function AdminMissions() {
     setMissions(ms => ms.map(m => m.id === id ? { ...m, credits_consumed: data } : m));
   };
 
+  // 취소 탭 뱃지: 아직 미처리(검토 중) 피드백이 있는 조기 종료 미션 수
+  const cancelledPendingCount = missions.filter(m =>
+    m.status === 'cancelled' &&
+    (m.feedbacks || []).some(f => f.status !== 'draft' && !f.purity_passed && f.status !== 'rejected')
+  ).length;
+
+  const earlyCompleteMission = async (m) => {
+    setEarlyCompleteError('');
+    if (!m?.companies?.user_id) { setEarlyCompleteError('기업 정보를 찾을 수 없습니다.'); return; }
+    await sendNotification(m.companies.user_id, {
+      type: 'success', icon: '🏁',
+      title: '조기 종료 의뢰 피드백 검토 완료',
+      body: `[${m.title}] 의뢰의 피드백 검토가 완료되었습니다. 피드백 결과 페이지에서 확인하세요.`,
+      actionUrl: `/company/results?id=${m.id}`,
+      targetRole: 'company',
+    });
+    setConfirmEarlyComplete(null);
+  };
+
   const filtered = filter === 'all' ? missions : missions.filter(m => m.status === filter);
 
   const mainMissions = filtered.filter(m => !m.type || m.type === 'landing_page');
@@ -377,8 +434,15 @@ export default function AdminMissions() {
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
-            border: 'none', transition: 'all 0.15s', cursor: 'pointer',
-          }}>{l}</button>
+            border: 'none', transition: 'all 0.15s', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+            {l}
+            {v === 'cancelled' && cancelledPendingCount > 0 && (
+              <span style={{ background: '#ef4444', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 6px', lineHeight: 1.5 }}>
+                {cancelledPendingCount}
+              </span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -426,6 +490,19 @@ export default function AdminMissions() {
         );
       })()}
 
+      {/* 조기 종료 완료 처리 modal */}
+      {confirmEarlyComplete && (
+        <ConfirmModal
+          title="조기 종료 완료 처리"
+          desc={`"${confirmEarlyComplete.title}" 의뢰의 피드백 검토가 완료됐습니다.\n승인된 피드백이 기업에게 공개되며, 기업에게 완료 알림이 발송됩니다.\n(status는 취소 상태 유지, 크레딧 환불 없음)`}
+          confirmLabel="완료 처리"
+          cancelLabel="돌아가기"
+          errorMsg={earlyCompleteError}
+          onConfirm={async () => { await earlyCompleteMission(confirmEarlyComplete); }}
+          onCancel={() => { setConfirmEarlyComplete(null); setEarlyCompleteError(''); }}
+        />
+      )}
+
       {/* Reactivate confirm modal */}
       {confirmReactivate && (
         <ConfirmModal
@@ -462,7 +539,7 @@ export default function AdminMissions() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {mainPaged.map(m => (
                   <div key={m.id}>
-                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
+                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} onEarlyComplete={setConfirmEarlyComplete} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
                     {selectedMission?.id === m.id && (
                       <MissionDetail mission={selectedMission} onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })} />
                     )}
@@ -489,7 +566,7 @@ export default function AdminMissions() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {subPaged.map(m => (
                   <div key={m.id}>
-                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
+                    <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} onEarlyComplete={setConfirmEarlyComplete} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
                     {selectedMission?.id === m.id && (
                       <MissionDetail mission={selectedMission} onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })} />
                     )}

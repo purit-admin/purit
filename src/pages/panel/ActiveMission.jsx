@@ -1507,7 +1507,7 @@ export default function ActiveMission() {
         {cancelModal && (
           <ConfirmModal
             title="수락을 취소할까요?"
-            desc="작성 중이던 모든 어노테이션이 삭제됩니다."
+            desc={`작성 중이던 피드백 초안이 모두 삭제됩니다.\n이 미션은 다시 참여가능 목록으로 돌아갑니다.`}
             confirmLabel={cancelConfirming ? '처리 중...' : '수락 취소'}
             cancelLabel="계속 작성하기"
             danger
