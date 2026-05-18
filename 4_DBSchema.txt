@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-14 (031_feedbacks_payout_tracking — payout_amount + rejection_penalty_applied 컬럼 추가)
+최종 업데이트: 2026-05-18 (038_notifications_rls — RLS 활성화 + 4개 정책 / 039_missions_company_notified_at — company_notified_at 컬럼 추가)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -72,6 +72,7 @@
   share_token        TEXT  UNIQUE  (010_sharing.sql, NULL이면 비공개)
   credits_reserved   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (의뢰 등록 시 차감 예약 크레딧)
   credits_consumed   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (퓨릿 필터 승인 시 실시간 갱신·완료 처리 시 최종 확정)
+  company_notified_at TIMESTAMPTZ    DEFAULT NULL        ← 039 추가 (조기종료 기업 공개 게이트 — earlyCompleteMission 호출 시 SET, NULL이면 Results.jsx 취소 탭 미노출)
   created_at         TIMESTAMPTZ DEFAULT now()
 
 ---
@@ -187,8 +188,15 @@
   body        TEXT
   action_url  TEXT
   read        BOOL  DEFAULT false
+  target_role TEXT  DEFAULT NULL  ← 030 추가 ('admin'|'company'|'panel'|null — 포털별 알림 분리)
   created_at  TIMESTAMPTZ
   INDEX: (user_id, read)
+  ※ RLS (038): ENABLE ROW LEVEL SECURITY
+    SELECT: user_id = auth.uid() (본인 알림만)
+    INSERT: auth.uid() IS NOT NULL (로그인 유저 전체 — 어드민→타 유저 알림 발송 허용)
+    UPDATE: user_id = auth.uid() (읽음 처리용)
+    DELETE: user_id = auth.uid() (본인 알림만 삭제)
+    ※ SECURITY DEFINER 트리거는 RLS 자동 우회 — INSERT 정책 변경 영향 없음
 
 ---
 

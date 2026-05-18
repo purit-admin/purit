@@ -188,12 +188,15 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
               {m.status === 'completed' && (
                 <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다. 기업에게 재진행 알림이 발송됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
               )}
-              {m.status === 'cancelled' && allFbs.length > 0 && (
+              {m.status === 'cancelled' && allFbs.length > 0 && !m.company_notified_at && (
                 <Btn size="sm" variant="secondary"
                   disabled={pendingFbs.length > 0}
                   onClick={(e) => { e.stopPropagation(); onEarlyComplete(m); }}>
                   완료 처리
                 </Btn>
+              )}
+              {m.status === 'cancelled' && m.company_notified_at && (
+                <Badge type="green">기업 공개됨</Badge>
               )}
               {m.status === 'cancelled' && (
                 <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재개', desc: '취소된 미션을 다시 진행 상태로 되돌립니까? 패널 매칭이 재시작됩니다. 기업에게 재개 알림이 발송됩니다.', fromStatus: 'cancelled' }); }}>재개</Btn>
@@ -416,6 +419,12 @@ export default function AdminMissions() {
   const earlyCompleteMission = async (m) => {
     setEarlyCompleteError('');
     if (!m?.companies?.user_id) { setEarlyCompleteError('기업 정보를 찾을 수 없습니다.'); return; }
+    // DB 게이트 먼저 설정 — 이 컬럼이 set되어야 기업 Results.jsx에 의뢰 공개됨
+    const { error: updateErr } = await supabase
+      .from('missions')
+      .update({ company_notified_at: new Date().toISOString() })
+      .eq('id', m.id);
+    if (updateErr) { setEarlyCompleteError('완료 처리 중 오류가 발생했습니다.'); return; }
     await sendNotification(m.companies.user_id, {
       type: 'success', icon: '🏁',
       title: '조기 종료 의뢰 피드백 검토 완료',
@@ -424,7 +433,7 @@ export default function AdminMissions() {
       targetRole: 'company',
     });
     setConfirmEarlyComplete(null);
-    // 버튼 중복 노출 방지 및 PurityFilter 변경 반영: 최신 데이터 리로드
+    // 최신 데이터 리로드 (완료 처리 버튼 사라짐 + PurityFilter 변경 반영)
     const { data } = await supabase
       .from('missions')
       .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')

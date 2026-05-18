@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-18 (D-78 추가 — justifyContent는 CSS transition 불가 속성 — paddingLeft로 아이콘 정렬 애니메이션 대체 패턴)
+최종 업데이트: 2026-05-18 (D-79 추가 — Supabase 뮤테이션 { error } 미캡처 + 낙관적 UI 조합 시 새로고침 복원 버그)
 ================================================================
 
 ## 핵심 원칙
@@ -980,3 +980,21 @@ D-76. 동일 status 값이지만 컬럼 유무에 따라 의미가 다른 두 �
              반드시 구분 컬럼(여기서는 rejection_deadline IS NULL vs IS NOT NULL)을 먼저 체크해 분기할 것
              이 패턴은 "같은 테이블 같은 status인데 왜 동작이 다르냐"는 버그 리포트로 나타나므로
              sub-state를 DB 설계 시 별도 컬럼이나 별도 enum 값으로 명시하는 것이 장기적으로 안전함
+
+D-79. Supabase 뮤테이션 { error } 미캡처 + 낙관적 UI 조합 시 새로고침 복원 버그 ✅ 해결
+     → 증상: 알림 선택 삭제 후 다른 페이지로 이동하거나 새로고침하면 삭제한 알림이 다시 나타남
+     → 원인 1: notifications 테이블에 RLS 미설정 → DELETE 정책 없음 → DB 삭제가 0행 처리로 조용히 실패
+     → 원인 2: deleteSelected() 에서 `await supabase.from('notifications').delete().in('id', ids)` 의
+               반환값을 전혀 캡처하지 않음 → DB 실패 여부와 무관하게 로컬 state만 업데이트(낙관적 UI)
+               → 화면에서는 사라진 것처럼 보이지만 DB에는 여전히 존재 → 새로고침 시 복원
+     → 해결 1 (DB 레이어): 038_notifications_rls.sql 마이그레이션으로 RLS 활성화 + DELETE 정책 추가
+     → 해결 2 (코드 레이어): `const { error } = await supabase...delete()` 로 에러 캡처
+                              `if (!error) { setNotifs(...); setSelected(new Set()); }` — 성공 시에만 로컬 state 변경
+                              `else { console.error('[deleteSelected]', error); }` — 실패 시 에러 로깅만 (state 변경 없음)
+     → 원칙: Supabase 뮤테이션(.insert/.update/.delete) 코드를 볼 때마다 아래 4가지 확인:
+             1) 해당 테이블에 ENABLE ROW LEVEL SECURITY가 있는가?
+             2) 수행하는 작업(DELETE/UPDATE/INSERT)에 해당하는 RLS 정책이 있는가?
+             3) 호출 코드에 `const { error } = await` 형태로 결과를 캡처하는가?
+             4) 로컬 state 변경이 `if (!error)` 조건 안에서만 이루어지는가?
+             → 이 4가지 중 하나라도 빠지면 낙관적 UI + 조용한 DB 실패 조합으로 데이터가 유령처럼 살아남음
+             ※ QA_REPORT.txt 규칙 15(DELETE/UPDATE 권한 명시성 검증)와 연계 — QA 시 체계적 검증 방법 참조
