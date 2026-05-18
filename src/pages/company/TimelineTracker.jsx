@@ -24,6 +24,9 @@ export default function TimelineTracker() {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [view, setView]           = useState('weekly'); // 'weekly' | 'mission'
+  const [chipsExpanded, setChipsExpanded] = useState(false);
+
+  const CHIPS_DEFAULT = 5;
 
   useEffect(() => { load(); }, []);
 
@@ -149,18 +152,68 @@ export default function TimelineTracker() {
 
       {/* Mission toggle chips */}
       {missions.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-          {missions.map(m => (
-            <button key={m.id} onClick={() => toggleMission(m.id)} style={{
-              padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
-              background: 'var(--surface)',
-              color: selected.includes(m.id) ? 'var(--accent)' : 'var(--text-3)',
-              border: '1px solid ' + (selected.includes(m.id) ? 'var(--accent)' : 'var(--border)'),
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}>
-              {m.title.length > 20 ? m.title.slice(0, 20) + '…' : m.title}
-            </button>
-          ))}
+        <div style={{ marginBottom: 24 }}>
+          {/* 전체 선택 / 해제 + 더보기 토글 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <button onClick={async () => {
+              const ids = missions.map(m => m.id);
+              setSelected(ids);
+              await fetchChartData(missions, ids, view);
+            }} style={{
+              padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              color: 'var(--text-2)', cursor: 'pointer',
+            }}>전체 선택</button>
+            <button onClick={async () => {
+              setSelected([]);
+              await fetchChartData(missions, [], view);
+            }} style={{
+              padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              color: 'var(--text-2)', cursor: 'pointer',
+            }}>전체 해제</button>
+            <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>
+              {selected.length}/{missions.length}개 선택됨
+            </span>
+            {missions.length > CHIPS_DEFAULT && (
+              <button onClick={() => setChipsExpanded(e => !e)} style={{
+                marginLeft: 'auto', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                color: 'var(--accent)', cursor: 'pointer',
+              }}>
+                {chipsExpanded ? '접기 ▲' : `전체 보기 (${missions.length}개) ▼`}
+              </button>
+            )}
+          </div>
+
+          {/* 칩 목록 */}
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 8,
+            maxHeight: chipsExpanded ? 160 : 'none',
+            overflowY: chipsExpanded ? 'auto' : 'visible',
+            paddingRight: chipsExpanded ? 4 : 0,
+          }}>
+            {(chipsExpanded ? missions : missions.slice(0, CHIPS_DEFAULT)).map(m => (
+              <button key={m.id} onClick={() => toggleMission(m.id)} style={{
+                padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                background: 'var(--surface)',
+                color: selected.includes(m.id) ? 'var(--accent)' : 'var(--text-3)',
+                border: '1px solid ' + (selected.includes(m.id) ? 'var(--accent)' : 'var(--border)'),
+                cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
+              }}>
+                {m.title.length > 20 ? m.title.slice(0, 20) + '…' : m.title}
+              </button>
+            ))}
+            {!chipsExpanded && missions.length > CHIPS_DEFAULT && (
+              <button onClick={() => setChipsExpanded(true)} style={{
+                padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                background: 'transparent', border: '1px dashed var(--border)',
+                color: 'var(--text-3)', cursor: 'pointer',
+              }}>
+                +{missions.length - CHIPS_DEFAULT}개 더
+              </button>
+            )}
+          </div>
         </div>
       )}
 

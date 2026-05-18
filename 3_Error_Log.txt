@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-18 (D-79 추가 — Supabase 뮤테이션 { error } 미캡처 + 낙관적 UI 조합 시 새로고침 복원 버그)
+최종 업데이트: 2026-05-18 (D-81 추가 — Windows Node.js import.meta.url 소문자 드라이브 레터 regex 함정)
 ================================================================
 
 ## 핵심 원칙
@@ -1025,3 +1025,15 @@ D-80. DB 공개 게이트 컬럼 추가 시 기존 알림 actionUrl의 접근 �
              company_notified_at IS NULL인 경우 Results.jsx 쿼리에서 제외되어 ms[0] 자동 선택 버그 발생 (B-156)
              검증 방법: navigate('/company/results') 전체 grep → 수신 페이지 쿼리 필터와 교차 확인
              → excluded status + 게이트 컬럼 IS NULL 조합에서 dead link 여부 점검
+
+D-81. Windows Node.js에서 import.meta.url의 드라이브 레터가 소문자로 반환되어 regex 미매칭으로 이중 경로 생성 패턴 ✅ 해결
+     → 증상: `node scripts/create-12-test-missions.mjs` 실행 시 `ENOENT: no such file or directory, open 'c:\c:\Users\...'` 오류
+     → 원인: Node.js가 Windows에서 `import.meta.url`의 드라이브 레터를 소문자(`c:`)로 반환하는데,
+             기존 정규식 `/^\/([A-Z]:)/`가 대문자만 매칭 → replace 미실행 → `/c:/...` 경로가 그대로 남아
+             `.pathname`이 `/c:/Users/...` 형태 → 앞 슬래시 제거 실패 → `c:\c:\Users\...` 이중 경로 생성
+     → 해결: 정규식에 소문자 드라이브 레터도 포함:
+             `replace(/^\/([A-Za-z]:)/, '$1')` (기존 `[A-Z]` → `[A-Za-z]`)
+     → 적용 파일: `scripts/*.mjs` 파일 상단 .env.local 경로 파싱 코드 전체
+     → 원칙: Windows에서 `new URL('../.env.local', import.meta.url).pathname`으로 경로를 얻을 때
+             드라이브 레터 대소문자를 가정하지 말 것 — `[A-Za-z]`로 대소문자 모두 포함해야 함
+             macOS/Linux에서는 드라이브 레터가 없으므로 이 정규식이 아무 효과 없이 안전하게 통과됨
