@@ -176,7 +176,7 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModa
 export default function MissionList() {
   const navigate = useNavigate();
   const [missions, setMissions]       = useState([]);
-  // feedbackMap: { [missionId]: { status, id, suggestions } }
+  // feedbackMap: { [missionId]: { status, id, suggestions, rejection_deadline } }
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]               = useState(null);
   const [panelHonorPoints, setPanelHonorPoints] = useState(0);

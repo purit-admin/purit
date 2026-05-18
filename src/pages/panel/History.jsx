@@ -12,7 +12,7 @@ const fmtAmt = (n) => {
   return `₩${man}만 ${rest.toLocaleString()}`;
 };
 
-const STATUS_LABEL = { submitted: '정산 대기', approved: '정산완료', rejected: '지급 거절' };
+const STATUS_LABEL = { submitted: '정산 대기', approved: '정산 완료', rejected: '지급 거절' };
 const STATUS_TYPE  = { submitted: 'gold',      approved: 'green',    rejected: 'red' };
 
 const TABS = [

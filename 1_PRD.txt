@@ -21,7 +21,7 @@
 
 ### [개요]
 1. 대시보드 (/company) — Dashboard.jsx
-   - NDA 배너 최상단 표시: "Purit의 피드백 패널은 기업의 정보를 발설할 수 없습니다."
+   - NDA 배너 최상단 표시: "Purit의 피드백 패널(참가자)는 기업의 정보를 발설할 수 없습니다."
      × 클릭 시 localStorage(purit_nda_banner_dismissed) 저장 → 24시간 비노출
    - Stats 카드 5개: 잔여 크레딧(현재 플랜 표시) / 전체 의뢰 / 진행 중 / 완료 / 수집 피드백(제출 완료 건수)
      · 잔여 크레딧 카드: company.credit_balance 표시, 서브타이틀에 현재 플랜명(STARTER/PRO 등) 표시
@@ -47,7 +47,7 @@
      · 각 섹션 5개씩 페이지네이션 (CompanyMissionCard 컴포넌트)
      · CompanyMissionCard 뱃지: LP검증 뱃지 미표시, 서브 의뢰(소재비교/가격검증/이메일검증)만 타입 뱃지 표시 ★
        뱃지 색상: 소재비교=blue(진한회색) / 가격검증=gold / 이메일검증=blue(진한회색) ★ 이메일 green→blue 변경
-     · CompanyMissionCard 상태 뱃지: active+filled=0 → "매칭 대기"(gray), active+filled≥1 → "진행 중"(green), completed → "완료"(blue) ★
+     · CompanyMissionCard 상태 뱃지: active+filled=0 → "매칭 대기"(gray), active+filled≥1 → "진행 중"(green), completed → "완료"(blue), cancelled → "취소"(red) ★
      · CompanyMissionCard: 카드 클릭 시 navigate('/company/results?id=<missionId>') → Results.jsx가 해당 의뢰 즉시 선택
      · CompanyMissionCard: status='active' && filled_count=0 조건 시 "수정" 버튼 표시
        클릭 시 DRAFT_ROUTE 맵으로 타입별 올바른 폼 경로로 navigate (메인→/company/new, 서브→각 서브 페이지)
@@ -80,9 +80,9 @@
      · 특징 카드 4개 (이미지 업로드·영역 어노테이션·5차원 평가·추가 질문)
      · 기존 의뢰 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
      · 목록 카드: mc-row/mc-right 레이아웃 (대시보드 CompanyMissionCard와 동일 구조) ★
-       - 매칭 대기(gray)/진행 중(green)/완료(blue) 뱃지, 피드백 수집 카운터+프로그레스바, 등록일
+       - 매칭 대기(gray)/진행 중(green)/완료(blue)/취소(red) 뱃지, 피드백 수집 카운터+프로그레스바, 등록일
        - 수정 버튼 (active+filled=0), 의뢰 조기 종료 버튼 (active+filled≥1) — Dashboard와 동일 기능/모달
-       - 취소 탭: 회색 취소 뱃지, 카드 클릭 비활성
+       - 취소 탭: 빨간 취소 뱃지, 카드 클릭 비활성
      · 임시 저장 카드 클릭 → form 뷰 진입 + 기존 데이터 복원
      · 서브 의뢰 페이지들(PreferenceTest 등)과 동일한 list/form 뷰 전환 패턴
    - 편집 모드(location.state.editMode=true): list 뷰 건너뛰고 form 뷰 바로 진입
@@ -240,7 +240,7 @@
 5. 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06)
    - 목록: missions 테이블에서 type='preference' 필터로 로드 (cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
-     · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue) 뱃지, 수정/조기종료 버튼 ★
+     · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue)/취소(red) 뱃지, 수정/조기종료 버튼 ★
      · 임시 저장(draft) 카드 클릭/이어작성하기 버튼 → openDraftOrActiveForEdit(id) 호출
        → DB에서 직접 데이터 로드 후 각 필드 복원 + setView('create') (navigate 미사용 — D-43 참조)
      · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
@@ -255,7 +255,7 @@
    - 목록 active 카드: 수정(filled=0) / 조기종료(filled≥1) 버튼 → terminateTarget ConfirmModal → status='cancelled' ★
    - 폼 상단 배너 2개 (모든 스텝 상시): 🔒 NDA 배너 + ✨ 매칭 배너
    - STEPS = ['소재 입력', '질문 설정', '패널 설정', '검토'] (총 4단계) ★ 개편
-   - Step 0 '소재 입력': 소재 유형 선택(이미지/텍스트/랜딩페이지) + 소재 A/B 입력 + 이미지 업로드 + 제품/타겟 설명 + 산업군 (1개 스텝으로 통합)
+   - Step 0 '소재 입력': 소재 유형 선택(헤드라인 카피/CTA 문구/가치 제안/LP 섹션/광고 소재/이메일 제목) + 소재 A/B 입력 + 이미지 업로드 + 제품/타겟 설명 + 산업군 (1개 스텝으로 통합)
      · variantA / variantB 텍스트 필수, 업로드 경로: {companyId}/{missionUuid}/va.{ext} / vb.{ext}
      · 산업군: ▼ 드롭다운 — 20개 칩 + "✏️ 직접 쓰기" 모드
    - Step 1 '질문 설정': 아코디언 그룹 1 — 내 커스텀 질문 / 그룹 2~4 — QUESTION_TEMPLATES.preference 3종
@@ -272,7 +272,7 @@
 6. 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06)
    - 목록: missions 테이블에서 type='pricing' 필터로 로드 (cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
-     · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue) 뱃지, 수정/조기종료 버튼 ★
+     · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue)/취소(red) 뱃지, 수정/조기종료 버튼 ★
      · 임시 저장(draft) 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
      · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
      · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
@@ -298,7 +298,7 @@
 7. 이메일 검증 (/company/email-test) — ColdEmailTest.jsx  ★ 단계 통합 + 검토 스텝 추가 (2026-05-06)
    - 목록: missions 테이블에서 type='email' 필터로 로드 (cold_email_tests 테이블 의존 제거, cancelled 포함)
      · 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 ★ (기본 선택: 진행)
-     · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue) 뱃지, 수정/조기종료 버튼 ★
+     · 목록 카드: mc-row/mc-right 레이아웃, 매칭대기(gray)/진행중(green)/완료(blue)/취소(red) 뱃지, 수정/조기종료 버튼 ★
      · 임시 저장(draft) 카드 클릭 → form 뷰 + draftId 설정 + description JSON 복원
      · active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id) 호출
      · 취소(cancelled) 카드 클릭 → navigate('/company/results?id=…') (결과 확인 가능)
@@ -414,6 +414,12 @@
     - "가장 인기" 뱃지: 배경 var(--accent)(네이비), 글자색 #fff (흰색)
     - FAQ 크레딧 설명: 직급 가중치(주니어 1×~C레벨 3×) 포함하여 실제 소모량이 달라짐을 명시
     - 추가 옵션 섹션: 추가 크레딧 충전(Pro/Starter 단가 비교), ICP Pulse 분기 구독
+
+16. 버그/건의 현황 (/company/bug-reports) — BugReports.jsx  ★ 신규
+    - 기업 포털에서 자신이 제출한 버그/불편 신고 내역 조회 페이지
+    - 좌측 목록: 유형 뱃지(버그/UX/데이터/기능제안/기타) + 제목 + 날짜 + 메모 미리보기
+    - 우측 상세: 유형·제목·날짜 메타 + 전체 설명 + 스크린샷("원본 보기" 링크) + 어드민 처리 상태
+    - 사이드바 '계정' 그룹에 위치 ("버그/건의 현황" 레이블, Flag 아이콘)
 
 ================================================================
 ## 역할 2: Panel (패널/응답자)
@@ -613,6 +619,12 @@
    - 프로필 헤더: 대표 뱃지 설정 시 이름 옆에 tier 색상 태그 표시 / 미설정 시 아무것도 표시 안 함 (ACTIVE 제거) ★
    - 패널 대시보드 헤더: panel.selected_badge + 획득 여부 확인 → 이름 옆 11px 소형 태그 표시 ★
    - 뱃지 자동 달성: 피드백 제출 후 및 도움됨 평가 후 check_and_award_badges RPC fire-and-forget ★
+
+6. 버그/건의 현황 (/panel/bug-reports) — BugReports.jsx  ★ 신규
+   - 패널 포털에서 자신이 제출한 버그/불편 신고 내역 조회 페이지
+   - 좌측 목록: 유형 뱃지(버그/UX/데이터/기능제안/기타) + 제목 + 날짜 + 메모 미리보기
+   - 우측 상세: 유형·제목·날짜 메타 + 전체 설명 + 스크린샷("원본 보기" 링크) + 어드민 처리 상태
+   - 사이드바 '내 계정' 그룹에 위치 ("버그/건의 현황" 레이블, Flag 아이콘)
 
 ================================================================
 ## 역할 3: Admin (관리자)

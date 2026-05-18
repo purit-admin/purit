@@ -944,7 +944,7 @@ export default function PricingTest() {
               const isLive = m.status === 'active' && filled >= 1;
               const statusBadgeType = isDraft ? 'gold'
                 : m.status === 'active' ? (filled === 0 ? 'gray' : 'green')
-                : m.status === 'completed' ? 'blue' : 'gray';
+                : m.status === 'completed' ? 'blue' : 'red';
               const statusBadgeLabel = isDraft ? '임시 저장'
                 : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
                 : m.status === 'completed' ? '완료' : '취소';
