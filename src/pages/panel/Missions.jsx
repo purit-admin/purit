@@ -68,7 +68,7 @@ function formatRemaining(deadline) {
   return `${m}분 남음`;
 }
 
-function MissionCard({ m, mode, feedbackId, rejectionDeadline, submissionDeadline, navigate, setModal, onDismiss, panelHonorPoints = 0, panelExperience = '' }) {
+function MissionCard({ m, mode, feedbackId, rejectionDeadline, submissionDeadline, suggestions, navigate, setModal, onDismiss, onResubmit, panelHonorPoints = 0, panelExperience = '' }) {
   const [reasonOpen, setReasonOpen] = useState(false);
   const slots  = m.panel_count  || 0;
   const filled = m.filled_count || 0;
@@ -134,8 +134,8 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, submissionDeadlin
             );
           })()}
           {mode === 'needsRevision' && reasonOpen && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface)', borderRadius: 6, padding: '8px 12px', lineHeight: 1.6 }}>
-              Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함하여 재작성해주세요.
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface)', borderRadius: 6, padding: '8px 12px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              {suggestions || 'Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함하여 재작성해주세요.'}
             </div>
           )}
         </div>
@@ -193,7 +193,7 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, submissionDeadlin
               </div>
             );
             return (
-              <Btn size="sm" variant="outline" onClick={() => navigate(`/panel/active?id=${m.id}&resubmit=${feedbackId}`)}>
+              <Btn size="sm" variant="outline" onClick={() => onResubmit(feedbackId, rejectionDeadline, m.title)}>
                 재작성 →
               </Btn>
             );
@@ -223,6 +223,7 @@ export default function MissionList() {
   const [dismissTarget, setDismissTarget] = useState(null); // feedbackId
   const [dismissing, setDismissing]       = useState(false);
   const [dismissError, setDismissError]   = useState('');
+  const [resubmitTarget, setResubmitTarget] = useState(null); // { missionId, feedbackId, rejectionDeadline, missionTitle }
   const [mainPage, setMainPage]       = useState(1);
   const [subPage, setSubPage]         = useState(1);
 
@@ -421,6 +422,51 @@ export default function MissionList() {
         document.body
       )}
 
+      {/* ── 재작성 확인 모달 (portal) ── */}
+      {resubmitTarget && ReactDOM.createPortal(
+        <div onClick={() => setResubmitTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 440, width: '90%', border: '1px solid var(--border)', animation: 'fadeUp 0.2s ease both' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 10, letterSpacing: '0.1em' }}>RESUBMIT</div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>재작성을 시작할까요?</h2>
+            <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 4, fontWeight: 600 }}>{resubmitTarget.missionTitle}</div>
+            {(() => {
+              const diff = resubmitTarget.rejectionDeadline ? new Date(resubmitTarget.rejectionDeadline) - new Date() : null;
+              if (!diff || diff <= 0) return null;
+              const h = Math.floor(diff / 3600000);
+              const min = Math.floor((diff % 3600000) / 60000);
+              const isExpiring = diff < 3600000;
+              const label = h > 0 ? `${h}시간 ${min}분 남음` : `${min}분 남음`;
+              return (
+                <div style={{ fontSize: 12, fontWeight: 700, color: isExpiring ? 'var(--red,#ef4444)' : '#F59E0B', marginBottom: 20 }}>
+                  ⏱ 재제출 마감: {label}
+                </div>
+              );
+            })()}
+            <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                '재작성 중인 미션은 [이어하기] 탭에서 확인할 수 있습니다.',
+                '마감 시간 내에 제출하지 않으면 수락이 자동 취소됩니다.',
+                '이전에 작성한 내용이 자동으로 복원됩니다.',
+              ].map((t, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                  <span style={{ color: '#F59E0B', flexShrink: 0, marginTop: 1 }}>⚠</span>
+                  <span>{t}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Btn variant="secondary" onClick={() => setResubmitTarget(null)}>취소</Btn>
+              <Btn onClick={() => {
+                const { missionId, feedbackId } = resubmitTarget;
+                setResubmitTarget(null);
+                navigate(`/panel/active?id=${missionId}&resubmit=${feedbackId}`);
+              }}>재작성 시작 →</Btn>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* ── 수락 모달 (portal) ── */}
       {modal?.type === 'accept' && ReactDOM.createPortal(
         <div onClick={() => { setModal(null); setAcceptError(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
@@ -540,9 +586,11 @@ export default function MissionList() {
                       feedbackId={feedbackMap[m.id]?.id}
                       rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
                       submissionDeadline={feedbackMap[m.id]?.submission_deadline}
+                      suggestions={feedbackMap[m.id]?.suggestions}
                       navigate={navigate}
                       setModal={setModal}
                       onDismiss={(fid) => { setDismissError(''); setDismissTarget(fid); }}
+                      onResubmit={(fid, rdl, title) => setResubmitTarget({ missionId: m.id, feedbackId: fid, rejectionDeadline: rdl, missionTitle: title })}
                       panelHonorPoints={panelHonorPoints}
                       panelExperience={panelExperience}
                     />
@@ -574,9 +622,11 @@ export default function MissionList() {
                       feedbackId={feedbackMap[m.id]?.id}
                       rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
                       submissionDeadline={feedbackMap[m.id]?.submission_deadline}
+                      suggestions={feedbackMap[m.id]?.suggestions}
                       navigate={navigate}
                       setModal={setModal}
                       onDismiss={(fid) => { setDismissError(''); setDismissTarget(fid); }}
+                      onResubmit={(fid, rdl, title) => setResubmitTarget({ missionId: m.id, feedbackId: fid, rejectionDeadline: rdl, missionTitle: title })}
                       panelHonorPoints={panelHonorPoints}
                       panelExperience={panelExperience}
                     />

@@ -355,9 +355,13 @@ purit/
 │   │                050(dismiss_rejected_feedback: feedbacks.dismissed BOOLEAN 컬럼 추가 + dismiss_rejected_feedback·delete_rejected_feedback RPC 2개)
 │   │                051(global_expire_panel_drafts: expire_all_panel_drafts() SECURITY DEFINER 전체 패널 일괄 만료 + pg_cron */10(또는 */1) 스케줄 — SQL Editor 수동 실행 필요)
 │   │                052(fix_expire_panel_drafts_race: expire_panel_drafts() 케이스별 처리 통일 + race condition 수정 — GET DIAGNOSTICS ROW_COUNT로 이중 차감 방지)
-│   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, dismissed } } ★ dismissed 추가
+│   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
+│   │                  [수정 필요] 탭 탈락 사유: feedbackMap[m.id]?.suggestions 실제 반려 사유 표시 (없으면 기본 안내문 폴백) ★
+│   │                  [수정 필요] 탭 "재작성 →": resubmitTarget state 설정 → 확인 모달(RESUBMIT 포털) 경유 후 navigate ★
+│   │                    resubmitTarget: { missionId, feedbackId, rejectionDeadline, missionTitle }
+│   │                    모달: 미션 제목 + rejection_deadline 남은 시간(isExpiring=1h미만 → red) + 경고 3개
 │   │                  [수정 필요] 탭 missionEnded/slotsFull 항목: 재작성 불가 텍스트 + '삭제' 버튼 → dismiss_rejected_feedback RPC (dismissed=true, 숨김)
 │   │                  [이어하기] 탭 missionEnded 항목(ms.status!=='active'): '이어하기 →' 대신 '의뢰가 종료되었습니다' 텍스트 표시 ★
 │   │                  수락 핸들러: isSubM = type in ['preference','pricing','email'] → subDl = now + (isSubM?2:4)h → accept_mission_slot RPC(p_submission_deadline=subDl) 호출

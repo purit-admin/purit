@@ -464,8 +464,9 @@
      · 패널 experience 미설정 시 필터 미적용(모든 미션 노출), careerLevels 없는 레거시 미션도 모두 노출 — 하위 호환
    - [이어하기]: 이 패널이 수락한(status='draft') 미션 목록 — /panel/active 목록 뷰 기능 통합
    - [수정 필요]: feedbacks.status='rejected' && dismissed=false인 미션 목록 — 재작성 버튼은 오직 이 탭에만 존재
-     · "탈락 사유 보기 ▼" 토글 클릭 시 인라인 안내문 표시
-     · "재작성 →" 버튼 → navigate('/panel/active?id=...&resubmit=<feedbackId>')
+     · "탈락 사유 보기 ▼" 토글 클릭 시 feedbacks.suggestions 실제 반려 사유 표시 (없으면 기본 안내문 폴백)
+     · "재작성 →" 버튼 → 확인 모달(RESUBMIT) 경유 → navigate('/panel/active?id=...&resubmit=<feedbackId>')
+       확인 모달: 미션 제목 + rejection_deadline 남은 시간 + 경고 3개(이어하기 탭 확인/마감 내 미제출 자동취소/이전 내용 복원)
      · rejection_deadline 만료된 항목 목록에서 자동 제외 (클라이언트 필터)
      · 의뢰 종료(missionEnded: m.status!=='active') 또는 슬롯 마감(slotsFull) 항목:
        "재작성 →" 대신 "의뢰 종료 · 재작성 불가" / "슬롯 마감 · 재작성 불가" 텍스트 + "삭제" 버튼
