@@ -159,6 +159,8 @@ export default function PurityFilter() {
   const [highlightId, setHighlightId]     = useState(null);
   const [acting, setActing]               = useState(false);
   const [confirmRejectId, setConfirmRejectId] = useState(null);
+  const [confirmResetId, setConfirmResetId]   = useState(null);
+  const [resetError, setResetError]           = useState('');
   const [bulkActing, setBulkActing]       = useState(false);
   const [filter, setFilter]               = useState('pending');
   const [pendingSubFilter, setPendingSubFilter] = useState('all'); // 'all'|'above65'|'below65'
@@ -315,20 +317,21 @@ export default function PurityFilter() {
   };
 
   const reset = async (id) => {
-    setActing(true); setStatusError('');
+    setActing(true); setResetError('');
     const fb = feedbacks.find(f => f.id === id);
     const isRejectReversal = fb?.status === 'rejected';
     const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted', rejection_penalty_applied: false }).eq('id', id);
-    if (error) { setStatusError('취소 실패: ' + error.message); setActing(false); return; }
+    if (error) { setResetError('취소 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted', rejection_penalty_applied: false } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
-    // 반려 취소 시 decrement된 슬롯을 복원 (atomic rpc 사용)
+    // 반려 취소 시 decrement된 슬롯을 복원 — 실패 시 모달 에러 표시
     if (isRejectReversal && fb?.mission_id) {
-      supabase.rpc('restore_mission_slot', { p_mission_id: fb.mission_id })
-        .then(({ error: e }) => { if (e) console.warn('[restore_slot]', e.message); });
+      const { error: slotErr } = await supabase.rpc('restore_mission_slot', { p_mission_id: fb.mission_id });
+      if (slotErr) { setResetError('슬롯 복원 실패: ' + slotErr.message + '\n재시도하거나 수동으로 슬롯을 보정해 주세요.'); setActing(false); return; }
     }
 
+    setConfirmResetId(null);
     setSelected(null);
     setActing(false);
   };
@@ -383,11 +386,16 @@ export default function PurityFilter() {
       .update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true }).in('id', ids);
     if (error) { setStatusError('일괄 반려 실패: ' + error.message); setBulkActing(false); return; }
     // rejection_deadline 개별 저장 + filled_count 차감 (타입별 deadline이 다르므로 개별 처리)
+    let slotFailCount = 0;
     await Promise.all(ids.map(async id => {
       await supabase.from('feedbacks').update({ rejection_deadline: deadlineMap[id] }).eq('id', id);
       const f = feedbacks.find(fb => fb.id === id);
-      if (f?.mission_id) supabase.rpc('decrement_mission_filled_count', { p_mission_id: f.mission_id }).then(({ error: e }) => { if (e) console.warn('[bulk_decrement_slot]', e.message); });
+      if (f?.mission_id) {
+        const { error: se } = await supabase.rpc('decrement_mission_filled_count', { p_mission_id: f.mission_id });
+        if (se) { console.warn('[bulk_decrement_slot]', se.message); slotFailCount++; }
+      }
     }));
+    if (slotFailCount > 0) setStatusError(`일괄 반려 완료. 단, ${slotFailCount}건의 슬롯 차감이 실패했습니다. 해당 미션의 슬롯 카운트를 수동으로 확인해 주세요.`);
     setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: deadlineMap[f.id] } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
@@ -1064,13 +1072,13 @@ export default function PurityFilter() {
                     </>
                   )}
                   {fb.status === 'approved' && (
-                    <Btn size="sm" variant="outline" disabled={acting} onClick={() => reset(fb.id)}>
-                      {acting ? '처리 중...' : '승인 취소'}
+                    <Btn size="sm" variant="outline" disabled={acting} onClick={() => { setResetError(''); setConfirmResetId(fb.id); }}>
+                      승인 취소
                     </Btn>
                   )}
                   {fb.status === 'rejected' && (
-                    <Btn size="sm" variant="outline" disabled={acting} onClick={() => reset(fb.id)}>
-                      {acting ? '처리 중...' : '반려 취소'}
+                    <Btn size="sm" variant="outline" disabled={acting} onClick={() => { setResetError(''); setConfirmResetId(fb.id); }}>
+                      반려 취소
                     </Btn>
                   )}
                 </div>
@@ -1089,6 +1097,17 @@ export default function PurityFilter() {
           onConfirm={async () => { setStatusError(''); const ok = await reject(confirmRejectId); if (ok) setConfirmRejectId(null); }}
           onCancel={() => { setStatusError(''); setConfirmRejectId(null); }}
           danger
+        />
+      )}
+
+      {confirmResetId && (
+        <ConfirmModal
+          title="검토 중으로 되돌리기"
+          desc="이 피드백을 검토 중 상태로 되돌립니까? 반려 취소 시 슬롯이 복원됩니다."
+          confirmLabel={acting ? '처리 중...' : '확인'}
+          errorMsg={resetError}
+          onConfirm={() => reset(confirmResetId)}
+          onCancel={() => { setResetError(''); setConfirmResetId(null); }}
         />
       )}
     </div>

@@ -68,7 +68,7 @@ function formatRemaining(deadline) {
   return `${m}분 남음`;
 }
 
-function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModal, onDismiss, panelHonorPoints = 0, panelExperience = '' }) {
+function MissionCard({ m, mode, feedbackId, rejectionDeadline, submissionDeadline, navigate, setModal, onDismiss, panelHonorPoints = 0, panelExperience = '' }) {
   const [reasonOpen, setReasonOpen] = useState(false);
   const slots  = m.panel_count  || 0;
   const filled = m.filled_count || 0;
@@ -100,6 +100,20 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModa
           {m.target_url && (
             <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.target_url}</div>
           )}
+          {mode === 'inProgress' && (() => {
+            const deadline = rejectionDeadline || submissionDeadline;
+            const label = rejectionDeadline ? '재제출 마감' : '제출 마감';
+            const remaining = formatRemaining(deadline);
+            const isExpiring = deadline && (new Date(deadline) - new Date()) < 3600000;
+            if (!remaining) return null;
+            return (
+              <div style={{ marginTop: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: isExpiring ? 'var(--red,#ef4444)' : '#F59E0B', fontFamily: 'var(--font-sans)' }}>
+                  ⏱ {label}: {remaining}
+                </div>
+              </div>
+            );
+          })()}
           {mode === 'needsRevision' && (() => {
             const remaining = formatRemaining(rejectionDeadline);
             const isExpiring = rejectionDeadline && (new Date(rejectionDeadline) - new Date()) < 3600000;
@@ -231,13 +245,13 @@ export default function MissionList() {
       await supabase.rpc('expire_panel_drafts').then(({ error: e }) => { if (e) console.warn('[expire_drafts]', e.message); });
 
       const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
-        supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline, dismissed').eq('panel_id', p.id),
+        supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline, submission_deadline, dismissed').eq('panel_id', p.id),
         supabase.from('missions').select('*').neq('status', 'draft').order('created_at', { ascending: false }),
       ]);
 
       const map = {};
       (myFeedbacks || []).forEach(f => {
-        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline, dismissed: f.dismissed };
+        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline, submission_deadline: f.submission_deadline, dismissed: f.dismissed };
       });
       setFeedbackMap(map);
       setMissions(ms || []);
@@ -419,7 +433,7 @@ export default function MissionList() {
                 '피드백은 구체적인 근거와 함께 성의 있게 작성해야 합니다.',
                 '단순 감상·짧은 답변은 Purit Filter에서 자동 반려됩니다.',
                 '반려된 피드백은 보상이 지급되지 않습니다.',
-                `수락 후 ${['preference','pricing','email'].includes(modal.mission.type) ? 2 : 4}시간 내에 제출을 완료해야 합니다.`,
+                `수락 후 ${['preference','pricing','email'].includes(modal.mission.type) ? 2 : 4}시간 내에 제출하지 않으면 수락이 자동 취소됩니다.`,
               ].map((t, i) => (
                 <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
                   <span style={{ color: '#F59E0B', flexShrink: 0, marginTop: 1 }}>⚠</span>
@@ -525,6 +539,7 @@ export default function MissionList() {
                       mode={filter}
                       feedbackId={feedbackMap[m.id]?.id}
                       rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
+                      submissionDeadline={feedbackMap[m.id]?.submission_deadline}
                       navigate={navigate}
                       setModal={setModal}
                       onDismiss={(fid) => { setDismissError(''); setDismissTarget(fid); }}
@@ -558,6 +573,7 @@ export default function MissionList() {
                       mode={filter}
                       feedbackId={feedbackMap[m.id]?.id}
                       rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
+                      submissionDeadline={feedbackMap[m.id]?.submission_deadline}
                       navigate={navigate}
                       setModal={setModal}
                       onDismiss={(fid) => { setDismissError(''); setDismissTarget(fid); }}

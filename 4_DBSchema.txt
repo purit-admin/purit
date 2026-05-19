@@ -527,12 +527,25 @@
     → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql
 
   expire_panel_drafts() RETURNS integer
-    → SECURITY DEFINER — auth.uid() 기준 본인 패널의 만료 draft/rejected 피드백 정리
-    → draft 만료 조건:
-        최초 draft (rejection_deadline IS NULL): submission_deadline < NOW()
-        재작성 draft (rejection_deadline IS NOT NULL): rejection_deadline < NOW()
-    → draft 만료 처리: feedbacks DELETE + missions.filled_count -1 + notifications INSERT("수락 취소됨")
-    → rejected 만료 처리 (rejection_deadline < NOW()): feedbacks DELETE 만 (알림 없음, 이미 -1 완료)
-    → Returns: 처리된 총 행 수 (draft + rejected)
+    → SECURITY DEFINER — auth.uid() 기준 본인 패널의 만료 draft 피드백 정리
+    → 케이스별 처리 (052에서 통일):
+        ① 최초 수락 draft (rejection_deadline IS NULL, submission_deadline < NOW()): DELETE + filled_count -1
+        ② 재작성 draft (rejection_deadline IS NOT NULL, rejection_deadline < NOW()): status='rejected' + filled_count -1
+           feedbacks UPDATE → ROW_COUNT 0이면 이미 전역 cron이 처리 → missions 건너뜀 (race condition 방지)
+        ③ rejected 만료: 처리 없음 (패널이 정산내역에서 수동 삭제)
+    → Returns: 처리된 총 행 수
     → panel/Dashboard.jsx 마운트 시 호출
-    → 파일: supabase/migrations/034_feedback_timeout_slots.sql (원본) + 037_expire_with_notification.sql (알림 발송 재정의)
+    → 파일: 034(원본) + 037(알림) + 052_fix_expire_panel_drafts_race.sql (케이스 통일 + race condition 수정)
+
+  expire_all_panel_drafts() RETURNS integer
+    → SECURITY DEFINER — auth.uid() 미사용, 전체 패널 대상 만료 draft 일괄 정리
+    → 패널 미접속 시에도 만료 슬롯 자동 반환 (pg_cron 자동 호출)
+    → 케이스별 처리:
+        ① 최초 수락 draft (rejection_deadline IS NULL, submission_deadline < NOW()): DELETE + filled_count -1
+        ② 재작성 draft (rejection_deadline IS NOT NULL, rejection_deadline < NOW()): status='rejected' + filled_count -1
+           feedbacks UPDATE → ROW_COUNT 0이면 이미 다른 트랜잭션 처리 → missions 건너뜀 (동시성 안전)
+        ③ rejected 만료: 처리 없음
+    → Returns: 처리된 총 행 수
+    → pg_cron으로 `*/10 * * * *`(또는 `*/1 * * * *`) 자동 호출
+    → 파일: supabase/migrations/051_global_expire_panel_drafts.sql
+    ⚠️ pg_cron 스케줄 등록은 Supabase SQL Editor에서 수동 실행 필요 (db push 미적용)

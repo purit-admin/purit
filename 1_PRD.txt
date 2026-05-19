@@ -480,6 +480,7 @@
    - feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline, dismissed } } ★ dismissed 추가
      · rejection_deadline 만료된 항목: [수정 필요] 탭 목록에서 자동 제외 (클라이언트 필터)
    - 수락 확인 모달: Purit Filter 경고 3항목 포함 (ReactDOM.createPortal 기반, viewport 중앙 고정)
+     · 마지막 항목 문구: "수락 후 N시간 내에 제출하지 않으면 수락이 자동 취소됩니다." (메인 4h / 서브 2h)
    - 수락 시 accept_mission_slot RPC → filled_count 원자적 +1 + feedbacks INSERT(draft) → feedbackMap 업데이트 → /panel/active?id=... 이동
      · submission_deadline: 메인 수락 후 4시간 / 서브 수락 후 2시간 (클라이언트에서 ISO 문자열로 RPC에 전달) ★
      · 동시 수락 경쟁: PostgreSQL 행 잠금(WHERE filled_count < panel_count)으로 직렬화 — 마지막 슬롯을 여러 패널이 동시에 누르면 한 명만 성공 ★
@@ -575,6 +576,7 @@
          · 서브 미션: 응답 테이블(preference_responses 등)에서 직접 로드
          · 텍스트 미션: parseCommentsFromSuggestions() 헬퍼로 suggestions → comments 복원
        - 브리핑 화면에 "재작성 모드" 배너 표시 + rejection_deadline 기반 deadlineBanner 표시
+         배너 부제: "반려된 피드백을 수정하여 재제출합니다. 이전 내용이 복원되었습니다. N시간 내에 제출하지 않으면 수락이 자동 취소됩니다." (메인 4h / 서브 2h)
        - 재제출 시: 서브 미션 응답 테이블 UPDATE (INSERT 금지 — unique constraint 위반),
                    filled_count / total_missions RPC 중복 호출 없음
        - 재제출 후: feedbacks.status → 'submitted' → 어드민 검토 대기 탭에 자동 노출
@@ -822,6 +824,9 @@
               would_reply + hook/clarity/open_intent/curiosity 점수 + comment
    - 점수 카드 컨테이너: CSS grid repeat(N, 1fr) 균등 폭 (preference/pricing=3열, email/LP=5열)
    - 개별 반려: "✕ 반려" 버튼 → ConfirmModal(danger) 경유 → feedbacks.status 업데이트 ★
+   - 승인 취소/반려 취소: "↩ 취소" 버튼 → ConfirmModal(danger) → reset(id) 호출
+     · 반려 취소(isRejectReversal) 시 restore_mission_slot RPC await → 실패 시 ConfirmModal errorMsg 표시 (모달 유지)
+     · state: confirmResetId / resetError — D-65 패턴 준수
    - 승인/반려: feedbacks.status 업데이트 (서브 미션도 동일)
    - 승인 시 payout_amount 저장 ★: getPanelReward(panel.honor_points, panel.experience) 계산값을 feedbacks.payout_amount에 스냅샷 저장
      · 서브미션이면 base × (4500/8000) 적용 후 저장

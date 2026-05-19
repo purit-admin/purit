@@ -1004,7 +1004,7 @@ export default function ActiveMission() {
           <span style={{ fontSize: 16 }}>✏️</span>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--red, #ef4444)' }}>재작성 모드</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>반려된 피드백을 수정하여 재제출합니다. 이전 내용이 복원되었습니다.</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>반려된 피드백을 수정하여 재제출합니다. 이전 내용이 복원되었습니다. {['preference','pricing','email'].includes(mission?.type) ? 2 : 4}시간 내에 제출하지 않으면 수락이 자동 취소됩니다.</div>
           </div>
         </div>
       )}

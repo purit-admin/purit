@@ -243,6 +243,9 @@ purit/
 │   │                  65점 기준: 승인권장(≥65) / 검토(45~64) / 반려권장(<45) — 뱃지/색상/목록 라벨 통일
 │   │                  pendingSubFilter: 'all'|'above65'|'below65' — 검토 대기 탭 서브필터 버튼
 │   │                  checkedIds Set + bulkApprove/bulkReject/toggleCheck/toggleAll — 일괄 처리 패턴
+│   │                  bulkReject: 슬롯 차감 실패 건수 집계 → slotFailCount > 0 시 statusError 경고 표시 ★
+│   │                  confirmResetId state + resetError state — 승인 취소/반려 취소 ConfirmModal (D-65 패턴)
+│   │                    reset(id): await restore_mission_slot (isRejectReversal 조건) → 실패 시 resetError 표시 + 모달 유지
 │   │                  pendingPageIds/allPageChecked/toggleAll: pagedList 선언 이후에 배치 (D-51 참조)
 │   │                  Pagination: 슬라이딩 5-윈도우(WINDOW=5) + «/» 5페이지 점프 버튼
 │   │                    winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) 계산 후 pageNums 슬라이스
@@ -347,6 +350,8 @@ purit/
 │   │                048(restore_mission_slot: 반려→검토중 되돌리기 시 filled_count +1 복원 — decrement의 역연산 RPC)
 │   │                049(fix_slot_rpc_security: decrement+restore D-58 수정(app_metadata 단독) + restore LEAST 오버플로우 가드 + reaccept 047 재적용 안전망) ★
 │   │                050(dismiss_rejected_feedback: feedbacks.dismissed BOOLEAN 컬럼 추가 + dismiss_rejected_feedback·delete_rejected_feedback RPC 2개)
+│   │                051(global_expire_panel_drafts: expire_all_panel_drafts() SECURITY DEFINER 전체 패널 일괄 만료 + pg_cron */10(또는 */1) 스케줄 — SQL Editor 수동 실행 필요)
+│   │                052(fix_expire_panel_drafts_race: expire_panel_drafts() 케이스별 처리 통일 + race condition 수정 — GET DIAGNOSTICS ROW_COUNT로 이중 차감 방지)
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, dismissed } } ★ dismissed 추가
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
