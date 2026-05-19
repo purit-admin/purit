@@ -730,4 +730,47 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 - 수정 보류: 두 검색 모두 순수 클라이언트 필터로 DB 쿼리 없음. 목록 항목 수가 수백 건 이하이므로 리렌더 비용 무시 가능. 추후 데이터가 수천 건 이상으로 늘거나 서버 검색으로 전환 시 debounce 추가 권고.
 - 🔍 수평 전개: PanelManagement(M-2 ✅) / CompanyManagement(M-2 ✅) — 이미 적용 완료. 신규 추가된 두 파일만 미적용 상태.
 
+-- restore_mission_slot + 슬롯 관리 체계 무결성 전수 조사 (2026-05-19) — migrations 043~048 + PurityFilter.jsx reset() 흐름 전수 조사: 슬롯-A~C 3건 발견, A~B 즉시 수정 완료 --
+
+[슬롯-A] Supabase SECURITY DEFINER RPC (migrations 043, 048) — admin 권한 체크에 `user_metadata` OR 패턴 사용, D-58 위반
+- 🚨 중요도: P2(빨리 고쳐) — 악의적 패널이 `supabase.auth.updateUser({data:{role:'admin'}})` 호출로 `user_metadata.role='admin'` 설정 → `decrement_mission_filled_count` / `restore_mission_slot` RPC 직접 호출 가능 → 어드민 작업 없이 missions.filled_count 임의 조작 가능
+- 📍 위치: supabase/migrations/043_fix_decrement_slot_auth.sql (lines 16-17) / supabase/migrations/048_restore_mission_slot_rpc.sql (lines 20-21)
+- 🕵️‍♂️ 재현 방법:
+  1. 패널 계정에서 Supabase JS SDK: `supabase.auth.updateUser({ data: { role: 'admin' } })` 호출
+  2. `supabase.rpc('decrement_mission_filled_count', { p_mission_id: '<UUID>' })` 직접 호출
+  3. 어드민 계정 없이도 RPC 실행 성공 → missions.filled_count 1 감소
+- 🤦‍♂️ 현재 상황: `IF (app_metadata role) <> 'admin' AND (user_metadata role) <> 'admin'` — AND 조건이므로 user_metadata만 'admin'이면 권한 통과. migration 043 주석에 "레거시 호환"이라 명시했으나, migration 026에서 admin app_metadata 설정 완료 이후로는 OR 불필요하고 D-58 취약점만 잔류함.
+- ✨ 기대 화면: app_metadata 단독 체크 — `IF (auth.jwt()->'app_metadata'->>'role') <> 'admin' THEN RAISE EXCEPTION`
+- 수정: supabase/migrations/049_fix_slot_rpc_security.sql 생성 — decrement_mission_filled_count + restore_mission_slot 모두 app_metadata 단독 체크로 재정의.  ✅
+- 🔍 수평 전개:
+  · migrations 005/006/015/022 에도 user_metadata 단독/OR 패턴 RLS·함수 존재 확인 (grep 결과)
+    005_ai_reports.sql: user_metadata OR 패턴 / 006_image_annotations.sql: user_metadata 단독
+    015_honor_level_system.sql: user_metadata 단독 / 022_bug_reports.sql: user_metadata 단독
+  · migration 026이 이 RLS 정책들을 app_metadata로 교체했는지 Supabase 대시보드에서 직접 확인 필요
+  · 교체 미확인 항목 있으면 추가 migration으로 각 함수·정책을 app_metadata 단독으로 재정의할 것
+  · migration 025(admin_change_plan), 034(feedback_timeout_slots), 047(reaccept_rejected_feedback) ✅ — 이미 app_metadata 단독 체크
+
+[슬롯-B] migration 048 `restore_mission_slot` — `filled_count < panel_count` 오버플로우 가드 없음
+- 🚨 중요도: P3(나중에 고쳐) — 단일 어드민 정상 운영에서는 발생 안 하나, 이론적 동시성 edge case 존재
+- 📍 위치: supabase/migrations/048_restore_mission_slot_rpc.sql (lines 25-27)
+- 🕵️‍♂️ 재현 방법 (이론적, 낮은 확률):
+  1. 미션 filled_count = panel_count - 1 (반려로 -1된 상태)
+  2. 어드민 reset() 호출(restore_mission_slot) — 동시에 — 새 패널 accept_mission_slot() 호출
+  3. 두 +1이 모두 성공 → filled_count = panel_count + 1 → 슬롯 오버플로우
+- 🤦‍♂️ 현재 상황: `SET filled_count = COALESCE(filled_count, 0) + 1 WHERE id = p_mission_id` — 상한 검사 없음. accept_mission_slot(035)·reaccept_rejected_feedback(047)은 `WHERE filled_count < panel_count` 원자적 게이트 구현.
+- ✨ 기대 화면: `LEAST(panel_count, COALESCE(filled_count, 0) + 1)` — 상한 클램프로 오버플로우 불가
+- 수정: 049_fix_slot_rpc_security.sql에서 restore_mission_slot 재정의 시 LEAST 패턴 함께 적용.  ✅
+- 🔍 수평 전개:
+  · accept_mission_slot(035) ✅ — WHERE filled_count < panel_count 원자적 게이트
+  · decrement_mission_filled_count(043) ✅ — GREATEST(0, ...) 하한 보호
+  · reaccept_rejected_feedback(047) ✅ — WHERE filled_count < panel_count 원자적 게이트
+  · restore_mission_slot(048) ❌ → 수정(049)으로 LEAST 상한 클램프 적용
+
+[슬롯-C] migration 046 (`046_fix_reaccept_ownership_check.sql`) — SQL 구문 내 한글 자모 문자 혼입 → PostgreSQL parse 오류
+- 🚨 중요도: P2(빨리 고쳐) — supabase db push 방식 사용 시 migration chain이 046에서 중단, 047(소유권 체크 수정)이 미적용돼 모든 패널의 reaccept_rejected_feedback 호출이 항상 FALSE 반환 → 재작성 기능 완전 불가. SQL Editor 수동 실행 환경에서는 오류가 시각적으로 즉시 노출되므로 047을 수동 재실행했을 가능성이 높음.
+- 📍 위치: supabase/migrations/046_fix_reaccept_ownership_check.sql (lines 19, 21) — `SECURITY DEFINERㅔ`, `AS $$ㅔ` 에 U+3154 한글 모음 자모 혼입 (Korean IME 활성 상태 오타 추정)
+- 🕵️‍♂️ 재현 방법: `supabase db push` 실행 → 046에서 PostgreSQL parse error로 migration 중단 → 047 미실행 → reaccept_rejected_feedback이 045 버전 유지 (v_panel_id IS DISTINCT FROM auth.uid() → 항상 RETURN FALSE)
+- 수정: 046 파일 내 `ㅔ` 자모 제거 (lines 19, 21) + 049_fix_slot_rpc_security.sql에서 reaccept_rejected_feedback 047 버전 재적용으로 DB 상태 확실히 보정.  ✅
+- 🔍 수평 전개: 046은 CREATE OR REPLACE이므로 SQL Editor에서 수동 실행 오류 확인 후 047을 재실행했다면 현재 DB는 047 버전으로 올바름. 049 migration으로 어느 경로로든 DB 상태를 보장함.
+
 ================================================================

@@ -339,6 +339,13 @@ purit/
 │   │                  draft 만료: decrement + 삭제 / rejected 만료: 삭제만 (expire_panel_drafts)
 │   │                040(alimtalk_setup: feedbacks.deadline_alimtalk_sent BOOLEAN DEFAULT FALSE + companies.phone TEXT 컬럼 추가 — 알림톡 발송 인프라)
 │   │                041(pg_cron_deadline_alimtalk: pg_cron + pg_net으로 30분마다 check-deadline-alimtalk Edge Function 자동 호출 — 값 교체 후 SQL Editor 실행 필요)
+│   │                043(fix_decrement_slot_auth: decrement_mission_filled_count user_metadata OR 패턴 — app_metadata 미설정 어드민 호환, 049에서 보안 강화)
+│   │                044(fix_reaccept_slot_bypass: reaccept_rejected_feedback — FOR UPDATE 행 잠금 + 슬롯 복구 경로 분기)
+│   │                045(fix_reaccept_no_lock: reaccept_rejected_feedback — PgBouncer FOR UPDATE 오류 제거)
+│   │                046(fix_reaccept_ownership_check: reaccept_rejected_feedback 소유권 체크 — panels.user_id=auth.uid() 패턴. SQL 한글 자모 혼입 구문 오류, 049 재정의로 보정)
+│   │                047(fix_reaccept_slot_gate: reaccept_rejected_feedback 최종 — WHERE filled_count < panel_count 원자적 게이트)
+│   │                048(restore_mission_slot: 반려→검토중 되돌리기 시 filled_count +1 복원 — decrement의 역연산 RPC)
+│   │                049(fix_slot_rpc_security: decrement+restore D-58 수정(app_metadata 단독) + restore LEAST 오버플로우 가드 + reaccept 047 재적용 안전망) ★
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  수락 핸들러: isSubM = type in ['preference','pricing','email'] → subDl = now + (isSubM?2:4)h → accept_mission_slot RPC(p_submission_deadline=subDl) 호출

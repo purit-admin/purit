@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward, getExperienceCareerKey } from '../../lib/honorLevels';
@@ -156,17 +156,31 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModa
             <Btn size="sm" onClick={() => setModal({ type: 'accept', mission: m })}>수락하기</Btn>
           )}
           {mode === 'inProgress' && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>이어하기 →</Btn>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {m.status === 'active' ? (
+                <Btn size="sm" onClick={() => navigate(`/panel/active?id=${m.id}`)}>이어하기 →</Btn>
+              ) : (
+                <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>의뢰가 종료되었습니다</span>
+              )}
               <Btn size="sm" variant="ghost" onClick={() => setModal({ type: 'cancel', mission: m })}
                 style={{ fontSize: 11, color: 'var(--text-3)' }}>수락 취소</Btn>
             </div>
           )}
-          {mode === 'needsRevision' && (
-            <Btn size="sm" variant="outline" onClick={() => navigate(`/panel/active?id=${m.id}&resubmit=${feedbackId}`)}>
-              재작성 →
-            </Btn>
-          )}
+          {mode === 'needsRevision' && (() => {
+            const missionEnded = m.status !== 'active';
+            const slotsFull = !missionEnded && (m.filled_count || 0) >= (m.panel_count || 1);
+            if (missionEnded) return (
+              <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>의뢰 종료 · 재작성 불가</span>
+            );
+            if (slotsFull) return (
+              <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>슬롯 마감 · 재작성 불가</span>
+            );
+            return (
+              <Btn size="sm" variant="outline" onClick={() => navigate(`/panel/active?id=${m.id}&resubmit=${feedbackId}`)}>
+                재작성 →
+              </Btn>
+            );
+          })()}
         </div>
       </div>
     </Card>
@@ -175,6 +189,7 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModa
 
 export default function MissionList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [missions, setMissions]       = useState([]);
   // feedbackMap: { [missionId]: { status, id, suggestions, rejection_deadline } }
   const [feedbackMap, setFeedbackMap] = useState({});
@@ -182,7 +197,8 @@ export default function MissionList() {
   const [panelHonorPoints, setPanelHonorPoints] = useState(0);
   const [panelExperience, setPanelExperience]   = useState('');
   const [loading, setLoading]         = useState(true);
-  const [filter, setFilter]           = useState('new');
+  const initialTab = new URLSearchParams(location.search).get('tab');
+  const [filter, setFilter]           = useState(TABS.some(t => t.key === initialTab) ? initialTab : 'new');
   const [modal, setModal]             = useState(null);
   const [confirming, setConfirming]   = useState(false);
   const [acceptError, setAcceptError] = useState('');

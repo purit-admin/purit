@@ -164,6 +164,8 @@ export default function ActiveMission() {
   const commentUpdateTimers = useRef({});
   const [isResubmit, setIsResubmit]           = useState(false);
   const [deadlineExpired, setDeadlineExpired] = useState(false);
+  const [slotTaken, setSlotTaken]             = useState(false);
+  const [missionEnded, setMissionEnded]       = useState(false);
   const [deadlineBanner, setDeadlineBanner]   = useState(null); // { label, value: Date }
   const [cancelModal, setCancelModal]         = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
@@ -206,6 +208,10 @@ export default function ActiveMission() {
   useEffect(() => {
     setMission(null);
     setStep(0);
+    setDeadlineExpired(false);
+    setSlotTaken(false);
+    setDeadlineBanner(null);
+    setIsResubmit(false);
     setScores({ clarity: 0, relevance: 0, value: 0, differentiation: 0, trust: 0 });
     setComments({ clarity: '', relevance: '', value: '', differentiation: '', trust: '' });
     setAlreadySubmitted(false);
@@ -253,8 +259,14 @@ export default function ActiveMission() {
                 p_feedback_id: fb.id,
               });
               if (reErr || !reaccepted) {
-                setDeadlineExpired(true);
-                return;
+                // RPC 응답 유실 가능성 — DB 상태 직접 재확인 (네트워크 오류로 응답이 손실되어도 DB 변경은 성공했을 수 있음)
+                const { data: freshFb } = await supabase
+                  .from('feedbacks').select('status').eq('id', fb.id).single();
+                if (freshFb?.status !== 'draft') {
+                  setSlotTaken(true);
+                  return;
+                }
+                // DB에서 이미 'draft'이면 RPC가 성공한 것으로 간주하고 진행
               }
               setDraftId(fb.id);
               setIsResubmit(true);
@@ -310,9 +322,17 @@ export default function ActiveMission() {
               } else {
                 if (fb.suggestions) setComments(parseCommentsFromSuggestions(fb.suggestions));
               }
+              // 재작성 모드: 브리핑 스킵하고 폼으로 바로 이동
+              setStep(1);
             } else if (['submitted', 'approved', 'rejected'].includes(fb.status)) {
               setAlreadySubmitted(true);
             } else {
+              // 의뢰가 완료/취소된 경우 — 제출 불가 안내 후 삭제 유도
+              if (ms.status !== 'active') {
+                setMissionEnded(true);
+                setDraftId(fb.id);
+                return;
+              }
               // 재작성 draft vs 최초 draft: rejection_deadline 유무로 구분
               if (fb.rejection_deadline) {
                 // 재작성 draft(재수락 후 작성 중): rejection_deadline이 만료 기준
@@ -408,7 +428,7 @@ export default function ActiveMission() {
       }
     }
     load();
-  }, [missionId]);
+  }, [missionId, resubmitId]);
 
   // 텍스트 모드 자동 저장 (이미지/서브미션 모드에서는 비활성)
   useEffect(() => {
@@ -900,15 +920,65 @@ export default function ActiveMission() {
     );
   })() : null;
 
+  if (slotTaken) return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>슬롯이 이미 차지되었습니다</h2>
+      <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
+        재작성 버튼을 누르기 전에 다른 패널이 빈 슬롯을 먼저 수락했습니다.<br />
+        다른 미션에 참여해 주세요.
+      </p>
+      <Btn onClick={() => navigate('/panel/missions')}>미션 관리로 돌아가기</Btn>
+    </div>
+  );
+
   if (deadlineExpired) return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
+      {cancelModal && (
+        <ConfirmModal
+          title="초안을 삭제할까요?"
+          desc="작성 중이던 피드백 초안이 삭제됩니다."
+          confirmLabel={cancelConfirming ? '처리 중...' : '초안 삭제'}
+          cancelLabel="취소"
+          danger
+          onConfirm={handleCancelAccept}
+          onCancel={() => setCancelModal(false)}
+          errorMsg={cancelError}
+        />
+      )}
       <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
       <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>제출 기한이 만료되었습니다</h2>
       <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
         미션 제출 또는 재제출 기한이 지났습니다.<br />
         슬롯이 자동 해제되어 다른 패널이 참여할 수 있습니다.
       </p>
-      <Btn onClick={() => navigate('/panel/missions')}>미션 관리로 돌아가기</Btn>
+      <Btn danger onClick={() => { setCancelError(''); setCancelModal(true); }}>초안 삭제하기</Btn>
+      <Btn variant="ghost" onClick={() => navigate('/panel/missions')} style={{ marginLeft: 8 }}>미션 관리로 돌아가기</Btn>
+    </div>
+  );
+
+  if (missionEnded) return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
+      {cancelModal && (
+        <ConfirmModal
+          title="초안을 삭제할까요?"
+          desc="작성 중이던 피드백 초안이 삭제됩니다. 이 의뢰는 이미 종료되어 더 이상 제출할 수 없습니다."
+          confirmLabel={cancelConfirming ? '처리 중...' : '초안 삭제'}
+          cancelLabel="취소"
+          danger
+          onConfirm={handleCancelAccept}
+          onCancel={() => setCancelModal(false)}
+          errorMsg={cancelError}
+        />
+      )}
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>의뢰가 종료되었습니다</h2>
+      <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
+        이 의뢰는 완료 또는 취소 처리되어 더 이상 피드백을 제출할 수 없습니다.<br />
+        작성 중이던 초안을 삭제하고 다른 미션에 참여하세요.
+      </p>
+      <Btn danger onClick={() => { setCancelError(''); setCancelModal(true); }}>초안 삭제하기</Btn>
+      <Btn variant="ghost" onClick={() => navigate('/panel/missions')} style={{ marginLeft: 8 }}>미션 관리로 돌아가기</Btn>
     </div>
   );
 

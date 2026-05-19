@@ -30,14 +30,14 @@ const DEST = { company: '/company', panel: '/panel' };
 export default function Signup() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, signUp } = useAuth();
+  const { user, role: authRole, signUp } = useAuth();
 
   const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
   // 이미 로그인된 사용자는 대시보드로 즉시 리디렉트
   useEffect(() => {
-    if (user && role) navigate(DEST[role] ?? '/company', { replace: true });
-  }, [user, role]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
+  }, [user, authRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initialRole = useMemo(() => {
     const r = new URLSearchParams(location.search).get('role');

@@ -39,14 +39,14 @@ function GoogleIcon() {
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, signIn, signInWithGoogle } = useAuth();
+  const { user, role: authRole, signIn, signInWithGoogle, signOut } = useAuth();
 
   const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
   // 이미 로그인된 사용자는 대시보드로 즉시 리디렉트
   useEffect(() => {
-    if (user && role) navigate(DEST[role] ?? '/company', { replace: true });
-  }, [user, role]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
+  }, [user, authRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initialRole = useMemo(() => {
     const r = new URLSearchParams(location.search).get('role');
@@ -71,6 +71,16 @@ export default function Login() {
     try {
       const { user } = await signIn({ email, password });
       const userRole = user?.user_metadata?.role;
+
+      // 선택한 역할과 실제 계정 역할이 다를 경우 즉시 로그아웃 후 에러 표시
+      if (userRole && userRole !== 'admin' && userRole !== role) {
+        await signOut();
+        const roleLabel = userRole === 'panel' ? '패널' : '기업';
+        setError(`이 계정은 ${roleLabel} 계정입니다. '${roleLabel}' 역할을 선택하고 로그인해 주세요.`);
+        setLoading(false);
+        return;
+      }
+
       navigate(DEST[userRole] ?? '/company', { replace: true });
     } catch (err) {
       setError(toKoreanAuthError(err));

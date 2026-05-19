@@ -388,14 +388,24 @@ export default function PanelProfile() {
         </div>
       )}
       {saved && (
-        <div style={{
-          marginBottom: 16, padding: '10px 16px', borderRadius: 'var(--radius)', fontSize: 13,
-          background: saved.startsWith('저장 실패') ? 'var(--red-dim)' : 'var(--green-dim)',
-          color: saved.startsWith('저장 실패') ? 'var(--red)' : 'var(--green)',
-          fontWeight: 600,
-        }}>
-          {saved}
-        </div>
+        saved.startsWith('저장 실패') ? (
+          <div style={{
+            marginBottom: 16, padding: '10px 16px', borderRadius: 'var(--radius)', fontSize: 13,
+            background: 'var(--red-dim)', color: 'var(--red)', fontWeight: 600,
+          }}>
+            {saved}
+          </div>
+        ) : (
+          <div style={{
+            position: 'fixed', bottom: 24, left: 24, zIndex: 9999,
+            padding: '12px 20px', borderRadius: 10, fontSize: 14,
+            background: '#0F172A', color: '#fff', fontWeight: 600,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            ✓ {saved}
+          </div>
+        )
       )}
       {dirtyWarn && (
         <div style={{

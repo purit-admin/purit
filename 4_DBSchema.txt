@@ -494,7 +494,16 @@
   decrement_mission_filled_count(p_mission_id UUID) RETURNS void
     → missions.filled_count = GREATEST(0, filled_count - 1) 원자적 감소
     → 반려 시 PurityFilter.jsx reject()에서 호출 (반려 → 슬롯 해제)
-    → 파일: supabase/migrations/034_feedback_timeout_slots.sql
+    → 권한: app_metadata.role='admin' 단독 체크 (049에서 user_metadata OR 패턴 제거)
+    → 파일: supabase/migrations/034_feedback_timeout_slots.sql (최신: 043→049에서 재정의)
+
+  restore_mission_slot(p_mission_id UUID) RETURNS void
+    → missions.filled_count = LEAST(panel_count, filled_count + 1) 원자적 복원 (상한 클램프)
+    → 어드민 reset() 시 반려(rejected) 피드백을 검토중(submitted)으로 되돌릴 때 호출
+    → 역할: decrement_mission_filled_count의 역연산 — 반려로 -1한 슬롯을 +1 복원
+    → 권한: app_metadata.role='admin' 단독 체크
+    → PurityFilter.jsx reset()에서 isRejectReversal(fb.status==='rejected') 조건부 호출
+    → 파일: supabase/migrations/048_restore_mission_slot_rpc.sql (최신: 049에서 재정의)
 
   cancel_panel_feedback(p_mission_id UUID) RETURNS void
     → SECURITY DEFINER — auth.uid() 기준 본인 draft 피드백만 삭제

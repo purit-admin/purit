@@ -307,7 +307,7 @@ export default function PurityFilter() {
 
     const panelUserId = fb?.panels?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
-    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. ${hoursOffset}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel', prefKey: 'feedbackRejected' });
+    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. ${hoursOffset}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions?tab=needsRevision', targetRole: 'panel', prefKey: 'feedbackRejected' });
 
     setSelected(null);
     setActing(false);
@@ -323,13 +323,10 @@ export default function PurityFilter() {
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted', rejection_penalty_applied: false } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
-    // 반려 취소 시 decrement된 슬롯을 복원
+    // 반려 취소 시 decrement된 슬롯을 복원 (atomic rpc 사용)
     if (isRejectReversal && fb?.mission_id) {
-      supabase.from('missions').select('filled_count').eq('id', fb.mission_id).single()
-        .then(({ data: mData }) => {
-          if (mData != null) supabase.from('missions').update({ filled_count: (mData.filled_count || 0) + 1 }).eq('id', fb.mission_id)
-            .then(({ error: e }) => { if (e) console.warn('[restore_slot]', e.message); });
-        });
+      supabase.rpc('restore_mission_slot', { p_mission_id: fb.mission_id })
+        .then(({ error: e }) => { if (e) console.warn('[restore_slot]', e.message); });
     }
 
     setSelected(null);
@@ -399,7 +396,7 @@ export default function PurityFilter() {
       if (!f) return;
       const mTitle = f.missions?.title || '미션';
       const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. ${isSub ? 2 : 4}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel', prefKey: 'feedbackRejected' });
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. ${isSub ? 2 : 4}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions?tab=needsRevision', targetRole: 'panel', prefKey: 'feedbackRejected' });
       if (f.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 })
         .then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
     });
@@ -455,7 +452,8 @@ export default function PurityFilter() {
   const fbSkippedLabels = fb ? getSkippedLabels(fb.suggestions) : new Set();
   const missionType = fb?.missions?.type;
   const isSubMission = ['preference', 'pricing', 'email'].includes(missionType);
-  const score = fb ? (isSubMission ? calcSubPurityScore(subResponse, missionType) : calcPurityScore(fb)) : 0;
+  const subDataForScore = fb?.id ? (subResponseMap[fb.id] ?? subResponse) : subResponse;
+  const score = fb ? (isSubMission ? calcSubPurityScore(subDataForScore, missionType) : calcPurityScore(fb)) : 0;
 
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
@@ -655,15 +653,15 @@ export default function PurityFilter() {
                   {isSubMission ? (
                     // 서브 미션 점수 분해 (calcSubPurityScore와 동일 공식)
                     (() => {
-                      const cmt = (subResponse?.comment || subResponse?.key_comment || '').trim();
+                      const cmt = (subDataForScore?.comment || subDataForScore?.key_comment || '').trim();
                       const cLen = cmt.length >= 100 ? 30 : cmt.length >= 50 ? 20 : cmt.length >= 20 ? 10 : cmt.length >= 5 ? 4 : 0;
                       const specKw = cmt.match(/가격|비용|디자인|메시지|CTA|전환|클릭|레이아웃|색상|브랜드|기능|혜택|경쟁사|수치|ROI/gi) || [];
                       const kwScore = Math.min(specKw.length * 3, 10);
                       const metricScore = missionType === 'preference'
-                        ? (subResponse?.preference ? 15 : 0) + (subResponse?.message_clarity ? 15 : 0) + (subResponse?.purchase_intent ? 15 : 0)
+                        ? (subDataForScore?.preference ? 15 : 0) + (subDataForScore?.message_clarity ? 15 : 0) + (subDataForScore?.purchase_intent ? 15 : 0)
                         : missionType === 'pricing'
-                        ? (subResponse?.would_buy !== null ? 15 : 0) + (subResponse?.price_fairness ? 15 : 0) + (subResponse?.value_perception ? 15 : 0)
-                        : (subResponse?.would_reply !== null ? 12 : 0) + (subResponse?.hook_score ? 12 : 0) + (subResponse?.clarity_score ? 8 : 0) + (subResponse?.open_intent ? 8 : 0) + (subResponse?.curiosity_score ? 5 : 0);
+                        ? (subDataForScore?.would_buy != null ? 15 : 0) + (subDataForScore?.price_fairness ? 15 : 0) + (subDataForScore?.value_perception ? 15 : 0)
+                        : (subDataForScore?.would_reply != null ? 12 : 0) + (subDataForScore?.hook_score ? 12 : 0) + (subDataForScore?.clarity_score ? 8 : 0) + (subDataForScore?.open_intent ? 8 : 0) + (subDataForScore?.curiosity_score ? 5 : 0);
                       return [
                         { label: '기본 점수',     val: 15,       max: 15 },
                         { label: '코멘트 길이',   val: cLen,     max: 30 },
