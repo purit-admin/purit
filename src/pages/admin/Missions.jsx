@@ -10,6 +10,17 @@ const PAGE_SIZE = 5;
 
 function fmtCr(n) { return parseFloat((n ?? 0).toFixed(2)); }
 
+function fmtTimeLeft(deadline) {
+  if (!deadline) return null;
+  const diff = new Date(deadline) - new Date();
+  if (diff <= 0) return { label: '만료됨', color: '#EF4444' };
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const label = h > 0 ? `${h}시간 ${m}분 남음` : `${m}분 남음`;
+  const color = diff < 3600000 ? '#F59E0B' : 'var(--text-3)';
+  return { label, color };
+}
+
 const WINDOW = 5;
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -53,6 +64,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
   const [fbFilter, setFbFilter] = useState('all');
   const [detailPage, setDetailPage] = useState(1);
 
+  const drafts   = (mission.feedbacks || []).filter(f => f.status === 'draft' && new Date(f.submission_deadline) > new Date());
   const allFbs   = (mission.feedbacks || []).filter(f => f.status !== 'draft');
   const approved = allFbs.filter(f => f.purity_passed);
   const rejected = allFbs.filter(f => !f.purity_passed && f.status === 'rejected');
@@ -62,6 +74,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
     ? [...approved, ...rejected, ...pending]
     : fbFilter === 'approved' ? approved
     : fbFilter === 'rejected' ? rejected
+    : fbFilter === 'drafting' ? drafts
     : pending;
 
   const totalPages = Math.ceil(feedbacks.length / DETAIL_PAGE_SIZE);
@@ -71,6 +84,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
 
   const TABS = [
     { v: 'all',      l: `전체(${allFbs.length})` },
+    { v: 'drafting', l: `작성중(${drafts.length})` },
     { v: 'pending',  l: `검토중(${pending.length})` },
     { v: 'approved', l: `승인(${approved.length})` },
     { v: 'rejected', l: `반려(${rejected.length})` },
@@ -82,7 +96,10 @@ function MissionDetail({ mission, onFeedbackClick }) {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.07em', marginBottom: 8 }}>미션 정보</div>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{mission.title}</div>
         <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 2 }}>{mission.companies?.name || '—'}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>패널 슬롯: {allFbs.length}/{mission.panel_count}건</div>
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+          패널 슬롯: {allFbs.length + drafts.length}/{mission.panel_count}건
+          {drafts.length > 0 && <span style={{ marginLeft: 6, color: 'var(--text-3)' }}>(작성중 {drafts.length}명)</span>}
+        </div>
       </Card>
       <Card style={{ padding: '14px 16px' }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -101,17 +118,22 @@ function MissionDetail({ mission, onFeedbackClick }) {
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {paged.map(f => {
-                const st = getFeedbackStatus(f);
+                const isDraft = f.status === 'draft';
+                const st = isDraft ? { type: 'gray', label: '작성중' } : getFeedbackStatus(f);
+                const timeLeft = isDraft ? fmtTimeLeft(f.submission_deadline) : null;
                 return (
                   <div key={f.id}
-                    onClick={() => onFeedbackClick(f.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', cursor: 'pointer' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onClick={isDraft ? undefined : () => onFeedbackClick(f.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', cursor: isDraft ? 'default' : 'pointer' }}
+                    onMouseEnter={isDraft ? undefined : e => e.currentTarget.style.background = 'var(--bg-2)'}
+                    onMouseLeave={isDraft ? undefined : e => e.currentTarget.style.background = 'transparent'}
                   >
                     <span style={{ flex: 1, fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {f.panels?.name || '패널'}
                     </span>
+                    {timeLeft && (
+                      <span style={{ fontSize: 11, color: timeLeft.color, flexShrink: 0 }}>{timeLeft.label}</span>
+                    )}
                     <Badge type={st.type}>{st.label}</Badge>
                     <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>
                       {f.created_at ? new Date(f.created_at).toLocaleDateString('ko-KR') : '—'}
@@ -270,7 +292,7 @@ export default function AdminMissions() {
       try {
         const { data, error } = await supabase
           .from('missions')
-          .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')
+          .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, submission_deadline, panels(name))')
           .neq('status', 'draft')
           .order('created_at', { ascending: false });
         if (error) console.error('[AdminMissions]', error.message);
@@ -448,7 +470,7 @@ export default function AdminMissions() {
     // 최신 데이터 리로드 (완료 처리 버튼 사라짐 + PurityFilter 변경 반영)
     const { data } = await supabase
       .from('missions')
-      .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, panels(name))')
+      .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, submission_deadline, panels(name))')
       .neq('status', 'draft')
       .order('created_at', { ascending: false });
     if (data) {

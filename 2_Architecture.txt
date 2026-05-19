@@ -250,12 +250,15 @@ purit/
 │   │                  Pagination: 슬라이딩 5-윈도우(WINDOW=5) + «/» 5페이지 점프 버튼
 │   │                    winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) 계산 후 pageNums 슬라이스
 │   │   ※ pages/admin/Missions.jsx: 딥링크 수신 + 인라인 피드백 상세 패널 ★
-│   │                  쿼리: .neq('status', 'draft') + feedbacks(id, status, purity_passed, created_at, panels(name)) join 확장
+│   │                  쿼리: .neq('status', 'draft') + feedbacks(id, status, purity_passed, created_at, submission_deadline, panels(name)) join 확장
 │   │                  selectedMission state — 단일 컬럼 레이아웃 (우측 고정 패널 폐지, panel-mgmt-layout 그리드 제거)
 │   │                  MissionDetail: 클릭 카드 바로 아래 인라인 렌더 (borderLeft 파란 세로선 들여쓰기)
-│   │                    내부 state: fbFilter('all'|'pending'|'approved'|'rejected') + detailPage
-│   │                    피드백 탭 4개: 전체(N) / 검토중(N) / 승인(N) / 반려(N)
-│   │                    전체 탭 정렬: [...approved, ...rejected, ...pending] 순
+│   │                    내부 state: fbFilter('all'|'pending'|'approved'|'rejected'|'drafting') + detailPage
+│   │                    피드백 탭 5개: 전체(N) / 작성중(N) / 검토중(N) / 승인(N) / 반려(N)
+│   │                    drafts: status='draft' + submission_deadline > now() — 만료 draft 자동 제외
+│   │                    작성중 탭 행: 패널명 / fmtTimeLeft(submission_deadline) 남은 시간(1h미만=amber) / 작성중 뱃지 (클릭 비활성)
+│   │                    미션 정보 카드 슬롯: allFbs.length + drafts.length / panel_count (작성중 N명 부가 표시)
+│   │                    전체 탭 정렬: [...approved, ...rejected, ...pending] 순 (draft 미포함)
 │   │                    탭 전환 시 detailPage 자동 1 리셋 (handleTab 헬퍼)
 │   │                    DETAIL_PAGE_SIZE=5, getFeedbackStatus(f): purity_passed→green / rejected→red / else→gold
 │   │                    피드백 행 클릭: navigate('/admin/purity', { state: { feedbackId } })
