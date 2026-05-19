@@ -1134,3 +1134,32 @@ D-85. 전역 cron 함수와 per-user 함수가 동일 행을 동시에 처리할
              첫 번째 UPDATE(feedbacks)의 결과가 0행이면 두 번째 UPDATE(missions)를 건너뛰어야 함
              PostgreSQL GET DIAGNOSTICS ROW_COUNT는 트랜잭션 내 동기적으로 실행되므로 경쟁 조건 없음
              "feedbacks 먼저, missions 나중에" 순서가 역전되면 이중 차감 발생 — 순서 변경 금지
+
+D-86. 승인 카운터 기반 완료 게이트가 자원 해제 이벤트(draft 만료)를 고려하지 않아 영구 잠금되는 패턴 ✅ 해결
+     → 증상: 패널 10명 의뢰에서 8명 승인 + 2명 draft 만료(미제출) 시,
+             어드민 "완료 처리" 버튼이 영구 비활성화되어 의뢰를 완료할 수 없음
+     → 원인: `completeBlocked = ... || approved.length < panelCount` 조건이 추가되어 있어
+             승인 수(8)가 총 슬롯 수(10)에 미달이면 항상 차단됨
+             draft 만료는 filled_count를 -1 감소시켜 슬롯을 반환하지만,
+             panelCount(원래 설정값 10)는 절대 변하지 않으므로 approved < panelCount가 영구 유지됨
+             → 리뷰(검토 중)가 0건이어도 완료 버튼 영구 잠김 — 어드민이 할 수 있는 행동이 없음
+     → 핵심 오해: "승인 수 >= 총 슬롯 수"를 완료 기준으로 삼으면
+                 슬롯 해제 이벤트(draft 만료·수락 취소·반려)가 유효 참여자를 줄여도
+                 분모인 panelCount는 고정이므로 조건이 영구 미충족될 수 있음
+     → PRD 명세 (2026-05-18): `completeBlocked = allFbs.length === 0 || pendingFbs.length > 0`
+             - allFbs: status !== 'draft'인 피드백 (실제 제출된 것)
+             - pendingFbs: allFbs 중 purity_passed=false && status!=='rejected' (검토 중)
+             → "제출된 피드백이 하나도 없거나 검토 중인 피드백이 남아있으면 차단"이 올바른 명세
+     → 해결: `approved.length < panelCount` 조건 전체 제거
+             ```js
+             // BEFORE
+             const completeBlocked = allFbs.length === 0 || reviewing.length > 0 || approved.length < panelCount;
+             // AFTER
+             const completeBlocked = allFbs.length === 0 || reviewing.length > 0;
+             ```
+             경고 메시지도 동기화: IIFE 패턴(parts 배열) → `reviewing.length > 0` 단순 조건으로 교체
+     → 원칙: "완료 게이트" 조건은 "현재 처리 대기 중인 미완료 항목이 있는가"로 정의해야 함
+             "총합 목표 달성 여부(승인 수 >= 슬롯 수)"로 정의하면 자원 해제 이벤트에서 영구 잠금 발생
+             자원 점유·해제가 있는 시스템에서 완료 판정 기준은 항상 "현재 처리 대기 중 건수 = 0"이어야 함
+     → 수평전개: active 탭과 cancelled 탭의 완료 차단 조건이 달랐던 불일치도 이 수정으로 동시 해소
+             양쪽 탭 모두 `reviewing.length > 0` 단일 조건으로 통일됨

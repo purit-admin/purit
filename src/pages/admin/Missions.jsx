@@ -64,7 +64,11 @@ function MissionDetail({ mission, onFeedbackClick }) {
   const [fbFilter, setFbFilter] = useState('all');
   const [detailPage, setDetailPage] = useState(1);
 
-  const drafts   = (mission.feedbacks || []).filter(f => f.status === 'draft' && new Date(f.submission_deadline) > new Date());
+  const drafts   = (mission.feedbacks || []).filter(f => {
+    if (f.status !== 'draft') return false;
+    const deadline = f.rejection_deadline || f.submission_deadline;
+    return deadline && new Date(deadline) > new Date();
+  });
   const allFbs   = (mission.feedbacks || []).filter(f => f.status !== 'draft');
   const approved = allFbs.filter(f => f.purity_passed);
   const rejected = allFbs.filter(f => !f.purity_passed && f.status === 'rejected');
@@ -120,7 +124,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
               {paged.map(f => {
                 const isDraft = f.status === 'draft';
                 const st = isDraft ? { type: 'gray', label: '작성중' } : getFeedbackStatus(f);
-                const timeLeft = isDraft ? fmtTimeLeft(f.submission_deadline) : null;
+                const timeLeft = isDraft ? fmtTimeLeft(f.rejection_deadline || f.submission_deadline) : null;
                 return (
                   <div key={f.id}
                     onClick={isDraft ? undefined : () => onFeedbackClick(f.id)}
@@ -164,8 +168,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
   const reviewing = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
   const panelCount = m.panel_count || 0;
 
-  // 검토 중인 피드백이 있거나, 승인 수가 요청 슬롯에 미달이면 완료 차단
-  const completeBlocked = allFbs.length === 0 || reviewing.length > 0 || approved.length < panelCount;
+  const completeBlocked = allFbs.length === 0 || reviewing.length > 0;
 
   return (
     <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer', padding: '10px 14px' }}>
@@ -233,12 +236,9 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             {m.status === 'active' && allFbs.length === 0 && (
               <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>수집된 피드백이 없습니다</div>
             )}
-            {m.status === 'active' && allFbs.length > 0 && completeBlocked && (() => {
-              const parts = [];
-              if (reviewing.length > 0) parts.push(`검토 중 ${reviewing.length}건`);
-              if (approved.length < panelCount) parts.push(`승인 ${approved.length}/${panelCount}건`);
-              return <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>{parts.join(' · ')} — 전체 승인 후 완료 가능</div>;
-            })()}
+            {m.status === 'active' && allFbs.length > 0 && reviewing.length > 0 && (
+              <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {reviewing.length}건 먼저 처리 필요</div>
+            )}
             {m.status === 'cancelled' && allFbs.length > 0 && reviewing.length > 0 && (
               <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {reviewing.length}건 먼저 처리 필요</div>
             )}
@@ -292,7 +292,7 @@ export default function AdminMissions() {
       try {
         const { data, error } = await supabase
           .from('missions')
-          .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, submission_deadline, panels(name))')
+          .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, submission_deadline, rejection_deadline, panels(name))')
           .neq('status', 'draft')
           .order('created_at', { ascending: false });
         if (error) console.error('[AdminMissions]', error.message);
@@ -470,7 +470,7 @@ export default function AdminMissions() {
     // 최신 데이터 리로드 (완료 처리 버튼 사라짐 + PurityFilter 변경 반영)
     const { data } = await supabase
       .from('missions')
-      .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, submission_deadline, panels(name))')
+      .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, submission_deadline, rejection_deadline, panels(name))')
       .neq('status', 'draft')
       .order('created_at', { ascending: false });
     if (data) {

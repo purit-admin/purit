@@ -18,26 +18,26 @@ function calcSubPurityScore(sub, type) {
   if (!sub) return 0;
   const comment = (sub.comment || sub.key_comment || '').trim();
   let score = 15;
-  // 코멘트 길이 (최대 30 — 단계적)
-  score += comment.length >= 100 ? 30 : comment.length >= 50 ? 20 : comment.length >= 20 ? 10 : comment.length >= 5 ? 4 : 0;
-  // 코멘트 내 구체적 키워드 (최대 10)
+  // 코멘트 길이 (최대 45 — 단계적)
+  score += comment.length >= 100 ? 45 : comment.length >= 50 ? 30 : comment.length >= 20 ? 15 : comment.length >= 5 ? 6 : 0;
+  // 코멘트 내 구체적 키워드 (최대 20)
   const specKw = comment.match(/가격|비용|디자인|메시지|CTA|전환|클릭|레이아웃|색상|브랜드|기능|혜택|경쟁사|수치|ROI/gi) || [];
-  score += Math.min(specKw.length * 3, 10);
-  // 지표 충실도 (최대 45)
+  score += Math.min(specKw.length * 4, 20);
+  // 지표 충실도 (최대 20 — 항목 제출 여부)
   if (type === 'preference') {
-    if (sub.preference)       score += 15;
-    if (sub.message_clarity)  score += 15;
-    if (sub.purchase_intent)  score += 15;
+    if (sub.preference)       score += 7;
+    if (sub.message_clarity)  score += 7;
+    if (sub.purchase_intent)  score += 6;
   } else if (type === 'pricing') {
-    if (sub.would_buy !== null && sub.would_buy !== undefined) score += 15;
-    if (sub.price_fairness)   score += 15;
-    if (sub.value_perception) score += 15;
+    if (sub.would_buy !== null && sub.would_buy !== undefined) score += 7;
+    if (sub.price_fairness)   score += 7;
+    if (sub.value_perception) score += 6;
   } else if (type === 'email') {
-    if (sub.would_reply !== null && sub.would_reply !== undefined) score += 12;
-    if (sub.hook_score)       score += 12;
-    if (sub.clarity_score)    score += 8;
-    if (sub.open_intent)      score += 8;
-    if (sub.curiosity_score)  score += 5;
+    if (sub.would_reply !== null && sub.would_reply !== undefined) score += 6;
+    if (sub.hook_score)       score += 5;
+    if (sub.clarity_score)    score += 4;
+    if (sub.open_intent)      score += 3;
+    if (sub.curiosity_score)  score += 2;
   }
   return Math.min(100, score);
 }
@@ -170,6 +170,7 @@ export default function PurityFilter() {
   const [annotations, setAnnotations]     = useState([]);
   const [adminImageIdx, setAdminImageIdx] = useState(0);
   const [subResponse, setSubResponse]     = useState(null);
+  const [subLoading, setSubLoading]       = useState(false);
   const [subResponseMap, setSubResponseMap] = useState({});
   const [statusError, setStatusError]     = useState('');
   const [searchQuery, setSearchQuery]     = useState('');
@@ -250,13 +251,14 @@ export default function PurityFilter() {
     if (['preference', 'pricing', 'email'].includes(mType)) {
       setAnnotations([]);
       setSubResponse(null);
+      setSubLoading(true);
       const table = mType === 'preference' ? 'preference_responses'
         : mType === 'pricing' ? 'pricing_responses' : 'email_responses';
       supabase.from(table).select('*')
         .eq('mission_id', fb.mission_id)
         .eq('panel_id', fb.panel_id)
         .single()
-        .then(({ data }) => setSubResponse(data || null));
+        .then(({ data }) => { setSubResponse(data || null); setSubLoading(false); });
       return;
     }
     setSubResponse(null);
@@ -662,19 +664,19 @@ export default function PurityFilter() {
                     // 서브 미션 점수 분해 (calcSubPurityScore와 동일 공식)
                     (() => {
                       const cmt = (subDataForScore?.comment || subDataForScore?.key_comment || '').trim();
-                      const cLen = cmt.length >= 100 ? 30 : cmt.length >= 50 ? 20 : cmt.length >= 20 ? 10 : cmt.length >= 5 ? 4 : 0;
+                      const cLen = cmt.length >= 100 ? 45 : cmt.length >= 50 ? 30 : cmt.length >= 20 ? 15 : cmt.length >= 5 ? 6 : 0;
                       const specKw = cmt.match(/가격|비용|디자인|메시지|CTA|전환|클릭|레이아웃|색상|브랜드|기능|혜택|경쟁사|수치|ROI/gi) || [];
-                      const kwScore = Math.min(specKw.length * 3, 10);
+                      const kwScore = Math.min(specKw.length * 4, 20);
                       const metricScore = missionType === 'preference'
-                        ? (subDataForScore?.preference ? 15 : 0) + (subDataForScore?.message_clarity ? 15 : 0) + (subDataForScore?.purchase_intent ? 15 : 0)
+                        ? (subDataForScore?.preference ? 7 : 0) + (subDataForScore?.message_clarity ? 7 : 0) + (subDataForScore?.purchase_intent ? 6 : 0)
                         : missionType === 'pricing'
-                        ? (subDataForScore?.would_buy != null ? 15 : 0) + (subDataForScore?.price_fairness ? 15 : 0) + (subDataForScore?.value_perception ? 15 : 0)
-                        : (subDataForScore?.would_reply != null ? 12 : 0) + (subDataForScore?.hook_score ? 12 : 0) + (subDataForScore?.clarity_score ? 8 : 0) + (subDataForScore?.open_intent ? 8 : 0) + (subDataForScore?.curiosity_score ? 5 : 0);
+                        ? (subDataForScore?.would_buy != null ? 7 : 0) + (subDataForScore?.price_fairness ? 7 : 0) + (subDataForScore?.value_perception ? 6 : 0)
+                        : (subDataForScore?.would_reply != null ? 6 : 0) + (subDataForScore?.hook_score ? 5 : 0) + (subDataForScore?.clarity_score ? 4 : 0) + (subDataForScore?.open_intent ? 3 : 0) + (subDataForScore?.curiosity_score ? 2 : 0);
                       return [
                         { label: '기본 점수',     val: 15,       max: 15 },
-                        { label: '코멘트 길이',   val: cLen,     max: 30 },
-                        { label: '코멘트 구체성', val: kwScore,  max: 10 },
-                        { label: '지표 충실도',   val: Math.min(metricScore, 45), max: 45 },
+                        { label: '코멘트 길이',   val: cLen,     max: 45 },
+                        { label: '코멘트 구체성', val: kwScore,  max: 20 },
+                        { label: '지표 충실도',   val: Math.min(metricScore, 20), max: 20 },
                       ];
                     })().map(b => (
                       <div key={b.label} style={{ marginBottom: 10 }}>
@@ -754,8 +756,10 @@ export default function PurityFilter() {
                 {/* ── 서브 미션 응답 ── */}
                 {isSubMission && (
                   <div>
-                    {!subResponse ? (
+                    {subLoading ? (
                       <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>응답 데이터 로드 중...</div>
+                    ) : !subResponse ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>응답 데이터가 없습니다.</div>
                     ) : (
                       <>
                         {/* 소재 비교 */}
