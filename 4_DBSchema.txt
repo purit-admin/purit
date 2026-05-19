@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-18 (038_notifications_rls — RLS 활성화 + 4개 정책 / 039_missions_company_notified_at — company_notified_at 컬럼 추가)
+최종 업데이트: 2026-05-19 (040_alimtalk_setup — feedbacks.deadline_alimtalk_sent + companies.phone 추가 / 041_pg_cron_deadline_alimtalk — pg_cron 스케줄 등록)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -20,6 +20,7 @@
   name            TEXT
   plan            TEXT  (플랜명: starter/pro/enterprise)
   credit_balance  NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (잔여 크레딧, 플랜 선택 시 갱신·의뢰 등록 시 차감·완료 시 환불)
+  phone           TEXT            DEFAULT NULL        ← 040 추가 (알림톡 수신용 전화번호)
 
 ---
 
@@ -96,6 +97,7 @@
   purity_passed                BOOL           DEFAULT false
   payout_amount                NUMERIC(10,2)  DEFAULT NULL  ← 031 추가 (승인 시점 정산 금액 스냅샷 — 패널 경력 변경 이후에도 금액 불변)
   rejection_penalty_applied    BOOLEAN        NOT NULL DEFAULT FALSE  ← 031 추가 (반려 시 true, 재제출 후 재승인 시 HP +5 복원 트리거)
+  deadline_alimtalk_sent       BOOLEAN        DEFAULT FALSE           ← 040 추가 (마감 1시간 전 알림톡 중복 발송 방지 플래그)
   status                TEXT  ('draft'|'submitted'|'approved'|'rejected')
                                ※ draft: 수락 후 미완료 (패널이 수락하면 즉시 생성)
                                ※ CHECK 제약: feedbacks_status_check 로 4개 값 허용

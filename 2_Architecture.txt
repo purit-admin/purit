@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-18 (Sidebar 클릭 토글 방식으로 복귀 — hover-expand 제거)
+최종 업데이트: 2026-05-19 (알림톡 Edge Functions + migrations 040/041 추가)
 ================================================================
 
 ## 기술 스택
@@ -332,6 +332,8 @@ purit/
 │   │                  반려 → filled_count -1 (decrement_mission_filled_count), 재작성 클릭 → +1 (reaccept_rejected_feedback 원자적)
 │   │                  동시 경쟁 처리: WHERE filled_count < panel_count + PostgreSQL 행 잠금 → 마지막 슬롯 동시 수락 / 반려 패널 재진행 vs 신규 수락 동시 경쟁 모두 직렬화
 │   │                  draft 만료: decrement + 삭제 / rejected 만료: 삭제만 (expire_panel_drafts)
+│   │                040(alimtalk_setup: feedbacks.deadline_alimtalk_sent BOOLEAN DEFAULT FALSE + companies.phone TEXT 컬럼 추가 — 알림톡 발송 인프라)
+│   │                041(pg_cron_deadline_alimtalk: pg_cron + pg_net으로 30분마다 check-deadline-alimtalk Edge Function 자동 호출 — 값 교체 후 SQL Editor 실행 필요)
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  수락 핸들러: isSubM = type in ['preference','pricing','email'] → subDl = now + (isSubM?2:4)h → accept_mission_slot RPC(p_submission_deadline=subDl) 호출
@@ -342,6 +344,13 @@ purit/
 │   │                  재작성 모드 진입: fb.rejection_deadline < now(클라이언트 사전 체크) → deadlineExpired=true, RPC 미호출
 │   │                    체크 통과 → reaccept_rejected_feedback RPC(원자적 슬롯 재예약, 슬롯 마감 or 서버 만료 시 false 반환) → 실패 시 deadlineExpired=true
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
+│                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
+│                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)
+│                      패널: panels(phone, phone_verified) / 기업: companies(phone) 전화번호 조회 후 발송
+│                    check-deadline-alimtalk/index.ts  (Deno, pg_cron 30분마다 호출 → 마감 1시간 전 알림톡)
+│                      최초 draft(submission_deadline 임박) + 재제출 draft/rejected(rejection_deadline 임박) 체크
+│                      발송 후 feedbacks.deadline_alimtalk_sent = true (중복 방지)
+│                    _shared/solapi.ts  (Deno, Solapi 알림톡 공통 헬퍼 — HMAC-SHA256 인증 + sendAlimtalk 함수)
 ├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
