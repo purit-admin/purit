@@ -44,7 +44,10 @@ export function AuthProvider({ children }) {
     localStorage.setItem('purit_oauth_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/oauth/callback' },
+      options: {
+        redirectTo: window.location.origin + '/oauth/callback',
+        queryParams: { prompt: 'select_account' },
+      },
     });
     if (error) throw error;
   }

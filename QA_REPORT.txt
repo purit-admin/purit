@@ -373,7 +373,8 @@
 ================================================================
 QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 작성일: 2026-05-13
-최종 업데이트: 2026-05-18 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
+최종 업데이트: 2026-05-19 (Google OAuth 로그인 전수 조사: 로그인-1~6 6건 발견 및 즉시 수정 완료 — 총 165건 완료)
+이전 업데이트: 2026-05-18 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
                             / missionTitle 신규 기능 전수 조사: 기능-A·B 2건 발견 및 즉시 수정 완료 — 총 151건 완료
                             / 대규모 전체 조사: 신규-F~Y 20건 발견
                             / Phase 1+2 무한 로딩 고착 13건 수정 완료: 신규-F/G/H/I/M/N/O/T/U/V/W/X/Y
@@ -682,5 +683,13 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 -- navigate 전진 추적 수평전개 조사 (2026-05-18) — B-151~B-152 수정 후 UI navigate() 경로 전수 확인 --
 [B-156] 기업 포털 5개 페이지 카드 클릭 — cancelled+company_notified_at IS NULL 미션이 Results.jsx ?id로 이동, Results.jsx 쿼리 게이트(company_notified_at IS NOT NULL 조건)에서 제외되어 ms[0] 자동 선택(엉뚱한 의뢰 표시). 규칙 14(navigate 전진 추적) 위반. 5개 파일(Dashboard/NewMission/PreferenceTest/PricingTest/ColdEmailTest) 카드 onClick의 조건 분기에 `|| (m.status === 'cancelled' && !m.company_notified_at)` 추가 → active 카드와 동일하게 토스트 표시로 변경.  ✅
 [B-157] 기업 대시보드 (company/Dashboard.jsx) — CompanyMissionCard 컴포넌트 내 activeToast가 ReactDOM.createPortal 없이 렌더됨. Sidebar.jsx 래퍼(overflow:'auto')가 position:fixed를 뷰포트 기준이 아닌 컨테이너 기준으로 가두어 스크롤 시 토스트가 사라짐. D-19 위반. import ReactDOM from 'react-dom' 추가 + 토스트 블록을 ReactDOM.createPortal(..., document.body)로 감싸 수정. 나머지 4개 파일은 이미 createPortal 적용됨.  ✅
+
+-- Google OAuth 로그인 전수 조사 (2026-05-19) — Login/Signup/OAuthCallback/AuthContext 4개 파일 전수 조사: 로그인-1~6 6건 발견 및 즉시 수정 완료 --
+[로그인-1] OAuthCallback.jsx — URL ?error 파라미터 미체크로 Google 취소 시에도 기존 Supabase 세션으로 자동 로그인됨. Google이 취소 시 ?error=access_denied를 전달하지만 handleCallback()이 이를 무시하고 getSession()을 호출, 브라우저에 남아있는 purit.admin 세션을 반환해 자동 로그인 발생. handleCallback() 최상단(try 내부)에 URLSearchParams('error') 체크 → localStorage.removeItem('purit_oauth_role') + navigate('/login', { replace: true }) 추가.  ✅
+[로그인-2] AuthContext.jsx — signInWithOAuth options에 queryParams:{prompt:'select_account'} 미전달. Google이 브라우저 기본 계정(purit.admin@gmail.com)을 계정 선택 화면 없이 자동 선택해 항상 동일 계정으로 로그인됨. signInWithOAuth options 내부에 queryParams:{ prompt:'select_account' } 추가.  ✅
+[로그인-3] Login.jsx — 이미 로그인된 사용자가 /login에 접근 가능. user + role이 모두 존재함에도 리디렉트 가드가 없어 재인증 시도 및 OAuth 버튼 재클릭이 가능한 상태. useEffect(user, role 의존) 리디렉트 가드 추가 → DEST[role] 대시보드로 replace 이동.  ✅
+[로그인-4] Login.jsx — handleGoogle() catch 블록에만 setGoogleLoading(false) 있고 OAuth 성공(페이지 이동) 경로에 없음. signInWithOAuth 성공 시 브라우저가 Google 인증 페이지로 이동하므로 finally가 실행되지 않아도 무방하지만, 에러 이외의 모든 경로 보장을 위해 catch → finally로 교체.  ✅
+[로그인-5] OAuthCallback.jsx — oauthError 분기(Google 취소/에러 시)에서 localStorage.removeItem('purit_oauth_role') 누락. [로그인-1] 수정 중 발견. 취소 후 다음 Google 로그인 시도 시 stale role이 잔류해 신규 유저로 잘못된 역할이 적용될 수 있음. oauthError if 블록 내 navigate 호출 전 removeItem 추가.  ✅
+[로그인-6] Signup.jsx — 이미 로그인된 사용자가 /signup 접근 가능. [로그인-3]과 동일 패턴. 수평 전개: Login.jsx 수정 후 인증 페이지 전수 조사 중 발견. useEffect(user, role 의존) redirect 가드 + DEST 상수 추가.  ✅
 
 ================================================================

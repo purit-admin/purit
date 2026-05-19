@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-18 (D-81 추가 — Windows Node.js import.meta.url 소문자 드라이브 레터 regex 함정)
+최종 업데이트: 2026-05-19 (D-82 추가 — OAuth 콜백에서 URL ?error 미체크 시 기존 세션으로 자동 로그인 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1037,3 +1037,28 @@ D-81. Windows Node.js에서 import.meta.url의 드라이브 레터가 소문자�
      → 원칙: Windows에서 `new URL('../.env.local', import.meta.url).pathname`으로 경로를 얻을 때
              드라이브 레터 대소문자를 가정하지 말 것 — `[A-Za-z]`로 대소문자 모두 포함해야 함
              macOS/Linux에서는 드라이브 레터가 없으므로 이 정규식이 아무 효과 없이 안전하게 통과됨
+
+D-82. OAuth 콜백에서 URL ?error 파라미터를 체크하지 않으면 기존 세션이 있을 때 취소해도 자동 로그인되는 패턴 ✅ 해결
+     → 증상: Google OAuth 화면에서 "취소"를 눌러도 기존에 로그인된 계정(purit.admin)으로 자동 로그인됨
+     → 원인: Google은 사용자 취소 시 ?error=access_denied를 콜백 URL에 붙여 리디렉트함
+             OAuthCallback.jsx의 handleCallback()이 이 파라미터를 체크하지 않고 즉시 getSession()을 호출
+             → 브라우저에 남아있는 기존 Supabase 세션이 반환됨 → 취소 의도와 무관하게 기존 계정으로 로그인
+             직관적으로 "OAuth 콜백에 도달했으면 로그인 성공"으로 착각하기 쉬우나,
+             취소/에러 시에도 동일 콜백 URL로 리디렉트되므로 URL 파라미터 체크가 필수
+     → 해결: handleCallback() 최상단(try 블록 내)에서 URL ?error 파라미터 우선 체크:
+             ```js
+             const urlParams = new URLSearchParams(window.location.search);
+             const oauthError = urlParams.get('error');
+             if (oauthError) {
+               localStorage.removeItem('purit_oauth_role');  // stale role 정리 필수
+               navigate('/login', { replace: true });
+               return;
+             }
+             ```
+     → 추가 함정: Supabase의 signInWithOAuth options에 queryParams:{ prompt:'select_account' }가 없으면
+             Google이 브라우저 기본 계정을 계정 선택 화면 없이 자동 선택 → 항상 같은 계정으로 로그인됨
+             → signInWithOAuth options.queryParams에 { prompt: 'select_account' } 반드시 포함할 것
+     → 원칙: OAuth 콜백 핸들러는 "성공 경로"만 가정하지 말 것
+             Google/Kakao/Naver 등 모든 OAuth 제공자는 취소·에러 시 콜백 URL에 ?error= 파라미터를 붙임
+             콜백 진입 즉시 URL ?error 체크를 최우선으로 수행해야 기존 세션 혼동을 방지할 수 있음
+             localStorage에 저장한 role 등 임시 데이터도 모든 종료 경로(성공·취소·에러)에서 반드시 정리할 것

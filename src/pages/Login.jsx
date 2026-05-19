@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -39,9 +39,14 @@ function GoogleIcon() {
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { user, role, signIn, signInWithGoogle } = useAuth();
 
   const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
+
+  // 이미 로그인된 사용자는 대시보드로 즉시 리디렉트
+  useEffect(() => {
+    if (user && role) navigate(DEST[role] ?? '/company', { replace: true });
+  }, [user, role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initialRole = useMemo(() => {
     const r = new URLSearchParams(location.search).get('role');
@@ -81,6 +86,7 @@ export default function Login() {
       await signInWithGoogle(role);
     } catch (err) {
       setError(toKoreanAuthError(err));
+    } finally {
       setGoogleLoading(false);
     }
   };

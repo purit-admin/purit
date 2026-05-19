@@ -14,6 +14,15 @@ export default function OAuthCallback() {
 
   async function handleCallback() {
     try {
+    // Google이 취소/에러를 ?error= 파라미터로 전달 — 기존 세션과 무관하게 즉시 로그인으로 복귀
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthError = urlParams.get('error');
+    if (oauthError) {
+      localStorage.removeItem('purit_oauth_role');
+      navigate('/login', { replace: true });
+      return;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
