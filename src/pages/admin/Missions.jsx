@@ -137,8 +137,13 @@ function MissionDetail({ mission, onFeedbackClick }) {
 }
 
 function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, onEarlyComplete, isHighlighted, isSelected, onSelect }) {
-  const allFbs     = (m.feedbacks || []).filter(f => f.status !== 'draft');
-  const pendingFbs = allFbs.filter(f => !f.purity_passed);
+  const allFbs    = (m.feedbacks || []).filter(f => f.status !== 'draft');
+  const approved  = allFbs.filter(f => f.purity_passed);
+  const reviewing = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
+  const panelCount = m.panel_count || 0;
+
+  // 검토 중인 피드백이 있거나, 승인 수가 요청 슬롯에 미달이면 완료 차단
+  const completeBlocked = allFbs.length === 0 || reviewing.length > 0 || approved.length < panelCount;
 
   return (
     <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer', padding: '10px 14px' }}>
@@ -172,25 +177,23 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
           {/* 버튼 + 안내 문구 */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {m.status === 'active' && (() => {
-                const completeBlocked = allFbs.length === 0 || pendingFbs.length > 0;
-                return (
-                  <Btn size="sm" variant="secondary"
-                    disabled={completeBlocked}
-                    onClick={(e) => { e.stopPropagation(); onCompleteMission(m); }}>
-                    완료 처리
-                  </Btn>
-                );
-              })()}
+              {m.status === 'active' && (
+                <Btn size="sm" variant="secondary"
+                  disabled={completeBlocked}
+                  onClick={(e) => { e.stopPropagation(); onCompleteMission(m); }}>
+                  완료 처리
+                </Btn>
+              )}
               {m.status === 'active' && (
                 <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onCancelMission(m.id); }}>취소</Btn>
               )}
               {m.status === 'completed' && (
                 <Btn size="sm" onClick={(e) => { e.stopPropagation(); onReactivateMission({ id: m.id, label: '재진행', desc: `완료된 미션을 다시 진행 상태로 되돌립니까? 환불된 크레딧(${Math.max(0, (m.credits_reserved ?? 0) - (m.credits_consumed ?? 0)).toFixed(2)}cr)이 기업 계정에서 회수됩니다. 기업에게 재진행 알림이 발송됩니다.`, fromStatus: 'completed' }); }}>재진행</Btn>
               )}
+              {/* 조기종료 완료: 검토 중 없으면 승인 수 무관하게 공개 (company가 이미 취소한 상태) */}
               {m.status === 'cancelled' && allFbs.length > 0 && !m.company_notified_at && (
                 <Btn size="sm" variant="secondary"
-                  disabled={pendingFbs.length > 0}
+                  disabled={reviewing.length > 0}
                   onClick={(e) => { e.stopPropagation(); onEarlyComplete(m); }}>
                   완료 처리
                 </Btn>
@@ -208,14 +211,15 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             {m.status === 'active' && allFbs.length === 0 && (
               <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>수집된 피드백이 없습니다</div>
             )}
-            {(m.status === 'active' || m.status === 'cancelled') && allFbs.length > 0 && pendingFbs.length > 0 && (() => {
-              const reviewing = pendingFbs.filter(f => f.status !== 'rejected').length;
-              const rejected  = pendingFbs.filter(f => f.status === 'rejected').length;
+            {m.status === 'active' && allFbs.length > 0 && completeBlocked && (() => {
               const parts = [];
-              if (reviewing > 0) parts.push(`검토 중 ${reviewing}건`);
-              if (rejected  > 0) parts.push(`반려 ${rejected}건 (슬롯 재모집 중)`);
+              if (reviewing.length > 0) parts.push(`검토 중 ${reviewing.length}건`);
+              if (approved.length < panelCount) parts.push(`승인 ${approved.length}/${panelCount}건`);
               return <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>{parts.join(' · ')} — 전체 승인 후 완료 가능</div>;
             })()}
+            {m.status === 'cancelled' && allFbs.length > 0 && reviewing.length > 0 && (
+              <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {reviewing.length}건 먼저 처리 필요</div>
+            )}
           </div>
         </div>
       </div>
