@@ -170,6 +170,7 @@ export default function PurityFilter() {
   const [subResponse, setSubResponse]     = useState(null);
   const [subResponseMap, setSubResponseMap] = useState({});
   const [statusError, setStatusError]     = useState('');
+  const [searchQuery, setSearchQuery]     = useState('');
 
   useEffect(() => {
     const pendingDeeplink = location.state?.feedbackId;
@@ -223,6 +224,7 @@ export default function PurityFilter() {
     setFilter(tf);
     setPendingSubFilter('all');
     setTypeFilter('all');
+    setSearchQuery('');
 
     const base =
       tf === 'approved' ? feedbacks.filter(f => f.purity_passed)
@@ -281,7 +283,7 @@ export default function PurityFilter() {
 
     const panelUserId = fb?.panels?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
-    if (panelUserId) sendNotification(panelUserId, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${missionTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel' });
+    if (panelUserId) sendNotification(panelUserId, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${missionTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel', prefKey: 'feedbackApproved' });
 
     setSelected(null);
     setActing(false);
@@ -305,7 +307,7 @@ export default function PurityFilter() {
 
     const panelUserId = fb?.panels?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
-    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. ${hoursOffset}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
+    if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${missionTitle}] 피드백이 반려되었습니다. ${hoursOffset}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel', prefKey: 'feedbackRejected' });
 
     setSelected(null);
     setActing(false);
@@ -362,7 +364,7 @@ export default function PurityFilter() {
       if (f.rejection_penalty_applied && f.panel_id) {
         supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: 5 }).then(({ error: he }) => { if (he) console.warn('[bulk_honor_restore]', he.message); });
       }
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel' });
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel', prefKey: 'feedbackApproved' });
     });
     setCheckedIds(new Set()); setBulkActing(false);
   };
@@ -397,7 +399,7 @@ export default function PurityFilter() {
       if (!f) return;
       const mTitle = f.missions?.title || '미션';
       const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. ${isSub ? 2 : 4}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel' });
+      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. ${isSub ? 2 : 4}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions', targetRole: 'panel', prefKey: 'feedbackRejected' });
       if (f.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 })
         .then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
     });
@@ -421,14 +423,21 @@ export default function PurityFilter() {
     : filter === 'approved' ? feedbacks.filter(f => f.purity_passed)
     : feedbacks.filter(f => f.status === 'rejected');
   const SUB_TYPES = ['preference', 'pricing', 'email'];
+  // pill 카운트 전용: 상태 필터 + 검색 적용, 타입 필터 미적용
+  const filteredBaseBySearch = searchQuery.trim()
+    ? filteredBase.filter(f => (f.missions?.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : filteredBase;
   const filteredByType = typeFilter === 'all'
     ? filteredBase
     : typeFilter === 'main'
       ? filteredBase.filter(f => !SUB_TYPES.includes(f.missions?.type))
       : filteredBase.filter(f =>  SUB_TYPES.includes(f.missions?.type));
-  const filtered = (filter === 'pending' && pendingSubFilter !== 'all')
-    ? filteredByType.filter(f => pendingSubFilter === 'above65' ? getScore(f) >= 65 : getScore(f) < 65)
+  const filteredBySearch = searchQuery.trim()
+    ? filteredByType.filter(f => (f.missions?.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : filteredByType;
+  const filtered = (filter === 'pending' && pendingSubFilter !== 'all')
+    ? filteredBySearch.filter(f => pendingSubFilter === 'above65' ? getScore(f) >= 65 : getScore(f) < 65)
+    : filteredBySearch;
   const pagedList = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
 
   const pendingPageIds = pagedList.filter(f => f.status === 'submitted' && !f.purity_passed).map(f => f.id);
@@ -463,7 +472,7 @@ export default function PurityFilter() {
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['pending', '검토 대기'], ['approved', '승인됨'], ['rejected', '반려됨'], ['all', '전체']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); setTypeFilter('all'); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); setTypeFilter('all'); setSearchQuery(''); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -476,9 +485,9 @@ export default function PurityFilter() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: 'var(--text-3)', marginRight: 2 }}>타입:</span>
         {[
-          ['all',  `전체 (${filteredBase.length})`],
-          ['main', `메인 (${filteredBase.filter(f => !SUB_TYPES.includes(f.missions?.type)).length})`],
-          ['sub',  `서브 (${filteredBase.filter(f =>  SUB_TYPES.includes(f.missions?.type)).length})`],
+          ['all',  `전체 (${filteredBaseBySearch.length})`],
+          ['main', `메인 (${filteredBaseBySearch.filter(f => !SUB_TYPES.includes(f.missions?.type)).length})`],
+          ['sub',  `서브 (${filteredBaseBySearch.filter(f =>  SUB_TYPES.includes(f.missions?.type)).length})`],
         ].map(([v, label]) => (
           <button key={v}
             onClick={() => { setTypeFilter(v); setListPage(1); setCheckedIds(new Set()); setSelected(null); }}
@@ -491,6 +500,28 @@ export default function PurityFilter() {
             {label}
           </button>
         ))}
+      </div>
+
+      {/* 의뢰명 검색 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <span style={{ fontSize: 11, color: 'var(--text-3)', marginRight: 2 }}>검색:</span>
+        <input
+          type="text"
+          placeholder="의뢰명으로 검색..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
+          style={{
+            width: 200, padding: '5px 12px', fontSize: 12,
+            border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+            color: 'var(--text)', background: 'var(--surface)', outline: 'none',
+          }}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => { setSearchQuery(''); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }}
+          >✕</button>
+        )}
       </div>
 
       {/* 65점 기준 서브 필터 — 검토 대기 탭에서만 표시 */}

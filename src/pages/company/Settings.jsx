@@ -23,11 +23,7 @@ export default function AccountSettings() {
   const [removeError, setRemoveError] = useState('');
   const [confirmRemoveMemberId, setConfirmRemoveMemberId] = useState(null);
 
-  const NOTIF_KEY = 'purit_notif_prefs';
-  const [notif, setNotif] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(NOTIF_KEY)) || { feedbackComplete: true, purityAlert: true, weeklyDigest: false, newMission: true }; }
-    catch { return { feedbackComplete: true, purityAlert: true, weeklyDigest: false, newMission: true }; }
-  });
+  const [notifPrefs, setNotifPrefs] = useState({});
 
   useEffect(() => {
     load();
@@ -42,6 +38,7 @@ export default function AccountSettings() {
       const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
       setCompany(co);
       if (co) {
+        setNotifPrefs(co.notif_prefs || {});
         const [membersRes, invRes] = await Promise.all([
           supabase.from('team_members').select('*').eq('company_id', co.id).neq('status', 'inactive').order('joined_at'),
           supabase.from('invoices').select('*').eq('company_id', co.id).order('invoice_date', { ascending: false }).limit(6),
@@ -220,26 +217,35 @@ export default function AccountSettings() {
       {/* NOTIFICATIONS TAB */}
       {activeTab === 'notifications' && (
         <Card>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 20 }}>알림 설정</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>알림 설정</div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>알림을 끄면 해당 유형의 앱 알림이 발송되지 않습니다.</div>
           {[
-            { key: 'feedbackComplete', label: '피드백 수집 완료', desc: '의뢰한 패널이 모두 피드백을 제출하면 알림' },
-            { key: 'purityAlert', label: 'Purit Filter 탈락 알림', desc: '피드백이 자동 반려되어 패널이 재배정될 때' },
-            { key: 'weeklyDigest', label: '주간 요약 이메일', desc: '매주 월요일 오전 9시, 지난 주 인사이트 요약' },
-            { key: 'newMission', label: '신규 의뢰 매칭 완료', desc: '패널 매칭이 시작되면 즉시 알림' },
-          ].map(({ key, label, desc }) => (
-            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3 }}>{label}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{desc}</div>
+            { key: 'missionComplete',    label: '의뢰 완료 결과 공개',        desc: '어드민이 의뢰 완료 처리 후 피드백 결과를 열람할 수 있게 됐을 때' },
+            { key: 'missionStatusChange', label: '의뢰 취소 · 재개 · 재진행', desc: '진행 중인 의뢰의 상태가 어드민에 의해 변경됐을 때' },
+            { key: 'earlyComplete',      label: '조기 종료 피드백 결과 공개', desc: '조기 종료된 의뢰의 피드백 검토가 완료돼 결과를 열람할 수 있게 됐을 때' },
+          ].map(({ key, label, desc }) => {
+            const on = notifPrefs[key] !== false;
+            return (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{desc}</div>
+                </div>
+                <div
+                  onClick={async () => {
+                    if (!company) return;
+                    const next = { ...notifPrefs, [key]: !on };
+                    setNotifPrefs(next);
+                    const { error } = await supabase.from('companies').update({ notif_prefs: next }).eq('id', company.id);
+                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); }
+                  }}
+                  style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: on ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                >
+                  <div style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                </div>
               </div>
-              <div
-                onClick={() => setNotif(n => { const next = { ...n, [key]: !n[key] }; localStorage.setItem(NOTIF_KEY, JSON.stringify(next)); return next; })}
-                style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: notif[key] ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
-              >
-                <div style={{ position: 'absolute', top: 3, left: notif[key] ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </Card>
       )}
 

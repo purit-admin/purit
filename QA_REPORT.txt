@@ -685,11 +685,49 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [B-157] 기업 대시보드 (company/Dashboard.jsx) — CompanyMissionCard 컴포넌트 내 activeToast가 ReactDOM.createPortal 없이 렌더됨. Sidebar.jsx 래퍼(overflow:'auto')가 position:fixed를 뷰포트 기준이 아닌 컨테이너 기준으로 가두어 스크롤 시 토스트가 사라짐. D-19 위반. import ReactDOM from 'react-dom' 추가 + 토스트 블록을 ReactDOM.createPortal(..., document.body)로 감싸 수정. 나머지 4개 파일은 이미 createPortal 적용됨.  ✅
 
 -- Google OAuth 로그인 전수 조사 (2026-05-19) — Login/Signup/OAuthCallback/AuthContext 4개 파일 전수 조사: 로그인-1~6 6건 발견 및 즉시 수정 완료 --
+
 [로그인-1] OAuthCallback.jsx — URL ?error 파라미터 미체크로 Google 취소 시에도 기존 Supabase 세션으로 자동 로그인됨. Google이 취소 시 ?error=access_denied를 전달하지만 handleCallback()이 이를 무시하고 getSession()을 호출, 브라우저에 남아있는 purit.admin 세션을 반환해 자동 로그인 발생. handleCallback() 최상단(try 내부)에 URLSearchParams('error') 체크 → localStorage.removeItem('purit_oauth_role') + navigate('/login', { replace: true }) 추가.  ✅
 [로그인-2] AuthContext.jsx — signInWithOAuth options에 queryParams:{prompt:'select_account'} 미전달. Google이 브라우저 기본 계정(purit.admin@gmail.com)을 계정 선택 화면 없이 자동 선택해 항상 동일 계정으로 로그인됨. signInWithOAuth options 내부에 queryParams:{ prompt:'select_account' } 추가.  ✅
 [로그인-3] Login.jsx — 이미 로그인된 사용자가 /login에 접근 가능. user + role이 모두 존재함에도 리디렉트 가드가 없어 재인증 시도 및 OAuth 버튼 재클릭이 가능한 상태. useEffect(user, role 의존) 리디렉트 가드 추가 → DEST[role] 대시보드로 replace 이동.  ✅
 [로그인-4] Login.jsx — handleGoogle() catch 블록에만 setGoogleLoading(false) 있고 OAuth 성공(페이지 이동) 경로에 없음. signInWithOAuth 성공 시 브라우저가 Google 인증 페이지로 이동하므로 finally가 실행되지 않아도 무방하지만, 에러 이외의 모든 경로 보장을 위해 catch → finally로 교체.  ✅
 [로그인-5] OAuthCallback.jsx — oauthError 분기(Google 취소/에러 시)에서 localStorage.removeItem('purit_oauth_role') 누락. [로그인-1] 수정 중 발견. 취소 후 다음 Google 로그인 시도 시 stale role이 잔류해 신규 유저로 잘못된 역할이 적용될 수 있음. oauthError if 블록 내 navigate 호출 전 removeItem 추가.  ✅
 [로그인-6] Signup.jsx — 이미 로그인된 사용자가 /signup 접근 가능. [로그인-3]과 동일 패턴. 수평 전개: Login.jsx 수정 후 인증 페이지 전수 조사 중 발견. useEffect(user, role 의존) redirect 가드 + DEST 상수 추가.  ✅
+
+-- 어드민 의뢰명 검색 기능 신규 전수 조사 (2026-05-19) — admin/Missions.jsx + admin/PurityFilter.jsx 2개 파일 전수 조사: 검색-A·B·C 3건 발견, A·B 즉시 수정 완료 --
+
+[검색-A] 어드민 미션 관리·피드백 관리 (admin/Missions.jsx, admin/PurityFilter.jsx) — 딥링크 발화 시 활성 검색어 미초기화 → 대상 항목이 목록에서 사라짐
+- 🚨 중요도: P2(빨리 고쳐) — 어드민이 패널 관리 또는 기업 관리에서 "이 미션 보기" / "이 피드백 보기" 딥링크로 이동할 때, 이전 검색어가 남아있으면 대상 항목이 미표시됨. 어드민 운영 흐름에서 실제 발생 가능한 경로.
+- 📍 위치: src/pages/admin/Missions.jsx (lines 290-316, 319-344) / src/pages/admin/PurityFilter.jsx (lines 214-240)
+- 🕵️‍♂️ 재현 방법:
+  1. admin/Missions.jsx: "ABC" 검색어 입력 → 다른 탭 이동 후 알림 클릭(location.state.missionId 딥링크) → 대상 미션이 "ABC"와 무관하면 목록에 미표시, 하이라이트는 뜨나 카드가 없음
+  2. admin/PurityFilter.jsx: "XYZ" 검색어 입력 → PanelManagement에서 "이 피드백 보기" 클릭(location.state.feedbackId) → 대상 피드백의 의뢰명이 "XYZ"와 무관하면 목록 미표시
+- 🤦‍♂️ 현재 상황:
+  Missions.jsx 딥링크 useEffect (state + querystring 2곳 모두): setFilter(targetStatus) 호출 후 setSearchQuery('') 없음. 페이지 계산은 status-only `filteredMs`로 하지만 실제 렌더는 `searchFiltered`(검색 적용) 기준 → 대상 항목이 페이지 내 존재하나 searchFiltered에 없어 미표시.
+  PurityFilter.jsx 딥링크 useEffect: setTypeFilter('all'), setPendingSubFilter('all') 초기화하나 setSearchQuery('') 없음. 페이지 계산은 raw `feedbacks`(검색 전)로 하나 렌더는 `filtered`(검색 포함) 기준 → 동일 결과.
+- ✨ 기대 화면: 딥링크 발화 시 검색어 자동 초기화 → 대상 항목이 항상 목록에 표시되고 하이라이트됨
+- 수정: Missions.jsx 두 딥링크 useEffect에 `setSearchQuery('')` 추가 (setFilter 호출 직후). PurityFilter.jsx 딥링크 useEffect에 동일 추가.  ✅
+- 🔍 수평 전개:
+  · 딥링크 수신 파일은 Missions.jsx + PurityFilter.jsx 2개뿐 — 두 파일 모두 수정 완료
+  · 딥링크 발신처(CompanyManagement → Missions, PanelManagement → PurityFilter) 는 상태 탭·검색어 없는 navigate이므로 추가 조치 불필요
+
+[검색-B] 어드민 피드백 관리 (admin/PurityFilter.jsx) — 검색 활성 시 타입 필터 pill 카운트가 검색 전 수치를 표시해 실제 표시 항목과 불일치
+- 🚨 중요도: P3(나중에 고쳐) — 데이터 오류 아닌 표시 불일치. "검색 결과가 없는데 pill에 '메인 3'으로 표시" → 어드민이 혼란 가능
+- 📍 위치: src/pages/admin/PurityFilter.jsx (lines 483-485, 필터 파이프라인 선언부)
+- 🕵️‍♂️ 재현 방법: 특정 의뢰명으로 검색어 입력(예: "테스트") → 전체 피드백 0건 표시 → 상단 "메인 (3) / 서브 (5)" pill 카운트는 검색 전 전체 카운트 그대로 유지
+- 🤦‍♂️ 현재 상황: 타입 pill 카운트 계산식이 `filteredBase.length` 사용 — filteredBase는 상태 필터(검토대기/승인/반려)만 적용된 배열. 검색어(`filteredBySearch`)가 적용된 배열과 다름
+- ✨ 기대 화면: 검색어 활성 시 pill 카운트도 검색 결과 기준으로 업데이트 ("전체 2 / 메인 1 / 서브 1")
+- 수정: `filteredBaseBySearch` 변수 추가 (filteredBase + 검색 적용, 타입 필터 미적용) → pill 카운트 JSX에서 filteredBase → filteredBaseBySearch 교체. 주의: filteredByType은 filteredBase 기반 유지 (이중 검색 적용 방지).  ✅
+- 🔍 수평 전개:
+  · Missions.jsx 탭별 카운트 없음 (탭 자체가 status 기반, 검색 전 카운트 미표시) — 해당 없음
+  · PanelManagement / CompanyManagement 필터 pill: 검색은 useMemo 내 클라이언트 필터로 구현 — 검색 후 배열 기반 통계 자동 연동됨 → 동일 버그 없음
+
+[검색-C] 어드민 미션 관리·피드백 관리 (admin/Missions.jsx, admin/PurityFilter.jsx) — 신규 검색 input에 디바운스 없음 (M-2 패턴 불일치)
+- 🚨 중요도: P3(나중에 고쳐) — 클라이언트 사이드 필터이므로 체감 성능 영향 없음. 단, M-2에서 PanelManagement / CompanyManagement 검색에 디바운스를 추가한 코드베이스 일관성 패턴 미적용.
+- 📍 위치: src/pages/admin/Missions.jsx (line 510-514) / src/pages/admin/PurityFilter.jsx (검색 input)
+- 🕵️‍♂️ 재현 방법: 두 파일 검색 input에 빠르게 연속 타이핑 시, 입력마다 즉각 필터 재계산 발생 (디바운스 없음)
+- 🤦‍♂️ 현재 상황: `onChange={(e) => { setSearchQuery(e.target.value); setMainPage(1); ... }}` — keystroke마다 즉각 state 변경
+- ✨ 기대 화면: 타이핑 중 100~200ms debounce 후 필터 적용 (PanelManagement 패턴 일치)
+- 수정 보류: 두 검색 모두 순수 클라이언트 필터로 DB 쿼리 없음. 목록 항목 수가 수백 건 이하이므로 리렌더 비용 무시 가능. 추후 데이터가 수천 건 이상으로 늘거나 서버 검색으로 전환 시 debounce 추가 권고.
+- 🔍 수평 전개: PanelManagement(M-2 ✅) / CompanyManagement(M-2 ✅) — 이미 적용 완료. 신규 추가된 두 파일만 미적용 상태.
 
 ================================================================

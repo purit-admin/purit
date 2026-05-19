@@ -138,7 +138,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
 
 function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, onEarlyComplete, isHighlighted, isSelected, onSelect }) {
   const allFbs     = (m.feedbacks || []).filter(f => f.status !== 'draft');
-  const pendingFbs = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
+  const pendingFbs = allFbs.filter(f => !f.purity_passed);
 
   return (
     <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer', padding: '10px 14px' }}>
@@ -208,9 +208,14 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             {m.status === 'active' && allFbs.length === 0 && (
               <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>수집된 피드백이 없습니다</div>
             )}
-            {(m.status === 'active' || m.status === 'cancelled') && allFbs.length > 0 && pendingFbs.length > 0 && (
-              <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {pendingFbs.length}건 먼저 처리 필요</div>
-            )}
+            {(m.status === 'active' || m.status === 'cancelled') && allFbs.length > 0 && pendingFbs.length > 0 && (() => {
+              const reviewing = pendingFbs.filter(f => f.status !== 'rejected').length;
+              const rejected  = pendingFbs.filter(f => f.status === 'rejected').length;
+              const parts = [];
+              if (reviewing > 0) parts.push(`검토 중 ${reviewing}건`);
+              if (rejected  > 0) parts.push(`반려 ${rejected}건 (슬롯 재모집 중)`);
+              return <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>{parts.join(' · ')} — 전체 승인 후 완료 가능</div>;
+            })()}
           </div>
         </div>
       </div>
@@ -254,6 +259,7 @@ export default function AdminMissions() {
   const [statusError, setStatusError] = useState('');
   const [highlightId, setHighlightId] = useState(null);
   const [selectedMission, setSelectedMission] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -283,6 +289,7 @@ export default function AdminMissions() {
 
     const targetStatus = target.status === 'draft' ? 'all' : target.status;
     setFilter(targetStatus);
+    setSearchQuery('');
 
     const isMain = !target.type || target.type === 'landing_page';
     const filteredMs = targetStatus === 'all' ? missions : missions.filter(m => m.status === targetStatus);
@@ -312,6 +319,7 @@ export default function AdminMissions() {
 
     const targetStatus = target.status === 'draft' ? 'all' : target.status;
     setFilter(targetStatus);
+    setSearchQuery('');
 
     const isMain = !target.type || target.type === 'landing_page';
     const filteredMs = targetStatus === 'all' ? missions : missions.filter(m => m.status === targetStatus);
@@ -351,7 +359,7 @@ export default function AdminMissions() {
           title: '의뢰 완료',
           body: `[${completedMission.title}] 의뢰가 완료 처리되었습니다. 잔여 크레딧이 환불되었습니다.`,
           actionUrl: `/company/results?id=${completedMission.id}`,
-          targetRole: 'company',
+          targetRole: 'company', prefKey: 'missionComplete',
         });
       }
     } else {
@@ -362,9 +370,9 @@ export default function AdminMissions() {
       const foundM = missions.find(m => m.id === id);
       if (foundM?.companies?.user_id) {
         if (newStatus === 'cancelled') {
-          sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: '/company', targetRole: 'company' });
+          sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: '/company', targetRole: 'company', prefKey: 'missionStatusChange' });
         } else if (newStatus === 'active') {
-          sendNotification(foundM.companies.user_id, { type: 'success', icon: '▶️', title: '의뢰 재개', body: `[${foundM.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`, actionUrl: '/company', targetRole: 'company' });
+          sendNotification(foundM.companies.user_id, { type: 'success', icon: '▶️', title: '의뢰 재개', body: `[${foundM.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`, actionUrl: '/company', targetRole: 'company', prefKey: 'missionStatusChange' });
         }
       }
     }
@@ -387,7 +395,7 @@ export default function AdminMissions() {
     setSelectedMission(prev => prev?.id === id ? { ...prev, status: 'active' } : prev);
     const foundM = missions.find(m => m.id === id);
     if (foundM?.companies?.user_id) {
-      sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: '/company', targetRole: 'company' });
+      sendNotification(foundM.companies.user_id, { type: 'info', icon: '🔄', title: '의뢰 재진행', body: `[${foundM.title}] 완료된 의뢰가 재진행 처리되었습니다.`, actionUrl: '/company', targetRole: 'company', prefKey: 'missionStatusChange' });
     }
     return true;
   };
@@ -430,7 +438,7 @@ export default function AdminMissions() {
       title: '조기 종료 의뢰 피드백 검토 완료',
       body: `[${m.title}] 의뢰의 피드백 검토가 완료되었습니다. 피드백 결과 페이지에서 확인하세요.`,
       actionUrl: `/company/results?id=${m.id}`,
-      targetRole: 'company',
+      targetRole: 'company', prefKey: 'earlyComplete',
     });
     setConfirmEarlyComplete(null);
     // 최신 데이터 리로드 (완료 처리 버튼 사라짐 + PurityFilter 변경 반영)
@@ -446,9 +454,12 @@ export default function AdminMissions() {
   };
 
   const filtered = filter === 'all' ? missions : missions.filter(m => m.status === filter);
+  const searchFiltered = searchQuery.trim()
+    ? filtered.filter(m => (m.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : filtered;
 
-  const mainMissions = filtered.filter(m => !m.type || m.type === 'landing_page');
-  const subMissions  = filtered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
+  const mainMissions = searchFiltered.filter(m => !m.type || m.type === 'landing_page');
+  const subMissions  = searchFiltered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
 
   const mainPaged = mainMissions.slice((mainPage - 1) * PAGE_SIZE, mainPage * PAGE_SIZE);
   const subPaged  = subMissions.slice((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE);
@@ -473,7 +484,7 @@ export default function AdminMissions() {
       {/* Filter */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['cancelled', '취소']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); setHighlightId(null); setSelectedMission(null); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); setHighlightId(null); setSelectedMission(null); setSearchQuery(''); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -487,6 +498,27 @@ export default function AdminMissions() {
             )}
           </button>
         ))}
+      </div>
+
+      {/* 의뢰명 검색 */}
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <input
+          type="text"
+          placeholder="의뢰명으로 검색..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setMainPage(1); setSubPage(1); setSelectedMission(null); }}
+          style={{
+            width: 260, padding: '7px 13px', fontSize: 13,
+            border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+            color: 'var(--text)', background: 'var(--surface)', outline: 'none',
+          }}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => { setSearchQuery(''); setMainPage(1); setSubPage(1); setSelectedMission(null); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 15, lineHeight: 1 }}
+          >✕</button>
+        )}
       </div>
 
       {/* Delete confirm modal */}

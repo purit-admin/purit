@@ -149,7 +149,7 @@ export default function PanelDashboard() {
           })),
         ];
 
-        if (allCandidates.length > 0) {
+        if (allCandidates.length > 0 && p?.notif_prefs?.deadlineWarning !== false) {
           const todayStart = new Date();
           todayStart.setHours(0, 0, 0, 0);
           const { data: existingNotifs } = await supabase

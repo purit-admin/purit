@@ -185,6 +185,8 @@ export default function PanelProfile() {
   const [otpLoading, setOtpLoading]   = useState(false);
   const [otpError, setOtpError]       = useState('');
 
+  const [notifPrefs, setNotifPrefs] = useState({});
+
   const [orig, setOrig]           = useState(null);
   const [dirtyWarn, setDirtyWarn] = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
@@ -211,6 +213,7 @@ export default function PanelProfile() {
         setPhone(p.phone || '');
         setPhoneVerified(p.phone_verified || false);
         setSelectedBadge(p.selected_badge || null);
+        setNotifPrefs(p.notif_prefs || {});
         setOrig({
           name: p.name || '', industry: p.industry || '',
           experience: p.experience || '', bio: p.bio || '',
@@ -240,8 +243,7 @@ export default function PanelProfile() {
       setSaved('저장 실패: ' + error.message);
     } else {
       setPanel(p => ({ ...p, ...fields }));
-      if ('name' in fields) setOrig(o => ({ ...o, name, industry, experience, bio }));
-      if ('expertise' in fields) setOrig(o => ({ ...o, expertise: [...expertise] }));
+      if ('name' in fields) setOrig(o => ({ ...o, name, industry, experience, bio, expertise: [...expertise] }));
       if ('bank_name' in fields) setOrig(o => ({ ...o, bankName, bankAccount, bankHolder }));
       setDirtyWarn(false);
       setPendingTab(null);
@@ -256,8 +258,7 @@ export default function PanelProfile() {
     );
 
   const isDirty = orig ? (() => {
-    if (tab === 'profile') return name !== orig.name || industry !== orig.industry || experience !== orig.experience || bio !== orig.bio;
-    if (tab === 'expertise') return JSON.stringify([...expertise].sort()) !== JSON.stringify([...orig.expertise].sort());
+    if (tab === 'profile') return name !== orig.name || industry !== orig.industry || experience !== orig.experience || bio !== orig.bio || JSON.stringify([...expertise].sort()) !== JSON.stringify([...orig.expertise].sort());
     if (tab === 'payment') return bankName !== orig.bankName || bankAccount !== orig.bankAccount || bankHolder !== orig.bankHolder;
     return false;
   })() : false;
@@ -364,7 +365,7 @@ export default function PanelProfile() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
-        {[['profile', '기본 정보'], ['expertise', '전문 분야'], ['payment', '정산 계좌'], ['password', '비밀번호'], ['achievement', '성과']].map(([v, l]) => (
+        {[['profile', '기본 정보'], ['payment', '정산 계좌'], ['password', '비밀번호'], ['achievement', '성과'], ['notifications', '알림 설정']].map(([v, l]) => (
           <button key={v} onClick={() => handleTabClick(v)} style={{
             padding: '10px 18px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',
@@ -411,8 +412,7 @@ export default function PanelProfile() {
             >계속 편집</button>
             <button
               onClick={() => {
-                if (tab === 'profile') { setName(orig.name); setIndustry(orig.industry); setExperience(orig.experience); setBio(orig.bio); }
-                else if (tab === 'expertise') { setExpertise([...orig.expertise]); }
+                if (tab === 'profile') { setName(orig.name); setIndustry(orig.industry); setExperience(orig.experience); setBio(orig.bio); setExpertise([...orig.expertise]); }
                 else if (tab === 'payment') { setBankName(orig.bankName); setBankAccount(orig.bankAccount); setBankHolder(orig.bankHolder); }
                 setTab(pendingTab); setPendingTab(null); setDirtyWarn(false); setSaved(''); setPwMsg('');
               }}
@@ -440,6 +440,25 @@ export default function PanelProfile() {
                 {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
               </select>
             </label>
+            <div style={lbl}>
+              <span style={lblTxt}>전문 분야 <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}>(최대 5개)</span></span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {EXPERTISE.map(e => {
+                  const sel = expertise.includes(e);
+                  return (
+                    <button key={e} type="button" onClick={() => toggleExpertise(e)} style={{
+                      padding: '7px 14px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500,
+                      background: sel ? 'var(--green-dim)' : 'var(--surface-2)',
+                      color: sel ? 'var(--green)' : 'var(--text-2)',
+                      border: '1px solid ' + (sel ? 'rgba(126,200,160,0.4)' : 'var(--border)'),
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}>
+                      {sel && '✓ '}{e}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div style={lbl}>
               <span style={lblTxt}>경력</span>
               <ExperienceBar value={experience} onChange={setExperience} />
@@ -496,43 +515,11 @@ export default function PanelProfile() {
             <Btn
               style={{ alignSelf: 'flex-start' }}
               disabled={saving}
-              onClick={() => save({ name, industry, experience, bio })}
+              onClick={() => save({ name, industry, experience, bio, expertise })}
             >
               {saving ? '저장 중...' : '저장'}
             </Btn>
           </div>
-        </Card>
-      )}
-
-      {/* Expertise tab */}
-      {tab === 'expertise' && (
-        <Card>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>전문 분야 선택</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20, lineHeight: 1.6 }}>
-            선택한 분야와 일치하는 의뢰가 있을 때 우선 매칭됩니다. 최대 5개까지 선택하세요.
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-            {EXPERTISE.map(e => {
-              const sel = expertise.includes(e);
-              return (
-                <button key={e} onClick={() => toggleExpertise(e)} style={{
-                  padding: '8px 16px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500,
-                  background: sel ? 'var(--green-dim)' : 'var(--surface-2)',
-                  color: sel ? 'var(--green)' : 'var(--text-2)',
-                  border: '1px solid ' + (sel ? 'rgba(126,200,160,0.4)' : 'var(--border)'),
-                  cursor: 'pointer', transition: 'all 0.15s',
-                }}>
-                  {sel && '✓ '}{e}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>
-            선택됨: {expertise.length > 0 ? expertise.join(', ') : '없음'}
-          </div>
-          <Btn disabled={saving} onClick={() => save({ expertise })}>
-            {saving ? '저장 중...' : '저장'}
-          </Btn>
         </Card>
       )}
 
@@ -632,6 +619,41 @@ export default function PanelProfile() {
           </div>
         );
       })()}
+
+      {/* Notifications tab */}
+      {tab === 'notifications' && (
+        <Card>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>알림 설정</div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>알림을 끄면 해당 유형의 앱 알림이 발송되지 않습니다.</div>
+          {[
+            { key: 'feedbackApproved', label: '피드백 승인', desc: '제출한 피드백이 Purit Filter를 통과해 승인됐을 때' },
+            { key: 'feedbackRejected', label: '피드백 반려', desc: '제출한 피드백이 기준 미달로 반려됐을 때 (재작성 안내 포함)' },
+            { key: 'deadlineWarning', label: '마감 임박 알림', desc: '제출 또는 재제출 마감 1시간 전 사전 안내' },
+          ].map(({ key, label, desc }) => {
+            const on = notifPrefs[key] !== false;
+            return (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{desc}</div>
+                </div>
+                <div
+                  onClick={async () => {
+                    if (!panel) return;
+                    const next = { ...notifPrefs, [key]: !on };
+                    setNotifPrefs(next);
+                    const { error } = await supabase.from('panels').update({ notif_prefs: next }).eq('id', panel.id);
+                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); }
+                  }}
+                  style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: on ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                >
+                  <div style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      )}
 
       {/* Payment tab */}
       {tab === 'payment' && (

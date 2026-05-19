@@ -26,9 +26,14 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼 — targetRole 파라미터 포함) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
-│   │              notify.js sendNotification(userId, { type, icon, title, body, actionUrl, targetRole }): notifications INSERT
+│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼 — prefKey + targetRole 파라미터 포함) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
+│   │              notify.js sendNotification(userId, { type, icon, title, body, actionUrl, targetRole, prefKey }): notifications INSERT
 │   │                targetRole: 'admin'|'company'|'panel'|null — 포털별 알림 분리 (030 마이그레이션)
+│   │                prefKey: 수신자의 notif_prefs JSONB 키 — panel/company 수신자인 경우 DB에서 prefs 조회, false이면 발송 차단 (042 마이그레이션) ★
+│   │                  panels/companies.notif_prefs 키 미설정=수신, false=차단 (옵트아웃 방식)
+│   │                  panel prefKey 목록: feedbackApproved / feedbackRejected / deadlineWarning
+│   │                  company prefKey 목록: missionComplete / missionStatusChange / earlyComplete
+│   │                  prefKey 없음: admin 대상 알림 또는 PRD에서 사용자 토글 불가 알림 (버그 답변 등)
 │   │              lp 템플릿 sectionLabel 필드: '랜딩페이지 진단'(3종)·'광고 소재 진단'(3종)·'제품 상세 페이지 진단'(3종)·'영상/숏폼 광고 진단'(3종)
 │   │              QuestionTemplates.jsx·NewMission.jsx: sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링 (category='랜딩페이지' 유지 — 기존 필터 로직 불변)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getExperienceCareerKey·getPanelReward·fmtWon·fmtKRW 헬퍼)
