@@ -68,7 +68,7 @@ function formatRemaining(deadline) {
   return `${m}분 남음`;
 }
 
-function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModal, panelHonorPoints = 0, panelExperience = '' }) {
+function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModal, onDismiss, panelHonorPoints = 0, panelExperience = '' }) {
   const [reasonOpen, setReasonOpen] = useState(false);
   const slots  = m.panel_count  || 0;
   const filled = m.filled_count || 0;
@@ -169,11 +169,14 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, navigate, setModa
           {mode === 'needsRevision' && (() => {
             const missionEnded = m.status !== 'active';
             const slotsFull = !missionEnded && (m.filled_count || 0) >= (m.panel_count || 1);
-            if (missionEnded) return (
-              <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>의뢰 종료 · 재작성 불가</span>
-            );
-            if (slotsFull) return (
-              <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>슬롯 마감 · 재작성 불가</span>
+            if (missionEnded || slotsFull) return (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>
+                  {missionEnded ? '의뢰 종료' : '슬롯 마감'} · 재작성 불가
+                </span>
+                <Btn size="sm" variant="ghost" onClick={() => onDismiss(feedbackId)}
+                  style={{ fontSize: 11, color: 'var(--text-3)' }}>삭제</Btn>
+              </div>
             );
             return (
               <Btn size="sm" variant="outline" onClick={() => navigate(`/panel/active?id=${m.id}&resubmit=${feedbackId}`)}>
@@ -203,6 +206,9 @@ export default function MissionList() {
   const [confirming, setConfirming]   = useState(false);
   const [acceptError, setAcceptError] = useState('');
   const [cancelError, setCancelError] = useState('');
+  const [dismissTarget, setDismissTarget] = useState(null); // feedbackId
+  const [dismissing, setDismissing]       = useState(false);
+  const [dismissError, setDismissError]   = useState('');
   const [mainPage, setMainPage]       = useState(1);
   const [subPage, setSubPage]         = useState(1);
 
@@ -225,13 +231,13 @@ export default function MissionList() {
       await supabase.rpc('expire_panel_drafts').then(({ error: e }) => { if (e) console.warn('[expire_drafts]', e.message); });
 
       const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
-        supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline').eq('panel_id', p.id),
+        supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline, dismissed').eq('panel_id', p.id),
         supabase.from('missions').select('*').neq('status', 'draft').order('created_at', { ascending: false }),
       ]);
 
       const map = {};
       (myFeedbacks || []).forEach(f => {
-        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline };
+        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline, dismissed: f.dismissed };
       });
       setFeedbackMap(map);
       setMissions(ms || []);
@@ -315,6 +321,28 @@ export default function MissionList() {
     setModal(null);
   };
 
+  const handleDismissRejected = async (feedbackId) => {
+    if (dismissing) return;
+    setDismissing(true);
+    setDismissError('');
+    const { error } = await supabase.rpc('dismiss_rejected_feedback', { p_feedback_id: feedbackId });
+    if (error) {
+      setDismissError('삭제에 실패했습니다. 다시 시도해주세요.');
+      setDismissing(false);
+      return;
+    }
+    // feedbackMap에서 dismissed 처리 → [수정 필요] 탭에서 즉시 사라짐
+    setFeedbackMap(prev => {
+      const next = { ...prev };
+      for (const [mId, fb] of Object.entries(next)) {
+        if (fb.id === feedbackId) { next[mId] = { ...fb, dismissed: true }; break; }
+      }
+      return next;
+    });
+    setDismissTarget(null);
+    setDismissing(false);
+  };
+
   const filtered = (() => {
     if (filter === 'new') {
       const panelKey = panelExperience ? getExperienceCareerKey(panelExperience) : null;
@@ -335,6 +363,7 @@ export default function MissionList() {
     if (filter === 'needsRevision') return missions.filter(m => {
       const fb = feedbackMap[m.id];
       if (fb?.status !== 'rejected') return false;
+      if (fb.dismissed) return false;
       // rejection_deadline이 설정되어 있고 이미 만료됐으면 목록에서 제외
       if (fb.rejection_deadline && new Date(fb.rejection_deadline) < new Date()) return false;
       return true;
@@ -356,11 +385,27 @@ export default function MissionList() {
   const now = new Date();
   const rejectedCount = Object.values(feedbackMap).filter(f =>
     f.status === 'rejected' &&
+    !f.dismissed &&
     (!f.rejection_deadline || new Date(f.rejection_deadline) >= now)
   ).length;
 
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900, animation: 'fadeUp 0.5s ease both' }}>
+
+      {/* ── 반려 피드백 숨김 확인 모달 ── */}
+      {dismissTarget && ReactDOM.createPortal(
+        <ConfirmModal
+          title="피드백을 삭제할까요?"
+          desc={'[수정 필요] 목록에서 제거됩니다.\n정산 내역 [지급 거절] 탭에서는 계속 확인할 수 있습니다.'}
+          confirmLabel={dismissing ? '처리 중...' : '삭제'}
+          cancelLabel="취소"
+          danger
+          onConfirm={() => handleDismissRejected(dismissTarget)}
+          onCancel={() => { setDismissTarget(null); setDismissError(''); }}
+          errorMsg={dismissError}
+        />,
+        document.body
+      )}
 
       {/* ── 수락 모달 (portal) ── */}
       {modal?.type === 'accept' && ReactDOM.createPortal(
@@ -482,6 +527,7 @@ export default function MissionList() {
                       rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
                       navigate={navigate}
                       setModal={setModal}
+                      onDismiss={(fid) => { setDismissError(''); setDismissTarget(fid); }}
                       panelHonorPoints={panelHonorPoints}
                       panelExperience={panelExperience}
                     />
@@ -514,6 +560,7 @@ export default function MissionList() {
                       rejectionDeadline={feedbackMap[m.id]?.rejection_deadline}
                       navigate={navigate}
                       setModal={setModal}
+                      onDismiss={(fid) => { setDismissError(''); setDismissTarget(fid); }}
                       panelHonorPoints={panelHonorPoints}
                       panelExperience={panelExperience}
                     />

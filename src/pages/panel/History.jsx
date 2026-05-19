@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
-import { Card, Badge } from '../../components/ui';
+import ReactDOM from 'react-dom';
+import { Card, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';
 
@@ -12,12 +13,12 @@ const fmtAmt = (n) => {
   return `₩${man}만 ${rest.toLocaleString()}`;
 };
 
-const STATUS_LABEL = { submitted: '정산 대기', approved: '정산 완료', rejected: '지급 거절' };
+const STATUS_LABEL = { submitted: '정산 대기', approved: '정산 확정', rejected: '지급 거절' };
 const STATUS_TYPE  = { submitted: 'gold',      approved: 'green',    rejected: 'red' };
 
 const TABS = [
   { key: 'pending',  label: '정산 대기' },
-  { key: 'approved', label: '정산 완료' },
+  { key: 'approved', label: '정산 확정' },
   { key: 'rejected', label: '지급 거절' },
 ];
 
@@ -61,6 +62,9 @@ export default function History() {
   const [tab, setTab]                 = useState('pending');
   const [page, setPage]               = useState(1);
   const [openReasonId, setOpenReasonId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // feedbackId
+  const [deleting, setDeleting]         = useState(false);
+  const [deleteError, setDeleteError]   = useState('');
 
   useEffect(() => {
     async function load() {
@@ -111,6 +115,21 @@ export default function History() {
     return isSub ? Math.round(base * (4500 / 8000)) : base;
   };
 
+  const handleDeleteRejected = async () => {
+    if (deleting || !deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
+    const { error } = await supabase.rpc('delete_rejected_feedback', { p_feedback_id: deleteTarget });
+    if (error) {
+      setDeleteError('삭제에 실패했습니다. 다시 시도해주세요.');
+      setDeleting(false);
+      return;
+    }
+    setFeedbacks(prev => prev.filter(f => f.id !== deleteTarget));
+    setDeleteTarget(null);
+    setDeleting(false);
+  };
+
   const totalPaid    = approved.reduce((s, f) => s + calcReward(f), 0);
   const totalPending = pending.reduce((s, f)  => s + calcReward(f), 0);
 
@@ -120,6 +139,20 @@ export default function History() {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
+    <>
+    {deleteTarget && ReactDOM.createPortal(
+      <ConfirmModal
+        title="피드백을 삭제할까요?"
+        desc={'지급 거절된 피드백을 영구적으로 삭제합니다.\n삭제 후 복구할 수 없습니다.'}
+        confirmLabel={deleting ? '처리 중...' : '삭제'}
+        cancelLabel="취소"
+        danger
+        onConfirm={handleDeleteRejected}
+        onCancel={() => { setDeleteTarget(null); setDeleteError(''); }}
+        errorMsg={deleteError}
+      />,
+      document.body
+    )}
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 860, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 8, letterSpacing: '0.1em' }}>LEDGER</div>
@@ -129,7 +162,7 @@ export default function History() {
       {/* 통계 카드 */}
       <div className="stat-inline-three" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 32 }}>
         <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
-          <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 정산 완료</div>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 정산 확정</div>
           <div style={{ lineHeight: 1, marginBottom: 6 }}>
             <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
             <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>{Math.round(totalPaid).toLocaleString()}</div>
@@ -211,12 +244,20 @@ export default function History() {
                     )}
                   </div>
                   {isRejected && (
-                    <button
-                      onClick={() => setOpenReasonId(isReasonOpen ? null : f.id)}
-                      style={{ fontSize: 12, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'underline' }}
-                    >
-                      탈락 사유 보기
-                    </button>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <button
+                        onClick={() => setOpenReasonId(isReasonOpen ? null : f.id)}
+                        style={{ fontSize: 12, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'underline' }}
+                      >
+                        탈락 사유 보기
+                      </button>
+                      <button
+                        onClick={() => { setDeleteError(''); setDeleteTarget(f.id); }}
+                        style={{ fontSize: 12, color: 'var(--red, #ef4444)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'underline' }}
+                      >
+                        삭제
+                      </button>
+                    </div>
                   )}
                 </div>
                 {/* 탈락 사유 펼침 영역 */}
@@ -245,5 +286,6 @@ export default function History() {
         </Card>
       )}
     </div>
+    </>
   );
 }

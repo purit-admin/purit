@@ -374,7 +374,7 @@ export default function PanelDashboard() {
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text2, marginBottom: 10 }}>수익 현황</div>
         <div className="dash-stat-grid-3">
           <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
-            <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>총 정산 완료</div>
+            <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>총 정산 확정</div>
             <div style={{ lineHeight: 1, marginBottom: 6 }}>
               <div style={{ fontSize: 10, color: C.text3, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: C.primary, letterSpacing: '-0.03em' }}>{fmtKRW(totalPaid)}</div>

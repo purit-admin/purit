@@ -346,13 +346,20 @@ purit/
 │   │                047(fix_reaccept_slot_gate: reaccept_rejected_feedback 최종 — WHERE filled_count < panel_count 원자적 게이트)
 │   │                048(restore_mission_slot: 반려→검토중 되돌리기 시 filled_count +1 복원 — decrement의 역연산 RPC)
 │   │                049(fix_slot_rpc_security: decrement+restore D-58 수정(app_metadata 단독) + restore LEAST 오버플로우 가드 + reaccept 047 재적용 안전망) ★
-│   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline } }
+│   │                050(dismiss_rejected_feedback: feedbacks.dismissed BOOLEAN 컬럼 추가 + dismiss_rejected_feedback·delete_rejected_feedback RPC 2개)
+│   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, dismissed } } ★ dismissed 추가
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
+│   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
+│   │                  [수정 필요] 탭 missionEnded/slotsFull 항목: 재작성 불가 텍스트 + '삭제' 버튼 → dismiss_rejected_feedback RPC (dismissed=true, 숨김)
+│   │                  [이어하기] 탭 missionEnded 항목(ms.status!=='active'): '이어하기 →' 대신 '의뢰가 종료되었습니다' 텍스트 표시 ★
 │   │                  수락 핸들러: isSubM = type in ['preference','pricing','email'] → subDl = now + (isSubM?2:4)h → accept_mission_slot RPC(p_submission_deadline=subDl) 호출
 │   │   ※ pages/panel/ActiveMission.jsx: 폼 뷰 진입 시 deadline 처리
+│   │                  missionEnded state: draft 진입 시 ms.status !== 'active' → true → "의뢰가 종료되었습니다" 화면 (폼 미렌더) ★
+│   │                    missionEnded 화면: "초안 삭제하기" 버튼 → cancel_panel_feedback RPC → /panel/missions 이동
 │   │                  deadlineBanner state: { label: '제출 마감'|'재제출 마감', value: Date } → 브리핑·폼 상단 배너 표시
 │   │                  deadlineExpired state: true 시 "제출 기간이 만료되었습니다" 화면 (폼 미렌더)
-│   │                  최초 draft 진입: fb.submission_deadline < now → deadlineExpired=true / 유효 → deadlineBanner 설정
+│   │                    deadlineExpired 화면: "초안 삭제하기" 버튼 → cancel_panel_feedback RPC ★
+│   │                  최초 draft 진입: ms.status!=='active' → missionEnded=true / fb.submission_deadline < now → deadlineExpired=true / 유효 → deadlineBanner 설정
 │   │                  재작성 모드 진입: fb.rejection_deadline < now(클라이언트 사전 체크) → deadlineExpired=true, RPC 미호출
 │   │                    체크 통과 → reaccept_rejected_feedback RPC(원자적 슬롯 재예약, 슬롯 마감 or 서버 만료 시 false 반환) → 실패 시 deadlineExpired=true
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)

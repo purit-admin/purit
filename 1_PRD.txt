@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-19 (어드민 미션 관리·피드백 관리 의뢰명 검색 기능 추가)
+최종 업데이트: 2026-05-19 (정산 완료→정산 확정 워딩 변경 + 패널 반려 피드백 처리 UX 추가)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -450,7 +450,7 @@
    - 신뢰도 게이지 (trust_score %)
    - 미션 현황 (3칸 묶음): 완료 미션(총 누적) / 참여 가능(슬롯 여유 있는 active 미션) / 이번 주 활동(7일 내 제출)
      · 참여 가능 수: status='active' + 슬롯 여유(filled_count < panel_count) + 미참여 미션 전수 조회 (limit 없음)
-   - 수익 현황 (3칸 묶음): 총 정산 완료(금액+건수) / 정산 대기 중(금액+건수) / 필터 탈락(건수)
+   - 수익 현황 (3칸 묶음): 총 정산 확정(금액+건수) / 정산 대기 중(금액+건수) / 필터 탈락(건수)
      · feedbacks(status≠draft) SELECT → purity_passed/status 기준 집계
      · 금액 표시: fmtWon() (honorLevels.js) — 만 단위 + 나머지 천원 단위 (예: ₩1만 5,000)
    - 헤더 배지: Lv.X · 라벨 (colorMeta 스타일) + XXXpts 표시 + 🔥 연속 횟수
@@ -463,12 +463,21 @@
      · 미션 description.careerLevels 배열에 패널 경력 키가 포함된 미션만 노출 (기업이 체크 안 한 경력 패널은 미노출)
      · 패널 experience 미설정 시 필터 미적용(모든 미션 노출), careerLevels 없는 레거시 미션도 모두 노출 — 하위 호환
    - [이어하기]: 이 패널이 수락한(status='draft') 미션 목록 — /panel/active 목록 뷰 기능 통합
-   - [수정 필요]: feedbacks.status='rejected'인 미션 목록 — 재작성 버튼은 오직 이 탭에만 존재
+   - [수정 필요]: feedbacks.status='rejected' && dismissed=false인 미션 목록 — 재작성 버튼은 오직 이 탭에만 존재
      · "탈락 사유 보기 ▼" 토글 클릭 시 인라인 안내문 표시
      · "재작성 →" 버튼 → navigate('/panel/active?id=...&resubmit=<feedbackId>')
+     · rejection_deadline 만료된 항목 목록에서 자동 제외 (클라이언트 필터)
+     · 의뢰 종료(missionEnded: m.status!=='active') 또는 슬롯 마감(slotsFull) 항목:
+       "재작성 →" 대신 "의뢰 종료 · 재작성 불가" / "슬롯 마감 · 재작성 불가" 텍스트 + "삭제" 버튼
+       "삭제" 버튼: ConfirmModal(danger) 경유 → dismiss_rejected_feedback RPC → dismissed=true (숨김)
+       숨긴 항목은 [지급 거절] 탭(History.jsx)에는 그대로 유지
+     · 뱃지 카운트(rejectedCount): dismissed=true 항목 제외
+   - [이어하기]: 이 패널이 수락한(status='draft') 미션 목록
+     · 의뢰가 종료된 경우(m.status!=='active'): "이어하기 →" 대신 "의뢰가 종료되었습니다" 텍스트 표시
+       수락 취소 버튼은 그대로 유지 (draft 슬롯 해제 필요)
    - 모든 탭: 메인 미션(마케팅 소재 종합 진단) / 서브 미션(소재비교·가격검증·이메일검증) 섹션 분리
    - 각 섹션 5개씩 페이지네이션 (MissionCard 컴포넌트, mode prop으로 탭별 버튼 분기)
-   - feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline } } — rejection_deadline 포함 ★
+   - feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline, dismissed } } ★ dismissed 추가
      · rejection_deadline 만료된 항목: [수정 필요] 탭 목록에서 자동 제외 (클라이언트 필터)
    - 수락 확인 모달: Purit Filter 경고 3항목 포함 (ReactDOM.createPortal 기반, viewport 중앙 고정)
    - 수락 시 accept_mission_slot RPC → filled_count 원자적 +1 + feedbacks INSERT(draft) → feedbackMap 업데이트 → /panel/active?id=... 이동
@@ -489,7 +498,11 @@
    ★ 폼 뷰 (id 파라미터 있음, /panel/active?id=...):
      - 진입 시 submission_deadline / rejection_deadline 만료 사전 체크: ★
        · 만료 시 deadlineExpired=true → "제출 기간이 만료되었습니다" 화면 표시 (폼 미렌더)
+         deadlineExpired 화면에 "초안 삭제하기" 버튼 포함 → cancel_panel_feedback RPC → draft 삭제
        · 유효하면 deadlineBanner state 설정 → 브리핑·폼 상단에 "제출 마감 / 재제출 마감 N시간 후" 배너 표시
+     - draft 피드백의 미션이 종료된 경우(ms.status!=='active'): missionEnded=true ★
+       · "의뢰가 종료되었습니다" 화면 표시 (폼 미렌더)
+       · "초안 삭제하기" 버튼 → cancel_panel_feedback RPC → draft 삭제 후 /panel/missions 이동
      - 특정 미션 브리핑 화면 → mission.type에 따라 3가지 폼 분기
      - 브리핑에서도 저장 여부에 따라 "이어하기 →" / "피드백 시작하기 →"
      - 브리핑 description 표시:
@@ -575,10 +588,10 @@
 4. 정산 내역 (/panel/history) — History.jsx  ★ 개편 (수익 이력에서 명칭 변경)
    - 페이지 제목: "정산 내역", 헤더 태그: LEDGER
    - 상단 통계 3칸:
-     · 총 정산 완료: 금액(₩x만) + 건수 (purity_passed=true)
+     · 총 정산 확정: 금액(₩x만) + 건수 (purity_passed=true)
      · 정산 대기 중: 금액(₩x만) + 건수 (status='submitted', purity_passed=false)
      · 지급 거절: 건수 (status='rejected', purity_passed=false) — 0건이면 기본색, 있으면 빨간색
-   - 탭 3개: 정산 대기 / 정산 완료 / 지급 거절 (기존 "전체" 탭 제거)
+   - 탭 3개: 정산 대기 / 정산 확정 / 지급 거절 (기존 "전체" 탭 제거)
    - 기본 탭: '정산 대기' (pending)
    - 탭별 5개씩 페이지네이션 (Pagination 컴포넌트, 탭 전환 시 page 리셋) ★ 추가
    - 금액 계산: payout_amount 고정값 우선 → 없으면 getPanelReward 동적 계산 폴백 ★ 개편
@@ -594,7 +607,9 @@
      · 헤더: "반려 사유 · Purit Filter 기준 미달" (한 줄)
      · feedbacks.suggestions 원문을 메인 콘텐츠로 표시 (없으면 "상세 사유가 기재되지 않았습니다.")
      · 재작성은 [미션 관리 → 수정 필요] 탭에서만 가능
-   - Purit Filter 탈락 안내 카드: '정산 완료' 탭에서는 숨김 (정산 대기·지급 거절 탭에서 표시)
+     · "삭제" 버튼 (탈락 사유 보기 옆): ConfirmModal(danger) 경유 → delete_rejected_feedback RPC → DB 영구 삭제
+       삭제 후 로컬 feedbacks state에서 즉시 제거 (복구 불가)
+   - Purit Filter 탈락 안내 카드: '정산 확정' 탭에서는 숨김 (정산 대기·지급 거절 탭에서 표시)
    - draft 상태 피드백 제외 (.neq('status', 'draft'))
      → 클릭 시 /panel/active?id=<missionId>&resubmit=<feedbackId> 이동 → 재작성 모드 진입
 

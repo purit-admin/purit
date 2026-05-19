@@ -101,6 +101,7 @@
   payout_amount                NUMERIC(10,2)  DEFAULT NULL  ← 031 추가 (승인 시점 정산 금액 스냅샷 — 패널 경력 변경 이후에도 금액 불변)
   rejection_penalty_applied    BOOLEAN        NOT NULL DEFAULT FALSE  ← 031 추가 (반려 시 true, 재제출 후 재승인 시 HP +5 복원 트리거)
   deadline_alimtalk_sent       BOOLEAN        DEFAULT FALSE           ← 040 추가 (마감 1시간 전 알림톡 중복 발송 방지 플래그)
+  dismissed                    BOOLEAN        NOT NULL DEFAULT FALSE   ← 050 추가 (패널이 [수정 필요] 탭에서 숨긴 반려 피드백 — [지급 거절] 탭에는 유지)
   status                TEXT  ('draft'|'submitted'|'approved'|'rejected')
                                ※ draft: 수락 후 미완료 (패널이 수락하면 즉시 생성)
                                ※ CHECK 제약: feedbacks_status_check 로 4개 값 허용
@@ -510,6 +511,20 @@
     → feedbacks DELETE (status='draft', panel_id=auth.uid()) + missions.filled_count -1
     → panel/ActiveMission.jsx 수락 취소 버튼에서 호출
     → 파일: supabase/migrations/034_feedback_timeout_slots.sql (최신: 035에서 재정의)
+
+  dismiss_rejected_feedback(p_feedback_id UUID) RETURNS void
+    → SECURITY DEFINER — auth.uid() 기준 본인 rejected 피드백만 dismissed=true 처리
+    → feedbacks UPDATE SET dismissed=TRUE WHERE id=p_feedback_id AND panel_id=v_panel_id AND status='rejected'
+    → [수정 필요] 탭에서 숨김 처리 (지급 거절 탭에는 그대로 유지)
+    → panel/Missions.jsx [수정 필요] 탭 '삭제' 버튼에서 호출 (실제 삭제 아님 — 숨김만)
+    → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql
+
+  delete_rejected_feedback(p_feedback_id UUID) RETURNS void
+    → SECURITY DEFINER — auth.uid() 기준 본인 rejected 피드백만 DB에서 영구 삭제
+    → feedbacks DELETE WHERE id=p_feedback_id AND panel_id=v_panel_id AND status='rejected'
+    → [지급 거절] 탭에서 완전 삭제 (복구 불가)
+    → panel/History.jsx [지급 거절] 탭 '삭제' 버튼에서 호출
+    → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql
 
   expire_panel_drafts() RETURNS integer
     → SECURITY DEFINER — auth.uid() 기준 본인 패널의 만료 draft/rejected 피드백 정리
