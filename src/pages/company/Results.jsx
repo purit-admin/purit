@@ -1103,6 +1103,7 @@ export default function Results() {
     setMissionTab(tab);
     setMainPage(1);
     setSubPage(1);
+    setSelected(null);
   };
 
   const DIM_TABS = [...DIMS, 'summary'];
