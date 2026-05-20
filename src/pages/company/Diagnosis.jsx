@@ -1,60 +1,48 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import TimelineTracker from './TimelineTracker';
 
-const IMPROVEMENT_GUIDES = {
-  clarity_score: {
-    title: '명확성 개선 가이드',
-    tips: [
-      '첫 문장에서 "누구를 위한 무엇"인지 명시하세요. (예: "B2B 마케터를 위한 전환율 분석 툴")',
-      '헤드라인을 3초 안에 읽히도록 10단어 이내로 줄이세요.',
-      '전문 용어·약어를 일반 언어로 바꾸세요. 업계 용어는 패널이 이해 못할 수 있습니다.',
-      'CTA 버튼 문구를 "시작하기" 대신 "무료로 전환율 진단받기"처럼 구체적으로 바꾸세요.',
-      '히어로 섹션에 제품 사용 화면 또는 결과물 이미지를 넣으세요.',
-    ],
-  },
-  relevance_score: {
-    title: '관련성 개선 가이드',
-    tips: [
-      '타겟 고객의 고통점을 첫 문단에서 직접 언급하세요. (예: "광고비는 쓰는데 전환이 안 되시나요?")',
-      'ICP(이상적 고객 프로필)의 언어를 그대로 사용하세요. 인터뷰·리뷰에서 실제 표현을 가져오세요.',
-      '특정 직군·산업군을 명시하면 관련성이 높아집니다. 범용 메시지는 아무에게도 와닿지 않습니다.',
-      '사용 사례(Use Case)를 3가지 이상 구체적 시나리오로 제시하세요.',
-      '헤드라인에 숫자·기간을 넣으세요. (예: "2주 안에 전환율 23% 개선")',
-    ],
-  },
-  value_score: {
-    title: '가치 개선 가이드',
-    tips: [
-      'ROI를 계산해서 보여주세요. (예: "월 100만 원 절감" vs "효율적인 마케팅")',
-      '경쟁사 대비 가격 이점 또는 품질 이점을 수치로 제시하세요.',
-      '무료 체험·환불 보장·성과 기반 요금제로 초기 진입 장벽을 낮추세요.',
-      '고객 사례(Before/After)를 숫자로 표현하세요. (예: "A사: 전환율 1.2% → 3.8%")',
-      '가격 페이지에서 각 플랜이 어떤 문제를 해결하는지 명확히 연결하세요.',
-    ],
-  },
-  differentiation_score: {
-    title: '차별화 개선 가이드',
-    tips: [
-      '"왜 우리인가" 섹션을 별도로 만들고 경쟁사와 기능 비교표를 추가하세요.',
-      '독보적인 데이터·특허·방법론이 있다면 수치로 강조하세요.',
-      '창업자 스토리나 팀의 독특한 배경을 짧게 소개하세요. 사람이 차별점이 될 수 있습니다.',
-      '고객 리뷰에서 "타 서비스와 달리..." 언급이 있으면 이를 문구로 활용하세요.',
-      '틈새 시장에 집중한다면 "유일한 [특정 대상]을 위한 솔루션"으로 포지셔닝하세요.',
-    ],
-  },
-  trust_score: {
-    title: '신뢰 개선 가이드',
-    tips: [
-      '고객사 로고를 히어로 섹션 바로 아래에 배치하세요. 브랜드 인지도가 신뢰를 전달합니다.',
-      '리뷰·후기를 직함·회사명과 함께 실명으로 표시하세요. 익명 후기는 효과가 낮습니다.',
-      '미디어 노출(언론 기사, 수상 이력)을 "~에 소개된"으로 표현하세요.',
-      '보안 인증·개인정보 처리방침 링크를 결제 CTA 근처에 배치하세요.',
-      '창업자·팀 소개 페이지에 LinkedIn 링크를 넣어 실존 인물임을 증명하세요.',
-    ],
-  },
+const DIM_LABEL_MAP = {
+  clarity_score: '명확성',
+  relevance_score: '관련성',
+  value_score: '가치',
+  differentiation_score: '차별화',
+  trust_score: '신뢰',
 };
+
+const _SPEC_KWS = ['구체적','명확','직접','예시','경우','상황','개선','수정','변경','추가','제거','대신','때문에','이유','근거','수치','비율','효과','결과','실제','경험','인상','처음','바로','즉시','어렵'];
+const _ACT_KWS  = ['해주세요','바꿔','수정해','추가해','제거해','줄이','늘려','강조','배치','이동','개선','보완','필요','권장','추천','고려','검토'];
+const _AI_PATS  = ['안녕하세요','감사합니다','수고하셨습니다','전반적으로 좋','잘 만들어','훌륭한','완성도가 높','전체적으로 만족'];
+
+function calcPurityScoreLocal(f) {
+  const text = [f.suggestions, f.strengths, f.weaknesses].filter(Boolean).join(' ');
+  if (!text.trim()) return 0;
+  let score = 20;
+  score += Math.min(20, Math.floor(text.length / 50));
+  const secs = (f.suggestions || '').split('\n\n').filter(s => s.replace(/^\[[^\]]+\]\s*/, '').length >= 10);
+  score += secs.length >= 4 ? 10 : secs.length >= 2 ? 4 : 0;
+  score += Math.min(25, _SPEC_KWS.filter(k => text.includes(k)).length * 4);
+  score += Math.min(25, _ACT_KWS.filter(k => text.includes(k)).length * 5);
+  score  = Math.max(0, score - Math.min(30, _AI_PATS.filter(p => text.includes(p)).length * 12));
+  return Math.min(100, Math.max(0, score));
+}
+
+// 차원별 코멘트 추출: [명확성] 또는 [명확성 / X점] 패턴 매칭 → 없으면 전체 suggestions 폴백
+function extractDimComment(f, dimKey) {
+  const label = DIM_LABEL_MAP[dimKey];
+  if (!label) return null;
+  const text = (f.suggestions || '').trim();
+  if (!text) return null;
+  const re = new RegExp(`\\[${label}[^\\]]*\\][^\\S\\n]*\\n?([^\\[]+)`);
+  const m = text.match(re);
+  if (m) {
+    const c = m[1].trim();
+    if (c.length >= 10) return c.slice(0, 500);
+  }
+  if (text.length >= 10) return text.slice(0, 500);
+  return null;
+}
 
 const DIMENSIONS = [
   { key: 'clarity_score',         label: '명확성', sublabel: 'Clarity',         icon: '◎', color: '#159143', desc: '메시지를 처음 본 사람이 3초 안에 무엇을 파는지 이해하는가?', benchmark: 3.2 },
@@ -100,7 +88,6 @@ function MissionChip({ label, active, color, onClick, title }) {
 }
 
 export default function Diagnosis() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [scores, setScores] = useState({});
   const [distributions, setDistributions] = useState({});
@@ -114,6 +101,7 @@ export default function Diagnosis() {
   const [loading, setLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [rawFeedbacks, setRawFeedbacks] = useState([]);
 
   useEffect(() => { load(); }, []);
 
@@ -183,6 +171,7 @@ export default function Diagnosis() {
     setDistributions(newDistributions);
     setBenchmarks(newBenchmarks);
     setKeywords(extractKeywords(myFeedbacks));
+    setRawFeedbacks(myFeedbacks);
   }
 
   async function loadCompare([idA, idB]) {
@@ -208,6 +197,7 @@ export default function Diagnosis() {
     });
     setBenchmarks(comA.newBenchmarks);
     setHasData(fbsA.length > 0 || fbsB.length > 0);
+    setRawFeedbacks([...fbsA, ...fbsB]);
   }
 
   function toggleMission(id) {
@@ -249,7 +239,7 @@ export default function Diagnosis() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>5-DIMENSION DIAGNOSIS</div>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>전환 5차원 진단</h1>
-        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>메시지 전환 실패의 5가지 근본 원인을 정량적으로 분석합니다.</p>
+        <p style={{ color: 'var(--text-3)', fontSize: 13 }}>완료된 메인 의뢰의 피드백만 집계됩니다. 서브 의뢰 및 조기 종료된 의뢰는 제외됩니다.</p>
 
         {missions.length > 0 && (
           <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -349,25 +339,27 @@ export default function Diagnosis() {
           ) : (
             <Card style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 40, background: 'linear-gradient(135deg, var(--surface), var(--bg-3))' }}>
               <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>종합 전환 점수</div>
-                <div style={{ fontSize: 64, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: overallAvg >= 4 ? 'var(--green)' : overallAvg >= 3 ? 'var(--accent)' : 'var(--red)' }}>
-                  {overallAvg.toFixed(1)}
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>종합 전환 점수</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, justifyContent: 'center' }}>
+                  <span style={{ fontSize: 36, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: overallAvg >= 4 ? 'var(--green)' : overallAvg >= 3 ? 'var(--accent)' : 'var(--red)' }}>
+                    {overallAvg.toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>/ 5.0</span>
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>/ 5.0</div>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
                   가장 취약한 차원: <span style={{ color: worstDim.color }}>{worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)})</span>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 14 }}>{worstDim.desc}</p>
-                <Btn size="sm" variant="outline" onClick={() => setShowGuide(true)}>개선 가이드 보기 →</Btn>
+                {selectedIds.size === 1 && <Btn size="sm" variant="outline" onClick={() => setShowGuide(true)}>개선 가이드 보기 →</Btn>}
               </div>
             </Card>
           )}
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
             {[['overview', '차원별 점수'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['timeline', '시계열 추적']].map(([v, l]) => (
-              <button key={v} onClick={() => v === 'timeline' ? navigate('/company/timeline') : setActiveTab(v)} style={{
+              <button key={v} onClick={() => setActiveTab(v)} style={{
                 padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
                 background: activeTab === v ? 'var(--bg)' : 'transparent',
                 color: activeTab === v ? 'var(--text)' : 'var(--text-3)',
@@ -551,6 +543,8 @@ export default function Diagnosis() {
             );
           })()}
 
+          {activeTab === 'timeline' && <TimelineTracker inline />}
+
           {activeTab === 'benchmark' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.7 }}>
@@ -617,29 +611,52 @@ export default function Diagnosis() {
         </>
       )}
 
-      {/* 개선 가이드 모달 */}
+      {/* 개선 가이드 모달 — 퓨릿 점수 높은 순 실제 코멘트 */}
       {showGuide && (() => {
-        const guide = IMPROVEMENT_GUIDES[worstDim.key];
+        const sorted = [...rawFeedbacks].sort((a, b) => calcPurityScoreLocal(b) - calcPurityScoreLocal(a));
+        const items = sorted
+          .map(f => ({ f, comment: extractDimComment(f, worstDim.key), score: calcPurityScoreLocal(f) }))
+          .filter(x => x.comment)
+          .slice(0, 5);
         return (
           <div onClick={() => setShowGuide(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 36, maxWidth: 540, width: '100%', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 560, width: '100%', border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexShrink: 0 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: worstDim.color, marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>개선 가이드 — {worstDim.label} ({(activeScores[worstDim.key] || 0).toFixed(1)}/5)</div>
-                  <div style={{ fontSize: 20, fontWeight: 800 }}>{guide.title}</div>
-                </div>
-                <button onClick={() => setShowGuide(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1 }}>✕</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {guide.tips.map((tip, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: `3px solid ${worstDim.color}` }}>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: worstDim.color, fontWeight: 700, flexShrink: 0, marginTop: 2 }}>0{i + 1}</span>
-                    <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{tip}</span>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: worstDim.color, marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    실제 패널 코멘트 — {worstDim.label} ({(activeScores[worstDim.key] || 0).toFixed(1)}/5)
                   </div>
-                ))}
+                  <div style={{ fontSize: 20, fontWeight: 800 }}>퓨릿 점수 높은 코멘트</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>구체적이고 신뢰도 높은 패널 피드백입니다.</div>
+                </div>
+                <button onClick={() => setShowGuide(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1, flexShrink: 0 }}>✕</button>
               </div>
-              <div style={{ marginTop: 20, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
-                이 가이드는 "{worstDim.label}" 차원 점수를 기반으로 자동 생성됩니다.
+              {items.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-3)', fontSize: 13 }}>
+                  이 차원에 해당하는 코멘트가 없습니다.
+                </div>
+              ) : (
+                <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {items.map(({ f, comment, score }, i) => {
+                    const dimScore = f[worstDim.key];
+                    return (
+                      <div key={i} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderLeft: `3px solid ${worstDim.color}` }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)', fontWeight: 700 }}>#{i + 1}</span>
+                          {dimScore != null && (
+                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: `${worstDim.color}18`, color: worstDim.color }}>
+                              {worstDim.label} {dimScore.toFixed(1)}점
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.75, margin: 0, fontWeight: 500 }}>{comment}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-3)', textAlign: 'center', flexShrink: 0 }}>
+                신뢰도 높은 패널 순 · 5개
               </div>
             </div>
           </div>

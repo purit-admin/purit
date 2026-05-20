@@ -1,4 +1,5 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
@@ -14,6 +15,13 @@ const SECTIONS = [
 ];
 
 const DIM_LABEL = { clarity: '명확성', relevance: '관련성', value: '가치', differentiation: '차별화', trust: '신뢰' };
+
+function charCountMeta(text) {
+  const len = text.trim().length;
+  if (len >= 50) return { color: '#16a34a', label: '좋습니다!' };
+  if (len >= 30) return { color: '#d97706', label: `조금 더 설명하면 좋아요 (${len}/50)` };
+  return { color: '#9ca3af', label: `최소 30자 이상 입력해주세요 (${len}/30)` };
+}
 
 const DIM_META = {
   clarity:         { label: '명확성', short: '명', color: '#34C759', bg: 'rgba(52,199,89,0.12)'   },
@@ -162,16 +170,22 @@ export default function ActiveMission() {
   const [autoSaving, setAutoSaving]       = useState(false);
   const autoSaveTimer = useRef(null);
   const commentUpdateTimers = useRef({});
+  const bottomSectionRef = useRef(null);
   const [isResubmit, setIsResubmit]           = useState(false);
   const [deadlineExpired, setDeadlineExpired] = useState(false);
   const [slotTaken, setSlotTaken]             = useState(false);
   const [missionEnded, setMissionEnded]       = useState(false);
   const [deadlineBanner, setDeadlineBanner]   = useState(null); // { label, value: Date }
   const [cancelModal, setCancelModal]         = useState(false);
+  const [imgFullscreen, setImgFullscreen]     = useState(false);
   const [cancelConfirming, setCancelConfirming] = useState(false);
   const [cancelError, setCancelError]         = useState('');
   const [startError, setStartError]           = useState('');
   const [submitError, setSubmitError]         = useState('');
+  const [annDeleteError, setAnnDeleteError]   = useState('');
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [submitConfirmCountdown, setSubmitConfirmCountdown] = useState(0);
+  const pendingSubmitRef = useRef(null);
 
   // ── IMAGE ANNOTATION ──
   const [annotations, setAnnotations]         = useState([]);
@@ -204,6 +218,17 @@ export default function ActiveMission() {
   const [emailWouldReply, setEmailWouldReply] = useState(null); // true | false
   const [emailComment, setEmailComment]       = useState('');
   const [customAnswers, setCustomAnswers]     = useState([]); // [{questionId, questionText, type, answer}]
+
+  // ── 제출 확인 카운트다운 ──
+  useEffect(() => {
+    if (showSubmitConfirm) setSubmitConfirmCountdown(5);
+    else setSubmitConfirmCountdown(0);
+  }, [showSubmitConfirm]);
+  useEffect(() => {
+    if (submitConfirmCountdown <= 0) return;
+    const t = setTimeout(() => setSubmitConfirmCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [submitConfirmCountdown]);
 
   useEffect(() => {
     setMission(null);
@@ -401,7 +426,9 @@ export default function ActiveMission() {
                   .eq('feedback_id', fb.id)
                   .order('created_at');
                 setAnnotations(anns || []);
-                setViewedImages(new Set(ms.image_urls.map((_, i) => i)));
+                if ((anns && anns.length > 0) || fb.strengths) {
+                  setViewedImages(new Set(ms.image_urls.map((_, i) => i)));
+                }
                 if (fb.strengths) {
                   try {
                     const s = JSON.parse(fb.strengths);
@@ -453,7 +480,8 @@ export default function ActiveMission() {
       if (Object.keys(toSave).length === 0) return;
       supabase.from('feedbacks')
         .update({ strengths: JSON.stringify(toSave) })
-        .eq('id', draftId);
+        .eq('id', draftId)
+        .then(({ error }) => { if (error) console.warn('[이미지 자동저장 실패]', error.message); });
     }, 1500);
     return () => clearTimeout(autoSaveTimer.current);
   }, [customAnswers, overallComment, skippedDims]);
@@ -598,7 +626,12 @@ export default function ActiveMission() {
   // 어노테이션 삭제 (이미지 모드)
   const handleRemoveAnnotation = async (annId) => {
     clearTimeout(commentUpdateTimers.current[annId]);
-    await supabase.from('feedback_annotations').delete().eq('id', annId);
+    const { error } = await supabase.from('feedback_annotations').delete().eq('id', annId);
+    if (error) {
+      setAnnDeleteError('영역 삭제에 실패했습니다. 다시 시도해 주세요.');
+      return;
+    }
+    setAnnDeleteError('');
     setAnnotations(prev => prev.filter(a => a.id !== annId));
   };
 
@@ -607,7 +640,12 @@ export default function ActiveMission() {
     const willSkip = !skippedDims[dim];
     if (willSkip && draftId) {
       annotations.filter(a => a.dimension === dim).forEach(ann => clearTimeout(commentUpdateTimers.current[ann.id]));
-      await supabase.from('feedback_annotations').delete().eq('feedback_id', draftId).eq('dimension', dim);
+      const { error } = await supabase.from('feedback_annotations').delete().eq('feedback_id', draftId).eq('dimension', dim);
+      if (error) {
+        setAnnDeleteError('영역 삭제에 실패했습니다. 다시 시도해 주세요.');
+        return;
+      }
+      setAnnDeleteError('');
       setAnnotations(prev => prev.filter(a => a.dimension !== dim));
     }
     setSkippedDims(prev => ({ ...prev, [dim]: willSkip }));
@@ -1101,6 +1139,47 @@ export default function ActiveMission() {
     </div>
   );
 
+  /* ─── 제출 확인 모달 포털 (서브·이미지·텍스트 폼 공통) ─── */
+  const submitConfirmPortal = showSubmitConfirm && ReactDOM.createPortal(
+    <div onClick={() => setShowSubmitConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 600, width: '90%', border: '1px solid var(--border)', animation: 'fadeUp 0.2s ease both' }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 10, letterSpacing: '0.1em' }}>SUBMIT CHECK</div>
+        <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>피드백을 제출할까요?</h2>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[
+            '구체적인 이유·개선 방향이 담긴 피드백일수록 승인 확률이 높아집니다.',
+            '글자 수가 많을수록 승인 가능성이 높아집니다.',
+            '반려된 피드백은 보상이 지급되지 않습니다.',
+          ].map((t, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+              <span style={{ color: '#F59E0B', flexShrink: 0, marginTop: 1 }}>⚠</span>
+              <span>{t}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginBottom: 24 }}>
+          <span style={{ color: 'var(--red,#ef4444)', flexShrink: 0, fontSize: 14 }}>🚨</span>
+          <span style={{ fontSize: 13, color: 'var(--red,#ef4444)', fontWeight: 700, lineHeight: 1.5 }}>지속적인 반려는 패널 계정 정지로 이어질 수 있습니다.</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Btn
+            onClick={() => {
+              setShowSubmitConfirm(false);
+              if (pendingSubmitRef.current) {
+                pendingSubmitRef.current();
+                pendingSubmitRef.current = null;
+              }
+            }}
+            disabled={submitConfirmCountdown > 0}
+          >
+            {submitConfirmCountdown > 0 ? `${submitConfirmCountdown}초 후 제출 가능` : '네, 제출합니다 →'}
+          </Btn>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+
   /* ─── 서브 미션 폼 ─── */
   if (isSubMission && step >= 1) {
     const parsedDesc = parseSubDesc(mission.description, missionType);
@@ -1158,9 +1237,9 @@ export default function ActiveMission() {
 
     const canSubmit = () => {
       const baseOk = (() => {
-        if (missionType === 'preference') return prefChoice && prefClarity && prefIntent && prefComment.trim();
-        if (missionType === 'pricing') return priceWouldBuy !== null && priceFairness && priceValue;
-        if (missionType === 'email') return emailWouldReply !== null && emailHook && emailClarity && emailOpenIntent && emailCuriosity;
+        if (missionType === 'preference') return prefChoice && prefClarity && prefIntent && prefComment.trim().length >= 30;
+        if (missionType === 'pricing') return priceWouldBuy !== null && priceFairness && priceValue && priceComment.trim().length >= 30;
+        if (missionType === 'email') return emailWouldReply !== null && emailHook && emailClarity && emailOpenIntent && emailCuriosity && emailComment.trim().length >= 30;
         return false;
       })();
       return baseOk && (allTypedQs.length === 0 || allTypedQsAnswered());
@@ -1207,6 +1286,9 @@ export default function ActiveMission() {
               <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
               <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>선택 이유 및 개선 의견</div>
               <textarea value={prefComment} onChange={e => setPrefComment(e.target.value)} rows={4} placeholder="어떤 이유로 해당 소재를 선택했는지, 개선할 점은 무엇인지 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
+              <div style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-sans)', color: charCountMeta(prefComment).color, fontWeight: 600 }}>
+                {charCountMeta(prefComment).label}
+              </div>
             </Card>
           </div>
         )}
@@ -1246,6 +1328,9 @@ export default function ActiveMission() {
               <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
               <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>가격 피드백 (구매 장벽, 개선점)</div>
               <textarea value={priceComment} onChange={e => setPriceComment(e.target.value)} rows={4} placeholder="가격에서 망설여지는 부분, 더 합리적이라고 느끼기 위해 필요한 것 등을 구체적으로 적어주세요." style={{ resize: 'vertical' }} />
+              <div style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-sans)', color: charCountMeta(priceComment).color, fontWeight: 600 }}>
+                {charCountMeta(priceComment).label}
+              </div>
             </Card>
           </div>
         )}
@@ -1282,6 +1367,9 @@ export default function ActiveMission() {
               <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>총 평가</div>
               <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>이메일 피드백</div>
               <textarea value={emailComment} onChange={e => setEmailComment(e.target.value)} rows={4} placeholder="가장 인상적인 부분과 개선이 필요한 부분을 구체적으로 작성해주세요." style={{ resize: 'vertical' }} />
+              <div style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-sans)', color: charCountMeta(emailComment).color, fontWeight: 600 }}>
+                {charCountMeta(emailComment).label}
+              </div>
             </Card>
           </div>
         )}
@@ -1292,10 +1380,11 @@ export default function ActiveMission() {
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-          <Btn disabled={!canSubmit() || submitting} onClick={() => { setSubmitError(''); handleSubMissionSubmit(); }}>
+          <Btn disabled={!canSubmit() || submitting} onClick={() => { setSubmitError(''); pendingSubmitRef.current = handleSubMissionSubmit; setShowSubmitConfirm(true); }}>
             {submitting ? '제출 중...' : '피드백 제출하기 →'}
           </Btn>
         </div>
+        {submitConfirmPortal}
       </div>
     );
   }
@@ -1303,42 +1392,37 @@ export default function ActiveMission() {
   /* ─── 이미지 어노테이션 모드 ─── */
   if (hasImages && step >= 1) {
     const imageUrls = mission.image_urls;
-    const curAnns   = annotations.filter(a => a.image_index === currentImageIdx);
+    const curAnns   = annotations.filter(a => a.image_index === currentImageIdx && a.dimension === activeDimension);
 
     const dimDone = Object.fromEntries(
       Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k) || skippedDims[k]])
     );
     const allDimsDone    = Object.values(dimDone).every(Boolean);
-    const allImagesViewed = imageUrls.length <= 1 || viewedImages.size >= imageUrls.length;
+    const allImagesViewed = viewedImages.size >= imageUrls.length;
     const lpQsAnswered = lpTypedQs.length === 0 || lpTypedQs.every(q => {
       const a = customAnswers.find(x => x.questionId === q.id)?.answer;
       if (a === undefined || a === null || a === '') return false;
       if (q.type === 'text') return String(a).trim().length >= 10;
       return true;
     });
-    const canSubmitImage = allDimsDone && allImagesViewed && overallComment.trim().length > 0 && lpQsAnswered;
+    const canSubmitImage = allDimsDone && allImagesViewed && overallComment.trim().length >= 30 && lpQsAnswered;
 
     return (
-      <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 960, animation: 'fadeUp 0.4s ease both' }}>
+      <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1400, animation: 'fadeUp 0.4s ease both' }}>
         {deadlineBannerEl}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
-            <h1 style={{ fontSize: 24, fontWeight: 800 }}>이미지 어노테이션</h1>
-            <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
-              탭을 클릭하고 해당 영역을 드래그하세요 · 같은 탭에서 여러 번 드래그할 수 있어요
-            </p>
+            <h1 style={{ fontSize: 24, fontWeight: 800 }}>{mission.title}</h1>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-sans)', color: Object.values(dimDone).filter(Boolean).length === 5 ? 'var(--green)' : 'var(--accent)' }}>
-              {Object.values(dimDone).filter(Boolean).length}/5
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>차원 완료</div>
-          </div>
+          <div />
         </div>
 
-        {/* 차원 선택 탭 */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        {/* 차원 선택 탭 — 전체 폭, split 위에 배치 */}
+        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8 }}>
+          아래 탭을 클릭하고 이미지를 드래그하세요. 같은 탭에서 여러 번 드래그 할 수 있습니다.
+        </p>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {Object.entries(DIM_META).map(([key, meta]) => {
             const count    = annotations.filter(a => a.dimension === key).length;
             const done     = count > 0;
@@ -1349,8 +1433,8 @@ export default function ActiveMission() {
                 key={key}
                 onClick={() => setActiveDimension(key)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '9px 18px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '7px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 700,
                   cursor: 'pointer', border: '2px solid',
                   borderColor: isActive ? (skipped ? '#94a3b8' : meta.color) : (done || skipped) ? (skipped ? '#94a3b8' : meta.color) : 'var(--border)',
                   background: isActive ? (skipped ? '#94a3b8' : meta.color) : skipped ? 'rgba(148,163,184,0.18)' : done ? meta.bg : 'var(--surface)',
@@ -1360,19 +1444,19 @@ export default function ActiveMission() {
                 }}
               >
                 {skipped && !isActive && <span>—</span>}
-                {!done && !skipped && <span style={{ fontSize: 11, opacity: 0.5 }}>○</span>}
+                {!done && !skipped && <span style={{ fontSize: 10, opacity: 0.5 }}>○</span>}
                 {meta.label}
                 {count > 0 && !skipped && (
                   <span style={{
                     background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--bg)',
-                    borderRadius: 10, padding: '1px 7px', fontSize: 11,
+                    borderRadius: 10, padding: '1px 6px', fontSize: 10,
                     color: isActive ? '#fff' : meta.color,
                   }}>{count}</span>
                 )}
                 {skipped && (
                   <span style={{
                     background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(148,163,184,0.2)',
-                    borderRadius: 10, padding: '1px 7px', fontSize: 10,
+                    borderRadius: 10, padding: '1px 6px', fontSize: 10,
                     color: isActive ? '#fff' : '#94a3b8',
                   }}>N/A</span>
                 )}
@@ -1381,14 +1465,14 @@ export default function ActiveMission() {
           })}
         </div>
 
-        {/* 현재 활성 차원 — 피드백 없음 체크박스 */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, padding: '8px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text-2)', userSelect: 'none' }}>
+        {/* 현재 활성 차원 — 피드백 없음 체크박스 — 콘텐츠 너비만큼 */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', marginBottom: 12, padding: '7px 12px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)', userSelect: 'none' }}>
             <input
               type="checkbox"
               checked={skippedDims[activeDimension]}
               onChange={() => toggleSkipDim(activeDimension)}
-              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#94a3b8' }}
+              style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#94a3b8' }}
             />
             <span>
               <strong style={{ color: DIM_META[activeDimension]?.color }}>{DIM_META[activeDimension]?.label}</strong>
@@ -1397,9 +1481,9 @@ export default function ActiveMission() {
           </label>
         </div>
 
-        {/* 이미지 탭 */}
+        {/* 이미지 탭 — 전체 폭, split 위에 배치 */}
         {imageUrls.length > 1 && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             {imageUrls.map((_, i) => (
               <button
                 key={i}
@@ -1408,7 +1492,7 @@ export default function ActiveMission() {
                   setViewedImages(prev => { const s = new Set(prev); s.add(i); return s; });
                 }}
                 style={{
-                  padding: '6px 16px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
+                  padding: '5px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
                   cursor: 'pointer', border: '1.5px solid',
                   borderColor: currentImageIdx === i ? 'var(--accent)' : viewedImages.has(i) ? 'var(--accent)' : 'var(--border)',
                   background: currentImageIdx === i ? 'var(--accent)' : 'var(--surface)',
@@ -1418,8 +1502,11 @@ export default function ActiveMission() {
                 }}
               >
                 이미지 {i + 1}
+                {viewedImages.has(i) && (
+                  <span style={{ marginLeft: 4 }}>✓</span>
+                )}
                 {annotations.filter(a => a.image_index === i).length > 0 && (
-                  <span style={{ marginLeft: 6, background: 'rgba(255,255,255,0.25)', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>
+                  <span style={{ marginLeft: 5, background: 'rgba(16,54,125,0.15)', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>
                     {annotations.filter(a => a.image_index === i).length}
                   </span>
                 )}
@@ -1428,162 +1515,236 @@ export default function ActiveMission() {
           </div>
         )}
 
-        {/* 어노테이터 */}
-        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 16 }}>
-          <ImageAnnotator
-            imageUrl={imageUrls[currentImageIdx]}
-            imageIndex={currentImageIdx}
-            annotations={curAnns}
-            onAdd={handleAddAnnotation}
-            onRemove={handleRemoveAnnotation}
-            readonly={false}
-            dragDisabled={skippedDims[activeDimension]}
-            activeDimension={activeDimension}
-          />
+        {/* 좌우 분할 레이아웃 */}
+        <div className="dim-tab-layout">
+          {/* ── 왼쪽: 이미지 고정 영역 ── */}
+          <div className="dim-tab-left">
+            {/* 어노테이터 */}
+            <div style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', position: 'relative' }}>
+              <ImageAnnotator
+                imageUrl={imageUrls[currentImageIdx]}
+                imageIndex={currentImageIdx}
+                annotations={curAnns}
+                onAdd={handleAddAnnotation}
+                onRemove={handleRemoveAnnotation}
+                readonly={false}
+                dragDisabled={skippedDims[activeDimension]}
+                activeDimension={activeDimension}
+              />
+              {/* 전체보기 버튼 */}
+              <button
+                onClick={() => setImgFullscreen(true)}
+                style={{
+                  position: 'absolute', bottom: 10, right: 10,
+                  width: 32, height: 32,
+                  background: 'rgba(0,0,0,0.55)', border: 'none',
+                  borderRadius: 6, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.8)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.55)'}
+                title="전체 보기"
+              >
+                {/* Maximize icon */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* ── 오른쪽: 코멘트 영역 ── */}
+          <div className="dim-tab-right" style={{ width: 420 }}>
+            {annDeleteError && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', color: 'var(--red)', fontSize: 13 }}>
+                {annDeleteError}
+              </div>
+            )}
+            {/* 코멘트 박스 — 현재 이미지의 어노테이션별 */}
+            {curAnns.length > 0 ? (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
+                  코멘트 작성 ({curAnns.length}개 영역)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {curAnns.map(ann => {
+                    const meta = DIM_META[ann.dimension];
+                    const seqNum = curAnns.filter(a => a.dimension === ann.dimension).findIndex(a => a.id === ann.id) + 1;
+                    return (
+                      <div key={ann.id} style={{
+                        border: '1px solid var(--border)',
+                        borderLeft: `3px solid ${meta.color}`,
+                        borderRadius: 'var(--radius)',
+                        padding: '12px 14px',
+                        background: 'var(--surface)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                            {meta.short}{seqNum}
+                          </span>
+                          <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600 }}>{meta.label}</span>
+                          <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-sans)' }}>{ann.score}점</span>
+                          <button
+                            onClick={() => handleRemoveAnnotation(ann.id)}
+                            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 13, lineHeight: 1, padding: '2px 4px', borderRadius: 3 }}
+                            title="영역 삭제"
+                          >✕</button>
+                        </div>
+                        <textarea
+                          value={ann.comment || ''}
+                          onChange={e => handleUpdateAnnotationComment(ann.id, e.target.value)}
+                          placeholder="구체적인 이유와 개선 방향을 포함하여 작성해주세요."
+                          rows={3}
+                          style={{
+                            width: '100%', boxSizing: 'border-box',
+                            padding: '8px 10px', borderRadius: 'var(--radius)',
+                            border: '1px solid var(--border)', background: 'var(--bg)',
+                            color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
+                            resize: 'vertical', fontFamily: 'inherit',
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
+                  {DIM_META[activeDimension]?.label}에 관한 코멘트를 추가로 남기려면<br />이미지를 다시 드래그하세요.
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginBottom: 16, padding: '32px 20px', textAlign: 'center', background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>✏️</div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                  이미지 위를 드래그해서<br />영역을 지정하면<br />코멘트 박스가 여기에 표시됩니다
+                </div>
+              </div>
+            )}
+
+            {/* 진행 현황 힌트 */}
+            {!allDimsDone || !allImagesViewed ? (
+              <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
+                5차원 작성 완료 및 모든 이미지 확인 후 총평 작성 가능
+              </div>
+            ) : (
+              <button
+                onClick={() => bottomSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                style={{ marginTop: 8, width: '100%', padding: '12px 14px', background: 'rgba(22,163,74,0.07)', border: '1.5px solid rgba(22,163,74,0.3)', borderRadius: 'var(--radius)', fontSize: 12, color: '#16a34a', fontWeight: 600, textAlign: 'center', cursor: 'pointer' }}
+              >
+                ✓ 아래에서 총평을 작성해 주세요 ↓
+              </button>
+            )}
+
+            <div style={{ marginTop: 12 }}>
+              <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
+            </div>
+          </div>
         </div>
 
-        {/* 코멘트 박스 — 현재 이미지의 어노테이션별 */}
-        {curAnns.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
-              코멘트 작성 ({curAnns.length}개 영역)
+        {/* ── 추가 질문 + 총평 + 제출 — 소재 아래 ── */}
+        {allDimsDone && allImagesViewed && (
+          <div ref={bottomSectionRef} style={{ marginTop: 32, borderTop: '2px solid var(--border)', paddingTop: 28 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: '#16a34a', marginBottom: 16, letterSpacing: '0.06em', fontWeight: 700 }}>
+              ✓ 모든 차원 평가 완료 — 총평 및 추가 질문을 작성해 주세요
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {curAnns.map(ann => {
-                const meta = DIM_META[ann.dimension];
-                const seqNum = curAnns.filter(a => a.dimension === ann.dimension).findIndex(a => a.id === ann.id) + 1;
-                return (
-                  <div key={ann.id} style={{
-                    border: '1px solid var(--border)',
-                    borderLeft: `3px solid ${meta.color}`,
-                    borderRadius: 'var(--radius)',
-                    padding: '12px 14px',
-                    background: 'var(--surface)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span style={{ background: meta.color, color: '#fff', borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
-                        {meta.short}{seqNum}
-                      </span>
-                      <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600 }}>{meta.label}</span>
-                      <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-sans)' }}>{ann.score}점</span>
-                    </div>
-                    <textarea
-                      value={ann.comment || ''}
-                      onChange={e => handleUpdateAnnotationComment(ann.id, e.target.value)}
-                      placeholder={`${meta.label} 측면에서 발견한 문제점이나 강점을 구체적으로 작성해주세요.`}
-                      rows={3}
-                      style={{
-                        width: '100%', boxSizing: 'border-box',
-                        padding: '8px 10px', borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)', background: 'var(--bg)',
-                        color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
-                        resize: 'vertical', fontFamily: 'inherit',
-                      }}
-                    />
-                  </div>
-                );
-              })}
+
+            {lpTypedQs.length > 0 && (
+              <Card style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>추가 질문</div>
+                <TypedQuestionsBlock
+                  qs={lpTypedQs}
+                  get={id => customAnswers.find(a => a.questionId === id)?.answer}
+                  set={(qId, qText, type, ans) => setCustomAnswers(prev => {
+                    const idx = prev.findIndex(a => a.questionId === qId);
+                    const entry = { questionId: qId, questionText: qText, type, answer: ans };
+                    return idx >= 0 ? prev.map((a, i) => i === idx ? entry : a) : [...prev, entry];
+                  })}
+                />
+              </Card>
+            )}
+
+            <Card style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
+                총평 (필수)
+              </div>
+              <textarea
+                value={overallComment}
+                onChange={e => setOverallComment(e.target.value)}
+                placeholder="전반적인 인상, 가장 개선이 필요한 부분, 특히 좋았던 점을 자유롭게 작성해주세요."
+                rows={5}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '10px 12px', borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
+                  resize: 'vertical', fontFamily: 'inherit',
+                }}
+              />
+              <div style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-sans)', color: charCountMeta(overallComment).color, fontWeight: 600 }}>
+                {charCountMeta(overallComment).label}
+              </div>
+            </Card>
+
+            {submitError && (
+              <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+                {submitError}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Btn
+                disabled={!canSubmitImage || submitting}
+                onClick={() => { setSubmitError(''); pendingSubmitRef.current = handleSubmit; setShowSubmitConfirm(true); }}
+              >
+                {submitting ? '제출 중...' : '피드백 제출하기 →'}
+              </Btn>
             </div>
           </div>
         )}
 
-        {/* 차원 완료 현황 안내 */}
-        {!allDimsDone && (
-          <div style={{
-            marginBottom: 16, padding: '12px 16px',
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-2)',
-          }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>5개 차원 모두 어노테이션을 남기거나 '피드백할 내용이 없습니다'로 표시해야 제출할 수 있어요</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {Object.entries(dimDone).map(([key, done]) => (
-                <span key={key} style={{
-                  fontSize: 11, padding: '3px 10px', borderRadius: 12,
-                  background: done ? (skippedDims[key] ? 'rgba(148,163,184,0.18)' : DIM_META[key].bg) : 'var(--bg)',
-                  color: done ? (skippedDims[key] ? '#94a3b8' : DIM_META[key].color) : 'var(--text-3)',
-                  border: `1px solid ${done ? (skippedDims[key] ? '#94a3b8' : DIM_META[key].color) : 'var(--border)'}`,
-                }}>
-                  {done ? (skippedDims[key] ? '—' : '✓') : '○'} {DIM_META[key].label}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 총평 — 5개 차원 모두 완료 후 표시 */}
-        {allDimsDone && (
-          <div style={{
-            marginBottom: 16, padding: '16px 18px',
-            background: 'var(--surface)', border: '1.5px solid var(--accent)',
-            borderRadius: 'var(--radius)',
-          }}>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
-              ✓ 모든 차원 평가 완료 — 총평 작성 (필수)
-            </div>
-            <textarea
-              value={overallComment}
-              onChange={e => setOverallComment(e.target.value)}
-              placeholder="전반적인 인상, 가장 개선이 필요한 부분, 특히 좋았던 점을 자유롭게 작성해주세요."
-              rows={4}
+        {/* 이미지 전체보기 모달 */}
+        {imgFullscreen && ReactDOM.createPortal(
+          <div
+            onClick={() => setImgFullscreen(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              background: 'rgba(0,0,0,0.88)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'zoom-out',
+            }}
+          >
+            <img
+              src={imageUrls[currentImageIdx]}
+              alt="소재 전체보기"
+              onClick={e => e.stopPropagation()}
               style={{
-                width: '100%', boxSizing: 'border-box',
-                padding: '10px 12px', borderRadius: 'var(--radius)',
-                border: '1px solid var(--border)', background: 'var(--bg)',
-                color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
-                resize: 'vertical', fontFamily: 'inherit',
+                maxWidth: '92vw', maxHeight: '92vh',
+                objectFit: 'contain',
+                borderRadius: 8,
+                cursor: 'default',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
               }}
             />
-          </div>
+            <button
+              onClick={() => setImgFullscreen(false)}
+              style={{
+                position: 'fixed', top: 20, right: 24,
+                background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: 8, cursor: 'pointer',
+                width: 36, height: 36,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>,
+          document.body
         )}
-
-        {allDimsDone && lpTypedQs.length > 0 && (
-          <Card style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>추가 질문</div>
-            <TypedQuestionsBlock
-              qs={lpTypedQs}
-              get={id => customAnswers.find(a => a.questionId === id)?.answer}
-              set={(qId, qText, type, ans) => setCustomAnswers(prev => {
-                const idx = prev.findIndex(a => a.questionId === qId);
-                const entry = { questionId: qId, questionText: qText, type, answer: ans };
-                return idx >= 0 ? prev.map((a, i) => i === idx ? entry : a) : [...prev, entry];
-              })}
-            />
-          </Card>
-        )}
-
-        {imageUrls.length > 1 && !allImagesViewed && (
-          <div style={{
-            marginBottom: 12, padding: '10px 14px',
-            background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.4)',
-            borderRadius: 'var(--radius)', fontSize: 12, color: '#b45309',
-          }}>
-            📷 이미지 {imageUrls.map((_, i) => i).filter(i => !viewedImages.has(i)).map(i => `${i + 1}번`).join(', ')}을 아직 확인하지 않았습니다. 모든 이미지를 확인한 후 제출할 수 있습니다.
-          </div>
-        )}
-        {submitError && (
-          <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
-            {submitError}
-          </div>
-        )}
-        {cancelError && (
-          <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
-            {cancelError}
-          </div>
-        )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
-            {draftId && (
-              <Btn variant="ghost" onClick={() => { setCancelError(''); setCancelModal(true); }} style={{ fontSize: 12, color: 'var(--text-3)' }}>수락 취소</Btn>
-            )}
-          </div>
-          <Btn
-            disabled={!canSubmitImage || submitting}
-            onClick={() => { setSubmitError(''); handleSubmit(); }}
-          >
-            {submitting ? '제출 중...' : '제출하기 →'}
-          </Btn>
-        </div>
 
         {cancelModal && (
           <ConfirmModal
@@ -1597,6 +1758,7 @@ export default function ActiveMission() {
             errorMsg={cancelError}
           />
         )}
+        {submitConfirmPortal}
       </div>
     );
   }
@@ -1652,6 +1814,9 @@ export default function ActiveMission() {
             placeholder={`${sec.label} 측면에서 발견한 문제점이나 강점을 구체적으로 작성해주세요.`}
             rows={5} style={{ resize: 'vertical' }}
           />
+          <div style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-sans)', color: charCountMeta(comments[sec.key] || '').color, fontWeight: 600 }}>
+            {charCountMeta(comments[sec.key] || '').label}
+          </div>
           {purityWarning && (
             <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8, padding: '10px 14px', background: 'var(--red-dim)', borderRadius: 'var(--radius)' }}>
               {purityWarning}
@@ -1683,17 +1848,18 @@ export default function ActiveMission() {
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <Btn variant="secondary" onClick={() => setStep(s => s - 1)}>이전</Btn>
         <Btn
-          disabled={!scores[sec.key] || !comments[sec.key].trim() || submitting || (isLast && !(lpTypedQs.length === 0 || lpTypedQs.every(q => {
+          disabled={!scores[sec.key] || (comments[sec.key] || '').trim().length < 30 || submitting || (isLast && !(lpTypedQs.length === 0 || lpTypedQs.every(q => {
             const a = customAnswers.find(x => x.questionId === q.id)?.answer;
             if (a === undefined || a === null || a === '') return false;
             if (q.type === 'text') return String(a).trim().length >= 10;
             return true;
           })))}
-          onClick={() => isLast ? (setSubmitError(''), handleSubmit()) : setStep(s => s + 1)}
+          onClick={() => isLast ? (setSubmitError(''), pendingSubmitRef.current = handleSubmit, setShowSubmitConfirm(true)) : setStep(s => s + 1)}
         >
           {isLast ? (submitting ? '제출 중...' : '제출하기 →') : '다음 →'}
         </Btn>
       </div>
+      {submitConfirmPortal}
     </div>
   );
 }

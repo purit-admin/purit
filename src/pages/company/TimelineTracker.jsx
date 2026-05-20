@@ -18,7 +18,7 @@ function formatDate(ts) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function TimelineTracker() {
+export default function TimelineTracker({ inline = false }) {
   const [missions, setMissions]   = useState([]);
   const [selected, setSelected]   = useState([]);
   const [chartData, setChartData] = useState([]);
@@ -125,31 +125,24 @@ export default function TimelineTracker() {
   };
 
   if (loading) return (
-    <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중…</div>
+    <div style={{ padding: inline ? '20px 0' : '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중…</div>
   );
 
-  return (
-    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>TIMELINE · SCORE EVOLUTION</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>시계열 점수 추적</h1>
-            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>의뢰별·기간별 5차원 점수 변화를 추적하고 개선 추이를 확인하세요.</p>
-          </div>
-          <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4 }}>
-            {[['weekly', '주간'], ['mission', '의뢰별']].map(([v, l]) => (
-              <button key={v} onClick={() => switchView(v)} style={{
-                padding: '6px 14px', borderRadius: 3, fontSize: 12, fontWeight: 500,
-                background: view === v ? 'var(--bg)' : 'transparent',
-                color: view === v ? 'var(--text)' : 'var(--text-3)',
-                border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-              }}>{l}</button>
-            ))}
-          </div>
-        </div>
-      </div>
+  const viewToggle = (
+    <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4 }}>
+      {[['weekly', '주간'], ['mission', '의뢰별']].map(([v, l]) => (
+        <button key={v} onClick={() => switchView(v)} style={{
+          padding: '6px 14px', borderRadius: 3, fontSize: 12, fontWeight: 500,
+          background: view === v ? 'var(--bg)' : 'transparent',
+          color: view === v ? 'var(--text)' : 'var(--text-3)',
+          border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+        }}>{l}</button>
+      ))}
+    </div>
+  );
 
+  const body = (
+    <>
       {/* Mission toggle chips */}
       {missions.length > 0 && (
         <div style={{ marginBottom: 24 }}>
@@ -175,9 +168,10 @@ export default function TimelineTracker() {
             <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>
               {selected.length}/{missions.length}개 선택됨
             </span>
+            {inline && <div style={{ marginLeft: 'auto' }}>{viewToggle}</div>}
             {missions.length > CHIPS_DEFAULT && (
               <button onClick={() => setChipsExpanded(e => !e)} style={{
-                marginLeft: 'auto', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
+                marginLeft: inline ? 0 : 'auto', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 500,
                 background: 'var(--surface)', border: '1px solid var(--border)',
                 color: 'var(--accent)', cursor: 'pointer',
               }}>
@@ -292,6 +286,24 @@ export default function TimelineTracker() {
           </Card>
         </>
       )}
+    </>
+  );
+
+  if (inline) return body;
+
+  return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>TIMELINE · SCORE EVOLUTION</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>시계열 점수 추적</h1>
+            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>의뢰별·기간별 5차원 점수 변화를 추적하고 개선 추이를 확인하세요.</p>
+          </div>
+          {viewToggle}
+        </div>
+      </div>
+      {body}
     </div>
   );
 }

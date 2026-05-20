@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     let companyName = company?.name ?? 'PURIT';
 
     // 3. 미션 정보 조회
-    let missionQuery = supabase.from('missions').select('id, title, company_id');
+    let missionQuery = supabase.from('missions').select('id, title, company_id, description');
     if (mission_id) {
       missionQuery = missionQuery.eq('id', mission_id);
     } else if (companyId) {
@@ -107,14 +107,65 @@ Deno.serve(async (req) => {
     }
     const overallScore = Object.values(scores).reduce((a, b) => a + b, 0) / DIMS.length;
 
-    // 6. 패널 코멘트 수집 (suggestions)
-    const comments = feedbacks
+    // 6. 미션 description JSON 파싱 (컨텍스트 추출)
+    let missionContext = '';
+    try {
+      const desc = JSON.parse((mission as Record<string, unknown>).description as string || '{}') as Record<string, unknown>;
+      const parts: string[] = [];
+      if (desc.industry) parts.push(`산업군: ${desc.industry}`);
+      if (desc.product) parts.push(`서비스명: ${desc.product}`);
+      if (desc.lpUrl) parts.push(`LP URL: ${desc.lpUrl}`);
+      if (desc.personaAge || desc.personaRole || desc.personaIncome) {
+        const persona = [desc.personaAge, desc.personaRole, desc.personaIncome, desc.personaContext]
+          .filter(Boolean).join(', ');
+        if (persona) parts.push(`타겟 페르소나: ${persona}`);
+      }
+      if (desc.briefText) parts.push(`브리핑: ${desc.briefText}`);
+      if (Array.isArray(desc.focusAreas) && desc.focusAreas.length > 0) {
+        parts.push(`집중 검증 영역: ${(desc.focusAreas as string[]).join(', ')}`);
+      }
+      missionContext = parts.join('\n');
+    } catch {
+      // description이 JSON이 아니면 무시
+    }
+
+    // 7. 퓨릿 점수 기반 코멘트 선별 (상위 10개)
+    function calcPurityScore(f: Record<string, unknown>): number {
+      const suggestions = (f.suggestions as string) || '';
+      if (!suggestions) return 0;
+      let score = 20;
+      // 텍스트 길이 (max 20)
+      const len = suggestions.length;
+      score += Math.min(20, Math.floor(len / 30));
+      // 섹션 균형 (max 10)
+      const sections = suggestions.split('\n\n').filter((s: string) => s.length > 10).length;
+      score += sections >= 4 ? 10 : sections >= 2 ? 4 : 0;
+      // 구체성 키워드 (×4, max 25)
+      const specificityKws = ['구체적', '특히', '예를 들어', '실제로', '%', '배', '배율', '초', '명', '원', '클릭', '전환', '이탈', '체류'];
+      const specCount = specificityKws.filter(k => suggestions.includes(k)).length;
+      score += Math.min(25, specCount * 4);
+      // 실행 가능성 키워드 (×5, max 25)
+      const actionKws = ['개선', '변경', '추가', '제거', '수정', '강화', '명확', '보완', '재작성', '테스트', '대체', '줄여', '늘려'];
+      const actionCount = actionKws.filter(k => suggestions.includes(k)).length;
+      score += Math.min(25, actionCount * 5);
+      // AI 패턴 패널티 (×-12, min -30)
+      const aiPatterns = ['안녕하세요', '감사합니다', '도움이 되셨으면', '좋은 하루', '잘 부탁드립니다'];
+      const aiCount = aiPatterns.filter(k => suggestions.includes(k)).length;
+      score += Math.max(-30, aiCount * -12);
+      return Math.max(0, Math.min(100, score));
+    }
+
+    const sortedFeedbacks = [...feedbacks].sort(
+      (a: Record<string, unknown>, b: Record<string, unknown>) =>
+        calcPurityScore(b) - calcPurityScore(a)
+    );
+    const comments = sortedFeedbacks
       .map((f: Record<string, unknown>) => f.suggestions as string)
       .filter(Boolean)
       .slice(0, 10)
       .join('\n---\n');
 
-    // 7. AI 호출 (ANTHROPIC_API_KEY 없으면 Mock 처리)
+    // 8. AI 호출 (ANTHROPIC_API_KEY 없으면 Mock 처리)
     let aiResult: {
       tldr: string;
       priorityFixes: Array<{ area: string; issue: string; action: string; impact: string }>;
@@ -131,24 +182,26 @@ Deno.serve(async (req) => {
 패널 수: ${feedbacks.length}명
 종합 점수: ${overallScore.toFixed(2)}/5
 
-5차원 점수:
+${missionContext ? `[미션 컨텍스트]\n${missionContext}\n` : ''}
+[5차원 점수]
 ${scoreLines}
 
-패널 코멘트 (일부):
+[패널 코멘트 — 신뢰도 높은 순 최대 10개]
 ${comments || '(코멘트 없음)'}
 
-다음 형식의 JSON만 응답하세요 (다른 텍스트 없이):
+위 데이터를 바탕으로 다음 형식의 JSON만 응답하세요 (다른 텍스트 없이):
 {
-  "tldr": "2~3문장으로 핵심 요약 (한국어)",
+  "tldr": "3~4문장으로 핵심 요약. 가장 중요한 문제와 기회를 구체적으로 언급할 것. (한국어)",
   "priorityFixes": [
-    {"area": "개선 영역명", "issue": "문제 설명", "action": "구체적 권장 액션", "impact": "기대 효과 (예: 전환율 +15% 예상)"},
+    {"area": "개선 영역명", "issue": "패널 코멘트에서 드러난 구체적 문제점", "action": "즉시 실행 가능한 구체적 액션 (예: '헤드라인 카피를 X에서 Y로 변경')", "impact": "기대 효과 (예: 전환율 +15~25% 예상)"},
     {"area": "...", "issue": "...", "action": "...", "impact": "..."},
     {"area": "...", "issue": "...", "action": "...", "impact": "..."}
   ],
-  "strengths": ["강점 1 (한국어)", "강점 2 (한국어)"],
+  "strengths": ["실제 데이터에 근거한 강점 1 (한국어)", "강점 2 (한국어)", "강점 3 (한국어)"],
   "riskFlags": [
-    {"level": "high", "text": "리스크 설명 (한국어)"},
-    {"level": "mid", "text": "리스크 설명 (한국어)"}
+    {"level": "high", "text": "즉시 대응이 필요한 리스크 (한국어)"},
+    {"level": "mid", "text": "중기적으로 개선해야 할 리스크 (한국어)"},
+    {"level": "low", "text": "모니터링 필요 항목 (한국어)"}
   ]
 }`;
 
@@ -160,8 +213,8 @@ ${comments || '(코멘트 없음)'}
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2048,
           messages: [{ role: 'user', content: prompt }],
         }),
       });
@@ -195,7 +248,7 @@ ${comments || '(코멘트 없음)'}
       };
     }
 
-    // 8. ai_reports INSERT (기존 레코드 있으면 삭제 후 재삽입)
+    // 9. ai_reports INSERT (기존 레코드 있으면 삭제 후 재삽입)
     await supabase.from('ai_reports').delete().eq('mission_id', mission.id).eq('company_id', companyId);
 
     const { data: inserted, error: insertErr } = await supabase.from('ai_reports').insert({
