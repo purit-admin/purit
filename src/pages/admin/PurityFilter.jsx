@@ -593,8 +593,8 @@ export default function PurityFilter() {
           <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 2 }}>점수 기준:</span>
           {[
             ['all', '전체', null],
-            ['above65', '65점 이상', filteredBase.filter(f => getScore(f) >= 65).length],
-            ['below65', '65점 미만', filteredBase.filter(f => getScore(f) < 65).length],
+            ['above65', '65점 이상', filteredBySearch.filter(f => getScore(f) >= 65).length],
+            ['below65', '65점 미만', filteredBySearch.filter(f => getScore(f) < 65).length],
           ].map(([v, l, cnt]) => (
             <button key={v} onClick={() => { setPendingSubFilter(v); setListPage(1); setCheckedIds(new Set()); }} style={{
               padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer', border: '1px solid',
@@ -602,7 +602,7 @@ export default function PurityFilter() {
               color: pendingSubFilter === v ? '#fff' : 'var(--text-2)',
               borderColor: pendingSubFilter === v ? 'var(--accent)' : 'var(--border)',
             }}>
-              {l}{cnt !== null ? ` (${cnt})` : ` (${filteredBase.length})`}
+              {l}{cnt !== null ? ` (${cnt})` : ` (${filteredBySearch.length})`}
             </button>
           ))}
         </div>
@@ -836,9 +836,9 @@ export default function PurityFilter() {
                 {/* ── 서브 미션 응답 ── */}
                 {isSubMission && (
                   <div>
-                    {subLoading ? (
+                    {(subLoading && !subDataForScore) ? (
                       <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>응답 데이터 로드 중...</div>
-                    ) : !subResponse ? (
+                    ) : !subDataForScore ? (
                       <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>응답 데이터가 없습니다.</div>
                     ) : (
                       <>
@@ -861,10 +861,10 @@ export default function PurityFilter() {
                                   {[['A', varA, d.variantAImage], ['B', varB, d.variantBImage]].map(([label, text, imgUrl]) => (
                                     <div key={label} style={{
                                       padding: '12px', borderRadius: 'var(--radius)',
-                                      border: `2px solid ${subResponse.preference === label ? 'var(--accent)' : 'var(--border)'}`,
-                                      background: subResponse.preference === label ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
+                                      border: `2px solid ${subDataForScore.preference === label ? 'var(--accent)' : 'var(--border)'}`,
+                                      background: subDataForScore.preference === label ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
                                     }}>
-                                      <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6 }}>소재 {label}{subResponse.preference === label ? ' ★ 선택됨' : ''}</div>
+                                      <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6 }}>소재 {label}{subDataForScore.preference === label ? ' ★ 선택됨' : ''}</div>
                                       {imgUrl && <img src={imgUrl} alt={`소재 ${label}`} style={{ width: '100%', borderRadius: 4, marginBottom: 8, objectFit: 'cover', maxHeight: 120 }} />}
                                       <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, wordBreak: 'break-all' }}>{text || '—'}</div>
                                     </div>
@@ -873,9 +873,9 @@ export default function PurityFilter() {
                               )}
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
-                                  { label: '선택', value: subResponse.preference ? `소재 ${subResponse.preference}` : '—' },
-                                  { label: '메시지 명확성', value: subResponse.message_clarity ? `${subResponse.message_clarity}/5` : '—' },
-                                  { label: '구매 의향', value: subResponse.purchase_intent ? `${subResponse.purchase_intent}/5` : '—' },
+                                  { label: '선택', value: subDataForScore.preference ? `소재 ${subDataForScore.preference}` : '—' },
+                                  { label: '메시지 명확성', value: subDataForScore.message_clarity ? `${subDataForScore.message_clarity}/5` : '—' },
+                                  { label: '구매 의향', value: subDataForScore.purchase_intent ? `${subDataForScore.purchase_intent}/5` : '—' },
                                 ].map(({ label, value }) => (
                                   <div key={label} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
                                     <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
@@ -914,9 +914,9 @@ export default function PurityFilter() {
                               )}
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
-                                  { label: '구매 의향', value: subResponse.would_buy === true ? 'Yes' : subResponse.would_buy === false ? 'No' : '—' },
-                                  { label: '가격 공정성', value: subResponse.price_fairness ? `${subResponse.price_fairness}/5` : '—' },
-                                  { label: '가치 인식', value: subResponse.value_perception ? `${subResponse.value_perception}/5` : '—' },
+                                  { label: '구매 의향', value: subDataForScore.would_buy === true ? 'Yes' : subDataForScore.would_buy === false ? 'No' : '—' },
+                                  { label: '가격 공정성', value: subDataForScore.price_fairness ? `${subDataForScore.price_fairness}/5` : '—' },
+                                  { label: '가치 인식', value: subDataForScore.value_perception ? `${subDataForScore.value_perception}/5` : '—' },
                                 ].map(({ label, value }) => (
                                   <div key={label} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
                                     <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
@@ -955,11 +955,11 @@ export default function PurityFilter() {
                               )}
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
-                                  { label: '답장 의향', value: subResponse.would_reply === true ? 'Yes' : subResponse.would_reply === false ? 'No' : '—' },
-                                  { label: '후킹력', value: subResponse.hook_score ? `${subResponse.hook_score}/5` : '—' },
-                                  { label: '명확성', value: subResponse.clarity_score ? `${subResponse.clarity_score}/5` : '—' },
-                                  { label: '개봉 의향', value: subResponse.open_intent ? `${subResponse.open_intent}/5` : '—' },
-                                  { label: '호기심', value: subResponse.curiosity_score ? `${subResponse.curiosity_score}/5` : '—' },
+                                  { label: '답장 의향', value: subDataForScore.would_reply === true ? 'Yes' : subDataForScore.would_reply === false ? 'No' : '—' },
+                                  { label: '후킹력', value: subDataForScore.hook_score ? `${subDataForScore.hook_score}/5` : '—' },
+                                  { label: '명확성', value: subDataForScore.clarity_score ? `${subDataForScore.clarity_score}/5` : '—' },
+                                  { label: '개봉 의향', value: subDataForScore.open_intent ? `${subDataForScore.open_intent}/5` : '—' },
+                                  { label: '호기심', value: subDataForScore.curiosity_score ? `${subDataForScore.curiosity_score}/5` : '—' },
                                 ].map(({ label, value }) => (
                                   <div key={label} style={{ padding: '10px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
                                     <div style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>
@@ -978,20 +978,20 @@ export default function PurityFilter() {
                         })()}
 
                         {/* Comment (공통) */}
-                        {(subResponse.comment || subResponse.key_comment) && (
+                        {(subDataForScore.comment || subDataForScore.key_comment) && (
                           <div style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 8 }}>
                             <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>코멘트</div>
                             <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
-                              {subResponse.comment || subResponse.key_comment}
+                              {subDataForScore.comment || subDataForScore.key_comment}
                             </p>
                           </div>
                         )}
                         {/* 추가 질문 응답 (custom_answers) */}
-                        {Array.isArray(subResponse?.custom_answers) && subResponse.custom_answers.length > 0 && (
+                        {Array.isArray(subDataForScore?.custom_answers) && subDataForScore.custom_answers.length > 0 && (
                           <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                             <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>추가 질문 응답</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                              {subResponse.custom_answers.map((a, i) => (
+                              {subDataForScore.custom_answers.map((a, i) => (
                                 <div key={a.questionId || i}>
                                   <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 3, lineHeight: 1.4 }}>{i + 1}. {a.questionText || a.questionId}</div>
                                   <div style={{ fontSize: 13, color: 'var(--text-2)', padding: '6px 10px', background: 'var(--surface)', borderRadius: 6, border: '1px solid var(--border)', lineHeight: 1.6 }}>

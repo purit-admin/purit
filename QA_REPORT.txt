@@ -373,7 +373,7 @@
 ================================================================
 QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 작성일: 2026-05-13
-최종 업데이트: 2026-05-19 (admin/Missions.jsx 재수락 draft deadline 무결성 조사 + completeBlocked PRD 불일치 수정: 신규-A·B 2건 발견 및 즉시 수정 완료 — 총 167건 완료)
+최종 업데이트: 2026-05-20 (admin/PurityFilter.jsx 65점 서브필터 카운트 불일치 수정: P-1 1건 발견 및 즉시 수정 완료 — 총 168건 완료)
 이전 업데이트: 2026-05-18 (M-2·M-4·M-6·신규-C·신규-D·신규-E 수정 완료 / C-2·N-2·N-3·N-4 수정 완료
                             / missionTitle 신규 기능 전수 조사: 기능-A·B 2건 발견 및 즉시 수정 완료 — 총 151건 완료
                             / 대규모 전체 조사: 신규-F~Y 20건 발견
@@ -446,7 +446,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
   🔴 P1      신규-A          admin/Missions.jsx completeBlocked — approved<panelCount 조건으로 draft 만료 후 완료 처리 영구 차단  ✅
   🟠 P2      신규-B          admin/Missions.jsx active/cancelled 탭 완료 처리 차단 조건 불일치 (신규-A 수정으로 자동 해소)  ✅
   ────────   ──────────────  ────────────────────────────────────────────  ──────
-  잔여 합계  0건             (전체 167건 전원 완료·스킵)
+  잔여 합계  0건             (전체 168건 전원 완료·스킵)
 
   → 완료 항목 전체는 하단 아카이브 참조
 
@@ -474,7 +474,7 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [신규-D] 이미지 미션 — 드래프트 복원 시 건너뛴 차원(skippedDims) 미복원으로 제출 불가  ✅
 [신규-E] 어드민 미션 "재진행" — 완료 처리 시 환불된 크레딧 미회수로 기업 부당 보유  ✅
 [신규-F] 패널 미션 관리 (panel/Missions.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
-[신규-G] 패널 정산 내역 (panel/History.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-G] 패널 정산 내역 (panㅔel/History.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
 [신규-H] 패널 미션 수행 (panel/ActiveMission.jsx) — try-catch 추가 (loading state 없음 — false positive)  ✅
 [신규-I] 어드민 Purity Filter — D-51 Type B try-catch 추가 (setLoading 위치 Promise.all 전 유지)  ✅
 [신규-M] 기업 소재 A/B 비교 (company/PreferenceTest.jsx) — D-51 Type B try-catch 추가  ✅
@@ -775,5 +775,9 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 - 🕵️‍♂️ 재현 방법: `supabase db push` 실행 → 046에서 PostgreSQL parse error로 migration 중단 → 047 미실행 → reaccept_rejected_feedback이 045 버전 유지 (v_panel_id IS DISTINCT FROM auth.uid() → 항상 RETURN FALSE)
 - 수정: 046 파일 내 `ㅔ` 자모 제거 (lines 19, 21) + 049_fix_slot_rpc_security.sql에서 reaccept_rejected_feedback 047 버전 재적용으로 DB 상태 확실히 보정.  ✅
 - 🔍 수평 전개: 046은 CREATE OR REPLACE이므로 SQL Editor에서 수동 실행 오류 확인 후 047을 재실행했다면 현재 DB는 047 버전으로 올바름. 049 migration으로 어느 경로로든 DB 상태를 보장함.
+
+-- 퓨릿 필터 65점 서브필터 카운트 불일치 조사 (2026-05-20) --
+[P-1] 어드민 피드백 관리 (admin/PurityFilter.jsx) — "65점 이상"/"65점 미만" 서브필터 버튼 카운트가 typeFilter·searchQuery 적용 전 `filteredBase` 기준으로 계산되어 실제 표시 목록 수보다 크게 표시됨. D-72 패턴(필터 카운트 경로에서 나중에 추가된 필터 누락). filteredBase → filteredBySearch 교체(lines 596-597: 이상/미만 카운트, line 605: 전체 폴백 카운트).  ✅
+- 🔍 수평 전개: 타입 pill 카운트(검색-B ✅)는 이미 filteredBaseBySearch 기준으로 수정됐으나 65점 서브필터 카운트 2곳만 filteredBase 잔류. 다른 파일에 동일 불일치 없음.
 
 ================================================================

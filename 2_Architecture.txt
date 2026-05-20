@@ -239,7 +239,7 @@ purit/
 │   │                  calcPurityScore: base20 + 길이(max20) + 섹션균형(max10) + 구체성키워드(×4,max25) + 실행(×5,max25) + AI패널티(×-12,min-30)
 │   │                    섹션균형 계산: 텍스트 미션 = suggestions를 \n\n으로 분리 후 본문 10자+ 섹션 수 카운트 (4개+→10, 2~3→4, 0~1→0)
 │   │                                  이미지 미션 = suggestions 라인에서 [DIM / X점] 패턴으로 고유 차원 수 카운트 (동일 기준)
-│   │                  calcSubPurityScore: base15 + 코멘트길이(단계적,max30) + 구체성키워드(×3,max10) + 지표충실도(max45)
+│   │                  calcSubPurityScore: base15 + 코멘트길이(100+→45/50+→30/20+→15/5+→6,max45) + 구체성키워드(×4,max20) + 지표충실도(email전용 각 항목별,max20)
 │   │                  65점 기준: 승인권장(≥65) / 검토(45~64) / 반려권장(<45) — 뱃지/색상/목록 라벨 통일
 │   │                  pendingSubFilter: 'all'|'above65'|'below65' — 검토 대기 탭 서브필터 버튼
 │   │                  checkedIds Set + bulkApprove/bulkReject/toggleCheck/toggleAll — 일괄 처리 패턴
