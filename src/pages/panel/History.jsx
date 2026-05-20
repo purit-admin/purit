@@ -142,9 +142,9 @@ export default function History() {
     <>
     {deleteTarget && ReactDOM.createPortal(
       <ConfirmModal
-        title="피드백을 숨길까요?"
-        desc={'지급 거절된 피드백을 목록에서 숨깁니다.\n숨긴 피드백은 더 이상 표시되지 않습니다.'}
-        confirmLabel={deleting ? '처리 중...' : '숨기기'}
+        title="피드백을 삭제할까요?"
+        desc={'지급 거절된 피드백을 목록에서 삭제합니다.\n삭제된 피드백은 복구할 수 없습니다.'}
+        confirmLabel={deleting ? '처리 중...' : '삭제'}
         cancelLabel="취소"
         danger
         onConfirm={handleDeleteRejected}

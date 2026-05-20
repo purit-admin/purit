@@ -466,3 +466,5 @@ input:focus, textarea:focus, select:focus {
     padding: 24px 16px !important;
   }
 }
+
+.chip-scroll-row::-webkit-scrollbar { display: none; }

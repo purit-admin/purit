@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-19 (042_notif_prefs — panels.notif_prefs + companies.notif_prefs JSONB 컬럼 추가)
+최종 업데이트: 2026-05-20 (053~055 — admin_delete_feedback / delete_rejected_feedback 소프트딜리트 재정의 / 이름 중복 체크 RPC 2개 추가)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -520,11 +520,19 @@
     → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql
 
   delete_rejected_feedback(p_feedback_id UUID) RETURNS void
-    → SECURITY DEFINER — auth.uid() 기준 본인 rejected 피드백만 DB에서 영구 삭제
-    → feedbacks DELETE WHERE id=p_feedback_id AND panel_id=v_panel_id AND status='rejected'
-    → [지급 거절] 탭에서 완전 삭제 (복구 불가)
+    → SECURITY DEFINER — auth.uid() 기준 본인 rejected 피드백만 소프트 딜리트
+    → feedbacks UPDATE SET dismissed=TRUE WHERE id=p_feedback_id AND panel_id=v_panel_id AND status='rejected'
+    → [지급 거절] 탭에서 삭제 (패널 화면에서 즉시 제거, DB 레코드는 보존 — 신뢰도 인위적 상승 방지)
     → panel/History.jsx [지급 거절] 탭 '삭제' 버튼에서 호출
-    → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql
+    → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql (원본) + 054_fix_delete_rejected_soft.sql (소프트딜리트로 재정의)
+
+  admin_delete_feedback(p_feedback_id UUID) RETURNS void
+    → SECURITY DEFINER — admin 전용, rejected 피드백 영구 삭제 (하드 DELETE)
+    → admin role 확인 (app_metadata): 미달 시 'admin only' 예외
+    → status='rejected' 확인 후: feedback_annotations 먼저 삭제 → feedbacks DELETE
+    → 패널이 재제출 기한 내 미제출로 만료된 반려 피드백을 어드민이 직접 정리할 수 있도록 허용
+    → admin/PurityFilter.jsx 일괄 삭제 버튼에서 호출 (adminBulkDeleteFeedbacks, Promise.all 패턴)
+    → 파일: supabase/migrations/053_admin_delete_feedback.sql
 
   expire_panel_drafts() RETURNS integer
     → SECURITY DEFINER — auth.uid() 기준 본인 패널의 만료 draft 피드백 정리
@@ -549,3 +557,17 @@
     → pg_cron으로 `*/10 * * * *`(또는 `*/1 * * * *`) 자동 호출
     → 파일: supabase/migrations/051_global_expire_panel_drafts.sql
     ⚠️ pg_cron 스케줄 등록은 Supabase SQL Editor에서 수동 실행 필요 (db push 미적용)
+
+  check_panel_name_taken(p_name TEXT, p_exclude_id UUID DEFAULT NULL) RETURNS BOOLEAN
+    → SECURITY DEFINER — RLS 우회하여 패널명 전체 중복 검사 (본인 rows는 직접 접근 불가)
+    → LOWER(name) = LOWER(p_name) 비교 (대소문자 무관)
+    → p_exclude_id 있으면 해당 패널 본인 row 제외 (수정 시 자기 자신은 중복으로 처리 안 함)
+    → panel/Profile.jsx 기본 정보 탭 저장 시 호출 → true이면 "이미 사용 중인 이름입니다." 차단
+    → 파일: supabase/migrations/055_name_uniqueness.sql
+
+  check_company_name_taken(p_name TEXT, p_exclude_id UUID DEFAULT NULL) RETURNS BOOLEAN
+    → SECURITY DEFINER — RLS 우회하여 기업명 전체 중복 검사
+    → LOWER(name) = LOWER(p_name) 비교 (대소문자 무관)
+    → p_exclude_id 있으면 해당 기업 본인 row 제외
+    → company/Account.jsx 기업 프로필 탭 저장 시 호출 → true이면 이름 중복 차단
+    → 파일: supabase/migrations/055_name_uniqueness.sql

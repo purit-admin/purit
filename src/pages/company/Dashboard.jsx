@@ -149,8 +149,10 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick 
     if (isDraft) {
       const route = DRAFT_ROUTE[m.type || 'landing_page'] || '/company/new';
       navigate(route, { state: { editMode: true, missionId: m.id } });
-    } else if (m.status === 'active' || (m.status === 'cancelled' && !m.company_notified_at)) {
-      onActiveClick();
+    } else if (m.status === 'active') {
+      onActiveClick('피드백은 의뢰 완료 후 확인할 수 있습니다.');
+    } else if (m.status === 'cancelled' && !m.company_notified_at) {
+      onActiveClick('피드백 검토 완료 후 피드백 결과에서 확인할 수 있습니다.');
     } else {
       navigate(`/company/results?id=${m.id}`);
     }
@@ -284,13 +286,13 @@ export default function CompanyDashboard() {
   const [mainSentPage, setMainSentPage] = useState(1);
   const [subSentPage, setSubSentPage]   = useState(1);
   const [chartPeriod, setChartPeriod]   = useState('all');
-  const [activeToast, setActiveToast]   = useState(false);
+  const [activeToast, setActiveToast]   = useState(null);
   const activeToastTimer = useRef(null);
 
-  const handleActiveCardClick = () => {
+  const handleActiveCardClick = (msg) => {
     if (activeToastTimer.current) clearTimeout(activeToastTimer.current);
-    setActiveToast(true);
-    activeToastTimer.current = setTimeout(() => setActiveToast(false), 2500);
+    setActiveToast(msg);
+    activeToastTimer.current = setTimeout(() => setActiveToast(null), 2500);
   };
 
   const dismissBanner = () => {
@@ -760,7 +762,7 @@ export default function CompanyDashboard() {
         padding: '14px 20px', fontSize: 13, color: 'var(--text)',
         maxWidth: 300, lineHeight: 1.6,
       }}>
-        피드백은 의뢰 완료 후 확인할 수 있습니다.
+        {activeToast}
       </div>,
       document.body
     )}

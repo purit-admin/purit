@@ -269,7 +269,7 @@ export default function NewMission() {
   const [deleteError, setDeleteError]       = useState('');
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [terminateError, setTerminateError] = useState('');
-  const [activeToast, setActiveToast] = useState(false);
+  const [activeToast, setActiveToast] = useState(null);
   const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
   const [currentEditId, setCurrentEditId] = useState(null);
@@ -337,7 +337,7 @@ export default function NewMission() {
         const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
         if (co) {
           const { data } = await supabase.from('missions')
-            .select('id, title, status, panel_count, filled_count, created_at')
+            .select('id, title, status, panel_count, filled_count, created_at, company_notified_at')
             .eq('company_id', co.id)
             .or('type.is.null,type.eq.landing_page')
             .order('created_at', { ascending: false });
@@ -824,10 +824,14 @@ export default function NewMission() {
                     <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
                       onClick={() => {
                         if (isDraft) openDraftOrActiveForEdit(m.id);
-                        else if (m.status === 'active' || (m.status === 'cancelled' && !m.company_notified_at)) {
+                        else if (m.status === 'active') {
                           if (activeToastTimerRef.current) clearTimeout(activeToastTimerRef.current);
-                          setActiveToast(true);
-                          activeToastTimerRef.current = setTimeout(() => setActiveToast(false), 2500);
+                          setActiveToast('피드백은 의뢰 완료 후 확인할 수 있습니다.');
+                          activeToastTimerRef.current = setTimeout(() => setActiveToast(null), 2500);
+                        } else if (m.status === 'cancelled' && !m.company_notified_at) {
+                          if (activeToastTimerRef.current) clearTimeout(activeToastTimerRef.current);
+                          setActiveToast('피드백 검토 완료 후 피드백 결과에서 확인할 수 있습니다.');
+                          activeToastTimerRef.current = setTimeout(() => setActiveToast(null), 2500);
                         } else {
                           navigate(`/company/results?id=${m.id}`);
                         }
@@ -1672,7 +1676,7 @@ export default function NewMission() {
           padding: '14px 20px', fontSize: 13, color: 'var(--text)',
           maxWidth: 300, lineHeight: 1.6,
         }}>
-          피드백은 의뢰 완료 후 확인할 수 있습니다.
+          {activeToast}
         </div>,
         document.body
       )}
