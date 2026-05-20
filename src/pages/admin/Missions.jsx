@@ -166,8 +166,6 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
   const allFbs    = (m.feedbacks || []).filter(f => f.status !== 'draft');
   const approved  = allFbs.filter(f => f.purity_passed);
   const reviewing = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
-  const panelCount = m.panel_count || 0;
-
   const completeBlocked = allFbs.length === 0 || reviewing.length > 0;
 
   return (

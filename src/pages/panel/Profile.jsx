@@ -107,7 +107,7 @@ function BadgeTag({ badge, earned, isSelected, onSelect }) {
 const lbl    = { display: 'flex', flexDirection: 'column', gap: 8 };
 const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
-// 1-3년: 1.0×(gray), 4-7년: 1.5×(navy), 8년: 2.0×(amber)
+// 1-3년: 1.0×(gray), 4-7년: 1.5×(navy), 8-10년: 2.0×(amber)
 function getYearTier(y) {
   if (y >= 8) return { color: '#D97706', bg: '#FEF3C7', mult: '2.0×' };
   if (y >= 4) return { color: 'var(--accent)', bg: 'var(--accent-dim)', mult: '1.5×' };
@@ -121,8 +121,8 @@ function ExperienceBar({ value, onChange }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 4 }}>
-        {Array.from({ length: 8 }, (_, i) => i + 1).map(y => {
+      <div style={{ display: 'flex', gap: 3 }}>
+        {Array.from({ length: 10 }, (_, i) => i + 1).map(y => {
           const t = getYearTier(y);
           const active = y <= selected;
           return (
@@ -131,8 +131,8 @@ function ExperienceBar({ value, onChange }) {
               type="button"
               onClick={() => onChange(`${y}년`)}
               style={{
-                flex: 1, height: 36, borderRadius: 6, border: 'none',
-                cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                flex: 1, height: 30, borderRadius: 5, border: 'none',
+                cursor: 'pointer', fontSize: 11, fontWeight: 700,
                 transition: 'all 0.15s',
                 background: active ? t.color : 'var(--bg-3)',
                 color: active ? '#fff' : 'var(--text-3)',
@@ -232,8 +232,18 @@ export default function PanelProfile() {
 
   const save = async (fields) => {
     if (!panel) return;
-    setSaving(true);
     setSaved('');
+    if ('name' in fields && fields.name.trim()) {
+      const { data: taken } = await supabase.rpc('check_panel_name_taken', {
+        p_name: fields.name.trim(),
+        p_exclude_id: panel.id,
+      });
+      if (taken) {
+        setSaved('이미 사용 중인 이름입니다. 다른 이름을 입력해주세요.');
+        return;
+      }
+    }
+    setSaving(true);
     const { error } = await supabase
       .from('panels')
       .update(fields)
@@ -388,10 +398,10 @@ export default function PanelProfile() {
         </div>
       )}
       {saved && (
-        saved.startsWith('저장 실패') ? (
+        (saved.startsWith('저장 실패') || saved.startsWith('이미 사용')) ? (
           <div style={{
             marginBottom: 16, padding: '10px 16px', borderRadius: 'var(--radius)', fontSize: 13,
-            background: 'var(--red-dim)', color: 'var(--red)', fontWeight: 600,
+            background: 'rgba(220,38,38,0.08)', color: '#dc2626', fontWeight: 600,
           }}>
             {saved}
           </div>

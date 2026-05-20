@@ -64,6 +64,7 @@ const DIMENSIONS = [
   { key: 'trust_score',           label: '신뢰',     sublabel: 'Trust',          icon: '●', color: 'var(--green)',  desc: '처음 방문자가 브랜드와 제품을 신뢰할 수 있는 근거가 충분한가?', benchmark: 3.0 },
 ];
 
+
 const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
 const KO_STOP = new Set(['이','가','은','는','을','를','의','에','서','와','과','으로','로','에서','까지','부터','도','만','이다','있다','하다','되다','이고','그','그리고','또','하지만','그러나','하여','해서','것','수','더','또한','등','및','위해','대해','관해','있는','없는','하는','되는','많이','어서','입니다','습니다','합니다','했습니다','됩니다','같은','같이','때문에','통해','위한','않은','않고','않아','않습니다','없어','있어','있고','없고','없어서','이런','이렇게','저렇게','그렇게','좋은','좋아','나쁜','너무','매우','정말','조금','좀','잘','못','안','더욱','가장','좋습니다','입니다','있습니다','없습니다','하겠습니다','됩니다','됩니다만','입니다만']);
@@ -87,7 +88,7 @@ export default function Diagnosis() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [scores, setScores] = useState({});
-  const [comments, setComments] = useState({});
+  const [distributions, setDistributions] = useState({});
   const [benchmarks, setBenchmarks] = useState({});
   const [keywords, setKeywords] = useState([]);
   const [missions, setMissions] = useState([]);
@@ -132,7 +133,7 @@ export default function Diagnosis() {
     const filter = missionFilter === 'all' ? ids : [missionFilter];
 
     const [myRes, allRes] = await Promise.all([
-      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,suggestions').in('mission_id', filter).eq('purity_passed', true),
+      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions').in('mission_id', filter).eq('purity_passed', true),
       supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
     ]);
 
@@ -141,23 +142,23 @@ export default function Diagnosis() {
     setHasData(myFeedbacks.length > 0);
 
     const newScores = {};
-    const newComments = {};
+    const newDistributions = {};
     const newBenchmarks = {};
 
     DIMENSIONS.forEach(d => {
       const myVals = myFeedbacks.map(f => f[d.key]).filter(Boolean);
       newScores[d.key] = myVals.length ? avg(myVals) : 0;
 
-      const strengths = myFeedbacks.map(f => f.strengths).filter(Boolean).slice(0, 2);
-      const weaknesses = myFeedbacks.map(f => f.weaknesses).filter(Boolean).slice(0, 2);
-      newComments[d.key] = [...strengths, ...weaknesses].slice(0, 2);
+      const dist = [0, 0, 0, 0, 0];
+      myVals.forEach(v => { const i = Math.round(v) - 1; if (i >= 0 && i <= 4) dist[i]++; });
+      newDistributions[d.key] = dist;
 
       const allVals = allFeedbacks.map(f => f[d.key]).filter(Boolean);
       newBenchmarks[d.key] = allVals.length ? avg(allVals) : d.benchmark;
     });
 
     setScores(newScores);
-    setComments(newComments);
+    setDistributions(newDistributions);
     setBenchmarks(newBenchmarks);
     setKeywords(extractKeywords(myFeedbacks));
   }
@@ -216,7 +217,7 @@ export default function Diagnosis() {
           </Card>
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-            {[['overview', '차원별 점수'], ['comments', '패널 코멘트'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['timeline', '시계열 추적']].map(([v, l]) => (
+            {[['overview', '차원별 점수'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['timeline', '시계열 추적']].map(([v, l]) => (
               <button key={v} onClick={() => v === 'timeline' ? navigate('/company/timeline') : setActiveTab(v)} style={{
                 padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
                 background: activeTab === v ? 'var(--bg)' : 'transparent',
@@ -227,55 +228,46 @@ export default function Diagnosis() {
           </div>
 
           {activeTab === 'overview' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {DIMENSIONS.map(d => {
                 const score = scores[d.key] || 0;
+                const dist = distributions[d.key] || [0, 0, 0, 0, 0];
+                const maxCount = Math.max(...dist, 1);
                 return (
-                  <Card key={d.key} style={{ padding: '20px 24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                      <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${d.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: d.color, flexShrink: 0 }}>{d.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                          <div>
-                            <span style={{ fontWeight: 700, fontSize: 15 }}>{d.label}</span>
-                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>{d.sublabel}</span>
-                          </div>
-                          <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22, color: d.color }}>{score.toFixed(1)}</span>
-                        </div>
-                        <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: d.color, borderRadius: 3, transition: 'width 0.8s ease' }} />
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6 }}>{d.desc}</div>
+                  <Card key={d.key} style={{ padding: '14px 20px' }}>
+                    {/* 한 줄 요약 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 13, color: d.color, flexShrink: 0 }}>{d.icon}</span>
+                      <span style={{ fontWeight: 700, fontSize: 14, minWidth: 48 }}>{d.label}</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)', minWidth: 72 }}>{d.sublabel}</span>
+                      <div style={{ flex: 1, height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: d.color, borderRadius: 3, transition: 'width 0.8s ease' }} />
                       </div>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16, color: d.color, minWidth: 32, textAlign: 'right' }}>{score.toFixed(1)}</span>
+                    </div>
+                    {/* 분포 히스토그램 */}
+                    <div style={{ display: 'flex', gap: 4, marginTop: 10, paddingLeft: 2 }}>
+                      {dist.map((count, i) => (
+                        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                          <div style={{ width: '100%', height: 36, display: 'flex', alignItems: 'flex-end' }}>
+                            <div style={{
+                              width: '100%',
+                              height: `${(count / maxCount) * 100}%`,
+                              minHeight: count > 0 ? 3 : 0,
+                              background: i >= 3 ? d.color : 'var(--border)',
+                              borderRadius: '2px 2px 0 0',
+                              transition: 'height 0.6s ease',
+                              opacity: count === 0 ? 0.3 : 1,
+                            }} />
+                          </div>
+                          <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{i + 1}점</span>
+                          {count > 0 && <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{count}건</span>}
+                        </div>
+                      ))}
                     </div>
                   </Card>
                 );
               })}
-            </div>
-          )}
-
-          {activeTab === 'comments' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {DIMENSIONS.map(d => (
-                <div key={d.key}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <span style={{ fontSize: 16, color: d.color }}>{d.icon}</span>
-                    <span style={{ fontWeight: 700 }}>{d.label}</span>
-                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: d.color }}>{(scores[d.key] || 0).toFixed(1)}/5</span>
-                  </div>
-                  {(comments[d.key] || []).length === 0 ? (
-                    <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '12px 0' }}>코멘트 없음</div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {(comments[d.key] || []).map((c, i) => (
-                        <div key={i} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, borderLeft: `3px solid ${d.color}` }}>
-                          "{c}"
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
             </div>
           )}
 

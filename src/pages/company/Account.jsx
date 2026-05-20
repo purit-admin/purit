@@ -50,8 +50,18 @@ export default function CompanyAccount() {
 
   async function handleSaveProfile() {
     if (!company) return;
-    setSaving(true);
     setMsg('');
+    if (name.trim()) {
+      const { data: taken } = await supabase.rpc('check_company_name_taken', {
+        p_name: name.trim(),
+        p_exclude_id: company.id,
+      });
+      if (taken) {
+        setMsg('이미 사용 중인 기업명입니다. 다른 이름을 입력해주세요.');
+        return;
+      }
+    }
+    setSaving(true);
     const { error } = await supabase.from('companies')
       .update({ name, industry, website })
       .eq('id', company.id);
@@ -166,8 +176,8 @@ export default function CompanyAccount() {
       {(msg || pwMsg) && (
         <div style={{
           marginBottom: 16, padding: '10px 16px', borderRadius: 'var(--radius)', fontSize: 13,
-          background: (msg || pwMsg).includes('실패') || (msg || pwMsg).includes('않') ? 'var(--red-dim)' : 'var(--accent-dim, rgba(126,200,160,0.12))',
-          color: (msg || pwMsg).includes('실패') || (msg || pwMsg).includes('않') ? 'var(--red)' : 'var(--accent)',
+          background: (msg || pwMsg).includes('실패') || (msg || pwMsg).includes('않') || (msg || pwMsg).includes('이미') ? 'var(--red-dim)' : 'var(--accent-dim, rgba(126,200,160,0.12))',
+          color: (msg || pwMsg).includes('실패') || (msg || pwMsg).includes('않') || (msg || pwMsg).includes('이미') ? 'var(--red)' : 'var(--accent)',
           fontWeight: 600,
         }}>
           {msg || pwMsg}

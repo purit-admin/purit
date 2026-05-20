@@ -161,6 +161,8 @@ export default function PurityFilter() {
   const [confirmRejectId, setConfirmRejectId] = useState(null);
   const [confirmResetId, setConfirmResetId]   = useState(null);
   const [resetError, setResetError]           = useState('');
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [deleteError, setDeleteError]             = useState('');
   const [bulkActing, setBulkActing]       = useState(false);
   const [filter, setFilter]               = useState('pending');
   const [pendingSubFilter, setPendingSubFilter] = useState('all'); // 'all'|'above65'|'below65'
@@ -174,6 +176,7 @@ export default function PurityFilter() {
   const [subResponseMap, setSubResponseMap] = useState({});
   const [statusError, setStatusError]     = useState('');
   const [searchQuery, setSearchQuery]     = useState('');
+  const [panelQuery, setPanelQuery]       = useState('');
 
   useEffect(() => {
     const pendingDeeplink = location.state?.feedbackId;
@@ -228,6 +231,7 @@ export default function PurityFilter() {
     setPendingSubFilter('all');
     setTypeFilter('all');
     setSearchQuery('');
+    setPanelQuery('');
 
     const base =
       tf === 'approved' ? feedbacks.filter(f => f.purity_passed)
@@ -338,6 +342,20 @@ export default function PurityFilter() {
     setActing(false);
   };
 
+  const adminBulkDeleteFeedbacks = async () => {
+    const ids = [...checkedIds];
+    setBulkActing(true); setDeleteError('');
+    const results = await Promise.all(ids.map(id => supabase.rpc('admin_delete_feedback', { p_feedback_id: id })));
+    const failCount = results.filter(r => r.error).length;
+    if (failCount > 0) { setDeleteError(`${failCount}건 삭제 실패. 나머지는 정상 삭제되었습니다.`); }
+    const succeededIds = ids.filter((id, i) => !results[i].error);
+    setFeedbacks(fbs => fbs.filter(f => !succeededIds.includes(f.id)));
+    if (succeededIds.includes(selected)) setSelected(null);
+    setCheckedIds(new Set());
+    setConfirmBulkDelete(false);
+    setBulkActing(false);
+  };
+
   const bulkApprove = async () => {
     if (checkedIds.size === 0 || bulkActing) return;
     setBulkActing(true); setStatusError('');
@@ -430,18 +448,22 @@ export default function PurityFilter() {
     : filter === 'approved' ? feedbacks.filter(f => f.purity_passed)
     : feedbacks.filter(f => f.status === 'rejected');
   const SUB_TYPES = ['preference', 'pricing', 'email'];
+  const applySearchFilters = (arr) => {
+    let result = arr;
+    const mq = searchQuery.trim().toLowerCase();
+    const pq = panelQuery.trim().toLowerCase();
+    if (mq) result = result.filter(f => (f.missions?.title || '').toLowerCase().includes(mq));
+    if (pq) result = result.filter(f => (f.panels?.name || '').toLowerCase().includes(pq));
+    return result;
+  };
   // pill 카운트 전용: 상태 필터 + 검색 적용, 타입 필터 미적용
-  const filteredBaseBySearch = searchQuery.trim()
-    ? filteredBase.filter(f => (f.missions?.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : filteredBase;
+  const filteredBaseBySearch = applySearchFilters(filteredBase);
   const filteredByType = typeFilter === 'all'
     ? filteredBase
     : typeFilter === 'main'
       ? filteredBase.filter(f => !SUB_TYPES.includes(f.missions?.type))
       : filteredBase.filter(f =>  SUB_TYPES.includes(f.missions?.type));
-  const filteredBySearch = searchQuery.trim()
-    ? filteredByType.filter(f => (f.missions?.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : filteredByType;
+  const filteredBySearch = applySearchFilters(filteredByType);
   const filtered = (filter === 'pending' && pendingSubFilter !== 'all')
     ? filteredBySearch.filter(f => pendingSubFilter === 'above65' ? getScore(f) >= 65 : getScore(f) < 65)
     : filteredBySearch;
@@ -454,6 +476,17 @@ export default function PurityFilter() {
       const next = new Set(prev);
       if (allPageChecked) pendingPageIds.forEach(id => next.delete(id));
       else pendingPageIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const rejectedPageIds = filter === 'rejected' ? pagedList.map(f => f.id) : [];
+  const allRejectedPageChecked = rejectedPageIds.length > 0 && rejectedPageIds.every(id => checkedIds.has(id));
+  const toggleAllRejected = () => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      if (allRejectedPageChecked) rejectedPageIds.forEach(id => next.delete(id));
+      else rejectedPageIds.forEach(id => next.add(id));
       return next;
     });
   };
@@ -480,7 +513,7 @@ export default function PurityFilter() {
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
         {[['pending', '검토 대기'], ['approved', '승인됨'], ['rejected', '반려됨'], ['all', '전체']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); setTypeFilter('all'); setSearchQuery(''); }} style={{
+          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); setTypeFilter('all'); setSearchQuery(''); setPanelQuery(''); }} style={{
             padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
             background: filter === v ? 'var(--bg)' : 'transparent',
             color: filter === v ? 'var(--text)' : 'var(--text-3)',
@@ -510,26 +543,48 @@ export default function PurityFilter() {
         ))}
       </div>
 
-      {/* 의뢰명 검색 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 11, color: 'var(--text-3)', marginRight: 2 }}>검색:</span>
-        <input
-          type="text"
-          placeholder="의뢰명으로 검색..."
-          value={searchQuery}
-          onChange={(e) => { setSearchQuery(e.target.value); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
-          style={{
-            width: 200, padding: '5px 12px', fontSize: 12,
-            border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-            color: 'var(--text)', background: 'var(--surface)', outline: 'none',
-          }}
-        />
-        {searchQuery && (
-          <button
-            onClick={() => { setSearchQuery(''); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }}
-          >✕</button>
-        )}
+      {/* 검색 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>의뢰명:</span>
+          <input
+            type="text"
+            placeholder="의뢰명 검색..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
+            style={{
+              width: 180, padding: '5px 12px', fontSize: 12,
+              border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+              color: 'var(--text)', background: 'var(--surface)', outline: 'none',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => { setSearchQuery(''); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }}
+            >✕</button>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>패널명:</span>
+          <input
+            type="text"
+            placeholder="패널명 검색..."
+            value={panelQuery}
+            onChange={(e) => { setPanelQuery(e.target.value); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
+            style={{
+              width: 180, padding: '5px 12px', fontSize: 12,
+              border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+              color: 'var(--text)', background: 'var(--surface)', outline: 'none',
+            }}
+          />
+          {panelQuery && (
+            <button
+              onClick={() => { setPanelQuery(''); setListPage(1); setSelected(null); setCheckedIds(new Set()); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, lineHeight: 1 }}
+            >✕</button>
+          )}
+        </div>
       </div>
 
       {/* 65점 기준 서브 필터 — 검토 대기 탭에서만 표시 */}
@@ -579,6 +634,13 @@ export default function PurityFilter() {
                   전체 선택
                 </label>
               )}
+              {filter === 'rejected' && rejectedPageIds.length > 0 && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 11, color: 'var(--text-3)' }}>
+                  <input type="checkbox" checked={allRejectedPageChecked} onChange={toggleAllRejected}
+                    style={{ accentColor: '#dc2626', cursor: 'pointer', width: 13, height: 13 }} />
+                  전체 선택
+                </label>
+              )}
             </div>
 
             {/* 일괄 처리 바 */}
@@ -592,6 +654,18 @@ export default function PurityFilter() {
                   {bulkActing ? '처리 중...' : '✕ 일괄 반려'}
                 </button>
                 <button onClick={() => setCheckedIds(new Set())} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer' }}>
+                  선택 해제
+                </button>
+              </div>
+            )}
+            {filter === 'rejected' && checkedIds.size > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 'var(--radius)', marginBottom: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', flex: 1 }}>{checkedIds.size}개 선택됨</span>
+                <button disabled={bulkActing} onClick={() => { setDeleteError(''); setConfirmBulkDelete(true); }}
+                  style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#dc2626', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>
+                  🗑 삭제 ({checkedIds.size}건)
+                </button>
+                <button onClick={() => setCheckedIds(new Set())} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, border: '1px solid rgba(220,38,38,0.3)', background: 'transparent', color: '#dc2626', cursor: 'pointer' }}>
                   선택 해제
                 </button>
               </div>
@@ -612,6 +686,12 @@ export default function PurityFilter() {
                       <div style={{ paddingTop: 15, flexShrink: 0 }}>
                         <input type="checkbox" checked={checkedIds.has(f.id)} onChange={() => toggleCheck(f.id)}
                           style={{ accentColor: 'var(--accent)', cursor: 'pointer', width: 14, height: 14 }} />
+                      </div>
+                    )}
+                    {filter === 'rejected' && (
+                      <div style={{ paddingTop: 15, flexShrink: 0 }}>
+                        <input type="checkbox" checked={checkedIds.has(f.id)} onChange={() => toggleCheck(f.id)}
+                          style={{ accentColor: '#dc2626', cursor: 'pointer', width: 14, height: 14 }} />
                       </div>
                     )}
                     <div onClick={() => setSelected(f.id)} style={{
@@ -1112,6 +1192,18 @@ export default function PurityFilter() {
           errorMsg={resetError}
           onConfirm={() => reset(confirmResetId)}
           onCancel={() => { setResetError(''); setConfirmResetId(null); }}
+        />
+      )}
+
+      {confirmBulkDelete && (
+        <ConfirmModal
+          title="피드백 영구 삭제"
+          desc={`선택한 ${checkedIds.size}건을 영구 삭제합니까? 재제출 기한이 지난 반려 피드백을 정리할 때 사용하세요. 삭제 후 복구가 불가능합니다.`}
+          confirmLabel={bulkActing ? '삭제 중...' : `삭제 (${checkedIds.size}건)`}
+          errorMsg={deleteError}
+          onConfirm={adminBulkDeleteFeedbacks}
+          onCancel={() => { setDeleteError(''); setConfirmBulkDelete(false); }}
+          danger
         />
       )}
     </div>
