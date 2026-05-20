@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-20 (D-85 추가 — 전역 cron 함수와 per-user 함수가 동일 행 동시 처리 시 이중 차감 방지 패턴)
+최종 업데이트: 2026-05-20 (D-87 추가 — Supabase Realtime postgres_changes UPDATE 이벤트가 REPLICA IDENTITY FULL 없이 브로드캐스트되지 않아 Sidebar 뱃지 미갱신)
 ================================================================
 
 ## 핵심 원칙
@@ -1163,3 +1163,26 @@ D-86. 승인 카운터 기반 완료 게이트가 자원 해제 이벤트(draft 
              자원 점유·해제가 있는 시스템에서 완료 판정 기준은 항상 "현재 처리 대기 중 건수 = 0"이어야 함
      → 수평전개: active 탭과 cancelled 탭의 완료 차단 조건이 달랐던 불일치도 이 수정으로 동시 해소
              양쪽 탭 모두 `reviewing.length > 0` 단일 조건으로 통일됨
+
+D-87. Supabase Realtime postgres_changes UPDATE 이벤트가 REPLICA IDENTITY FULL 없이 브로드캐스트되지 않아 별도 컴포넌트의 뱃지가 즉시 갱신되지 않는 패턴 ✅ 해결
+     → 증상: 알림 센터(NotificationCenter)에서 알림을 클릭해 읽음 처리해도 사이드바 뱃지 숫자가 즉시 줄지 않음
+             새로고침 후에야 뱃지가 갱신됨
+     → 원인: Sidebar의 Realtime 구독(event: '*')이 UPDATE 이벤트를 받아 loadCount()를 재호출하는 설계였으나,
+             notifications 테이블에 REPLICA IDENTITY FULL이 설정되어 있지 않아
+             Supabase Realtime이 UPDATE 이벤트를 브로드캐스트하지 않음
+             → markOne()/markAll()의 `read: true` UPDATE가 Sidebar 채널에 전달되지 않음
+             → INSERT/DELETE 이벤트는 REPLICA IDENTITY FULL 없이도 브로드캐스트되므로 신규 알림 뱃지 증가는 정상
+     → 해결: NotificationCenter.markOne()/markAll() 성공 직후 window 커스텀 이벤트 발화
+             ```js
+             window.dispatchEvent(new CustomEvent('purit:notif-read'));
+             ```
+             Sidebar useEffect 안에서 동일 이벤트 리스너 등록 → loadCount() 즉시 호출
+             ```js
+             window.addEventListener('purit:notif-read', loadCount);
+             return () => { ...; window.removeEventListener('purit:notif-read', loadCount); };
+             ```
+     → 원칙: Supabase Realtime postgres_changes에서 UPDATE 이벤트를 별도 컴포넌트가 수신해야 하는 경우,
+             테이블에 REPLICA IDENTITY FULL이 없으면 브로드캐스트가 보장되지 않음
+             INSERT/DELETE는 동작하지만 UPDATE는 침묵할 수 있음 — 뮤테이션 직후 뱃지/카운트 갱신이 필요한
+             컴포넌트 간 통신에는 window 커스텀 이벤트 패턴이 더 안정적
+             이벤트 네이밍 컨벤션: 'purit:' 접두사 (예: 'purit:notif-read')

@@ -89,11 +89,13 @@ export default function NotificationCenter({ role = 'company' }) {
     if (ids.length === 0) return;
     await supabase.from('notifications').update({ read: true }).in('id', ids);
     setNotifs(ns => ns.map(n => ids.includes(n.id) ? { ...n, read: true } : n));
+    window.dispatchEvent(new CustomEvent('purit:notif-read'));
   }
 
   async function markOne(id, actionUrl) {
     await supabase.from('notifications').update({ read: true }).eq('id', id);
     setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
+    window.dispatchEvent(new CustomEvent('purit:notif-read'));
     if (actionUrl) navigate(actionUrl);
   }
 

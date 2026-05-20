@@ -144,7 +144,12 @@ export default function Layout({ role, children }) {
       }, loadCount)
       .subscribe();
 
-    return () => { if (sub) supabase.removeChannel(sub); };
+    window.addEventListener('purit:notif-read', loadCount);
+
+    return () => {
+      if (sub) supabase.removeChannel(sub);
+      window.removeEventListener('purit:notif-read', loadCount);
+    };
   }, [user?.id]);
 
   useEffect(() => {
