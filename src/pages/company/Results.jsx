@@ -663,8 +663,8 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
 
   return (
     <div>
-      {/* 5차원 평균 점수 카드 */}
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>5차원 평균 점수</div>
+      {/* 5대 지표 평균 점수 카드 */}
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>5대 지표 평균 점수</div>
       <div className="score-five-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 24 }}>
         {DIMS.map(dim => {
           const key = DIM_META[dim].key;
@@ -887,8 +887,10 @@ export default function Results() {
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
       // completed는 전부 표시, cancelled는 어드민이 완료 처리(company_notified_at SET)한 경우만 표시
+      // dismissed=true 의뢰는 기업 포털에서 숨김 처리
       const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id)
         .or('status.eq.completed,and(status.eq.cancelled,company_notified_at.not.is.null)')
+        .eq('dismissed', false)
         .order('created_at', { ascending: false });
       setMissions(ms || []);
       if (ms?.length > 0) {

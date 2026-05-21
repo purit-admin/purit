@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const TABS = [
-  { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지', badge: 'blue',  icon: null, path: '/company/new',         desc: '랜딩페이지·광고 소재 등 마케팅 소재를 5차원으로 종합 진단' },
+  { key: 'lp',         label: '마케팅 소재 종합 진단', category: '랜딩페이지', badge: 'blue',  icon: null, path: '/company/new',         desc: '랜딩페이지·광고 소재 등 마케팅 소재를 5대 지표로 종합 진단' },
   { key: 'preference', label: '소재 비교 A/B',  category: '광고소재',  badge: 'blue',  icon: null, path: '/company/preference',    desc: '두 소재 중 어떤 것이 더 전환율 높은지 실 패널로 검증' },
   { key: 'pricing',    label: '가격 페이지',     category: '가격',     badge: 'gold',  icon: null, path: '/company/pricing-test',  desc: '가격 구성·플랜 명확성·WTP를 정밀 측정' },
   { key: 'email',      label: '이메일 검증',     category: '이메일',   badge: 'blue',  icon: null, path: '/company/email-test',    desc: '제목줄·개봉 의향·CTA 효과를 패널 피드백으로 진단' },

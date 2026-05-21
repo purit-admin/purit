@@ -158,9 +158,12 @@ export default function PurityFilter() {
   const [loading, setLoading]             = useState(true);
   const [highlightId, setHighlightId]     = useState(null);
   const [acting, setActing]               = useState(false);
+  const [confirmApproveId, setConfirmApproveId] = useState(null);
   const [confirmRejectId, setConfirmRejectId] = useState(null);
   const [confirmResetId, setConfirmResetId]   = useState(null);
   const [resetError, setResetError]           = useState('');
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState(false);
+  const [confirmBulkReject, setConfirmBulkReject]   = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [deleteError, setDeleteError]             = useState('');
   const [bulkActing, setBulkActing]       = useState(false);
@@ -295,6 +298,7 @@ export default function PurityFilter() {
 
     setSelected(null);
     setActing(false);
+    return true;
   };
 
   const reject = async (id) => {
@@ -387,6 +391,7 @@ export default function PurityFilter() {
       if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel', prefKey: 'feedbackApproved' });
     });
     setCheckedIds(new Set()); setBulkActing(false);
+    return true;
   };
 
   const bulkReject = async () => {
@@ -429,6 +434,7 @@ export default function PurityFilter() {
         .then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
     });
     setCheckedIds(new Set()); setBulkActing(false);
+    if (slotFailCount === 0) return true;
   };
 
   const toggleCheck = (id) => {
@@ -647,10 +653,10 @@ export default function PurityFilter() {
             {filter === 'pending' && checkedIds.size > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', marginBottom: 10, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', flex: 1 }}>{checkedIds.size}개 선택됨</span>
-                <button disabled={bulkActing} onClick={bulkApprove} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#16a34a', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>
+                <button disabled={bulkActing} onClick={() => setConfirmBulkApprove(true)} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#16a34a', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>
                   {bulkActing ? '처리 중...' : '✓ 일괄 승인'}
                 </button>
-                <button disabled={bulkActing} onClick={bulkReject} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#dc2626', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>
+                <button disabled={bulkActing} onClick={() => setConfirmBulkReject(true)} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#dc2626', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>
                   {bulkActing ? '처리 중...' : '✕ 일괄 반려'}
                 </button>
                 <button onClick={() => setCheckedIds(new Set())} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer' }}>
@@ -1091,7 +1097,7 @@ export default function PurityFilter() {
                       </div>
                     )}
 
-                    {/* 5차원 점수 */}
+                    {/* 5대 지표 점수 */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 16 }}>
                       {DIM.map(({ key, label }) => {
                         const val = fb[key] || 0;
@@ -1147,8 +1153,8 @@ export default function PurityFilter() {
                 <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                   {fb.status !== 'approved' && fb.status !== 'rejected' && (
                     <>
-                      <Btn size="sm" disabled={acting} onClick={() => approve(fb.id)}>
-                        {acting ? '처리 중...' : '✓ 승인'}
+                      <Btn size="sm" disabled={acting} onClick={() => setConfirmApproveId(fb.id)}>
+                        ✓ 승인
                       </Btn>
                       <Btn size="sm" variant="danger" disabled={acting} onClick={() => setConfirmRejectId(fb.id)}>
                         {acting ? '처리 중...' : '✕ 반려'}
@@ -1170,6 +1176,40 @@ export default function PurityFilter() {
             </div>
           )}
         </div>
+      )}
+
+      {confirmBulkApprove && (
+        <ConfirmModal
+          title={`피드백 일괄 승인 (${checkedIds.size}건)`}
+          desc={`선택한 ${checkedIds.size}건을 모두 승인 처리합니까? 패널에게 승인 알림이 발송됩니다.`}
+          confirmLabel="✓ 일괄 승인"
+          errorMsg={statusError}
+          onConfirm={async () => { setStatusError(''); const ok = await bulkApprove(); if (ok) setConfirmBulkApprove(false); }}
+          onCancel={() => { setStatusError(''); setConfirmBulkApprove(false); }}
+        />
+      )}
+
+      {confirmBulkReject && (
+        <ConfirmModal
+          title={`피드백 일괄 반려 (${checkedIds.size}건)`}
+          desc={`선택한 ${checkedIds.size}건을 모두 반려 처리합니까? 패널에게 반려 알림이 발송됩니다.`}
+          confirmLabel="✕ 일괄 반려"
+          errorMsg={statusError}
+          onConfirm={async () => { setStatusError(''); await bulkReject(); setConfirmBulkReject(false); }}
+          onCancel={() => { setStatusError(''); setConfirmBulkReject(false); }}
+          danger
+        />
+      )}
+
+      {confirmApproveId && (
+        <ConfirmModal
+          title="피드백 승인"
+          desc="이 피드백을 승인 처리합니까? 패널에게 승인 알림이 발송됩니다."
+          confirmLabel="✓ 승인"
+          errorMsg={statusError}
+          onConfirm={async () => { setStatusError(''); const ok = await approve(confirmApproveId); if (ok) setConfirmApproveId(null); }}
+          onCancel={() => { setStatusError(''); setConfirmApproveId(null); }}
+        />
       )}
 
       {confirmRejectId && (

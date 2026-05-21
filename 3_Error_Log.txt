@@ -1186,3 +1186,21 @@ D-87. Supabase Realtime postgres_changes UPDATE 이벤트가 REPLICA IDENTITY FU
              INSERT/DELETE는 동작하지만 UPDATE는 침묵할 수 있음 — 뮤테이션 직후 뱃지/카운트 갱신이 필요한
              컴포넌트 간 통신에는 window 커스텀 이벤트 패턴이 더 안정적
              이벤트 네이밍 컨벤션: 'purit:' 접두사 (예: 'purit:notif-read')
+
+D-88. 일괄 처리(bulk) 버튼에 개별 처리가 가진 ConfirmModal(사용자 승인 게이트)을 누락하는 패턴 ✅ 해결
+     → 증상: PurityFilter "일괄 승인" / "일괄 반려" 버튼 클릭 시 확인 없이 즉시 N건이 처리됨
+             실수 클릭 또는 잘못된 선택으로 인한 대량 오처리를 복구할 방법 없음
+     → 원인: 개별 승인/반려 버튼에 ConfirmModal을 추가했으나, 이후 구현한 일괄 처리 버튼은
+             onClick={bulkApprove/bulkReject}를 직접 연결 — 개별과 동일한 UX 안전장치 미적용
+             D-62(side effect 누락)와 다른 층위 — 알림·크레딧 같은 기술적 side effect가 아니라
+             "사람이 실수할 수 있는 파괴적 행위를 최종 확인하는 UX 게이트" 누락
+     → 해결: 일괄 처리 버튼도 개별과 동일하게 ConfirmModal state 추가 + D-65 패턴 적용
+             confirmBulkApprove / confirmBulkReject state → 버튼 onClick에서 state=true → ConfirmModal 렌더
+             onConfirm: `async () => { const ok = await bulkFn(); if (ok) setConfirmBulk(false); }`
+             bulkFn(): 성공 시 `return true`, 실패(슬롯 오류 등) 시 statusError 설정 후 `return false` → 모달 유지
+     → 원칙: 파괴적 일괄 처리 버튼을 추가할 때는 반드시 체크리스트를 따를 것:
+             ① 개별 처리에 ConfirmModal이 있는가? → 일괄도 동일하게 추가
+             ② 일괄 함수가 성공/실패를 호출자에게 반환하는가? → `return true/false` 패턴 적용
+             ③ onConfirm이 `async () => { const ok = await fn(); if (ok) setModal(false); }` 형태인가?
+             ④ 실패 시 errorMsg prop으로 모달 내부에 인라인 에러가 표시되는가?
+             D-62의 "side effect 체크리스트"와 이 원칙의 "UX 게이트 체크리스트"를 일괄 처리 추가 시 동시 적용할 것

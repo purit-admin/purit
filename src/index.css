@@ -441,7 +441,7 @@ input:focus, textarea:focus, select:focus {
   }
 }
 
-/* ─── 5열 점수 그리드 (Results.jsx 5차원) ─── */
+/* ─── 5열 점수 그리드 (Results.jsx 5대 지표) ─── */
 .score-five-col {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

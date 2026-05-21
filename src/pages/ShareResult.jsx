@@ -68,7 +68,7 @@ export default function ShareResult() {
 
         {/* Score bars */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px 32px', marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 20 }}>5차원 점수</div>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 20 }}>5대 지표 점수</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {DIMS.map(d => {
               const score = scores[d.key] || 0;

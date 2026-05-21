@@ -1521,7 +1521,7 @@ export default function ActiveMission() {
             {/* 진행 현황 힌트 */}
             {!allDimsDone || !allImagesViewed ? (
               <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
-                5차원 작성 완료 및 모든 이미지 확인 후 총평 작성 가능
+                5대 지표 작성 완료 및 모든 이미지 확인 후 총평 작성 가능
               </div>
             ) : (
               <button

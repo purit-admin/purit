@@ -168,7 +168,7 @@ export default function PricingTest() {
       if (co) {
         const { data: missionsData } = await supabase
           .from('missions').select('id, title, status, panel_count, filled_count, created_at, company_notified_at')
-          .eq('company_id', co.id).eq('type', 'pricing')
+          .eq('company_id', co.id).eq('type', 'pricing').eq('dismissed', false)
           .order('created_at', { ascending: false });
         setMissions(missionsData || []);
         const { data: ctData } = await supabase
@@ -211,7 +211,7 @@ export default function PricingTest() {
 
   async function handleDeleteMission() {
     if (!deleteTarget) return;
-    const { error } = await supabase.from('missions').delete().eq('id', deleteTarget);
+    const { error } = await supabase.from('missions').update({ dismissed: true }).eq('id', deleteTarget);
     if (error) {
       setDeleteError('삭제 중 오류가 발생했습니다. 다시 시도해 주세요.');
       return;
@@ -1119,9 +1119,9 @@ export default function PricingTest() {
       )}
       {deleteTarget && (
         <ConfirmModal
-          title="의뢰를 영구 삭제할까요?"
-          desc={"이 의뢰를 영구적으로 삭제합니다.\n삭제된 데이터는 복구할 수 없습니다."}
-          confirmLabel="영구 삭제"
+          title="의뢰를 삭제할까요?"
+          desc={"이 의뢰를 목록에서 삭제합니다."}
+          confirmLabel="삭제"
           cancelLabel="취소"
           danger
           errorMsg={deleteError}

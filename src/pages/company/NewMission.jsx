@@ -343,6 +343,7 @@ export default function NewMission() {
             .select('id, title, status, panel_count, filled_count, created_at, company_notified_at')
             .eq('company_id', co.id)
             .or('type.is.null,type.eq.landing_page')
+            .eq('dismissed', false)
             .order('created_at', { ascending: false });
           setMissions(data || []);
         }
@@ -575,7 +576,7 @@ export default function NewMission() {
 
   async function handleDeleteMission() {
     if (!deleteTarget) return;
-    const { error } = await supabase.from('missions').delete().eq('id', deleteTarget);
+    const { error } = await supabase.from('missions').update({ dismissed: true }).eq('id', deleteTarget);
     if (error) {
       setDeleteError('삭제 중 오류가 발생했습니다. 다시 시도해 주세요.');
       return;
@@ -768,7 +769,7 @@ export default function NewMission() {
               {[
                 { icon: '🖼', title: '이미지 최대 3장', desc: '랜딩페이지, 광고 소재, 배너 등 최대 3장 업로드' },
                 { icon: '📐', title: '영역 어노테이션', desc: '패널이 이미지 위에 직접 영역을 지정해 피드백 제공' },
-                { icon: '📊', title: '5차원 정량 평가', desc: '명확성 / 관련성 / 가치 / 차별화 / 신뢰 항목별 점수' },
+                { icon: '📊', title: '5대 지표 정량 평가', desc: '명확성 / 관련성 / 가치 / 차별화 / 신뢰 항목별 점수' },
                 { icon: '❓', title: '추가 질문 설정', desc: '최대 5개의 커스텀 질문을 추가로 설정 가능' },
               ].map(({ icon, title, desc }) => (
                 <div key={title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -1239,7 +1240,7 @@ export default function NewMission() {
                   <div>
                     <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>질문 설정</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                      패널에게 추가로 물을 질문을 최대 5개 선택하세요. 선택하지 않으면 기본 5차원 피드백만 수집됩니다.
+                      패널에게 추가로 물을 질문을 최대 5개 선택하세요. 선택하지 않으면 기본 5대 지표 피드백만 수집됩니다.
                     </p>
                   </div>
                   <div style={{
@@ -1560,7 +1561,7 @@ export default function NewMission() {
 
                 {allLPSelected.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-3)', fontSize: 13 }}>
-                    위 템플릿에서 질문을 선택하거나, 건너뛰기하면 기본 5차원 피드백만 수집됩니다.
+                    위 템플릿에서 질문을 선택하거나, 건너뛰기하면 기본 5대 지표 피드백만 수집됩니다.
                   </div>
                 )}
               </div>
@@ -1725,9 +1726,9 @@ export default function NewMission() {
       )}
       {deleteTarget && (
         <ConfirmModal
-          title="의뢰를 영구 삭제할까요?"
-          desc={"이 의뢰를 영구적으로 삭제합니다.\n삭제된 데이터는 복구할 수 없습니다."}
-          confirmLabel="영구 삭제"
+          title="의뢰를 삭제할까요?"
+          desc={"이 의뢰를 목록에서 삭제합니다."}
+          confirmLabel="삭제"
           cancelLabel="취소"
           danger
           errorMsg={deleteError}

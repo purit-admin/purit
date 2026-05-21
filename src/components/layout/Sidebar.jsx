@@ -40,7 +40,7 @@ const NAV = {
       items: [
         { path: '/company/templates', label: '질문 템플릿', icon: FileText },
         { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
-        { path: '/company/diagnosis', label: '5차원 진단', icon: Layers },
+        { path: '/company/diagnosis', label: '5대 지표 진단', icon: Layers },
         { path: '/company/report', label: 'AI 리포트', icon: Sparkles },
       ],
     },

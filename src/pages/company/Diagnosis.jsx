@@ -238,7 +238,7 @@ export default function Diagnosis() {
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>5-DIMENSION DIAGNOSIS</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>전환 5차원 진단</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>전환 5대 지표 진단</h1>
         <p style={{ color: 'var(--text-3)', fontSize: 13 }}>완료된 메인 의뢰의 피드백만 집계됩니다. 서브 의뢰 및 조기 종료된 의뢰는 제외됩니다.</p>
 
         {missions.length > 0 && (
@@ -299,7 +299,7 @@ export default function Diagnosis() {
         <Card style={{ padding: '60px', textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📊</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>아직 피드백 데이터가 없습니다</div>
-          <div style={{ color: 'var(--text-2)', fontSize: 13 }}>의뢰를 등록하고 패널 피드백이 수집되면 5차원 진단 결과가 표시됩니다.</div>
+          <div style={{ color: 'var(--text-2)', fontSize: 13 }}>의뢰를 등록하고 패널 피드백이 수집되면 5대 지표 진단 결과가 표시됩니다.</div>
         </Card>
       ) : (
         <>

@@ -298,7 +298,7 @@ export default function TimelineTracker({ inline = false }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>시계열 점수 추적</h1>
-            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>의뢰별·기간별 5차원 점수 변화를 추적하고 개선 추이를 확인하세요.</p>
+            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>의뢰별·기간별 5대 지표 점수 변화를 추적하고 개선 추이를 확인하세요.</p>
           </div>
           {viewToggle}
         </div>

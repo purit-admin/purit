@@ -323,7 +323,7 @@ export default function CompanyDashboard() {
 
   const handleDeleteMission = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase.from('missions').delete().eq('id', deleteTarget);
+    const { error } = await supabase.from('missions').update({ dismissed: true }).eq('id', deleteTarget);
     if (error) {
       setDeleteError('삭제 중 오류가 발생했습니다. 다시 시도해 주세요.');
       return;
@@ -353,6 +353,7 @@ export default function CompanyDashboard() {
             .from('missions')
             .select('*')
             .eq('company_id', co.id)
+            .eq('dismissed', false)
             .order('created_at', { ascending: false });
           setMissions(ms || []);
 
@@ -519,10 +520,10 @@ export default function CompanyDashboard() {
       {/* Chart Row: 레이더 + KPI + 긍부정 3열 */}
       <motion.div {...fadeUp(0.1)} className="chart-three-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 24 }}>
 
-        {/* 5차원 레이더 차트 */}
+        {/* 5대 지표 레이더 차트 */}
         <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow }}>
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>전환 메시지 5차원 진단</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>전환 메시지 5대 지표 진단</div>
             <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>
               {chartFeedbacks.length > 0 ? `승인된 피드백 ${chartFeedbacks.length}건 기준 · 플랫폼 벤치마크 비교` : '의뢰 완료 후 실데이터로 업데이트됩니다'}
             </div>
@@ -744,9 +745,9 @@ export default function CompanyDashboard() {
     )}
     {deleteTarget && (
       <ConfirmModal
-        title="의뢰를 영구 삭제할까요?"
-        desc={"이 의뢰를 영구적으로 삭제합니다.\n삭제된 데이터는 복구할 수 없습니다."}
-        confirmLabel="영구 삭제"
+        title="의뢰를 삭제할까요?"
+        desc={"이 의뢰를 목록에서 삭제합니다."}
+        confirmLabel="삭제"
         cancelLabel="취소"
         danger
         errorMsg={deleteError}
