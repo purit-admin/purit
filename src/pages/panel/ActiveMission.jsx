@@ -1142,24 +1142,24 @@ export default function ActiveMission() {
   /* ─── 제출 확인 모달 포털 (서브·이미지·텍스트 폼 공통) ─── */
   const submitConfirmPortal = showSubmitConfirm && ReactDOM.createPortal(
     <div onClick={() => setShowSubmitConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '32px', maxWidth: 600, width: '90%', border: '1px solid var(--border)', animation: 'fadeUp 0.2s ease both' }}>
-        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 10, letterSpacing: '0.1em' }}>SUBMIT CHECK</div>
-        <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>피드백을 제출할까요?</h2>
-        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', borderRadius: 'var(--radius-lg)', padding: '40px', width: 'max-content', maxWidth: '90vw', border: '1px solid var(--border)', animation: 'fadeUp 0.2s ease both' }}>
+        <div style={{ fontSize: 13, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 12, letterSpacing: '0.1em' }}>SUBMIT CHECK</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>피드백을 제출할까요?</h2>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '20px 22px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 15 }}>
           {[
             '구체적인 이유·개선 방향이 담긴 피드백일수록 승인 확률이 높아집니다.',
             '글자 수가 많을수록 승인 가능성이 높아집니다.',
             '반려된 피드백은 보상이 지급되지 않습니다.',
           ].map((t, i) => (
-            <div key={i} style={{ display: 'flex', gap: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+            <div key={i} style={{ display: 'flex', gap: 12, fontSize: 15, color: 'var(--text-2)', lineHeight: 1.5 }}>
               <span style={{ color: '#F59E0B', flexShrink: 0, marginTop: 1 }}>⚠</span>
               <span>{t}</span>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginBottom: 24 }}>
-          <span style={{ color: 'var(--red,#ef4444)', flexShrink: 0, fontSize: 14 }}>🚨</span>
-          <span style={{ fontSize: 13, color: 'var(--red,#ef4444)', fontWeight: 700, lineHeight: 1.5 }}>지속적인 반려는 패널 계정 정지로 이어질 수 있습니다.</span>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '14px 16px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginBottom: 28 }}>
+          <span style={{ color: 'var(--red,#ef4444)', flexShrink: 0, fontSize: 16 }}>🚨</span>
+          <span style={{ fontSize: 15, color: 'var(--red,#ef4444)', fontWeight: 700, lineHeight: 1.5 }}>지속적인 반려는 패널 계정 정지로 이어질 수 있습니다.</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Btn
