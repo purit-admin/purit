@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-20 (D-87 추가 — Supabase Realtime postgres_changes UPDATE 이벤트가 REPLICA IDENTITY FULL 없이 브로드캐스트되지 않아 Sidebar 뱃지 미갱신)
+최종 업데이트: 2026-05-21 (D-89 추가 — 렌더 게이트 state가 클라이언트 period 필터 변경 시 갱신되지 않아 0점 차트가 렌더되는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1204,3 +1204,28 @@ D-88. 일괄 처리(bulk) 버튼에 개별 처리가 가진 ConfirmModal(사용�
              ③ onConfirm이 `async () => { const ok = await fn(); if (ok) setModal(false); }` 형태인가?
              ④ 실패 시 errorMsg prop으로 모달 내부에 인라인 에러가 표시되는가?
              D-62의 "side effect 체크리스트"와 이 원칙의 "UX 게이트 체크리스트"를 일괄 처리 추가 시 동시 적용할 것
+
+D-89. 비동기 로드 시 설정된 렌더 게이트 state가 클라이언트 필터 변경 시 갱신되지 않아 0점 차트가 렌더되는 패턴 ✅ 해결
+     → 증상: 기간 필터를 "최근 1개월"로 좁혀 피드백이 0건이 되어도 hasData=true가 유지되어
+             0점짜리 레이더 차트·바차트가 그대로 렌더됨 (빈 상태 카드가 표시되어야 함)
+     → 원인: `setHasData(myFeedbacks.length > 0)` 가 load() 시점에 한 번 호출되고,
+             이후 period useEffect가 scores·keywords 등은 재계산하지만 hasData는 건드리지 않음
+             → period 필터로 filteredFeedbacks가 0건이 되어도 hasData가 이전 로드 시의 true를 유지
+             → 렌더 게이트 `{!hasData ? <EmptyStateCard> : <Charts>}` 가 무용지물이 됨
+     → 해결 1 (loadFeedbacks): setHasData 위치를 unfiltered 배열 기준에서 periodFiltered 배열 기준으로 이동
+             ```js
+             // BEFORE: setHasData(myFeedbacks.length > 0);  // 원본 전체 기준
+             // AFTER: (period useEffect 이후 위치로 이동 + periodFiltered 기준으로 변경)
+             setHasData(periodFiltered.length > 0);
+             ```
+     → 해결 2 (period useEffect): 마지막에 setHasData 추가
+             ```js
+             setKeywords(extractKeywords(filtered));
+             setHasData(filtered.length > 0);  // ← 추가
+             ```
+     → 원칙: "데이터가 있는가"를 판단하는 렌더 게이트 state(hasData, isEmpty, showEmpty 등)는
+             데이터를 가공·필터링하는 모든 경로 끝에서 동시에 갱신해야 함
+             초기 load()에서 한 번 설정 후 방치하면, 클라이언트 필터(period, 탭, 검색어 등)로
+             표시 데이터가 달라져도 게이트가 열린 채로 남아 잘못된 UI를 렌더함
+             점검 방법: setHasData(또는 동등한 게이트 setter)를 grep → 컴포넌트 내 모든 필터 로직(useEffect 포함)과
+             대조해 빠진 갱신 경로가 없는지 확인

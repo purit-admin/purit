@@ -190,8 +190,15 @@ purit/
 │   │                  loadFeedback(): purity_passed=true 피드백 표시 (completed|cancelled 공통)
 │   │                  기업이 피드백을 처음 볼 수 있는 시점: 완료→complete_mission_and_refund RPC / 취소→earlyCompleteMission(company_notified_at SET)
 │   │                  ?id param 진입 시 cancelled 미션이면 setMissionTab('cancelled') 자동 전환 ★
+│   │                좌측 패널 기간 필터 ★ 신규: period state('all'|'3m'|'1m', 기본 'all') + pill UI(전체/3개월/1개월)
+│   │                  기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
+│   │                  위치: "피드백 결과" 헤더 아래, missionTab 탭 위
+│   │                  periodMissions = cutoff ? missions.filter(m => new Date(m.created_at) >= cutoff) : missions
+│   │                  tabFiltered: periodMissions 기반 (기간 필터 → 탭 필터 순 적용)
+│   │                  setPeriod 시 setMainPage(1) + setSubPage(1) + setSelected(null) 동시 리셋 (D-74)
+│   │                  우측 패널 미션 탐색: missions.find(m => m.id === selected) — 전체 배열 사용 (기간 필터 무관)
 │   │                좌측 패널: missionTab state('all'|'completed'|'cancelled') + 탭 UI(전체/완료/취소) ★ 개편
-│   │                  tabFiltered: missionTab='all'→missions 전체 / 그 외→status 일치 필터
+│   │                  tabFiltered: missionTab='all'→periodMissions 전체 / 그 외→status 일치 필터
 │   │                  mainMissions/subMissions: tabFiltered 기준 타입 분리
 │   │                  handleMissionTab(tab): setMissionTab + setMainPage(1) + setSubPage(1) 동시 호출
 │   │                  타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
@@ -217,6 +224,20 @@ purit/
 │   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
+│   │   ※ pages/company/Diagnosis.jsx: 기간 필터 추가 (2026-05-21) ★
+│   │                  period state: 'all'|'3m'|'1m' (기본 'all') — 의뢰 칩 행 아래 pill 버튼
+│   │                  rawFeedbacks state: 전체 미필터 피드백 보존 (period 변경 시 재계산 원본)
+│   │                  필터 기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
+│   │                  cutoff 공식: period!=='all' → new Date(Date.now() - (period==='3m' ? 90 : 30) * 86400000)
+│   │                  loadFeedbacks(ids, msList) — 반드시 두 인자 필요:
+│   │                    ids: 선택된 미션 ID 배열 / msList: missions state (period cutoff 적용 대상)
+│   │                    msList 없이 호출 시 period!=='all'에서 TypeError (undefined.filter) — D-89 참조
+│   │                    periodFiltered: cutoff!=null → rawFeedbacks 중 msList.filter(created_at>=cutoff) ID Set 교집합
+│   │                    setHasData(periodFiltered.length > 0) — periodFiltered 기준 (unfiltered myFeedbacks 아님)
+│   │                  period useEffect: rawFeedbacks 재필터 → setScores/setDistributions/setBenchmarks/setKeywords/setHasData 순 갱신
+│   │                    의존 배열: [period] — missions는 rawFeedbacks에 이미 반영되어 있으므로 제외
+│   │                  selectedIds/compareMode useEffect: loadFeedbacks(ids, missions) — missions state 두 번째 인자 필수
+│   │                  hasData gate: period 변경으로 0건이 되면 hasData=false → 빈 상태 카드 표시 (0점 차트 미렌더)
 │   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
 │   │                  feedbacks select: panels(user_id, name, honor_points, experience) — payout 계산용 honor_points·experience 포함 ★
 │   │                  approve(id): getPanelReward(panel.honor_points, panel.experience) 계산 → feedbacks.payout_amount 저장 + rejection_penalty_applied=false 초기화

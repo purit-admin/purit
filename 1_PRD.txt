@@ -161,7 +161,7 @@
    - 제출 시 Supabase missions 테이블에 INSERT (id 사전 생성 UUID), status='active'
    - reward_amount = calcPanelPayout(careerLevels, 'main') — 패널 1인당 예상 정산금 (메인 주니어 기준 8,000원)
 
-3. 피드백 결과 (/company/results) — Results.jsx  ★ 완료/취소 전용 탭 + 빈 상태 통합 (2026-05-18)
+3. 피드백 결과 (/company/results) — Results.jsx  ★ 완료/취소 전용 탭 + 빈 상태 통합 + 기간 필터 (2026-05-21)
    - 피드백 공개 정책 ★ 핵심:
      · active 의뢰는 목록 자체에서 제외
      · cancelled 의뢰는 company_notified_at IS NOT NULL인 경우에만 표시 (earlyCompleteMission 이후) ★
@@ -171,6 +171,11 @@
        - 완료 의뢰: 어드민 "완료 처리" → complete_mission_and_refund RPC → mission.status='completed' + 기업 완료 알림
        - 취소 의뢰: 어드민 취소 탭 "완료 처리"(earlyCompleteMission) → missions.company_notified_at SET + 기업 알림
    - 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열 구조
+   - 좌측 패널 기간 필터 ★ 신규: 전체 / 최근 3개월 / 최근 1개월 (pill 버튼, 기본: 전체)
+     · 기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
+     · 필터 위치: "피드백 결과" 헤더 바로 아래, 전체/완료/취소 탭 위
+     · 기간 전환 시 mainPage/subPage/selected 자동 리셋 (D-74 준수)
+     · 우측 패널 콘텐츠(피드백 상세)는 필터 미적용 — missions.find(전체 배열) 기준
    - 좌측 패널: 탭 3개(전체/완료/취소) + 메인 의뢰 / 서브 의뢰 섹션 분리, 타입 뱃지 + 피드백 수 표시 ★ 개편
      · missionTab state: 'all'|'completed'|'cancelled' (기본 'all')
      · 탭 전환 시 mainPage/subPage 자동 리셋 (handleMissionTab 헬퍼)
@@ -227,8 +232,12 @@
                   소재비교·가격검증·이메일검증 코멘트 항목
    - ※ panels 조인 없음 (RLS 차단 원칙 D-28 준수)
 
-4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx
+4. 5차원 진단 (/company/diagnosis) — Diagnosis.jsx  ★ 기간 필터 추가 (2026-05-21)
    - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
+   - 기간 필터 ★ 신규: 전체 / 최근 3개월 / 최근 1개월 (의뢰 칩 행 아래 pill 버튼, 기본: 전체)
+     · 기준: missions.created_at (의뢰 등록일)
+     · rawFeedbacks(전체)를 보존 후 period 변경 시 클라이언트에서 mission_id Set 교집합으로 재계산
+     · 피드백 0건 시 hasData=false → "아직 피드백 데이터가 없습니다" 빈 상태 카드 표시
    - "개선 가이드 보기 →" 버튼: 가장 취약한 차원 감지 → 맞춤 개선 팁 5개 모달 표시
      (IMPROVEMENT_GUIDES 상수: 5개 차원별 실행 가능한 액션 아이템 정의)
    - 탭 '키워드 분석' 추가: feedbacks suggestions/strengths/weaknesses 텍스트에서
