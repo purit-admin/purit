@@ -6,13 +6,6 @@ import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';
 
-const SECTIONS = [
-  { key: 'clarity',         label: '명확성',   desc: '첫 화면 메시지가 타겟에게 즉시 이해되는가?' },
-  { key: 'relevance',       label: '관련성',   desc: '콘텐츠가 타겟 페르소나의 니즈에 정확히 맞는가?' },
-  { key: 'value',           label: '가치',     desc: '제품/서비스의 가치가 명확하게 전달되는가?' },
-  { key: 'differentiation', label: '차별화',   desc: '경쟁 대비 차별점이 설득력 있게 드러나는가?' },
-  { key: 'trust',           label: '신뢰',     desc: 'CTA, 소셜 프루프, 보증이 구매 신뢰를 만드는가?' },
-];
 
 const DIM_LABEL = { clarity: '명확성', relevance: '관련성', value: '가치', differentiation: '차별화', trust: '신뢰' };
 
@@ -41,17 +34,6 @@ const hasDraftProgress = (fb) => {
   } catch { return false; }
 };
 
-function parseCommentsFromSuggestions(suggestions) {
-  const result = { clarity: '', relevance: '', value: '', differentiation: '', trust: '' };
-  const labelMap = { '명확성': 'clarity', '관련성': 'relevance', '가치': 'value', '차별화': 'differentiation', '신뢰': 'trust' };
-  const sections = (suggestions || '').split('\n\n');
-  for (const section of sections) {
-    const lines = section.split('\n');
-    const m = lines[0]?.match(/^\[(.+)\]$/);
-    if (m && labelMap[m[1]]) result[labelMap[m[1]]] = lines.slice(1).join('\n');
-  }
-  return result;
-}
 
 function parseSubDesc(desc, type) {
   if (!desc) return {};
@@ -161,9 +143,6 @@ export default function ActiveMission() {
   // ── FORM VIEW ──
   const [mission, setMission]   = useState(null);
   const [step, setStep]         = useState(0);
-  const [scores, setScores]     = useState({ clarity: 0, relevance: 0, value: 0, differentiation: 0, trust: 0 });
-  const [comments, setComments] = useState({ clarity: '', relevance: '', value: '', differentiation: '', trust: '' });
-  const [purityWarning, setPurityWarning] = useState('');
   const [submitting, setSubmitting]       = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [draftId, setDraftId]             = useState(null);
@@ -237,8 +216,6 @@ export default function ActiveMission() {
     setSlotTaken(false);
     setDeadlineBanner(null);
     setIsResubmit(false);
-    setScores({ clarity: 0, relevance: 0, value: 0, differentiation: 0, trust: 0 });
-    setComments({ clarity: '', relevance: '', value: '', differentiation: '', trust: '' });
     setAlreadySubmitted(false);
     setDraftId(null);
     setAnnotations([]);
@@ -298,13 +275,6 @@ export default function ActiveMission() {
               if (fb.rejection_deadline) {
                 setDeadlineBanner({ label: '재제출 마감', value: new Date(fb.rejection_deadline) });
               }
-              setScores({
-                clarity:         fb.clarity_score         || 0,
-                relevance:       fb.relevance_score       || 0,
-                value:           fb.value_score           || 0,
-                differentiation: fb.differentiation_score || 0,
-                trust:           fb.trust_score           || 0,
-              });
               if (ms.image_urls?.length > 0) {
                 const { data: anns } = await supabase.from('feedback_annotations').select('*').eq('feedback_id', fb.id).order('created_at');
                 setAnnotations(anns || []);
@@ -344,8 +314,6 @@ export default function ActiveMission() {
                   }
                   if (Array.isArray(subResp?.custom_answers)) setCustomAnswers(subResp.custom_answers);
                 }
-              } else {
-                if (fb.suggestions) setComments(parseCommentsFromSuggestions(fb.suggestions));
               }
               // 재작성 모드: 브리핑 스킵하고 폼으로 바로 이동
               setStep(1);
@@ -378,13 +346,6 @@ export default function ActiveMission() {
                 }
               }
               setDraftId(fb.id);
-              setScores({
-                clarity:         fb.clarity_score         || 0,
-                relevance:       fb.relevance_score       || 0,
-                value:           fb.value_score           || 0,
-                differentiation: fb.differentiation_score || 0,
-                trust:           fb.trust_score           || 0,
-              });
               if (fb.strengths) {
                 try {
                   const saved = JSON.parse(fb.strengths);
@@ -408,13 +369,6 @@ export default function ActiveMission() {
                       if (saved.emailComment)    setEmailComment(saved.emailComment);
                     }
                     if (Array.isArray(saved.customAnswers)) setCustomAnswers(saved.customAnswers);
-                  } else {
-                    if (saved.__comments) {
-                      setComments(saved.__comments);
-                      if (Array.isArray(saved.customAnswers)) setCustomAnswers(saved.customAnswers);
-                    } else {
-                      setComments(saved);
-                    }
                   }
                 } catch {}
               }
@@ -457,17 +411,6 @@ export default function ActiveMission() {
     load();
   }, [missionId, resubmitId]);
 
-  // 텍스트 모드 자동 저장 (이미지/서브미션 모드에서는 비활성)
-  useEffect(() => {
-    if (!draftId || step < 1 || !missionId || hasImages || isSubMission) return;
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => saveProgress(), 1500);
-    return () => {
-      clearTimeout(autoSaveTimer.current);
-      if (draftId && step >= 1) saveProgress();
-    };
-  }, [scores, comments, customAnswers]);
-
   // 이미지 미션 자동 저장 (LP 질문 응답 + 총평 + 차원 건너뛰기)
   useEffect(() => {
     if (!draftId || !hasImages || isSubMission || step < 1) return;
@@ -497,23 +440,6 @@ export default function ActiveMission() {
       emailOpenIntent, emailCuriosity, emailHook, emailClarity, emailWouldReply, emailComment,
       customAnswers]);
 
-  const saveProgress = () => {
-    if (!draftId) return;
-    setAutoSaving(true);
-    supabase.from('feedbacks').update({
-      clarity_score:         scores.clarity         || null,
-      relevance_score:       scores.relevance       || null,
-      value_score:           scores.value           || null,
-      differentiation_score: scores.differentiation || null,
-      trust_score:           scores.trust           || null,
-      strengths:             JSON.stringify(
-        customAnswers.length > 0
-          ? { __comments: comments, customAnswers }
-          : comments
-      ),
-    }).eq('id', draftId).then(() => setAutoSaving(false));
-  };
-
   const saveSubProgress = () => {
     if (!draftId || !missionType) return;
     let subState = { __subType: missionType };
@@ -528,16 +454,6 @@ export default function ActiveMission() {
     setAutoSaving(true);
     supabase.from('feedbacks').update({ strengths: JSON.stringify(subState) })
       .eq('id', draftId).then(() => setAutoSaving(false));
-  };
-
-  const checkPurity = (text) => {
-    if (text.length > 10 && text.split(' ').length < 4) {
-      setPurityWarning('⚠️ 너무 짧은 피드백은 Purit Filter에서 걸릴 수 있습니다. 구체적인 근거를 추가해주세요.');
-    } else if (/^(좋아요|나쁘네요|별로|좋은것같아요|모르겠어요)$/i.test(text.trim())) {
-      setPurityWarning('⚠️ 감성적 표현만으로는 필터를 통과하기 어렵습니다. 구체적 이유를 작성해주세요.');
-    } else {
-      setPurityWarning('');
-    }
   };
 
   // 제출 후 공통 후처리: 게이미피케이션 RPC + 기업 알림
@@ -588,17 +504,10 @@ export default function ActiveMission() {
   const hasSavedProgress = Boolean(draftId) && (
     hasImages
       ? annotations.length > 0 || customAnswers.length > 0
-      : isSubMission
-        ? Boolean(prefChoice || prefClarity || prefIntent || priceFairness || priceValue || priceWouldBuy !== null || emailOpenIntent || emailCuriosity || emailHook || emailWouldReply !== null)
-        : Object.values(scores).some(s => s > 0) || Object.values(comments).some(c => c.trim()) || customAnswers.length > 0
+      : Boolean(prefChoice || prefClarity || prefIntent || priceFairness || priceValue || priceWouldBuy !== null || emailOpenIntent || emailCuriosity || emailHook || emailWouldReply !== null)
   );
 
-  const handleResume = () => {
-    if (hasImages || isSubMission) { setStep(1); return; }
-    const keys = ['clarity', 'relevance', 'value', 'differentiation', 'trust'];
-    const firstEmpty = keys.findIndex(k => !scores[k]);
-    setStep(firstEmpty === -1 ? SECTIONS.length : firstEmpty + 1);
-  };
+  const handleResume = () => { setStep(1); };
 
   // 어노테이션 추가 (이미지 모드)
   const handleAddAnnotation = async (annotationData) => {
@@ -708,7 +617,7 @@ export default function ActiveMission() {
       }
       await postSubmitActions(isResubmit);
 
-      setStep(SECTIONS.length + 1);
+      setStep(6);
     } catch (err) {
       setSubmitError('제출 중 오류: ' + err.message);
     } finally {
@@ -762,22 +671,7 @@ export default function ActiveMission() {
           status:        'submitted',
         };
       } else {
-        updatePayload = {
-          clarity_score:         scores.clarity,
-          relevance_score:       scores.relevance,
-          value_score:           scores.value,
-          differentiation_score: scores.differentiation,
-          trust_score:           scores.trust,
-          strengths:             null,
-          weaknesses:            null,
-          suggestions:           SECTIONS
-            .map(s => comments[s.key] ? `[${s.label}]\n${comments[s.key]}` : null)
-            .filter(Boolean)
-            .join('\n\n'),
-          custom_answers: customAnswers.length > 0 ? customAnswers : null,
-          purity_passed: false,
-          status:        'submitted',
-        };
+        return; // 이미지 없는 미션은 제출 불가 (하위 호환 안전 가드)
       }
 
       const { error: fbError } = await supabase.from('feedbacks').update(updatePayload).eq('id', draftId);
@@ -789,7 +683,7 @@ export default function ActiveMission() {
       }
       await postSubmitActions(isResubmit);
 
-      setStep(SECTIONS.length + 1);
+      setStep(6);
     } catch (err) {
       setSubmitError('제출 중 오류: ' + err.message);
     } finally {
@@ -1122,7 +1016,7 @@ export default function ActiveMission() {
   );
 
   /* ─── 완료 화면 ─── */
-  if (step > SECTIONS.length) return (
+  if (step >= 6) return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 600, animation: 'fadeUp 0.5s ease both', textAlign: 'center' }}>
       <div style={{ fontSize: 64, marginBottom: 20 }}>{isResubmit ? '🔄' : '✅'}</div>
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
@@ -1763,103 +1657,5 @@ export default function ActiveMission() {
     );
   }
 
-  /* ─── 텍스트 피드백 모드 (이미지 없는 미션) ─── */
-  const sec = SECTIONS[step - 1];
-  const isLast = step === SECTIONS.length;
-
-  return (
-    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.4s ease both' }}>
-      {deadlineBannerEl}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
-        {SECTIONS.map((s, i) => (
-          <div key={s.key} style={{
-            flex: 1, height: 4, borderRadius: 2,
-            background: i < step - 1 ? 'var(--green)' : i === step - 1 ? 'var(--accent)' : 'var(--border)',
-            transition: 'background 0.3s',
-          }} />
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)' }}>{step} / {SECTIONS.length}</div>
-        {autoSaving && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>저장 중...</div>}
-        {!autoSaving && draftId && <div style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'var(--font-sans)' }}>✓ 자동 저장됨</div>}
-      </div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{sec.label}</h1>
-      <p style={{ color: 'var(--text-2)', marginBottom: 28 }}>{sec.desc}</p>
-
-      <Card style={{ marginBottom: 20 }}>
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>점수 (1~5)</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[1, 2, 3, 4, 5].map(n => (
-              <button key={n} onClick={() => setScores(s => ({ ...s, [sec.key]: n }))} style={{
-                flex: 1, padding: '14px 0', borderRadius: 'var(--radius)',
-                background: scores[sec.key] === n ? 'var(--accent)' : scores[sec.key] > n ? 'var(--accent-dim)' : 'var(--surface-2)',
-                color: scores[sec.key] === n ? '#FFFFFF' : 'var(--text-2)',
-                border: '1px solid ' + (scores[sec.key] >= n ? 'var(--accent)' : 'var(--border)'),
-                fontWeight: 700, fontSize: 16, transition: 'all 0.15s', cursor: 'pointer',
-              }}>{n}</button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
-            <span>매우 낮음</span><span>매우 높음</span>
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>구체적 피드백</div>
-          <textarea
-            value={comments[sec.key]}
-            onChange={e => { setComments(c => ({ ...c, [sec.key]: e.target.value })); checkPurity(e.target.value); }}
-            placeholder={`${sec.label} 측면에서 발견한 문제점이나 강점을 구체적으로 작성해주세요.`}
-            rows={5} style={{ resize: 'vertical' }}
-          />
-          <div style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-sans)', color: charCountMeta(comments[sec.key] || '').color, fontWeight: 600 }}>
-            {charCountMeta(comments[sec.key] || '').label}
-          </div>
-          {purityWarning && (
-            <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8, padding: '10px 14px', background: 'var(--red-dim)', borderRadius: 'var(--radius)' }}>
-              {purityWarning}
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {isLast && lpTypedQs.length > 0 && (
-        <Card style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>추가 질문</div>
-          <TypedQuestionsBlock
-            qs={lpTypedQs}
-            get={id => customAnswers.find(a => a.questionId === id)?.answer}
-            set={(qId, qText, type, ans) => setCustomAnswers(prev => {
-              const idx = prev.findIndex(a => a.questionId === qId);
-              const entry = { questionId: qId, questionText: qText, type, answer: ans };
-              return idx >= 0 ? prev.map((a, i) => i === idx ? entry : a) : [...prev, entry];
-            })}
-          />
-        </Card>
-      )}
-
-      {isLast && submitError && (
-        <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
-          {submitError}
-        </div>
-      )}
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Btn variant="secondary" onClick={() => setStep(s => s - 1)}>이전</Btn>
-        <Btn
-          disabled={!scores[sec.key] || (comments[sec.key] || '').trim().length < 30 || submitting || (isLast && !(lpTypedQs.length === 0 || lpTypedQs.every(q => {
-            const a = customAnswers.find(x => x.questionId === q.id)?.answer;
-            if (a === undefined || a === null || a === '') return false;
-            if (q.type === 'text') return String(a).trim().length >= 10;
-            return true;
-          })))}
-          onClick={() => isLast ? (setSubmitError(''), pendingSubmitRef.current = handleSubmit, setShowSubmitConfirm(true)) : setStep(s => s + 1)}
-        >
-          {isLast ? (submitting ? '제출 중...' : '제출하기 →') : '다음 →'}
-        </Btn>
-      </div>
-      {submitConfirmPortal}
-    </div>
-  );
+  return null;
 }

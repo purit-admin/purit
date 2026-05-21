@@ -99,6 +99,7 @@ export default function PricingTest() {
   const [missions, setMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [companyId, setCompanyId] = useState(null);
   const [companyPlan, setCompanyPlan] = useState(null);
   const [careerLevels, setCareerLevels] = useState(['junior']);
@@ -945,9 +946,11 @@ export default function PricingTest() {
                   return;
                 }
                 setCreateStep(s => s + 1);
-              }}>다음 →</Btn>
+              }} disabled={
+                createStep === 0 && (!pricingDesc.trim() || !productDescription.trim() || !industry)
+              }>다음 →</Btn>
             ) : (
-              <Btn onClick={handleSubmit} disabled={submitting || (creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
+              <Btn onClick={() => setShowSubmitConfirm(true)} disabled={submitting || (creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
                 {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}
@@ -1066,6 +1069,41 @@ export default function PricingTest() {
           </div>
         )
       )}
+
+      {showSubmitConfirm && (() => {
+        const credits = calcCredits(panelSize, careerLevels, 'sub');
+        const remaining = creditBalance != null ? creditBalance - credits : null;
+        return (
+          <ConfirmModal
+            title="의뢰를 제출할까요?"
+            desc={
+              <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                  <span>예상 소모 크레딧</span>
+                  <strong style={{ color: 'var(--text)' }}>{Math.ceil(credits)} cr</strong>
+                </div>
+                {remaining != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                    <span>제출 후 잔여 크레딧</span>
+                    <strong style={{ color: remaining < 0 ? '#ef4444' : 'var(--text)' }}>{Math.floor(remaining)} cr</strong>
+                  </div>
+                )}
+                <div style={{ padding: '10px 14px', background: 'rgba(16,54,125,0.06)', borderRadius: 8, marginBottom: 12 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>💡 고품질 피드백을 받으려면</div>
+                  <div>가격 구성의 배경과 검증하고 싶은 포인트를 <strong>구체적으로 작성할수록</strong> 패널이 실질적인 가격 피드백을 제공합니다. 제출 전 제품 설명을 다시 한번 확인하세요.</div>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  ※ 첫 피드백 수신 후에는 의뢰 내용을 수정할 수 없습니다.
+                </div>
+              </div>
+            }
+            confirmLabel="제출하기"
+            cancelLabel="다시 확인"
+            onConfirm={() => { setShowSubmitConfirm(false); handleSubmit(); }}
+            onCancel={() => setShowSubmitConfirm(false)}
+          />
+        );
+      })()}
 
       {terminateTarget && (
         <ConfirmModal

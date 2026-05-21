@@ -249,9 +249,12 @@ export default function NewMission() {
   const [industryOpen,        setIndustryOpen]        = useState(false);
   const [industryCustomMode,  setIndustryCustomMode]  = useState(false);
   const [industryCustomInput, setIndustryCustomInput] = useState('');
+  const [focusCustomMode,     setFocusCustomMode]     = useState(false);
+  const [focusCustomInput,    setFocusCustomInput]    = useState('');
   const [uploading, setUploading]         = useState(false);
   const [uploadError, setUploadError]     = useState('');
   const [submitting, setSubmitting]       = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [submitError, setSubmitError]     = useState('');
   const [companyPlan, setCompanyPlan]     = useState(null);
   const [companyId, setCompanyId]         = useState(null);
@@ -397,6 +400,12 @@ export default function NewMission() {
   }, []);
 
   const FOCUS = ['첫인상 / 가독성', 'CTA 전환율', '가격 및 가치 전달', '신뢰 요소', '모바일 최적화', '핵심 메시지 명확성', '비주얼 완성도', '타겟 일치도'];
+
+  const stepValid = (() => {
+    if (step === 0) return !!form.industry && !!form.product.trim() && !!form.personaAge.trim() && !!form.personaIncome.trim() && !!form.personaRole.trim();
+    if (step === 1) return form.imageUrls.length > 0 && form.focusAreas.length > 0 && !!form.briefText.trim();
+    return true;
+  })();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleFocus = (f) => setForm(prev => ({
@@ -1082,6 +1091,75 @@ export default function NewMission() {
                         {f}
                       </button>
                     ))}
+                    {/* 커스텀 기타 항목 — focusAreas에 있지만 FOCUS 배열에 없는 항목들 */}
+                    {form.focusAreas.filter(f => !FOCUS.includes(f)).map(f => (
+                      <button key={f} onClick={() => toggleFocus(f)} style={{
+                        padding: '6px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500,
+                        background: 'var(--accent)', color: '#FFFFFF',
+                        border: '1px solid var(--accent)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                      }}>
+                        {f}
+                        <span style={{ fontSize: 10, opacity: 0.8 }}>×</span>
+                      </button>
+                    ))}
+                    {/* 기타 추가 버튼 */}
+                    {!focusCustomMode ? (
+                      <button onClick={() => setFocusCustomMode(true)} style={{
+                        padding: '6px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500,
+                        background: 'var(--surface-2)', color: 'var(--text-3)',
+                        border: '1px dashed var(--border)', cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-3)'; e.currentTarget.style.color = 'var(--text-2)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-3)'; }}
+                      >
+                        ✏️ 기타
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          autoFocus
+                          value={focusCustomInput}
+                          onChange={e => setFocusCustomInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const val = focusCustomInput.trim();
+                              if (val && !form.focusAreas.includes(val)) toggleFocus(val);
+                              setFocusCustomInput('');
+                              setFocusCustomMode(false);
+                            } else if (e.key === 'Escape') {
+                              setFocusCustomInput('');
+                              setFocusCustomMode(false);
+                            }
+                          }}
+                          placeholder="직접 입력 후 Enter"
+                          style={{
+                            padding: '5px 10px', borderRadius: 'var(--radius)', fontSize: 12,
+                            border: '1px solid var(--accent)', outline: 'none',
+                            width: 160, color: 'var(--text)',
+                          }}
+                        />
+                        <button onClick={() => {
+                          const val = focusCustomInput.trim();
+                          if (val && !form.focusAreas.includes(val)) toggleFocus(val);
+                          setFocusCustomInput('');
+                          setFocusCustomMode(false);
+                        }} style={{
+                          padding: '5px 10px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600,
+                          background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer',
+                        }}>
+                          추가
+                        </button>
+                        <button onClick={() => { setFocusCustomInput(''); setFocusCustomMode(false); }} style={{
+                          padding: '5px 8px', borderRadius: 'var(--radius)', fontSize: 12,
+                          background: 'var(--surface-2)', color: 'var(--text-3)', border: '1px solid var(--border)', cursor: 'pointer',
+                        }}>
+                          취소
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </label>
 
@@ -1576,10 +1654,10 @@ export default function NewMission() {
                   panelStepRef.current?.openCreditModal();
                   return;
                 }
-                step < STEPS.length - 1 ? setStep(s => s + 1) : handleSubmit();
+                step < STEPS.length - 1 ? setStep(s => s + 1) : setShowSubmitConfirm(true);
               }}
               size="md"
-              disabled={submitting || uploading || (step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
+              disabled={submitting || uploading || !stepValid || (step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
             >
               {step === STEPS.length - 1 ? (submitting ? '처리 중...' : effectiveEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
             </Btn>
@@ -1597,6 +1675,41 @@ export default function NewMission() {
           errorMsg={saveTmplError}
         />
       )}
+
+      {showSubmitConfirm && (() => {
+        const credits = calcCredits(form.panels, careerLevels, 'main');
+        const remaining = creditBalance != null ? creditBalance - credits : null;
+        return (
+          <ConfirmModal
+            title="의뢰를 제출할까요?"
+            desc={
+              <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                  <span>예상 소모 크레딧</span>
+                  <strong style={{ color: 'var(--text)' }}>{Math.ceil(credits)} cr</strong>
+                </div>
+                {remaining != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                    <span>제출 후 잔여 크레딧</span>
+                    <strong style={{ color: remaining < 0 ? '#ef4444' : 'var(--text)' }}>{Math.floor(remaining)} cr</strong>
+                  </div>
+                )}
+                <div style={{ padding: '10px 14px', background: 'rgba(16,54,125,0.06)', borderRadius: 8, marginBottom: 12 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>💡 고품질 피드백을 받으려면</div>
+                  <div>브리핑과 검증 포인트를 <strong>구체적으로 작성할수록</strong> 패널이 핵심을 짚은 피드백을 제공합니다. 제출 전 소재 설명과 브리핑을 다시 한번 확인하세요.</div>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  ※ 첫 피드백 수신 후에는 의뢰 내용을 수정할 수 없습니다.
+                </div>
+              </div>
+            }
+            confirmLabel="제출하기"
+            cancelLabel="다시 확인"
+            onConfirm={() => { setShowSubmitConfirm(false); handleSubmit(); }}
+            onCancel={() => setShowSubmitConfirm(false)}
+          />
+        );
+      })()}
 
       {terminateTarget && (
         <ConfirmModal
