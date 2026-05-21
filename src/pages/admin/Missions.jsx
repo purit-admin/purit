@@ -166,7 +166,12 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
   const allFbs    = (m.feedbacks || []).filter(f => f.status !== 'draft');
   const approved  = allFbs.filter(f => f.purity_passed);
   const reviewing = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
-  const completeBlocked = allFbs.length === 0 || reviewing.length > 0;
+  const drafts    = (m.feedbacks || []).filter(f => {
+    if (f.status !== 'draft') return false;
+    const deadline = f.rejection_deadline || f.submission_deadline;
+    return deadline && new Date(deadline) > new Date();
+  });
+  const completeBlocked = allFbs.length === 0 || reviewing.length > 0 || drafts.length > 0;
 
   return (
     <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer', padding: '10px 14px' }}>
@@ -234,8 +239,11 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             {m.status === 'active' && allFbs.length === 0 && (
               <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>수집된 피드백이 없습니다</div>
             )}
-            {m.status === 'active' && allFbs.length > 0 && reviewing.length > 0 && (
+            {m.status === 'active' && reviewing.length > 0 && (
               <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {reviewing.length}건 먼저 처리 필요</div>
+            )}
+            {m.status === 'active' && reviewing.length === 0 && drafts.length > 0 && (
+              <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>작성 중 {drafts.length}건 완료 대기</div>
             )}
             {m.status === 'cancelled' && allFbs.length > 0 && reviewing.length > 0 && (
               <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {reviewing.length}건 먼저 처리 필요</div>

@@ -876,6 +876,7 @@ export default function Results() {
   const [mainPage, setMainPage]           = useState(1);
   const [subPage, setSubPage]             = useState(1);
   const [missionTab, setMissionTab]       = useState('all');
+  const [period, setPeriod]               = useState('all');
 
   // 미션 목록 로드
   useEffect(() => {
@@ -1095,7 +1096,11 @@ export default function Results() {
   const isSubMission  = mission && ['preference', 'pricing', 'email'].includes(mission.type);
   const hasImages     = mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0 && !isSubMission;
 
-  const tabFiltered   = missionTab === 'all' ? missions : missions.filter(m => m.status === missionTab);
+  // 기간 필터 — 의뢰 등록일(mission.created_at) 기준으로 미션 목록 필터링
+  const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
+  const periodMissions = cutoff ? missions.filter(m => new Date(m.created_at) >= cutoff) : missions;
+
+  const tabFiltered   = missionTab === 'all' ? periodMissions : periodMissions.filter(m => m.status === missionTab);
   const mainMissions  = tabFiltered.filter(m => !m.type || m.type === 'landing_page');
   const subMissions   = tabFiltered.filter(m => ['preference', 'pricing', 'email'].includes(m.type));
   const pagedMain     = mainMissions.slice((mainPage - 1) * PAGE_SIZE, mainPage * PAGE_SIZE);
@@ -1122,6 +1127,19 @@ export default function Results() {
 
         {/* 좌측: 미션 선택 패널 */}
         <div className="results-sidebar" style={{ position: 'sticky', top: 24 }}>
+          {/* 기간 필터 */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: '#F1F5F9', borderRadius: 8, padding: 3 }}>
+            {[['all', '전체'], ['3m', '3개월'], ['1m', '1개월']].map(([val, label]) => (
+              <button key={val} onClick={() => { setPeriod(val); setMainPage(1); setSubPage(1); setSelected(null); }} style={{
+                flex: 1, padding: '4px 0', borderRadius: 6, fontSize: 11, fontWeight: period === val ? 700 : 500,
+                background: period === val ? '#fff' : 'transparent',
+                color: period === val ? 'var(--text)' : 'var(--text-3)',
+                border: 'none', cursor: 'pointer',
+                boxShadow: period === val ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.15s',
+              }}>{label}</button>
+            ))}
+          </div>
           {/* 탭 필터 */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: '100%' }}>
             {[

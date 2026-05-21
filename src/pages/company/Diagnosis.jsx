@@ -54,6 +54,7 @@ const DIMENSIONS = [
 
 const COMPARE_A = 'var(--accent)';
 const COMPARE_B = '#c66507';
+const COMPARE_C = '#159143';
 
 const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
@@ -102,16 +103,32 @@ export default function Diagnosis() {
   const [hasData, setHasData] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [rawFeedbacks, setRawFeedbacks] = useState([]);
+  const [period, setPeriod] = useState('all');
+  const [allBenchmarkFbs, setAllBenchmarkFbs] = useState([]);
 
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
+    if ((compareMode && compareData) || !rawFeedbacks.length) return;
+    const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
+    const periodMissionIds = cutoff ? new Set(missions.filter(m => new Date(m.created_at) >= cutoff).map(m => m.id)) : null;
+    const filtered = periodMissionIds ? rawFeedbacks.filter(f => periodMissionIds.has(f.mission_id)) : rawFeedbacks;
+    const { newScores, newDistributions, newBenchmarks } = computeForFbs(filtered, allBenchmarkFbs);
+    setScores(newScores);
+    setDistributions(newDistributions);
+    setBenchmarks(newBenchmarks);
+    setKeywords(extractKeywords(filtered));
+    setHasData(filtered.length > 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
+
+  useEffect(() => {
     if (!allMissionIds.length) return;
-    if (compareMode && selectedIds.size === 2) {
-      loadCompare([...selectedIds]);
+    if (compareMode && selectedIds.size >= 2 && selectedIds.size <= 3) {
+      loadCompare([...selectedIds].slice(0, 3));
     } else {
       const ids = selectedIds.size === 0 ? allMissionIds : [...selectedIds];
-      loadFeedbacks(ids);
+      loadFeedbacks(ids, missions);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds, compareMode]);
@@ -139,13 +156,13 @@ export default function Diagnosis() {
       const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
       if (!co) { setLoading(false); return; }
 
-      const { data: ms } = await supabase.from('missions').select('id, title').eq('company_id', co.id).eq('status', 'completed');
+      const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').order('created_at', { ascending: false });
       const msList = ms || [];
       const ids = msList.map(m => m.id);
       setMissions(msList);
       setAllMissionIds(ids);
 
-      await loadFeedbacks(ids);
+      await loadFeedbacks(ids, msList);
       setLoading(false);
     } catch (err) {
       console.error('[Diagnosis load]', err);
@@ -153,51 +170,76 @@ export default function Diagnosis() {
     }
   }
 
-  async function loadFeedbacks(ids) {
+  async function loadFeedbacks(ids, msList) {
     if (!ids.length) { setHasData(false); return; }
 
-    const [myRes, allRes] = await Promise.all([
-      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').in('mission_id', ids).eq('purity_passed', true),
-      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
-    ]);
+    try {
+      const [myRes, allRes] = await Promise.all([
+        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses,created_at,mission_id').in('mission_id', ids).eq('purity_passed', true),
+        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
+      ]);
 
-    const myFeedbacks = myRes.data || [];
-    const allFeedbacks = allRes.data || [];
-    setHasData(myFeedbacks.length > 0);
-    setCompareData(null);
+      const myFeedbacks = myRes.data || [];
+      const allFeedbacks = allRes.data || [];
+      setCompareData(null);
+      setRawFeedbacks(myFeedbacks);
+      setAllBenchmarkFbs(allFeedbacks);
 
-    const { newScores, newDistributions, newBenchmarks } = computeForFbs(myFeedbacks, allFeedbacks);
-    setScores(newScores);
-    setDistributions(newDistributions);
-    setBenchmarks(newBenchmarks);
-    setKeywords(extractKeywords(myFeedbacks));
-    setRawFeedbacks(myFeedbacks);
+      const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
+      const periodMissionIds = cutoff ? new Set(msList.filter(m => new Date(m.created_at) >= cutoff).map(m => m.id)) : null;
+      const periodFiltered = periodMissionIds ? myFeedbacks.filter(f => periodMissionIds.has(f.mission_id)) : myFeedbacks;
+      const { newScores, newDistributions, newBenchmarks } = computeForFbs(periodFiltered, allFeedbacks);
+      setScores(newScores);
+      setDistributions(newDistributions);
+      setBenchmarks(newBenchmarks);
+      setKeywords(extractKeywords(periodFiltered));
+      setHasData(periodFiltered.length > 0);
+    } catch (err) {
+      console.error('[loadFeedbacks]', err);
+      setHasData(false);
+    }
   }
 
-  async function loadCompare([idA, idB]) {
-    const mA = missions.find(m => m.id === idA);
-    const mB = missions.find(m => m.id === idB);
+  async function loadCompare([idA, idB, idC]) {
+    try {
+      const mA = missions.find(m => m.id === idA);
+      const mB = missions.find(m => m.id === idB);
+      const mC = idC ? missions.find(m => m.id === idC) : null;
 
-    const [resA, resB, allRes] = await Promise.all([
-      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idA).eq('purity_passed', true),
-      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idB).eq('purity_passed', true),
-      supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
-    ]);
+      const requests = [
+        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idA).eq('purity_passed', true),
+        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idB).eq('purity_passed', true),
+        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
+      ];
+      if (idC) requests.push(supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idC).eq('purity_passed', true));
 
-    const fbsA = resA.data || [];
-    const fbsB = resB.data || [];
-    const allFbs = allRes.data || [];
+      const results = await Promise.all(requests);
+      const fbsA = results[0].data || [];
+      const fbsB = results[1].data || [];
+      const allFbs = results[2].data || [];
+      const fbsC = idC ? (results[3].data || []) : [];
 
-    const comA = computeForFbs(fbsA, allFbs);
-    const comB = computeForFbs(fbsB, allFbs);
+      const comA = computeForFbs(fbsA, allFbs);
+      const comB = computeForFbs(fbsB, allFbs);
 
-    setCompareData({
-      a: { id: idA, title: mA?.title || 'A', scores: comA.newScores, distributions: comA.newDistributions, keywords: extractKeywords(fbsA) },
-      b: { id: idB, title: mB?.title || 'B', scores: comB.newScores, distributions: comB.newDistributions, keywords: extractKeywords(fbsB) },
-    });
-    setBenchmarks(comA.newBenchmarks);
-    setHasData(fbsA.length > 0 || fbsB.length > 0);
-    setRawFeedbacks([...fbsA, ...fbsB]);
+      const data = {
+        a: { id: idA, title: mA?.title || 'A', scores: comA.newScores, distributions: comA.newDistributions, keywords: extractKeywords(fbsA) },
+        b: { id: idB, title: mB?.title || 'B', scores: comB.newScores, distributions: comB.newDistributions, keywords: extractKeywords(fbsB) },
+      };
+      if (idC) {
+        const comC = computeForFbs(fbsC, allFbs);
+        data.c = { id: idC, title: mC?.title || 'C', scores: comC.newScores, distributions: comC.newDistributions, keywords: extractKeywords(fbsC) };
+      }
+
+      setCompareData(data);
+      setBenchmarks(comA.newBenchmarks);
+      setHasData(fbsA.length > 0 || fbsB.length > 0 || fbsC.length > 0);
+      setRawFeedbacks([...fbsA, ...fbsB, ...fbsC]);
+    } catch (err) {
+      console.error('[loadCompare]', err);
+      setCompareData(null);
+      setHasData(false);
+    }
   }
 
   function toggleMission(id) {
@@ -218,8 +260,11 @@ export default function Diagnosis() {
   const isComparing = compareMode && compareData;
 
   // Derived scores for header (use compare average in compare mode)
+  const compareItems = isComparing
+    ? [{ data: compareData.a, color: COMPARE_A }, { data: compareData.b, color: COMPARE_B }, ...(compareData.c ? [{ data: compareData.c, color: COMPARE_C }] : [])]
+    : [];
   const activeScores = isComparing
-    ? Object.fromEntries(DIMENSIONS.map(d => [d.key, ((compareData.a.scores[d.key] || 0) + (compareData.b.scores[d.key] || 0)) / 2]))
+    ? Object.fromEntries(DIMENSIONS.map(d => [d.key, avg(compareItems.map(({ data }) => data.scores[d.key] || 0))]))
     : scores;
 
   const scoreValues = DIMENSIONS.map(d => activeScores[d.key] || 0);
@@ -242,18 +287,10 @@ export default function Diagnosis() {
         <p style={{ color: 'var(--text-3)', fontSize: 13 }}>완료된 메인 의뢰의 피드백만 집계됩니다. 서브 의뢰 및 조기 종료된 의뢰는 제외됩니다.</p>
 
         {missions.length > 0 && (
-          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>의뢰</span>
-            {/* 스크롤 영역: 오른쪽 페이드 마스크 */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                overflowX: 'auto', flexWrap: 'nowrap',
-                paddingBottom: 2,
-                scrollbarWidth: 'none', msOverflowStyle: 'none',
-              }}
-                className="chip-scroll-row"
-              >
+          <>
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', flexShrink: 0, paddingTop: 5 }}>의뢰</span>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 <MissionChip
                   label={`전체 (${missions.length})`}
                   active={selectedIds.size === 0}
@@ -262,13 +299,13 @@ export default function Diagnosis() {
                 {missions.map(m => (
                   <MissionChip
                     key={m.id}
-                    label={m.title?.length > 16 ? m.title.slice(0, 15) + '…' : (m.title || '무제')}
+                    label={m.title || '무제'}
                     active={selectedIds.has(m.id)}
                     onClick={() => toggleMission(m.id)}
                     title={m.title}
                   />
                 ))}
-                {selectedIds.size === 2 && (
+                {selectedIds.size >= 2 && selectedIds.size <= 3 && (
                   <button
                     onClick={() => setCompareMode(v => !v)}
                     style={{
@@ -280,18 +317,24 @@ export default function Diagnosis() {
                     }}
                   >⇄ 비교 모드</button>
                 )}
-              </div>
-              {/* 오른쪽 페이드 힌트 */}
-              <div style={{
-                position: 'absolute', right: 0, top: 0, bottom: 2,
-                width: 32, pointerEvents: 'none',
-                background: 'linear-gradient(to right, transparent, var(--bg))',
-              }} />
             </div>
-            {selectedIds.size > 0 && (
-              <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>· {selLabel}</span>
-            )}
           </div>
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>기간</span>
+            <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 8, padding: 3 }}>
+              {[['all', '전체'], ['3m', '최근 3개월'], ['1m', '최근 1개월']].map(([val, label]) => (
+                <button key={val} onClick={() => setPeriod(val)} style={{
+                  padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: period === val ? 700 : 500,
+                  background: period === val ? '#fff' : 'transparent',
+                  color: period === val ? 'var(--text)' : 'var(--text-3)',
+                  border: 'none', cursor: 'pointer',
+                  boxShadow: period === val ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s',
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+          </>
         )}
       </div>
 
@@ -306,17 +349,18 @@ export default function Diagnosis() {
           {/* 헤더 요약 카드 */}
           {isComparing ? (
             <Card style={{ marginBottom: 28, padding: '20px 24px', display: 'flex', gap: 16, flexWrap: 'wrap', background: 'linear-gradient(135deg, var(--surface), var(--bg-3))' }}>
-              {[{ data: compareData.a, color: COMPARE_A }, { data: compareData.b, color: COMPARE_B }].map(({ data, color }) => {
+              {compareItems.map(({ data, color }) => {
                 const vals = DIMENSIONS.map(d => data.scores[d.key] || 0);
                 const avg5 = avg(vals);
+                const noData = vals.every(v => v === 0);
                 return (
                   <div key={data.id} style={{ display: 'flex', alignItems: 'center', gap: 20, flex: 1, minWidth: 220 }}>
                     <div style={{ textAlign: 'center', flexShrink: 0 }}>
                       <div style={{ fontSize: 9, fontFamily: 'var(--font-sans)', color, marginBottom: 4, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>●</div>
-                      <div style={{ fontSize: 48, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color }}>
-                        {avg5.toFixed(1)}
+                      <div style={{ fontSize: 48, fontWeight: 800, fontFamily: 'var(--font-sans)', lineHeight: 1, color: noData ? 'var(--text-3)' : color }}>
+                        {noData ? '—' : avg5.toFixed(1)}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>/ 5.0</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{noData ? '피드백 없음' : '/ 5.0'}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.title}</div>
@@ -372,9 +416,14 @@ export default function Diagnosis() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {DIMENSIONS.map(d => {
                 if (isComparing) {
-                  const sA = compareData.a.scores[d.key] || 0;
-                  const sB = compareData.b.scores[d.key] || 0;
-                  const verdict = sA > sB ? `▲ ${compareData.a.title?.slice(0, 10) || 'A'} 우세` : sB > sA ? `▲ ${compareData.b.title?.slice(0, 10) || 'B'} 우세` : '— 동점';
+                  const scores3 = compareItems.map(({ data, color }) => ({ s: data.scores[d.key] || 0, title: data.title, color }));
+                  const maxS = Math.max(...scores3.map(x => x.s));
+                  const winner = scores3.filter(x => x.s === maxS);
+                  const verdict = winner.length === scores3.length
+                    ? '— 동점'
+                    : winner.length > 1
+                      ? `▲ ${winner.map(x => x.title?.slice(0, 6) || '?').join('·')} 공동 우세`
+                      : `▲ ${winner[0].title?.slice(0, 10) || '?'} 우세`;
                   return (
                     <Card key={d.key} style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 0, minHeight: 96 }}>
                       <div style={{ width: 200, flexShrink: 0, paddingRight: 20 }}>
@@ -387,7 +436,7 @@ export default function Diagnosis() {
                       </div>
                       <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', flexShrink: 0 }} />
                       <div style={{ flex: 1, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {[{ data: compareData.a, color: COMPARE_A }, { data: compareData.b, color: COMPARE_B }].map(({ data, color }) => {
+                        {compareItems.map(({ data, color }) => {
                           const s = data.scores[d.key] || 0;
                           return (
                             <div key={data.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -454,7 +503,7 @@ export default function Diagnosis() {
               // Compare mode: show A and B keywords side by side
               return (
                 <div style={{ display: 'flex', gap: 16 }}>
-                  {[{ data: compareData.a, color: COMPARE_A }, { data: compareData.b, color: COMPARE_B }].map(({ data, color }) => {
+                  {compareItems.map(({ data, color }) => {
                     const kws = data.keywords || [];
                     const maxC = kws[0]?.count || 1;
                     const minSize = 11, maxSize = 26;
@@ -476,7 +525,7 @@ export default function Diagnosis() {
                                 <span key={word} title={`${count}회`} style={{
                                   fontSize: size,
                                   fontWeight: ratio > 0.6 ? 800 : ratio > 0.3 ? 600 : 400,
-                                  color: `rgba(${color === COMPARE_B ? '198,101,7' : '16,54,125'},${opacity})`,
+                                  color: `rgba(${color === COMPARE_B ? '198,101,7' : color === COMPARE_C ? '21,145,67' : '16,54,125'},${opacity})`,
                                   cursor: 'default',
                                 }}>{word}</span>
                               );
@@ -549,7 +598,7 @@ export default function Diagnosis() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8, lineHeight: 1.7 }}>
                 플랫폼 전체 평균값과 비교한 결과입니다.
-                {isComparing && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-3)' }}>두 의뢰를 나란히 비교합니다.</span>}
+                {isComparing && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-3)' }}>{compareItems.length}개 의뢰를 나란히 비교합니다.</span>}
               </p>
               {DIMENSIONS.map(d => {
                 const bench = benchmarks[d.key] || d.benchmark;
@@ -564,7 +613,7 @@ export default function Diagnosis() {
                         </div>
                         <span style={{ fontSize: 11, color: 'var(--text-3)', width: 80, textAlign: 'right', fontFamily: 'var(--font-sans)' }}>벤치 {bench.toFixed(1)}</span>
                       </div>
-                      {[{ data: compareData.a, color: COMPARE_A }, { data: compareData.b, color: COMPARE_B }].map(({ data, color }) => {
+                      {compareItems.map(({ data, color }) => {
                         const s = data.scores[d.key] || 0;
                         const diff = s - bench;
                         return (

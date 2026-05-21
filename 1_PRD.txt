@@ -233,6 +233,14 @@
      (IMPROVEMENT_GUIDES 상수: 5개 차원별 실행 가능한 액션 아이템 정의)
    - 탭 '키워드 분석' 추가: feedbacks suggestions/strengths/weaknesses 텍스트에서
      한국어 불용어 제거 후 단어 빈도 분석 → 태그 클라우드 + 상위 10개 빈도 바
+   - 의뢰 비교 모드 ★ 신규
+     · 미션 선택 칩 2~3개 선택 시 "⇄ 비교 모드" 버튼 활성화 / 4개 이상 선택 시 버튼 비노출
+     · 비교 모드 진입 시 레이더·바차트·키워드 탭이 선택 의뢰 수만큼 나란히 멀티 렌더
+     · 색상 구분: COMPARE_A 네이비(--accent) / COMPARE_B 오렌지(#c66507) / COMPARE_C 그린(#159143)
+     · 헤더 카드: 의뢰명·평균 점수 표시, 피드백 없는 의뢰는 "—" + "피드백 없음" dimmed 처리
+     · Verdict: 전체 5차원 평균 기준 — 단독 우세, 공동 우세(부분 동점), 전원 동점(— 동점) 3단계 처리
+     · loadCompare([idA, idB, idC]): Promise.all 병렬 조회, idC 선택 파라미터 (없으면 2개 비교)
+     · compareItems 동적 배열: compareData.a/b 항상 존재, compareData.c 조건부 (idC 있을 때만)
 
 4.5 시계열 추적 (/company/timeline) — TimelineTracker.jsx
    - Diagnosis.jsx '시계열 추적' 탭 클릭 시 /company/timeline으로 navigate
