@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-26 (accept_mission_slot 057 재정의 반영 + reaccept_rejected_feedback 058 status='active' 체크 추가)
+최종 업데이트: 2026-05-27 (059/060 create_oauth_user_profile RPC 추가 — Google OAuth 신규 유저 panels/companies 레코드 생성)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -18,6 +18,7 @@
   id              UUID  PK
   user_id         UUID  FK → auth.users.id  (UNIQUE, 1:1)
   name            TEXT
+  email           TEXT  NOT NULL             ← 실제 DB NOT NULL 컬럼 (migration 059/060 INSERT에 포함)
   plan            TEXT  (플랜명: starter/pro/enterprise)
   credit_balance  NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (잔여 크레딧, 플랜 선택 시 갱신·의뢰 등록 시 차감·완료 시 환불)
   phone           TEXT            DEFAULT NULL        ← 040 추가 (알림톡 수신용 전화번호)
@@ -29,6 +30,8 @@
   id                UUID  PK
   user_id           UUID  FK → auth.users.id  (UNIQUE, 1:1)
   name              TEXT
+  email             TEXT  NOT NULL             ← 실제 DB NOT NULL 컬럼 (migration 059/060 INSERT에 포함)
+  status            TEXT  DEFAULT 'active'     ← 'active'|'suspended'|'pending' (057/058 RPC status='active' 체크 대상)
   industry          TEXT
   experience        TEXT  (경력 연차 등)
   bio               TEXT
@@ -573,3 +576,14 @@
     → p_exclude_id 있으면 해당 기업 본인 row 제외
     → company/Account.jsx 기업 프로필 탭 저장 시 호출 → true이면 이름 중복 차단
     → 파일: supabase/migrations/055_name_uniqueness.sql
+
+  create_oauth_user_profile(p_role TEXT, p_display_name TEXT) RETURNS BOOLEAN
+    → SECURITY DEFINER — Google OAuth 신규 유저 panels/companies 레코드 생성 (클라이언트 직접 INSERT는 RLS 차단)
+    → auth.uid() 기준 인증된 유저만 호출 가능 (authenticated role GRANT)
+    → auth.users에서 이메일 조회 → panels.email / companies.email NOT NULL 컬럼에 공급
+    → p_role='panel': panels INSERT (user_id, name, email, status='active', trust_score=100, total_missions=0, honor_points=0, selected_badge=NULL)
+    → p_role='company': companies INSERT (user_id, name, email, plan='starter', credit_balance=0)
+    → 기존 레코드(user_id 일치) 존재 시 INSERT 생략 → RETURN TRUE (멱등성 보장)
+    → OAuthCallback.jsx 신규 OAuth 유저 가입 흐름에서 updateUser(role) 직후 호출
+    → 파일: supabase/migrations/059_create_oauth_user_profile.sql (최초 생성)
+             + 060_fix_oauth_profile_email.sql (email 컬럼 누락 수정 — CREATE OR REPLACE)

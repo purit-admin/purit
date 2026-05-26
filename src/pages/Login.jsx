@@ -15,6 +15,17 @@ const ROLES = [
   { id: 'panel',   label: '패널', desc: '미션 참여 & 보상' },
 ];
 
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+    </svg>
+  );
+}
+
 function toKoreanAuthError(err) {
   const code = err?.code ?? '';
   const msg  = err?.message ?? '';
@@ -25,21 +36,11 @@ function toKoreanAuthError(err) {
   return '로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
 }
 
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.440 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-    </svg>
-  );
-}
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role: authRole, signIn, signInWithGoogle, signOut } = useAuth();
+  const { user, role: authRole, signIn, signOut, signInWithGoogle } = useAuth();
 
   const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
@@ -53,13 +54,26 @@ export default function Login() {
     return ['company', 'panel'].includes(r) ? r : 'company';
   }, [location.search]);
 
+  const successMsg = location.state?.message ?? '';
+
   const [role, setRole]       = useState(initialRole);
   const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]   = useState(false);
-  const [error, setError]     = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogle = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle(role);
+    } catch (err) {
+      setError('Google 로그인 중 오류가 발생했습니다.');
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -86,18 +100,6 @@ export default function Login() {
       setError(toKoreanAuthError(err));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setError('');
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle(role);
-    } catch (err) {
-      setError(toKoreanAuthError(err));
-    } finally {
-      setGoogleLoading(false);
     }
   };
 
@@ -148,29 +150,6 @@ export default function Login() {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Google 로그인 */}
-        <button type="button" onClick={handleGoogle} disabled={googleLoading} style={{
-          width: '100%', padding: '12px 0', borderRadius: 10,
-          background: '#fff', border: `1.5px solid ${BORDER}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-          fontSize: 14, fontWeight: 600, color: T1, cursor: googleLoading ? 'not-allowed' : 'pointer',
-          fontFamily: 'inherit', transition: 'background 0.15s, border-color 0.15s',
-          opacity: googleLoading ? 0.7 : 1,
-        }}
-        onMouseEnter={e => { if (!googleLoading) e.currentTarget.style.background = BG; }}
-        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-        >
-          <GoogleIcon />
-          {googleLoading ? '연결 중...' : 'Google로 로그인'}
-        </button>
-
-        {/* 구분선 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0' }}>
-          <div style={{ flex: 1, height: 1, background: BORDER }} />
-          <span style={{ fontSize: 12, color: T3, whiteSpace: 'nowrap' }}>또는 이메일로 로그인</span>
-          <div style={{ flex: 1, height: 1, background: BORDER }} />
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -227,6 +206,15 @@ export default function Login() {
             </div>
           </div>
 
+          {/* 회원가입 완료 메시지 */}
+          {successMsg && (
+            <div style={{
+              fontSize: 13, color: '#276749',
+              background: '#F0FFF4', border: '1px solid #9AE6B4',
+              borderRadius: 8, padding: '10px 14px', marginBottom: 14,
+            }}>{successMsg}</div>
+          )}
+
           {/* 에러 */}
           {error && (
             <div style={{
@@ -237,19 +225,46 @@ export default function Login() {
           )}
 
           {/* 로그인 버튼 */}
-          <button type="submit" disabled={loading || googleLoading} style={{
+          <button type="submit" disabled={loading} style={{
             marginTop: 20, width: '100%', padding: '14px 0', borderRadius: 10,
-            background: (loading || googleLoading) ? T3 : ACCENT,
+            background: loading ? T3 : ACCENT,
             color: '#fff', fontSize: 15, fontWeight: 700, border: 'none',
-            cursor: (loading || googleLoading) ? 'not-allowed' : 'pointer',
+            cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit', transition: 'opacity 0.15s',
           }}
-          onMouseEnter={e => { if (!loading && !googleLoading) e.currentTarget.style.opacity = '0.85'; }}
+          onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = '0.85'; }}
           onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
           >
             {loading ? '로그인 중...' : '로그인'}
           </button>
         </form>
+
+        {/* 구분선 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 16px' }}>
+          <div style={{ flex: 1, height: 1, background: BORDER }} />
+          <span style={{ fontSize: 12, color: T3 }}>또는</span>
+          <div style={{ flex: 1, height: 1, background: BORDER }} />
+        </div>
+
+        {/* Google 로그인 */}
+        <button
+          type="button"
+          onClick={handleGoogle}
+          disabled={googleLoading || loading}
+          style={{
+            width: '100%', padding: '12px 0', borderRadius: 10,
+            background: '#fff', border: `1.5px solid ${BORDER}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            fontSize: 14, fontWeight: 600, color: T1, cursor: googleLoading ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit', transition: 'background 0.15s',
+            opacity: googleLoading ? 0.6 : 1,
+          }}
+          onMouseEnter={e => { if (!googleLoading) e.currentTarget.style.background = '#F8FAFC'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+        >
+          <GoogleIcon />
+          {googleLoading ? '연결 중...' : 'Google로 로그인'}
+        </button>
 
         <div style={{
           marginTop: 24, paddingTop: 20,

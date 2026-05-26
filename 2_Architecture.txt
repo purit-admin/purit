@@ -319,8 +319,11 @@ purit/
 │              role state + googleLoading state / handleGoogle(): signInWithGoogle(role) 호출
 │              GoogleIcon 인라인 SVG 컴포넌트 (Google 공식 4색)
 │   ※ OAuthCallback.jsx: OAuth 리다이렉트 처리 전용 페이지 ★ 신규
-│              getSession() → existingRole 있으면 즉시 대시보드 이동
-│              신규 유저: localStorage('purit_oauth_role') 읽어 updateUser(role) + companies/panels INSERT
+│              handledRef = useRef(false) 컴포넌트 레벨 선언 — React.StrictMode 이중 useEffect 실행에서도 ref는 초기화 안 됨 (D-91)
+│              capturedPendingRole: useEffect 시작 즉시 localStorage 읽기+삭제 (StrictMode 2차 실행 시 handledRef.current=true로 차단되므로 경쟁 없음)
+│              신규 유저: capturedPendingRole 없으면 에러 표시 (기존 ?? 'company' 위험 폴백 제거)
+│              신규 유저: updateUser(role) + create_oauth_user_profile RPC (migration 059/060)
+│              기존 유저: existingRole 있으면 role 충돌 체크 후 대시보드 이동
 │              user.user_metadata.full_name || name || email prefix → displayName으로 사용
 │   ※ AuthContext.jsx: signInWithGoogle(role) 추가 ★ 신규
 │              localStorage.setItem('purit_oauth_role', role) → signInWithOAuth({ provider:'google', redirectTo: origin+'/oauth/callback' })
@@ -382,6 +385,8 @@ purit/
 │   │                056(pg_cron_expire_drafts: pg_cron으로 expire_all_panel_drafts 주기 실행 스케줄 — SQL Editor 수동 실행)
 │   │                057(accept_slot_status_check: accept_mission_slot RPC에 panels.status='active' 체크 추가 — suspended/pending 패널 차단)
 │   │                058(fix_reaccept_status_check: reaccept_rejected_feedback RPC에 panels.status='active' 체크 추가 — accept_mission_slot과 대칭)
+│                059(create_oauth_user_profile: Google OAuth 신규 유저 panels/companies 레코드 생성 SECURITY DEFINER RPC — RLS 우회)
+│                060(fix_oauth_profile_email: create_oauth_user_profile RPC에 email 컬럼 추가 — panels.email/companies.email NOT NULL 제약 대응)
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★

@@ -52,6 +52,17 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
+  async function signInWithLinkedIn(role) {
+    localStorage.setItem('purit_oauth_role', role);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'linkedin_oidc',
+      options: {
+        redirectTo: window.location.origin + '/oauth/callback',
+      },
+    });
+    if (error) throw error;
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -60,7 +71,7 @@ export function AuthProvider({ children }) {
   const dashboardPath = role ? (DEST[role] ?? '/') : '/';
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signUp, signIn, signInWithGoogle, signOut, dashboardPath }}>
+    <AuthContext.Provider value={{ user, role, loading, signUp, signIn, signInWithGoogle, signInWithLinkedIn, signOut, dashboardPath }}>
       {children}
     </AuthContext.Provider>
   );

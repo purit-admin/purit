@@ -35,6 +35,7 @@ import ActiveMission from './pages/panel/ActiveMission';
 import History from './pages/panel/History';
 import PanelProfile from './pages/panel/Profile';
 import PanelBugReports from './pages/panel/BugReports';
+import PanelRegister from './pages/panel/PanelRegister';
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -72,6 +73,7 @@ function AppRoutes() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />
       <Route path="/share/:token" element={<ShareResult />} />
+      <Route path="/panel/register" element={<PanelRegister />} />
 
       {/* Company — company 역할만 접근 가능 */}
       <Route path="/company" element={<RoleRoute role="company"><CL><CompanyDashboard /></CL></RoleRoute>} />
