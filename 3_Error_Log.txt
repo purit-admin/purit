@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-21 (D-89 추가 — 렌더 게이트 state가 클라이언트 period 필터 변경 시 갱신되지 않아 0점 차트가 렌더되는 패턴)
+최종 업데이트: 2026-05-26 (D-90 추가 — 동일 자원 점유 흐름에서 RPC 쌍 중 하나에만 접근 게이트를 추가하고 대칭 RPC를 누락하는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1229,3 +1229,19 @@ D-89. 비동기 로드 시 설정된 렌더 게이트 state가 클라이언트 �
              표시 데이터가 달라져도 게이트가 열린 채로 남아 잘못된 UI를 렌더함
              점검 방법: setHasData(또는 동등한 게이트 setter)를 grep → 컴포넌트 내 모든 필터 로직(useEffect 포함)과
              대조해 빠진 갱신 경로가 없는지 확인
+
+D-90. 동일 자원 점유 흐름에서 RPC 쌍 중 하나에만 접근 게이트를 추가하고 대칭 RPC를 누락하는 패턴 ✅ 해결
+     → 증상: accept_mission_slot에 AND status='active' 체크 추가 후, 정지 패널이 reaccept_rejected_feedback을 호출하면
+             상태 체크 없이 슬롯 재예약 + feedbacks.status='draft' 전환이 성공 → 재작성 폼 접근 가능
+     → 원인: 두 RPC가 동일한 자원(filled_count)을 점유하는 쌍(accept = 최초 수락, reaccept = 재작성 수락)임에도
+             accept_mission_slot에만 panels.status='active' 체크를 추가하고 reaccept_rejected_feedback은 누락
+             "재작성은 이미 수락된 미션에 대한 것"으로 인식해 새 진입이 아닌 "진행 중 작업"으로 간주한 것이 원인
+             그러나 reaccept는 rejected 상태에서 새 draft로 전환하며 filled_count를 다시 +1 하는 신규 슬롯 예약임
+     → 해결: 058_fix_reaccept_status_check.sql — reaccept_rejected_feedback RPC에 동일하게
+             `SELECT id INTO v_panel_id FROM panels WHERE user_id = auth.uid() AND status = 'active'` 패턴 적용
+             v_panel_id IS NULL → RETURN FALSE (클라이언트: deadlineExpired=true 처리, 기존 에러 경로 재활용)
+     → 원칙: SECURITY DEFINER RPC에 접근 게이트(status 체크, role 체크 등)를 추가할 때
+             동일 자원을 조작하는 "쌍 RPC(진입·재진입, 생성·수정 등)"가 존재하는지 반드시 확인할 것
+             D-71(자원 해제 경로 누락)과 반대 방향의 함정 — 해제를 빠뜨리지 않는 것도 중요하지만
+             진입 게이트를 쌍 중 하나에만 걸어두는 것도 동일하게 위험
+             점검 방법: 추가한 RPC와 동일 테이블(missions.filled_count)을 변경하는 RPC 전수 grep → 게이트 일관성 확인

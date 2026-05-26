@@ -42,6 +42,7 @@ const C = {
 export default function PanelDashboard() {
   const navigate = useNavigate();
   const [panel, setPanel]         = useState(null);
+  const [panelStatus, setPanelStatus] = useState('active');
   const [missions, setMissions]   = useState([]);
   const [histFeedbacks, setHistFeedbacks] = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -56,6 +57,7 @@ export default function PanelDashboard() {
         .from('panels').select('*').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanel(p);
+      setPanelStatus(p.status || 'active');
 
       // 잠수 페널티(감가상각) 지연 적용
       const { data: decayRes } = await supabase.rpc('apply_honor_decay', { p_panel_id: p.id });
@@ -64,6 +66,7 @@ export default function PanelDashboard() {
           .from('panels').select('*').eq('user_id', user.id).single();
         p = fresh;
         setPanel(fresh);
+        setPanelStatus(fresh.status || 'active');
       }
 
       // 만료된 draft 정리 (filled_count 복원 + 수락 취소됨 알림 — migration 037)
@@ -190,6 +193,19 @@ export default function PanelDashboard() {
 
   if (loading) return (
     <div style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', color: C.text3, fontSize: 14 }}>불러오는 중...</div>
+  );
+
+  if (panelStatus === 'suspended') return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+      <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 정지되었습니다</h2>
+        <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
+          관리자에 의해 계정 활동이 정지되었습니다.<br/>
+          문의사항은 운영팀에 연락해주세요.
+        </p>
+      </Card>
+    </div>
   );
 
   const name        = panel?.name || '패널';

@@ -211,6 +211,7 @@ export default function MissionList() {
   // feedbackMap: { [missionId]: { status, id, suggestions, rejection_deadline } }
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]               = useState(null);
+  const [panelStatus, setPanelStatus]       = useState('active');
   const [panelHonorPoints, setPanelHonorPoints] = useState(0);
   const [panelExperience, setPanelExperience]   = useState('');
   const [loading, setLoading]         = useState(true);
@@ -260,9 +261,10 @@ export default function MissionList() {
       if (!user) { setLoading(false); return; }
 
       const { data: p } = await supabase
-        .from('panels').select('id, honor_points, experience').eq('user_id', user.id).single();
+        .from('panels').select('id, honor_points, experience, status').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
+      setPanelStatus(p.status || 'active');
       setPanelHonorPoints(p.honor_points ?? 0);
       setPanelExperience(p.experience || '');
 
@@ -417,6 +419,19 @@ export default function MissionList() {
 
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
+  );
+
+  if (panelStatus === 'suspended') return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+      <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 정지되었습니다</h2>
+        <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
+          관리자에 의해 계정 활동이 정지되었습니다.<br/>
+          문의사항은 운영팀에 연락해주세요.
+        </p>
+      </Card>
+    </div>
   );
 
   const changeTab = (key) => { setFilter(key); setMainPage(1); setSubPage(1); };

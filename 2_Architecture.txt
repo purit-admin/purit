@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-19 (알림톡 Edge Functions + migrations 040/041 추가)
+최종 업데이트: 2026-05-26 (migrations 053~058 추가 — 패널 정지 실작동 구현 완료)
 ================================================================
 
 ## 기술 스택
@@ -376,6 +376,12 @@ purit/
 │   │                050(dismiss_rejected_feedback: feedbacks.dismissed BOOLEAN 컬럼 추가 + dismiss_rejected_feedback·delete_rejected_feedback RPC 2개)
 │   │                051(global_expire_panel_drafts: expire_all_panel_drafts() SECURITY DEFINER 전체 패널 일괄 만료 + pg_cron */10(또는 */1) 스케줄 — SQL Editor 수동 실행 필요)
 │   │                052(fix_expire_panel_drafts_race: expire_panel_drafts() 케이스별 처리 통일 + race condition 수정 — GET DIAGNOSTICS ROW_COUNT로 이중 차감 방지)
+│   │                053(notifications_rls: notifications 테이블 RLS 활성화 + DELETE/INSERT/SELECT/UPDATE 정책 추가 — D-79 패턴)
+│   │                054(delete_rejected_feedback: feedbacks 직접 DELETE RLS 없어 delete_rejected_feedback RPC로 dismissed=true 처리)
+│   │                055(companies_phone_alimtalk: companies.phone TEXT 컬럼 + feedbacks.deadline_alimtalk_sent BOOLEAN — alimtalk 인프라)
+│   │                056(pg_cron_expire_drafts: pg_cron으로 expire_all_panel_drafts 주기 실행 스케줄 — SQL Editor 수동 실행)
+│   │                057(accept_slot_status_check: accept_mission_slot RPC에 panels.status='active' 체크 추가 — suspended/pending 패널 차단)
+│   │                058(fix_reaccept_status_check: reaccept_rejected_feedback RPC에 panels.status='active' 체크 추가 — accept_mission_slot과 대칭)
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★

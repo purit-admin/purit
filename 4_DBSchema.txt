@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-20 (053~055 — admin_delete_feedback / delete_rejected_feedback 소프트딜리트 재정의 / 이름 중복 체크 RPC 2개 추가)
+최종 업데이트: 2026-05-26 (accept_mission_slot 057 재정의 반영 + reaccept_rejected_feedback 058 status='active' 체크 추가)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -475,22 +475,24 @@
     → 보안: raw_app_meta_data ->> 'role' = 'admin' 검사 (032 마이그레이션) ← D-58 패턴
     → 파일: supabase/migrations/015_honor_level_system.sql (원본) + 032_fix_honor_rpc_app_metadata.sql (보안 패치)
 
-  accept_mission_slot(p_mission_id UUID, p_panel_id UUID, p_submission_deadline TIMESTAMPTZ) RETURNS jsonb
+  accept_mission_slot(p_mission_id UUID, p_submission_deadline TIMESTAMPTZ) RETURNS UUID
     → 패널 미션 수락 시 원자적 슬롯 예약 (PostgreSQL 행 잠금 — 동시 수락 경쟁 직렬화)
-    → WHERE filled_count < panel_count 조건으로 UPDATE → 슬롯 마감이면 null 반환 (슬롯 마감 신호)
+    → panels SELECT에 AND status='active' 체크 — suspended/pending 패널은 NULL 반환 (057에서 추가)
+    → WHERE filled_count < panel_count 조건으로 UPDATE → 슬롯 마감이면 NULL 반환 (슬롯 마감 신호)
     → 성공 시: missions.filled_count +1 + feedbacks INSERT(status='draft', submission_deadline=p_submission_deadline)
-    → Returns: feedbacks 행 (id, panel_id, mission_id 등) 또는 null (슬롯 마감)
+    → Returns: feedbacks.id (UUID) 또는 NULL (슬롯 마감·정지 패널)
     → panel/Missions.jsx 수락 핸들러에서 호출
-    → 파일: supabase/migrations/035_redesign_slot_on_accept.sql
+    → 파일: supabase/migrations/057_accept_slot_status_check.sql (최신 재정의)
 
   reaccept_rejected_feedback(p_feedback_id UUID) RETURNS boolean
     → 반려된 피드백 재작성 시 원자적 슬롯 재예약 (반려 패널 재진행 vs 신규 수락 동시 경쟁 직렬화)
+    → panels SELECT에 AND status='active' 체크 — suspended/pending 패널은 NULL 반환 → false (058에서 추가)
     → feedbacks WHERE id=p_feedback_id AND status='rejected' AND rejection_deadline > NOW() 체크
     → 만료 또는 슬롯 마감이면 false 반환 (프론트에서 deadlineExpired=true 처리)
     → 성공 시: missions.filled_count +1 + feedbacks.status='draft' UPDATE
-    → Returns: true(성공) / false(만료·슬롯마감·미해당)
+    → Returns: true(성공) / false(정지·만료·슬롯마감·미해당)
     → panel/ActiveMission.jsx 재작성 모드 진입 시 호출
-    → 파일: supabase/migrations/035_redesign_slot_on_accept.sql
+    → 파일: supabase/migrations/058_fix_reaccept_status_check.sql (최신 재정의)
 
   decrement_mission_filled_count(p_mission_id UUID) RETURNS void
     → missions.filled_count = GREATEST(0, filled_count - 1) 원자적 감소
