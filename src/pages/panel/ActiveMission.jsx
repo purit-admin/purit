@@ -137,8 +137,9 @@ export default function ActiveMission() {
   const resubmitId = searchParams.get('resubmit');
 
   // ── LIST VIEW ──
-  const [panel, setPanel]   = useState(null);
-  const [drafts, setDrafts] = useState(null);
+  const [panel, setPanel]           = useState(null);
+  const [drafts, setDrafts]         = useState(null);
+  const [panelPending, setPanelPending] = useState(false);
 
   // ── FORM VIEW ──
   const [mission, setMission]   = useState(null);
@@ -233,6 +234,12 @@ export default function ActiveMission() {
 
       const { data: p } = await supabase.from('panels').select('*').eq('user_id', user.id).single();
       setPanel(p);
+
+      // 심사 대기 패널은 미션 접근 차단 (accept_mission_slot RPC와 이중 방어)
+      if (p?.status === 'pending') {
+        setPanelPending(true);
+        return;
+      }
 
       if (missionId) {
         const { data: ms } = await supabase.from('missions').select('*').eq('id', missionId).single();
@@ -851,6 +858,19 @@ export default function ActiveMission() {
       </div>
     );
   })() : null;
+
+  if (panelPending) return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>심사 대기 중</h2>
+      <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
+        제출하신 검증 서류를 검토 중입니다.<br />
+        승인 완료 후 미션 참여가 가능합니다.<br />
+        보통 1–2 영업일 내에 처리됩니다.
+      </p>
+      <Btn onClick={() => navigate('/panel')}>대시보드로 돌아가기</Btn>
+    </div>
+  );
 
   if (slotTaken) return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>

@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-27 (D-94 추가 — 로그인/회원가입 페이지 구분 없이 동일 OAuth 콜백이 신규 계정을 생성하는 패턴)
+최종 업데이트: 2026-05-28 (D-95 추가 — 파일 업로드가 포함된 가입 흐름에서 signOut 전에 업로드해야 하는 타이밍 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1377,3 +1377,30 @@ D-94. 로그인·회원가입 페이지 구분 없이 동일 OAuth 콜백이 신
              capturedRoleRef 패턴(D-91)과 동일하게 useRef를 사용해 StrictMode 이중 실행에서도 값 보존
              모든 localStorage 임시 키(purit_oauth_role, purit_oauth_source)는
              모든 종료 경로(성공·취소·에러·차단)에서 반드시 정리할 것
+
+D-95. 파일 업로드가 포함된 가입 흐름에서 signOut 전에 업로드해야 하는 타이밍 패턴 ✅ 정착
+     → 문제: signUp() 성공 후 signOut() 호출 → signOut() 이후에 Storage 업로드 시도 시
+             인증 세션이 없어 "Unauthorized" 또는 RLS 차단 오류 발생
+             파일 업로드와 panels UPDATE 모두 세션이 필요한 인증된 요청임
+     → 원인: 이메일 가입 흐름: signUp() → 세션 활성 → signOut() → 로그인 페이지 이동
+             세션 활성 구간이 signUp()과 signOut() 사이에만 존재
+             File 객체는 sessionStorage.setItem()으로 직렬화 불가 (TypeError: cyclic object value)
+             → sessionStorage에 File 저장 시도 자체가 실패하거나 null로 저장됨
+     → 해결: signUp() 반환값에서 user.id 캡처 → 세션 활성 상태에서 즉시 Storage 업로드 → panels UPDATE → signOut()
+             ```js
+             const signUpData = await signUp({ email, password, name, role });
+             const panelUserId = signUpData?.user?.id;
+             if (role === 'panel' && panelUserId) {
+               // 파일 업로드 및 panels UPDATE (세션 활성 상태)
+               await supabase.storage.from('panel-verification-docs').upload(path, file, { upsert: true });
+               await supabase.from('panels').update(payload).eq('user_id', panelUserId);
+             }
+             await signOut();  // 업로드 완료 후에 signOut
+             ```
+     → 원칙: signUp()과 signOut() 사이의 세션 활성 구간을 파악하고,
+             가입 직후 즉시 처리해야 하는 인증 필요 작업(파일 업로드, 프로필 초기화 등)을
+             반드시 signOut() 호출 전에 완료할 것
+             File 객체는 항상 세션 내에서 직접 업로드해야 하며, 세션 밖으로 전달 불가
+             uploadErr가 발생해도 가입 흐름은 계속 진행(console.warn 후 path=null) — graceful fallback
+     → 추가: private Storage 버킷에서는 getPublicUrl 무효 — path만 DB에 저장하고
+             어드민 접근 시 createSignedUrl(path, 600)으로 10분 유효 signed URL 생성

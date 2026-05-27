@@ -434,6 +434,20 @@ export default function MissionList() {
     </div>
   );
 
+  if (panelStatus === 'pending') return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+      <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>심사 대기 중</h2>
+        <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
+          제출하신 검증 서류를 검토 중입니다.<br/>
+          승인 완료 후 미션 참여가 가능합니다.<br/>
+          보통 1–2 영업일 내에 처리됩니다.
+        </p>
+      </Card>
+    </div>
+  );
+
   const changeTab = (key) => { setFilter(key); setMainPage(1); setSubPage(1); };
 
   const now = new Date();

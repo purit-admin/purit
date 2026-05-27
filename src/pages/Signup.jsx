@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, ChevronLeft, Upload, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const ACCENT  = '#10367D';
 const BG      = '#F8FAFC';
@@ -611,7 +612,59 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      await signUp({ email, password, name, role });
+      const signUpData = await signUp({ email, password, name, role });
+      const panelUserId = signUpData?.user?.id;
+
+      // 패널 가입 시 검증 자료를 Supabase Storage에 업로드 (signOut 전에 실행)
+      if (role === 'panel' && panelUserId) {
+        let healthInsuranceUrl = null;
+        let portfolioFileUrl   = null;
+
+        // 건강보험 자격득실 확인서 업로드
+        if (certFile) {
+          const ext  = certFile.name.split('.').pop();
+          const path = `${panelUserId}/health_insurance.${ext}`;
+          const { error: uploadErr } = await supabase.storage
+            .from('panel-verification-docs')
+            .upload(path, certFile, { upsert: true });
+          if (!uploadErr) {
+            healthInsuranceUrl = path; // private bucket → path만 저장, 열람 시 createSignedUrl 사용
+          } else {
+            console.warn('[Signup] 건강보험 파일 업로드 실패:', uploadErr.message);
+          }
+        }
+
+        // 포트폴리오/이력서 파일 업로드 (선택)
+        if (portfolioFile) {
+          const ext  = portfolioFile.name.split('.').pop();
+          const path = `${panelUserId}/portfolio.${ext}`;
+          const { error: uploadErr } = await supabase.storage
+            .from('panel-verification-docs')
+            .upload(path, portfolioFile, { upsert: true });
+          if (!uploadErr) {
+            portfolioFileUrl = path;
+          } else {
+            console.warn('[Signup] 포트폴리오 파일 업로드 실패:', uploadErr.message);
+          }
+        }
+
+        // panels 테이블 UPDATE (handle_new_user 트리거가 이미 pending 레코드를 생성함)
+        const updatePayload = {};
+        if (healthInsuranceUrl)                             updatePayload.health_insurance_url = healthInsuranceUrl;
+        if (linkedinUrl.trim())                             updatePayload.linkedin_url          = linkedinUrl.trim();
+        if (portfolioFileUrl)                               updatePayload.portfolio_url         = portfolioFileUrl;
+        else if (careerChoice === 'portfolio' && portfolioText.trim())
+                                                            updatePayload.portfolio_url         = portfolioText.trim();
+
+        if (Object.keys(updatePayload).length > 0) {
+          const { error: updErr } = await supabase
+            .from('panels')
+            .update(updatePayload)
+            .eq('user_id', panelUserId);
+          if (updErr) console.warn('[Signup] panels UPDATE 실패:', updErr.message);
+        }
+      }
+
       await signOut();
       navigate('/login', { replace: true, state: { message: '가입이 완료되었습니다. 로그인해 주세요.' } });
     } catch (err) {

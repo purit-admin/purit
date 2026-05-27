@@ -406,6 +406,17 @@ purit/
 │                059(create_oauth_user_profile: Google OAuth 신규 유저 panels/companies 레코드 생성 SECURITY DEFINER RPC — RLS 우회)
 │                060(fix_oauth_profile_email: create_oauth_user_profile RPC에 email 컬럼 추가 — panels.email/companies.email NOT NULL 제약 대응)
 │                061(fix_oauth_panel_trust_score: create_oauth_user_profile RPC 재정의 — trust_score=0으로 수정(059에서 100 하드코딩 → D-92) + 잘못 생성된 레코드 일괄 보정 UPDATE)
+│                062(panel_verification_docs: panels 테이블에 health_insurance_url·linkedin_url·portfolio_url TEXT 컬럼 추가 + handle_new_user 트리거 status='pending'으로 변경 + notify_admin_on_new_panel SECURITY DEFINER 트리거)
+│                063(panel_verification_bucket_rls: 'panel-verification-docs' private Storage 버킷 생성 + panel_upload_own_docs·admin_read_all_docs·panel_read_own_docs RLS 정책)
+│                064(fix_oauth_panel_status_pending: create_oauth_user_profile RPC 재정의 — 패널 status='pending'으로 수정(061에서 active 하드코딩 → pending) RETURNS BOOLEAN 시그니처 유지)
+│   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
+│   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
+│   │   ※ pages/panel/Dashboard.jsx: pending 배너 추가 ★ — panelStatus==='pending' 시 amber 경고 배너 (하드 게이트 아님, 대시보드 자체는 접근 가능)
+│   │   ※ pages/admin/PanelManagement.jsx: PanelDetail에 검증 서류 Card 추가 ★
+│   │                  건강보험 자격득실 확인서: createSignedUrl(panel.health_insurance_url, 600) — 클릭 시 signed URL 생성 후 새 탭
+│   │                  LinkedIn URL: 외부 링크 직접 연결
+│   │                  포트폴리오: http로 시작하면 외부 링크, 아니면 createSignedUrl (Storage path)
+│   │                  관리 액션 Card에 pending 패널 심사 승인(→active) / 심사 거절(→suspended) 버튼 포함
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
@@ -495,6 +506,11 @@ purit/
   DB 관련 작업 시에만 Read 도구로 직접 로드할 것 (CLAUDE.md 조건부 로드 규칙 준수).
   주요 테이블: auth.users / companies / panels / missions / feedbacks /
               feedback_annotations / preference_responses / pricing_responses / email_responses
+  panels 신규 컬럼 (migration 062): health_insurance_url TEXT / linkedin_url TEXT / portfolio_url TEXT
+    - 신규 패널 가입 시 status='pending' (이메일: handle_new_user 트리거 / Google OAuth: create_oauth_user_profile RPC)
+    - 승인 후 status='active' → 미션 참여 가능
+    - 검증 서류 업로드: Supabase Storage 'panel-verification-docs' private 버킷 (경로: {userId}/파일명.ext)
+    - 어드민 접근: createSignedUrl(path, 600) — 10분 유효 signed URL
 
 ================================================================
 ## 반응형 CSS 유틸리티 클래스 (src/index.css)

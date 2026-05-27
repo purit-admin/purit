@@ -245,6 +245,19 @@ export default function PanelDashboard() {
 
   return (
     <div className="page-wrap" style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
+      {/* 심사 대기 배너 */}
+      {panelStatus === 'pending' && (
+        <div style={{
+          background: 'rgba(245,158,11,0.1)', border: '1px solid #F59E0B',
+          borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 10
+        }}>
+          <span style={{ fontSize: 20 }}>⏳</span>
+          <span style={{ fontSize: 14, color: 'var(--text-2)' }}>
+            <strong>심사 대기 중입니다.</strong> 검증 서류 검토 후 미션 참여가 활성화됩니다. (1–2 영업일 소요)
+          </span>
+        </div>
+      )}
       {/* Header */}
       <div className="dash-header-row" style={{ marginBottom: 28 }}>
         <div>
