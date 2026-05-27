@@ -72,7 +72,7 @@ export default function Login() {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle(role);
+      await signInWithGoogle(role, 'login');
     } catch (err) {
       setError('Google 로그인 중 오류가 발생했습니다.');
       setGoogleLoading(false);
@@ -149,8 +149,7 @@ export default function Login() {
                 background: role === r.id ? 'rgba(16,54,125,0.06)' : '#fff',
                 textAlign: 'center', transition: 'all 0.15s', fontFamily: 'inherit',
               }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: role === r.id ? ACCENT : T1, marginBottom: 2 }}>{r.label}</div>
-                <div style={{ fontSize: 11, color: T3 }}>{r.desc}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: role === r.id ? ACCENT : T1 }}>{r.label}</div>
               </button>
             ))}
           </div>

@@ -531,7 +531,7 @@ export default function Signup() {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle(role);
+      await signInWithGoogle(role, 'signup');
     } catch (err) {
       setError('Google 로그인 중 오류가 발생했습니다.');
       setGoogleLoading(false);
@@ -674,10 +674,9 @@ export default function Signup() {
                   textAlign: 'center', transition: 'all 0.15s', fontFamily: 'inherit',
                 }}
               >
-                <div style={{ fontSize: 15, fontWeight: 700, color: role === r.id ? ACCENT : T1, marginBottom: 4 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: role === r.id ? ACCENT : T1 }}>
                   {r.label}
                 </div>
-                <div style={{ fontSize: 12, color: T3 }}>{r.desc}</div>
               </button>
             ))}
           </div>

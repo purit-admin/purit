@@ -13,12 +13,16 @@ export default function OAuthCallback() {
   // 핵심 문제: capturedPendingRole을 useEffect 클로저 변수로 선언하면 StrictMode 2차 실행 시
   // localStorage가 이미 비어있어 null이 되고, PKCE 교환이 2차 구독에서 완료되면 에러 발생 (D-91 확장)
   const capturedRoleRef = useRef(undefined);
+  // capturedSourceRef: 'login' | 'signup' — 출처 페이지 식별 (D-94)
+  // 로그인 페이지 출처 + 신규 계정 → 계정 생성 차단 (로그인 페이지는 로그인 전용)
+  const capturedSourceRef = useRef(undefined);
 
   useEffect(() => {
     // Google이 취소/에러를 ?error= 파라미터로 전달 — 즉시 /login 복귀 (D-82)
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('error')) {
       localStorage.removeItem('purit_oauth_role');
+      localStorage.removeItem('purit_oauth_source');
       window.location.replace('/login');
       return;
     }
@@ -29,6 +33,11 @@ export default function OAuthCallback() {
       const raw = localStorage.getItem('purit_oauth_role');
       capturedRoleRef.current = ALLOWED_ROLES.includes(raw) ? raw : null;
       localStorage.removeItem('purit_oauth_role');
+
+      // 출처 페이지 식별: 'login' | 'signup' (D-94)
+      const src = localStorage.getItem('purit_oauth_source');
+      capturedSourceRef.current = (src === 'login' || src === 'signup') ? src : 'signup'; // 미설정 시 signup 폴백
+      localStorage.removeItem('purit_oauth_source');
     }
 
     async function processSession(session) {
@@ -68,6 +77,14 @@ export default function OAuthCallback() {
         if (!capturedPendingRole) {
           try { await supabase.auth.signOut(); } catch { /* ignore */ }
           setError('로그인 방식을 확인할 수 없습니다. 로그인 페이지에서 역할을 선택 후 다시 시도해 주세요.');
+          return;
+        }
+
+        // 로그인 페이지 출처 + 신규 계정 → 계정 생성 차단 (D-94)
+        // 로그인 페이지는 기존 계정 로그인 전용 — 미가입 Google 계정으로 시도 시 안내 후 종료
+        if (capturedSourceRef.current === 'login') {
+          try { await supabase.auth.signOut(); } catch { /* ignore */ }
+          setError('가입되지 않은 Google 계정입니다. 회원가입 페이지에서 역할을 선택 후 가입해 주세요.');
           return;
         }
 

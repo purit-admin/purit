@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-27 (D-91 확장 — capturedRoleRef 패턴 추가 / D-92 추가 — OAuth RPC trust_score 초기값 오류 / D-93 추가 — OAuth 가입 후 자동 로그인 차단)
+최종 업데이트: 2026-05-27 (D-94 추가 — 로그인/회원가입 페이지 구분 없이 동일 OAuth 콜백이 신규 계정을 생성하는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1339,3 +1339,41 @@ D-93. OAuth 가입 완료 후 자동 로그인되어 대시보드로 이동 — 
              - AuthContext가 세션을 감지해 자동 리다이렉트를 유발할 수 있음
              - 첫 로그인 온보딩 트리거 시점이 불명확해짐
              signOut() 후 로그인 페이지로 유도하는 것이 가장 명확하고 일관된 패턴임
+
+D-94. 로그인·회원가입 페이지 구분 없이 동일 OAuth 콜백이 신규 계정을 생성하여 로그인 페이지에서 계정이 생성되는 패턴 ✅ 해결
+     → 증상 1: 로그인 페이지에서 Google 버튼 클릭 → 미가입 계정으로 인증 → 계정이 DB에 생성됨
+     → 증상 2: 오류 메시지로 "이미 가입된 계정입니다"가 표시됨 (role 충돌 감지로 인한 잘못된 메시지)
+     → 원인: OAuthCallback.jsx 코드가 OAuth를 트리거한 출처 페이지(로그인 vs 회원가입)를 전혀 구분하지 않음
+             신규 계정인 경우 existingRole이 없으므로 신규 가입 경로를 타게 되어 계정이 생성됨
+             "이미 가입된 계정입니다" 오류 메시지는 다음 구조에서 발생:
+             ① 로그인 페이지에서 패널 선택 → Google 로그인 → OAuthCallback 신규 계정 생성(패널)
+             ② 기업으로 역할 선택 후 동일 Google 계정 재시도 → existingRole(panel) ≠ pendingRole(company) → 충돌 감지
+             또는 StrictMode 이중 실행으로 capturedPendingRole이 null이 된 상태에서 충돌 오류 발생
+     → 해결: OAuth 트리거 출처(source)를 localStorage에 저장 + capturedSourceRef(D-91 패턴)로 OAuthCallback에서 읽기
+             ```js
+             // AuthContext.jsx
+             async function signInWithGoogle(role, source = 'signup') {
+               localStorage.setItem('purit_oauth_role', role);
+               localStorage.setItem('purit_oauth_source', source);
+               // ...
+             }
+             // Login.jsx
+             await signInWithGoogle(role, 'login');
+             // Signup.jsx
+             await signInWithGoogle(role, 'signup');
+             // OAuthCallback.jsx — processSession 내 신규 계정 분기 앞에 source 체크 추가
+             if (capturedSourceRef.current === 'login') {
+               try { await supabase.auth.signOut(); } catch { /* ignore */ }
+               setError('가입되지 않은 Google 계정입니다. 회원가입 페이지에서 역할을 선택 후 가입해 주세요.');
+               return;
+             }
+             ```
+             capturedSourceRef: `useRef(undefined)` 컴포넌트 레벨 선언 (capturedRoleRef와 동일 패턴 — D-91)
+             미설정 시(localStorage에 source 없음): 'signup' 폴백 — 안전한 기본값
+             취소/에러(`?error=`) 경로에서도 `localStorage.removeItem('purit_oauth_source')` 정리 필수
+     → 원칙: 동일한 OAuth 콜백 URL을 여러 페이지(로그인·회원가입)가 공유할 때,
+             각 페이지의 "의도(로그인 전용 vs 가입 허용)"를 콜백이 구분할 수 있어야 함
+             구분 방법: OAuth 트리거 시 localStorage에 source 저장 → 콜백에서 읽어 분기
+             capturedRoleRef 패턴(D-91)과 동일하게 useRef를 사용해 StrictMode 이중 실행에서도 값 보존
+             모든 localStorage 임시 키(purit_oauth_role, purit_oauth_source)는
+             모든 종료 경로(성공·취소·에러·차단)에서 반드시 정리할 것

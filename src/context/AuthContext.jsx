@@ -40,8 +40,9 @@ export function AuthProvider({ children }) {
     return data;
   }
 
-  async function signInWithGoogle(role) {
+  async function signInWithGoogle(role, source = 'signup') {
     localStorage.setItem('purit_oauth_role', role);
+    localStorage.setItem('purit_oauth_source', source); // 'login' | 'signup'
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
