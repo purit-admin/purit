@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-26 (migrations 053~058 추가 — 패널 정지 실작동 구현 완료)
+최종 업데이트: 2026-05-27 (migration 061 추가 — OAuth trust_score 수정 / OAuthCallback D-91·D-92·D-93 반영 / Login.jsx successMsg 2경로 개편)
 ================================================================
 
 ## 기술 스택
@@ -320,11 +320,23 @@ purit/
 │              GoogleIcon 인라인 SVG 컴포넌트 (Google 공식 4색)
 │   ※ OAuthCallback.jsx: OAuth 리다이렉트 처리 전용 페이지 ★ 신규
 │              handledRef = useRef(false) 컴포넌트 레벨 선언 — React.StrictMode 이중 useEffect 실행에서도 ref는 초기화 안 됨 (D-91)
-│              capturedPendingRole: useEffect 시작 즉시 localStorage 읽기+삭제 (StrictMode 2차 실행 시 handledRef.current=true로 차단되므로 경쟁 없음)
+│              capturedRoleRef = useRef(undefined) 컴포넌트 레벨 선언 ★ 핵심 (D-91 확장)
+│                - undefined=미초기화 / null=읽었으나 유효 role 없음 / 'panel'|'company'=정상 값
+│                - capturedRoleRef.current===undefined 조건에서만 localStorage 읽기+삭제 (1회만 실행)
+│                - processSession 내부: capturedRoleRef.current에서 직접 읽음 (클로저 변수 사용 금지)
+│                - 이유: PKCE 코드 교환이 StrictMode 2차 useEffect 구독에서 완료될 수 있어 handledRef만으로는 차단 불충분
+│              URL ?error 파라미터 체크(D-82): Google 취소/에러 시 localStorage 정리 후 /login 즉시 복귀
 │              신규 유저: capturedPendingRole 없으면 에러 표시 (기존 ?? 'company' 위험 폴백 제거)
-│              신규 유저: updateUser(role) + create_oauth_user_profile RPC (migration 059/060)
-│              기존 유저: existingRole 있으면 role 충돌 체크 후 대시보드 이동
+│              신규 유저: updateUser(role) + create_oauth_user_profile RPC (migration 059/060/061)
+│                - trust_score: 0으로 초기화 (migration 061에서 100→0 수정, D-92 참조)
+│              신규 유저 성공 시: signOut() 후 /login?role=${savedRole}&signup=google 이동 (D-93) ★
+│                → 이메일 가입과 동일한 UX: 가입 완료 메시지 확인 후 직접 로그인 유도
+│              기존 유저: existingRole 있으면 role 충돌 체크 후 대시보드 full reload 이동
 │              user.user_metadata.full_name || name || email prefix → displayName으로 사용
+│   ※ Login.jsx: successMsg 감지 2경로 ★ 개편
+│              이메일 가입: location.state?.message (Signup.jsx navigate state)
+│              Google OAuth 가입: ?signup=google URL 파라미터 → 'Google 계정으로 가입이 완료되었습니다. 로그인해 주세요.' (D-93)
+│              ?role= 파라미터: 로그인 역할 탭 자동 선택 (OAuthCallback에서 savedRole 전달)
 │   ※ AuthContext.jsx: signInWithGoogle(role) 추가 ★ 신규
 │              localStorage.setItem('purit_oauth_role', role) → signInWithOAuth({ provider:'google', redirectTo: origin+'/oauth/callback' })
 │              context value에 signInWithGoogle 노출

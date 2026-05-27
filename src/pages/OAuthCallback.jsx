@@ -8,6 +8,11 @@ export default function OAuthCallback() {
   // useRef로 선언 — React.StrictMode의 이중 useEffect 실행(mount→cleanup→remount)에서도
   // let 변수와 달리 ref는 초기화되지 않아 두 번째 processSession 호출을 올바르게 차단함 (D-91)
   const handledRef = useRef(false);
+  // capturedRoleRef: localStorage를 첫 번째 effect에서만 읽고, StrictMode 재실행 시에도 값을 보존
+  // undefined = 아직 초기화 안 됨 / null = 읽었으나 유효한 role 없음 / 'panel'|'company' = 정상 값
+  // 핵심 문제: capturedPendingRole을 useEffect 클로저 변수로 선언하면 StrictMode 2차 실행 시
+  // localStorage가 이미 비어있어 null이 되고, PKCE 교환이 2차 구독에서 완료되면 에러 발생 (D-91 확장)
+  const capturedRoleRef = useRef(undefined);
 
   useEffect(() => {
     // Google이 취소/에러를 ?error= 파라미터로 전달 — 즉시 /login 복귀 (D-82)
@@ -18,16 +23,20 @@ export default function OAuthCallback() {
       return;
     }
 
-    // pendingRole을 useEffect 시작 즉시 읽고 즉시 삭제
-    // StrictMode 2차 실행에서 localStorage가 비어있어도 handledRef.current=true가 processSession을 차단하므로 안전
-    const ALLOWED_ROLES = ['company', 'panel'];
-    const raw = localStorage.getItem('purit_oauth_role');
-    const capturedPendingRole = ALLOWED_ROLES.includes(raw) ? raw : null;
-    localStorage.removeItem('purit_oauth_role');
+    // localStorage는 첫 번째 effect 실행 시에만 읽음 — StrictMode 2차 실행에서도 ref 값 보존
+    if (capturedRoleRef.current === undefined) {
+      const ALLOWED_ROLES = ['company', 'panel'];
+      const raw = localStorage.getItem('purit_oauth_role');
+      capturedRoleRef.current = ALLOWED_ROLES.includes(raw) ? raw : null;
+      localStorage.removeItem('purit_oauth_role');
+    }
 
     async function processSession(session) {
       if (handledRef.current || !session) return;
       handledRef.current = true;
+
+      // 클로저 변수 대신 ref에서 직접 읽음 — StrictMode 재실행 시에도 첫 번째 값 보존
+      const capturedPendingRole = capturedRoleRef.current;
 
       try {
         const user = session.user;
@@ -83,8 +92,10 @@ export default function OAuthCallback() {
           try { sessionStorage.removeItem('purit_panel_creds'); } catch { /* skip */ }
         }
 
-        // updateUser 후 full reload → AuthContext가 새 role 포함 세션으로 깨끗하게 초기화
-        window.location.replace(DEST[savedRole] ?? '/company');
+        // 신규 OAuth 가입 완료 → 로그아웃 후 로그인 페이지로 유도
+        // 이메일 가입과 동일한 UX: 가입 완료 메시지를 보고 직접 로그인하게 함
+        try { await supabase.auth.signOut(); } catch { /* ignore */ }
+        window.location.replace(`/login?role=${savedRole}&signup=google`);
       } catch (err) {
         console.error('[OAuthCallback error]', err);
         // handledRef 유지(true) — 에러 발생 후 두 번째 processSession 호출이 리디렉트하는 것을 방지

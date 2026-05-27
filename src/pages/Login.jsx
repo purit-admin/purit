@@ -54,7 +54,11 @@ export default function Login() {
     return ['company', 'panel'].includes(r) ? r : 'company';
   }, [location.search]);
 
-  const successMsg = location.state?.message ?? '';
+  // 이메일 가입: location.state.message / Google OAuth 가입: ?signup=google URL 파라미터
+  const isGoogleSignup = new URLSearchParams(location.search).get('signup') === 'google';
+  const successMsg = isGoogleSignup
+    ? 'Google 계정으로 가입이 완료되었습니다. 로그인해 주세요.'
+    : (location.state?.message ?? '');
 
   const [role, setRole]       = useState(initialRole);
   const [email, setEmail]     = useState('');
