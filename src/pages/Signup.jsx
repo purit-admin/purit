@@ -489,8 +489,16 @@ export default function Signup() {
   const location  = useLocation();
   const { user, role: authRole, signUp, signOut, signInWithGoogle } = useAuth();
 
+  // useRef: React setState(setLoading)는 비동기 배칭 대상이므로 signUp() 완료 후
+  // onAuthStateChange가 user/authRole을 세팅하는 시점에 loading=true가 아직 커밋되지
+  // 않을 수 있음 → 클로저 stale 값으로 !loading 조건 통과 → 컴포넌트 언마운트로 업로드 코드 미실행.
+  // useRef는 동기·즉시 반영이므로 이 경쟁 조건을 완전히 차단함 (D-95 참조)
+  const isSubmittingRef = useRef(false);
+
   useEffect(() => {
-    if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
+    // 폼 제출 진행 중(isSubmittingRef.current=true)에는 리다이렉트 금지
+    // Storage 업로드·panels UPDATE가 완료될 때까지 컴포넌트 언마운트를 막음
+    if (user && authRole && !isSubmittingRef.current) navigate(DEST[authRole] ?? '/company', { replace: true });
   }, [user, authRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // bfcache fix
@@ -611,6 +619,7 @@ export default function Signup() {
     if (password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); return; }
 
     setLoading(true);
+    isSubmittingRef.current = true; // 리다이렉트 useEffect 차단 (동기·즉시 반영)
     try {
       const signUpData = await signUp({ email, password, name, role });
       const panelUserId = signUpData?.user?.id;
@@ -648,20 +657,28 @@ export default function Signup() {
           }
         }
 
-        // panels 테이블 UPDATE (handle_new_user 트리거가 이미 pending 레코드를 생성함)
-        const updatePayload = {};
-        if (healthInsuranceUrl)                             updatePayload.health_insurance_url = healthInsuranceUrl;
-        if (linkedinUrl.trim())                             updatePayload.linkedin_url          = linkedinUrl.trim();
-        if (portfolioFileUrl)                               updatePayload.portfolio_url         = portfolioFileUrl;
-        else if (careerChoice === 'portfolio' && portfolioText.trim())
-                                                            updatePayload.portfolio_url         = portfolioText.trim();
-
-        if (Object.keys(updatePayload).length > 0) {
-          const { error: updErr } = await supabase
-            .from('panels')
-            .update(updatePayload)
-            .eq('user_id', panelUserId);
-          if (updErr) console.warn('[Signup] panels UPDATE 실패:', updErr.message);
+        // panels 테이블 검증 자료 저장 — SECURITY DEFINER RPC 사용 (D-95)
+        // 이메일 미확인 상태 또는 RLS 설정으로 직접 UPDATE가 차단될 수 있으므로 RPC 경유
+        const rpcPayload = {
+          p_user_id:              panelUserId,
+          p_health_insurance_url: healthInsuranceUrl || null,
+          p_linkedin_url:         linkedinUrl.trim()  || null,
+          p_portfolio_url:        portfolioFileUrl
+                                    || (careerChoice === 'portfolio' && portfolioText.trim()
+                                        ? portfolioText.trim()
+                                        : null),
+        };
+        // 실제로 저장할 값이 하나라도 있을 때만 RPC 호출
+        if (rpcPayload.p_health_insurance_url || rpcPayload.p_linkedin_url || rpcPayload.p_portfolio_url) {
+          const { data: rpcOk, error: rpcErr } = await supabase.rpc(
+            'save_panel_verification_docs',
+            rpcPayload,
+          );
+          if (rpcErr) {
+            console.warn('[Signup] save_panel_verification_docs RPC 실패:', rpcErr.message);
+          } else if (!rpcOk) {
+            console.warn('[Signup] save_panel_verification_docs: FOUND=false (패널 레코드 없음 or 인증 불일치)');
+          }
         }
       }
 
@@ -670,6 +687,7 @@ export default function Signup() {
     } catch (err) {
       setError(toKoreanAuthError(err));
     } finally {
+      isSubmittingRef.current = false; // 차단 해제 (에러 발생 시에도 반드시 해제)
       setLoading(false);
     }
   };

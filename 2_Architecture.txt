@@ -409,6 +409,7 @@ purit/
 │                062(panel_verification_docs: panels 테이블에 health_insurance_url·linkedin_url·portfolio_url TEXT 컬럼 추가 + handle_new_user 트리거 status='pending'으로 변경 + notify_admin_on_new_panel SECURITY DEFINER 트리거)
 │                063(panel_verification_bucket_rls: 'panel-verification-docs' private Storage 버킷 생성 + panel_upload_own_docs·admin_read_all_docs·panel_read_own_docs RLS 정책)
 │                064(fix_oauth_panel_status_pending: create_oauth_user_profile RPC 재정의 — 패널 status='pending'으로 수정(061에서 active 하드코딩 → pending) RETURNS BOOLEAN 시그니처 유지)
+│                065(save_panel_verification_docs: 패널 검증 자료 저장 SECURITY DEFINER RPC — 이메일 미확인 상태/RLS 차단 우회, auth.uid()=p_user_id 본인 검증, COALESCE 패턴으로 NULL 값 무시)
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 추가 ★ — panelStatus==='pending' 시 amber 경고 배너 (하드 게이트 아님, 대시보드 자체는 접근 가능)
@@ -417,6 +418,10 @@ purit/
 │   │                  LinkedIn URL: 외부 링크 직접 연결
 │   │                  포트폴리오: http로 시작하면 외부 링크, 아니면 createSignedUrl (Storage path)
 │   │                  관리 액션 Card에 pending 패널 심사 승인(→active) / 심사 거절(→suspended) 버튼 포함
+│   │                  loadPanelDetail: { data, error } 모두 캡처 — error 발생 시 console.error(message·details·hint) ★
+│   │   ※ pages/Signup.jsx: panels.update() 직접 호출 → save_panel_verification_docs RPC 호출로 교체 (D-95·RLS 우회) ★
+│   │                  signOut() 전에 RPC 호출 완료 (세션 활성 구간 유지 원칙)
+│   │                  COALESCE 패턴: null 값 필드는 기존 DB 값 유지
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★

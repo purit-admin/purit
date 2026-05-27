@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-27 (059/060 create_oauth_user_profile RPC 추가 — Google OAuth 신규 유저 panels/companies 레코드 생성)
+최종 업데이트: 2026-05-28 (065 save_panel_verification_docs RPC 추가 — 패널 검증 자료 저장 SECURITY DEFINER)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -594,3 +594,11 @@
              + 060_fix_oauth_profile_email.sql (email 컬럼 누락 수정 — CREATE OR REPLACE)
              + 061_fix_oauth_panel_trust_score.sql (trust_score=100→0 수정)
              + 064_fix_oauth_panel_status_pending.sql (status='active'→'pending' 수정) ★ 현재 최신
+
+  save_panel_verification_docs(p_user_id UUID, p_health_insurance_url TEXT DEFAULT NULL, p_linkedin_url TEXT DEFAULT NULL, p_portfolio_url TEXT DEFAULT NULL) RETURNS BOOLEAN
+    → SECURITY DEFINER — 패널 가입 직후 검증 자료(건강보험·LinkedIn·포트폴리오) panels 테이블 저장
+    → 이유: 이메일 미확인 상태 or RLS 설정으로 직접 UPDATE 차단될 수 있음 (D-95 패턴)
+    → auth.uid() IS NULL 또는 auth.uid() != p_user_id 이면 RETURN FALSE (보안 체크)
+    → COALESCE(p_xxx, health_insurance_url) 패턴 — NULL 인자는 기존 DB 값 유지, 덮어쓰지 않음
+    → Signup.jsx handleSubmit에서 Storage 업로드 직후, signOut() 직전 호출 (D-95 타이밍 원칙)
+    → 파일: supabase/migrations/065_save_panel_verification_docs.sql

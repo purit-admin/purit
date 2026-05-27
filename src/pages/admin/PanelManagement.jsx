@@ -131,12 +131,15 @@ export default function AdminPanels() {
   async function loadPanelDetail(panelId) {
     setDetailLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('feedbacks')
         .select('id, created_at, status, purity_passed, missions(title, type)')
         .eq('panel_id', panelId)
         .neq('status', 'draft')
         .order('created_at', { ascending: false });
+      if (error) {
+        console.error('[PanelManagement loadPanelDetail] Supabase 오류:', error.message, error.details, error.hint);
+      }
       setPanelFeedbacks(data || []);
     } catch (err) {
       console.error('[PanelManagement loadPanelDetail]', err);
@@ -691,79 +694,85 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
         )}
       </Card>
 
-      {/* 검증 서류 */}
-      {(panel.health_insurance_url || panel.linkedin_url || panel.portfolio_url) && (
-        <Card style={{ padding: '16px 18px' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-            검증 서류
+      {/* 검증 서류 — 항상 표시 (미제출 시 안내 메시지) */}
+      <Card style={{ padding: '16px 18px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+          검증 서류
+        </div>
+
+        {!panel.health_insurance_url && !panel.linkedin_url && !panel.portfolio_url ? (
+          <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '8px 0' }}>
+            제출된 서류 없음
           </div>
-
-          {panel.health_insurance_url && (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>건강보험 자격득실 확인서</div>
-              <a
-                href="#"
-                onClick={async (e) => {
-                  e.preventDefault();
-                  const { data, error } = await supabase.storage
-                    .from('panel-verification-docs')
-                    .createSignedUrl(panel.health_insurance_url, 600);
-                  if (data?.signedUrl) window.open(data.signedUrl, '_blank');
-                  else alert('서류를 불러오는 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
-                }}
-                style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              >
-                📄 서류 열기 →
-              </a>
-            </div>
-          )}
-
-          {panel.linkedin_url && (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>LinkedIn</div>
-              <a
-                href={panel.linkedin_url}
-                target="_blank"
-                rel="noreferrer"
-                style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              >
-                🔗 프로필 열기 →
-              </a>
-            </div>
-          )}
-
-          {panel.portfolio_url && (
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서</div>
-              {panel.portfolio_url.startsWith('http') ? (
-                <a
-                  href={panel.portfolio_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                >
-                  🔗 포트폴리오 열기 →
-                </a>
-              ) : (
+        ) : (
+          <>
+            {panel.health_insurance_url && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>건강보험 자격득실 확인서</div>
                 <a
                   href="#"
                   onClick={async (e) => {
                     e.preventDefault();
                     const { data, error } = await supabase.storage
                       .from('panel-verification-docs')
-                      .createSignedUrl(panel.portfolio_url, 600);
+                      .createSignedUrl(panel.health_insurance_url, 600);
                     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
                     else alert('서류를 불러오는 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
                   }}
                   style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                 >
-                  📄 파일 열기 →
+                  📄 서류 열기 →
                 </a>
-              )}
-            </div>
-          )}
-        </Card>
-      )}
+              </div>
+            )}
+
+            {panel.linkedin_url && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>LinkedIn</div>
+                <a
+                  href={panel.linkedin_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  🔗 프로필 열기 →
+                </a>
+              </div>
+            )}
+
+            {panel.portfolio_url && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서</div>
+                {panel.portfolio_url.startsWith('http') ? (
+                  <a
+                    href={panel.portfolio_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    🔗 포트폴리오 열기 →
+                  </a>
+                ) : (
+                  <a
+                    href="#"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      const { data, error } = await supabase.storage
+                        .from('panel-verification-docs')
+                        .createSignedUrl(panel.portfolio_url, 600);
+                      if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                      else alert('서류를 불러오는 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+                    }}
+                    style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    📄 파일 열기 →
+                  </a>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </Card>
 
       {/* 관리 액션 */}
       <Card style={{ padding: '16px 18px' }}>
