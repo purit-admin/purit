@@ -730,6 +730,43 @@ QA_REPORT.txt — Purit MVP 전체 QA 점검 보고서
 [Diag-C2] 기업 5차원 진단 (company/Diagnosis.jsx) — [철회] toggleMission 호출 시 4번째 의뢰 선택 후 compareMode가 해제되지 않는다는 의심. 실제 코드 확인 결과 toggleMission이 모든 칩 클릭 시 setCompareMode(false)·setCompareData(null)을 항상 호출하여 재현 불가. 상한(4개+) 버튼 비노출 로직과 정확히 매칭됨.  ⏭
 
 ================================================================
+-- D-93·D-94·trust_score 수정 QA 전수 조사 (2026-05-27) — OAuth 신규 가입 버그 3종 수정분 전수 조사: P3 2건 신규 발견 (코드 수정 보류, 기록만) --
+================================================================
+
+[OAuth-A] capturedSourceRef 패턴 대칭성 (구조 무결성 검증)
+- handledRef / capturedRoleRef 와 동일한 useRef(undefined) 패턴으로 선언, StrictMode cleanup/remount에서도 값 보존 확인.
+- processSession 내부에서 클로저 변수가 아닌 ref 직접 참조 확인.  ✅
+
+[OAuth-B] localStorage 모든 종료 경로 키 정리 (전수 추적)
+- purit_oauth_role + purit_oauth_source 양쪽 키가 ?error 경로·정상 초기화 경로·에러/catch 경로 모두에서 제거 확인.
+- 누락 종료 경로 없음.  ✅
+
+[OAuth-C] migration 061 UPDATE 범위 무결성
+- WHERE total_missions=0 AND trust_score=100 조건으로 보정 대상이 신규 OAuth 패널로만 한정됨.
+- 정상 활동 패널(total_missions > 0) 무영향 확인.  ✅
+
+[OAuth-D] D-93 navigate 전진 추적
+- 신규 OAuth 가입 → signOut() → /login?role=X&signup=google → Login.jsx ?signup=google 감지 → successMsg 표시.
+- 이메일 가입 흐름과 UX 동등 확인.  ✅
+
+[OAuth-E] 🟢 P3 — signInWithLinkedIn source 파라미터 누락 [수평 전개 — D-94] (코드 수정 보류)
+- 📍 위치: src/context/AuthContext.jsx signInWithLinkedIn 함수
+- 🕵️ 현상: D-94에서 signInWithGoogle에 source 파라미터를 추가했으나 동일 OAuth 계열 함수 signInWithLinkedIn에 미적용.
+  purit_oauth_source 키를 localStorage에 저장하지 않아 OAuthCallback이 'signup' 폴백으로 처리.
+- 🤦 현재: 현재는 Signup.jsx·Login.jsx 모두 signInWithLinkedIn을 import하지 않아 기능적 버그는 없음.
+  단, 향후 Login.jsx에서 LinkedIn 버튼 활성화 시 D-94가 LinkedIn에서 재발하는 구조.
+- ✨ 기대: signInWithLinkedIn(role, source = 'signup') 시그니처 통일 + localStorage.setItem('purit_oauth_source', source) 추가.
+- 🔍 수평전개: 추후 추가될 수 있는 모든 OAuth 제공자 함수도 동일 패턴 적용 의무.
+
+[OAuth-F] 🟢 P3 — ?signup=google 하드코딩 [수평 전개 — D-93] (코드 수정 보류)
+- 📍 위치: src/pages/OAuthCallback.jsx processSession 신규 가입 완료 경로 line 115
+- 🕵️ 현상: window.location.replace('/login?role=${savedRole}&signup=google') 에 'google' 리터럴 하드코딩.
+  현재 Google이 유일한 활성 OAuth 제공자이므로 기능적 오류 없음.
+  LinkedIn OAuth 추후 활성화 시 LinkedIn으로 가입해도 Login.jsx에서 "Google 계정으로 가입이 완료되었습니다." 메시지 표시.
+- 🤦 현재: D-93 패턴이 제공자 중립적으로 설계되지 않은 상태.
+- ✨ 기대: ?signup=google → ?signup=oauth 로 변경 (제공자 중립). Login.jsx: get('signup') === 'oauth' || get('signup') === 'google' 양쪽 감지 (구 URL 하위 호환). successMsg: "소셜 계정으로 가입이 완료되었습니다. 로그인해 주세요."
+
+================================================================
 -- 제품 완성도 전수 조사 (2026-05-26) — 3개 포털 + 랜딩 전수 조사: 완성도-A~F 6건 신규 발견 (미완료 — 수정 대기) --
 ================================================================
 

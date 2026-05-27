@@ -405,6 +405,7 @@ purit/
 │   │                058(fix_reaccept_status_check: reaccept_rejected_feedback RPC에 panels.status='active' 체크 추가 — accept_mission_slot과 대칭)
 │                059(create_oauth_user_profile: Google OAuth 신규 유저 panels/companies 레코드 생성 SECURITY DEFINER RPC — RLS 우회)
 │                060(fix_oauth_profile_email: create_oauth_user_profile RPC에 email 컬럼 추가 — panels.email/companies.email NOT NULL 제약 대응)
+│                061(fix_oauth_panel_trust_score: create_oauth_user_profile RPC 재정의 — trust_score=0으로 수정(059에서 100 하드코딩 → D-92) + 잘못 생성된 레코드 일괄 보정 UPDATE)
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
