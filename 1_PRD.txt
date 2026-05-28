@@ -457,7 +457,7 @@
 
 인증 후 /panel 하위 라우트 접근 가능.
 
-1. 대시보드 (/panel) — Dashboard.jsx  ★ 명예 레벨 시스템 추가 (2026-05-02)
+1. 대시보드 (/panel) — Dashboard.jsx  ★ 명예 레벨 시스템 추가 (2026-05-02) + 검증 서류 유도 카드 (2026-05-28)
    - 명예 레벨 카드 (최상단): 10단계 HP 기반 레벨 표시
      · Lv.X 헤더 + 진행률 바(colorMeta.color) + "다음 레벨까지 XXX점" + "다음 레벨 달성 시 1회당 ₩XXX을 받습니다!" 동기 문구
      · 최고 레벨(Lv.10) 달성 시: "🏆 최고 레벨 달성! 현재 1회당 ₩XXX"
@@ -472,6 +472,10 @@
      · 금액 표시: fmtWon() (honorLevels.js) — 만 단위 + 나머지 천원 단위 (예: ₩1만 5,000)
    - 헤더 배지: Lv.X · 라벨 (colorMeta 스타일) + XXXpts 표시 + 🔥 연속 횟수
    - 참여 가능한 미션 카드 목록 제거 (→ 미션 탐색 페이지로 유도)
+   - 검증 서류 미제출 유도 Card ★ 신규: panelStatus==='pending' && !panel?.health_insurance_url && !panel?.linkedin_url && !panel?.portfolio_url 조건 시 amber 배너 아래 표시
+     · 내용: "경력 인증 서류 제출 필요 — 심사 승인을 위해 검증 서류를 제출해 주세요."
+     · "서류 제출하기 →" 버튼 → navigate('/panel/verify-docs')
+     · 서류 제출 완료 후 재진입 시 Card 자동 소멸 (DB 컬럼 유무 기반)
 
 2. 미션 관리 (/panel/missions) — Missions.jsx  ★ 전면 재설계 (미션 탐색 + 진행 중 통합)
    - 탭 3개: 새로운 미션 / 이어하기 / 수정 필요
@@ -671,7 +675,19 @@
    - 패널 대시보드 헤더: panel.selected_badge + 획득 여부 확인 → 이름 옆 11px 소형 태그 표시 ★
    - 뱃지 자동 달성: 피드백 제출 후 및 도움됨 평가 후 check_and_award_badges RPC fire-and-forget ★
 
-6. 버그/건의 현황 (/panel/bug-reports) — BugReports.jsx  ★ 신규
+6. 검증 서류 제출 (/panel/verify-docs) — VerifyDocs.jsx  ★ 신규 (2026-05-28)
+   - 패널 포털 전용 경력 인증 서류 제출 페이지
+   - 접근 조건: 인증된 패널(role='panel')이면 언제나 접근 가능 (pending/active 무관)
+   - 건강보험 득실확인서 파일 업로드 (이미지/PDF, 5MB 제한, 필수)
+   - LinkedIn URL 입력 + 포트폴리오 파일 업로드 또는 URL 입력 (옵션)
+   - 직군/직책 입력 (옵션)
+   - 파일 업로드 경로: panel-verification-docs/{user.id}/health_insurance.{ext}, portfolio.{ext} (upsert:true)
+   - 제출 시 save_panel_verification_docs RPC 호출 (SECURITY DEFINER — auth.uid()=p_user_id 본인 검증, COALESCE 패턴으로 null 값은 기존 DB값 유지)
+   - 제출 성공 시 `/panel` 대시보드로 이동 → 서류 제출 유도 Card 자동 소멸 (DB 컬럼 유무 기반)
+   - Signup.jsx Google OAuth 가입 흐름에서 File 객체가 리다이렉트 시 소실되는 문제를 대체하는 설계 (D-95 참조)
+   - 사이드바 메뉴에서는 직접 노출 안 함 (Dashboard pending 배너 유도 Card → 버튼으로 접근)
+
+7. 버그/건의 현황 (/panel/bug-reports) — BugReports.jsx  ★ 신규
    - 패널 포털에서 자신이 제출한 버그/불편 신고 내역 조회 페이지
    - 좌측 목록: 유형 뱃지(버그/UX/데이터/기능제안/기타) + 제목 + 날짜 + 메모 미리보기
    - 우측 상세: 유형·제목·날짜 메타 + 전체 설명 + 스크린샷("원본 보기" 링크) + 어드민 처리 상태
@@ -889,6 +905,8 @@
 - 방식: Supabase Auth (이메일 + 패스워드 / Google OAuth)
 - 회원가입(이메일): role 선택(company/panel) → signUp 호출 →
              DB 트리거(handle_new_user)가 panels 또는 companies 테이블에 레코드 자동 생성
+             ★ 패널 이메일 가입: CREDS 스텝(검증 서류 첨부 UI) 제거 (2026-05-28) — 서류는 가입 후 /panel/verify-docs에서 제출
+               (File 객체 sessionStorage 직렬화 불가 이슈 제거, 이메일 가입도 가입→로그인→/panel/verify-docs 흐름으로 통일)
 - 로그인(이메일): signInWithPassword → user_metadata.role로 역할 판별 → 역할별 대시보드 리다이렉트
 - 로그인(Google OAuth): ★ 신규
   · Login.jsx 상단 역할 선택(기업/패널) → "Google로 로그인" 버튼 클릭

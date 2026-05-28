@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-28 (D-95 추가 — 파일 업로드가 포함된 가입 흐름에서 signOut 전에 업로드해야 하는 타이밍 패턴)
+최종 업데이트: 2026-05-28 (D-96 추가 — React StrictMode 이중 실행에서 Supabase 고정 채널명 구독 충돌 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1404,3 +1404,24 @@ D-95. 파일 업로드가 포함된 가입 흐름에서 signOut 전에 업로드
              uploadErr가 발생해도 가입 흐름은 계속 진행(console.warn 후 path=null) — graceful fallback
      → 추가: private Storage 버킷에서는 getPublicUrl 무효 — path만 DB에 저장하고
              어드민 접근 시 createSignedUrl(path, 600)으로 10분 유효 signed URL 생성
+
+D-96. React StrictMode 이중 실행에서 고정 채널명으로 Supabase Realtime 구독 시 "cannot add postgres_changes callbacks after subscribe()" 에러 패턴 ✅ 해결
+     → 증상: 개발 환경 콘솔에 "Error: You can only call .on() before calling .subscribe()" 에러 2건 동시 발생
+             (NotificationCenter.jsx:63, company/Dashboard.jsx:409 등 Realtime 구독 위치)
+     → 원인: React.StrictMode 개발 환경에서 useEffect가 mount → cleanup → remount 순서로 두 번 실행됨
+             supabase.channel(fixedName)은 같은 이름으로 호출하면 내부 캐시에서 동일 인스턴스 반환
+             cleanup(supabase.removeChannel)이 실행된 것처럼 보여도 Supabase SDK 내부에서 채널이 완전히
+             정리되지 않은 상태에서 2차 useEffect가 동일 채널 이름으로 .subscribe()를 재호출
+             이미 구독된 채널 인스턴스에 .on()을 추가하면 에러 발생
+             ★ 프로덕션(StrictMode 없음): 한 번만 실행되므로 재현 안 됨. 개발 환경 전용 증상
+     → 해결: 모든 supabase.channel(name) 호출 시 name에 `-${Date.now()}` 접미사 추가
+             `supabase.channel('notifications-${user.id}')` → `supabase.channel('notifications-${user.id}-${Date.now()}')`
+             Date.now()로 각 마운트마다 완전히 새로운 유니크 채널명 생성 → 캐시된 인스턴스 재사용 없음
+     → 적용 파일 (총 5개 채널):
+             src/components/ui/NotificationCenter.jsx: `notifications-${user.id}-${Date.now()}`
+             src/pages/company/Dashboard.jsx: `company-dashboard-missions-${co.id}-${Date.now()}`
+             src/components/layout/Sidebar.jsx: `sidebar-notif-badge-${user.id}-${Date.now()}` + `sidebar-rejected-badge-${panelId}-${Date.now()}`
+             src/pages/panel/Missions.jsx: `panel-missions-realtime-${p.id}-${Date.now()}`
+     → 원칙: Supabase Realtime supabase.channel(name) 호출 시 고정 문자열을 채널명으로 사용하지 말 것
+             `${userId}-${Date.now()}` 조합을 기본 패턴으로 적용 — 사용자별 고유성(userId) + 마운트별 고유성(Date.now()) 동시 보장
+             cleanup에서 supabase.removeChannel(subscription)을 올바르게 호출하는 것만으로는 StrictMode 이중 실행을 방어하기에 불충분

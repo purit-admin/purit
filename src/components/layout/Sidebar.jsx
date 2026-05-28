@@ -116,6 +116,7 @@ export default function Layout({ role, children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
   const [panelId, setPanelId] = useState(null);
+  const [panelStatus, setPanelStatus] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
@@ -137,7 +138,7 @@ export default function Layout({ role, children }) {
     loadCount();
 
     sub = supabase
-      .channel('sidebar-notif-badge')
+      .channel(`sidebar-notif-badge-${user.id}-${Date.now()}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'notifications',
         filter: `user_id=eq.${user.id}`,
@@ -154,8 +155,13 @@ export default function Layout({ role, children }) {
 
   useEffect(() => {
     if (!user?.id || role !== 'panel') return;
-    supabase.from('panels').select('id').eq('user_id', user.id).single()
-      .then(({ data: p }) => { if (p) setPanelId(p.id); });
+    supabase.from('panels').select('id, status').eq('user_id', user.id).single()
+      .then(({ data: p }) => {
+        if (p) {
+          setPanelId(p.id);
+          setPanelStatus(p.status);
+        }
+      });
   }, [user?.id, role]);
 
   useEffect(() => {
@@ -175,7 +181,7 @@ export default function Layout({ role, children }) {
 
     loadRejected();
     sub = supabase
-      .channel('sidebar-rejected-badge')
+      .channel(`sidebar-rejected-badge-${panelId}-${Date.now()}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'feedbacks',
         filter: `panel_id=eq.${panelId}`,
@@ -205,6 +211,11 @@ export default function Layout({ role, children }) {
   };
 
   const handleNav = (path) => {
+    if (role === 'panel' && panelStatus === 'pending' && path !== '/panel/verify-docs') {
+      navigate('/panel/verify-docs');
+      if (isMobile) setMobileOpen(false);
+      return;
+    }
     if (!navigationGuard.intercept(path)) {
       navigate(path);
       if (isMobile) setMobileOpen(false);
@@ -499,7 +510,44 @@ export default function Layout({ role, children }) {
           <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em', fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', color: 'var(--text)' }}>Purit</span>
           <div style={{ width: 34 }} />
         </div>
-        <main style={{ flex: 1, background: '#F8FAFC' }}>{children}</main>
+        <main style={{ flex: 1, background: '#F8FAFC' }}>
+          {role === 'panel' && panelStatus === 'pending' && location.pathname !== '/panel/verify-docs'
+            ? (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                minHeight: '80vh', padding: '40px 24px', textAlign: 'center',
+              }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'rgba(16,54,125,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 20,
+                }}>
+                  <ShieldCheck size={28} color="#10367D" strokeWidth={1.75} />
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>
+                  서류 제출 후 이용 가능합니다
+                </div>
+                <div style={{ fontSize: 14, color: '#475569', marginBottom: 28, lineHeight: 1.6, maxWidth: 340 }}>
+                  심사 승인을 위해 경력 인증 서류를 제출해 주세요.<br />
+                  어드민 검토 완료 후 모든 기능을 이용할 수 있습니다.
+                </div>
+                <button
+                  onClick={() => navigate('/panel/verify-docs')}
+                  style={{
+                    padding: '12px 28px', borderRadius: 10,
+                    background: '#10367D', color: '#fff',
+                    fontSize: 15, fontWeight: 700,
+                    border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  서류 제출하기 →
+                </button>
+              </div>
+            )
+            : children
+          }
+        </main>
       </div>
     </div>
   );

@@ -59,7 +59,7 @@ export default function NotificationCenter({ role = 'company' }) {
         setLoading(false);
 
         subscription = supabase
-          .channel('notifications')
+          .channel(`notifications-${user.id}-${Date.now()}`)
           .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',

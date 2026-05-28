@@ -36,6 +36,7 @@ import History from './pages/panel/History';
 import PanelProfile from './pages/panel/Profile';
 import PanelBugReports from './pages/panel/BugReports';
 import PanelRegister from './pages/panel/PanelRegister';
+import VerifyDocs from './pages/panel/VerifyDocs';
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -102,6 +103,7 @@ function AppRoutes() {
       <Route path="/panel/active" element={<RoleRoute role="panel"><PL><ActiveMission /></PL></RoleRoute>} />
       <Route path="/panel/history" element={<RoleRoute role="panel"><PL><History /></PL></RoleRoute>} />
       <Route path="/panel/profile" element={<RoleRoute role="panel"><PL><PanelProfile /></PL></RoleRoute>} />
+      <Route path="/panel/verify-docs" element={<RoleRoute role="panel"><PL><VerifyDocs /></PL></RoleRoute>} />
       <Route path="/panel/bug-reports" element={<RoleRoute role="panel"><PL><PanelBugReports /></PL></RoleRoute>} />
 
       {/* Admin — admin 역할만 접근 가능 */}

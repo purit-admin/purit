@@ -249,7 +249,7 @@ export default function PanelDashboard() {
       {panelStatus === 'pending' && (
         <div style={{
           background: 'rgba(245,158,11,0.1)', border: '1px solid #F59E0B',
-          borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+          borderRadius: 10, padding: '12px 16px', marginBottom: 12,
           display: 'flex', alignItems: 'center', gap: 10
         }}>
           <span style={{ fontSize: 20 }}>⏳</span>
@@ -257,6 +257,18 @@ export default function PanelDashboard() {
             <strong>심사 대기 중입니다.</strong> 검증 서류 검토 후 미션 참여가 활성화됩니다. (1–2 영업일 소요)
           </span>
         </div>
+      )}
+      {/* 검증 서류 미제출 유도 카드 */}
+      {panelStatus === 'pending' && !panel?.health_insurance_url && !panel?.linkedin_url && !panel?.portfolio_url && (
+        <Card style={{ padding: '16px 18px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>경력 인증 서류 제출 필요</div>
+              <div style={{ fontSize: 13, color: 'var(--text-2)' }}>심사 승인을 위해 검증 서류를 제출해 주세요.</div>
+            </div>
+            <Btn onClick={() => navigate('/panel/verify-docs')} style={{ whiteSpace: 'nowrap' }}>서류 제출하기 →</Btn>
+          </div>
+        </Card>
       )}
       {/* Header */}
       <div className="dash-header-row" style={{ marginBottom: 28 }}>

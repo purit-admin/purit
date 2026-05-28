@@ -44,6 +44,13 @@ purit/
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
 │   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(질문템플릿·피드백결과·5차원진단·AI리포트)/계정)
+│   │   │              ★ Supabase Realtime 채널 명명 패턴 (D-96):
+│   │   │                모든 supabase.channel(name) 호출 시 name에 `-${Date.now()}` 접미사 필수
+│   │   │                예) 'sidebar-notif-badge-${userId}-${Date.now()}'
+│   │   │                이유: React StrictMode 이중 실행 시 supabase.channel(fixedName)이 캐시된 이미 구독된 인스턴스를 반환,
+│   │   │                      .on() 호출 시 "cannot add postgres_changes callbacks after subscribe()" 에러 발생
+│   │   │                      Date.now() 접미사로 각 마운트마다 유니크한 채널명 보장 → 에러 방지
+│   │   │                적용 파일 (5개 채널): NotificationCenter.jsx / company/Dashboard.jsx / Sidebar.jsx(2개) / panel/Missions.jsx
 │   │   │              ★ 클릭 토글 사이드바 패턴:
 │   │   │                - 우상단 ‹/› 버튼 클릭 → 220px 펼침 ↔ 60px 접힘 토글
 │   │   │                - state: collapsed(bool, 기본 false=펼침)
@@ -412,16 +419,34 @@ purit/
 │                065(save_panel_verification_docs: 패널 검증 자료 저장 SECURITY DEFINER RPC — 이메일 미확인 상태/RLS 차단 우회, auth.uid()=p_user_id 본인 검증, COALESCE 패턴으로 NULL 값 무시)
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
-│   │   ※ pages/panel/Dashboard.jsx: pending 배너 추가 ★ — panelStatus==='pending' 시 amber 경고 배너 (하드 게이트 아님, 대시보드 자체는 접근 가능)
+│   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)
+│   │                  amber 배너: panelStatus==='pending' 시 상단 경고 (하드 게이트 아님, 대시보드 자체 접근 가능)
+│   │                  검증 서류 유도 Card: panelStatus==='pending' && !panel?.health_insurance_url && !panel?.linkedin_url && !panel?.portfolio_url 조건 시 배너 아래 표시
+│   │                    "서류 제출하기 →" Btn → navigate('/panel/verify-docs')
+│   │                    서류 제출 완료 후 재진입 시 Card 자동 소멸 (DB 컬럼 유무 기반)
+│   │   ※ pages/panel/VerifyDocs.jsx: 패널 검증 서류 제출 전용 페이지 ★ 신규 (2026-05-28)
+│   │                  접근 조건: 인증된 패널(role='panel')이면 언제나 접근 가능 (pending/active 무관)
+│   │                  파일 업로드 UI: 드래그&드롭 + 클릭 UploadZone (이미지/PDF, 5MB, accept=".jpg,.jpeg,.png,.pdf")
+│   │                  건강보험 자격득실 확인서(certFile) — 필수, Storage 경로: {user.id}/health_insurance.{ext}
+│   │                  LinkedIn URL(linkedinUrl) — 선택, https://linkedin.com 정규식 검증
+│   │                  포트폴리오 파일(portfolioFile) — 선택, 파일 우선 / 없으면 URL(portfolioText) 사용
+│   │                    Storage 경로: {user.id}/portfolio.{ext}
+│   │                  제출 시: supabase.storage.from('panel-verification-docs').upload(..., { upsert: true })
+│   │                           → supabase.rpc('save_panel_verification_docs', { p_user_id, p_health_insurance_url, p_linkedin_url, p_portfolio_url })
+│   │                  제출 성공 → navigate('/panel') 대시보드 이동
 │   │   ※ pages/admin/PanelManagement.jsx: PanelDetail에 검증 서류 Card 추가 ★
 │   │                  건강보험 자격득실 확인서: createSignedUrl(panel.health_insurance_url, 600) — 클릭 시 signed URL 생성 후 새 탭
 │   │                  LinkedIn URL: 외부 링크 직접 연결
 │   │                  포트폴리오: http로 시작하면 외부 링크, 아니면 createSignedUrl (Storage path)
 │   │                  관리 액션 Card에 pending 패널 심사 승인(→active) / 심사 거절(→suspended) 버튼 포함
 │   │                  loadPanelDetail: { data, error } 모두 캡처 — error 발생 시 console.error(message·details·hint) ★
-│   │   ※ pages/Signup.jsx: panels.update() 직접 호출 → save_panel_verification_docs RPC 호출로 교체 (D-95·RLS 우회) ★
-│   │                  signOut() 전에 RPC 호출 완료 (세션 활성 구간 유지 원칙)
-│   │                  COALESCE 패턴: null 값 필드는 기존 DB 값 유지
+│   │   ※ pages/Signup.jsx: CREDS 스텝(검증 서류 첨부 UI) 제거 ★ (2026-05-28)
+│   │                  STEP = { CHOOSE, EMAIL } — CREDS 스텝 완전 제거 (구 STEP.CREDS 없음)
+│   │                  제거된 것: UploadZone, PanelCredsStep 컴포넌트, certFile·careerChoice·linkedinUrl·portfolioFile·portfolioText state
+│   │                  handleSubmit(): signUp() → signOut() → navigate('/login', { state: { message } }) — 파일 업로드 없음
+│   │                  handleGoogle(): handleVerifyAndProceed() 호출 제거 → signInWithGoogle(role, 'signup') 직접 호출
+│   │                  검증 서류 제출은 가입 후 /panel/verify-docs에서 처리 (이메일·Google 가입 공통 흐름)
+│   │                  이유: File 객체 sessionStorage 직렬화 불가(D-95) + OAuth 리다이렉트 시 React state 소실
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
@@ -453,7 +478,7 @@ purit/
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (32개)
+## 라우트 전체 목록 (33개)
 ================================================================
 
 [공개]
@@ -490,6 +515,7 @@ purit/
   /panel/active              → ActiveMission.jsx     (id 없음: 수락한 미션 목록 뷰 / id 있음: 폼 뷰)
   /panel/history             → History.jsx           (정산 내역: 정산 대기·정산 완료·지급 거절 탭)
   /panel/profile             → Profile.jsx
+  /panel/verify-docs         → VerifyDocs.jsx        ★ 신규 (검증 서류 제출)
   /panel/bug-reports         → BugReports.jsx       ★ 신규
 
 [Admin 포털] — RoleRoute role="admin"

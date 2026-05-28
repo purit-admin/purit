@@ -285,7 +285,7 @@ export default function MissionList() {
       setLoading(false);
 
       sub = supabase
-        .channel(`panel-missions-realtime-${p.id}`)
+        .channel(`panel-missions-realtime-${p.id}-${Date.now()}`)
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'missions',
         }, (payload) => {

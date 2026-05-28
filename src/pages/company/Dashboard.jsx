@@ -395,7 +395,7 @@ export default function CompanyDashboard() {
         }
 
         sub = supabase
-          .channel(`company-dashboard-missions-${co.id}`)
+          .channel(`company-dashboard-missions-${co.id}-${Date.now()}`)
           .on('postgres_changes', {
             event: 'UPDATE', schema: 'public', table: 'missions',
             filter: `company_id=eq.${co.id}`,

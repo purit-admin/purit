@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 
 export const Btn = ({ children, variant = 'primary', size = 'md', onClick, disabled, style, className }) => {
   const base = {
-    display: 'inline-flex', alignItems: 'center', gap: '7px',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
     fontFamily: 'var(--font-ui)', fontWeight: 500, letterSpacing: '-0.01em',
     borderRadius: 'var(--radius)', cursor: disabled ? 'not-allowed' : 'pointer',
     transition: 'background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease',

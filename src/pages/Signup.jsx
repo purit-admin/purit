@@ -1,8 +1,7 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, ArrowLeft, ChevronLeft, Upload, X } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 
 const ACCENT  = '#10367D';
 const BG      = '#F8FAFC';
@@ -44,7 +43,7 @@ const ROLES = [
 
 const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
 
-const STEP = { CHOOSE: 'choose', CREDS: 'creds', EMAIL: 'email' };
+const STEP = { CHOOSE: 'choose', EMAIL: 'email' };
 
 
 
@@ -73,53 +72,6 @@ function EmailIcon() {
       <rect x="2" y="4" width="20" height="16" rx="2"/>
       <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
     </svg>
-  );
-}
-
-function UploadZone({ file, onFile, accept = '.pdf,.jpg,.jpeg,.png', label = '파일 업로드' }) {
-  const inputRef = useRef(null);
-  const [drag, setDrag] = useState(false);
-
-  const handleDrop = e => {
-    e.preventDefault();
-    setDrag(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) onFile(f);
-  };
-
-  return (
-    <div
-      onClick={() => inputRef.current?.click()}
-      onDragOver={e => { e.preventDefault(); setDrag(true); }}
-      onDragLeave={() => setDrag(false)}
-      onDrop={handleDrop}
-      style={{
-        border: `2px dashed ${drag ? ACCENT : BORDER}`,
-        borderRadius: 10, padding: '16px 14px',
-        background: drag ? 'rgba(16,54,125,0.04)' : '#fff',
-        cursor: 'pointer', textAlign: 'center',
-        transition: 'all 0.15s',
-      }}
-    >
-      <input ref={inputRef} type="file" accept={accept} style={{ display: 'none' }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
-      {file ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Upload size={14} color={ACCENT} />
-          <span style={{ fontSize: 13, color: ACCENT, fontWeight: 600 }}>{file.name}</span>
-          <button type="button" onClick={e => { e.stopPropagation(); onFile(null); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: T3, padding: 0, display: 'flex' }}>
-            <X size={14} />
-          </button>
-        </div>
-      ) : (
-        <div>
-          <Upload size={20} color={T3} style={{ margin: '0 auto 6px' }} />
-          <div style={{ fontSize: 13, color: T2 }}>{label}</div>
-          <div style={{ fontSize: 11, color: T3, marginTop: 3 }}>클릭하거나 파일을 여기에 끌어놓으세요</div>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -155,182 +107,6 @@ function PanelChooseStep({ onChoose, busy }) {
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-const LINKEDIN_RE = /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/i;
-const URL_RE      = /^https?:\/\/.+/i;
-
-function PanelCredsStep({
-  panelMethod,
-  certFile, setCertFile,
-  careerChoice, setCareerChoice,
-  linkedinUrl, setLinkedinUrl,
-  portfolioFile, setPortfolioFile, portfolioText, setPortfolioText,
-  error, busy,
-  onBack, onProceed,
-}) {
-  const methodLabel = panelMethod === 'google' ? 'Google' : panelMethod === 'linkedin' ? 'LinkedIn' : '이메일';
-
-  const linkedinValid   = LINKEDIN_RE.test(linkedinUrl.trim());
-  const portfolioValid  = URL_RE.test(portfolioText.trim()) || !!portfolioFile;
-  const careerValid     = careerChoice === 'linkedin' ? linkedinValid
-                        : careerChoice === 'portfolio' ? portfolioValid
-                        : false;
-  const canProceed = !!certFile && careerValid;
-
-  const linkedinError = careerChoice === 'linkedin' && linkedinUrl.trim() && !linkedinValid;
-  const portfolioUrlError = careerChoice === 'portfolio' && portfolioText.trim() && !URL_RE.test(portfolioText.trim());
-
-  const CARD_BASE = {
-    flex: 1, padding: '14px 12px', borderRadius: 12, cursor: 'pointer',
-    border: `1.5px solid ${BORDER}`, background: '#fff',
-    display: 'flex', alignItems: 'center', gap: 10,
-    fontFamily: 'inherit', transition: 'all 0.15s', textAlign: 'left',
-  };
-  const CARD_ACTIVE = {
-    ...CARD_BASE,
-    border: `2px solid ${ACCENT}`,
-    background: 'rgba(16,54,125,0.05)',
-  };
-
-  return (
-    <div>
-      <button type="button" onClick={onBack}
-        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: T3, cursor: 'pointer', fontSize: 13, marginBottom: 18, padding: 0, fontFamily: 'inherit' }}
-        onMouseEnter={e => e.currentTarget.style.color = T1}
-        onMouseLeave={e => e.currentTarget.style.color = T3}
-      >
-        <ChevronLeft size={14} /> 뒤로
-      </button>
-
-      <div style={{ fontSize: 14, fontWeight: 600, color: T1, marginBottom: 4 }}>직무 역량 인증</div>
-      <div style={{ fontSize: 12, color: T3, marginBottom: 20, lineHeight: 1.6 }}>
-        Purit 패널은 실제 직무 경험을 가진 전문가로만 구성됩니다.<br/>
-        아래 서류를 통해 경력을 인증해 주세요.
-      </div>
-
-      {/* 건강보험 자격득실 확인서 */}
-      <div style={{ marginBottom: 20 }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: T1, display: 'block', marginBottom: 8 }}>
-          건강보험 자격득실 확인서
-        </label>
-        <div style={{
-          background: 'rgba(16,54,125,0.05)', border: `1px solid rgba(16,54,125,0.15)`,
-          borderRadius: 8, padding: '10px 12px', marginBottom: 10,
-          fontSize: 12, color: ACCENT, lineHeight: 1.7,
-        }}>
-          💡 카카오톡 → 증명서 발급 → 건강보험 자격득실 확인서<br/>
-          <span style={{ color: T2 }}>30초면 발급 가능합니다! 바로 첨부해 주세요.</span>
-        </div>
-        <UploadZone
-          file={certFile} onFile={setCertFile}
-          accept=".pdf,.jpg,.jpeg,.png"
-          label="건강보험 자격득실 확인서 (PDF/이미지)"
-        />
-        <div style={{ fontSize: 11, color: T3, marginTop: 6 }}>* 개인정보는 안전하게 처리되며 인증 목적으로만 사용됩니다.</div>
-      </div>
-
-      {/* 경력 증빙 — 두 개 가로 카드 선택 */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 10 }}>경력 증빙 자료</div>
-
-        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-          {/* LinkedIn 카드 */}
-          <button type="button"
-            onClick={() => setCareerChoice('linkedin')}
-            style={careerChoice === 'linkedin' ? CARD_ACTIVE : CARD_BASE}
-          >
-            <div style={{
-              width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-              border: careerChoice === 'linkedin' ? `5px solid ${ACCENT}` : `2px solid #CBD5E1`,
-              transition: 'border 0.15s',
-            }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: careerChoice === 'linkedin' ? ACCENT : T1 }}>LinkedIn 프로필</div>
-              <div style={{ fontSize: 11, color: T3, marginTop: 2 }}>프로필 링크 첨부</div>
-            </div>
-          </button>
-
-          {/* 포트폴리오 카드 */}
-          <button type="button"
-            onClick={() => setCareerChoice('portfolio')}
-            style={careerChoice === 'portfolio' ? CARD_ACTIVE : CARD_BASE}
-          >
-            <div style={{
-              width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-              border: careerChoice === 'portfolio' ? `5px solid ${ACCENT}` : `2px solid #CBD5E1`,
-              transition: 'border 0.15s',
-            }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: careerChoice === 'portfolio' ? ACCENT : T1 }}>포트폴리오 / 이력서</div>
-              <div style={{ fontSize: 11, color: T3, marginTop: 2 }}>URL 또는 파일 첨부</div>
-            </div>
-          </button>
-        </div>
-
-        {/* 선택한 옵션 입력 폼 */}
-        {careerChoice === 'linkedin' && (
-          <div style={{ border: `1.5px solid ${linkedinError ? '#E53E3E' : BORDER}`, borderRadius: 10, padding: '14px 14px 12px', background: '#fff' }}>
-            <input
-              type="url" placeholder="https://www.linkedin.com/in/홍길동"
-              value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)}
-              style={{ ...INPUT_STYLE, borderColor: linkedinError ? '#E53E3E' : BORDER }}
-              onFocus={onInputFocus} onBlur={onInputBlur}
-            />
-            {linkedinError && (
-              <div style={{ fontSize: 11, color: '#C53030', marginTop: 6 }}>
-                linkedin.com/in/ 형식의 프로필 URL을 입력해 주세요.
-              </div>
-            )}
-          </div>
-        )}
-
-        {careerChoice === 'portfolio' && (
-          <div style={{ border: `1.5px solid ${portfolioUrlError ? '#E53E3E' : BORDER}`, borderRadius: 10, padding: '14px 14px 12px', background: '#fff' }}>
-            <div style={{ fontSize: 11, color: T3, marginBottom: 8 }}>
-              직무 역량 확인용이라 미완성·미공개본이어도 괜찮습니다.
-            </div>
-            <input
-              type="url" placeholder="Notion, GitHub, 개인 사이트 등 URL"
-              value={portfolioText} onChange={e => setPortfolioText(e.target.value)}
-              style={{ ...INPUT_STYLE, marginBottom: portfolioUrlError ? 4 : 8, borderColor: portfolioUrlError ? '#E53E3E' : BORDER }}
-              onFocus={onInputFocus} onBlur={onInputBlur}
-            />
-            {portfolioUrlError && (
-              <div style={{ fontSize: 11, color: '#C53030', marginBottom: 8 }}>
-                http:// 또는 https://로 시작하는 URL을 입력해 주세요.
-              </div>
-            )}
-            <div style={{ fontSize: 12, color: T3, textAlign: 'center', marginBottom: 8 }}>또는 파일 첨부</div>
-            <UploadZone file={portfolioFile} onFile={setPortfolioFile} accept=".pdf,.jpg,.jpeg,.png,.zip" label="PDF·이미지·ZIP 업로드" />
-          </div>
-        )}
-      </div>
-
-      {error && (
-        <div style={{
-          fontSize: 13, color: '#C53030', background: '#FFF5F5',
-          border: '1px solid #FED7D7', borderRadius: 8, padding: '10px 14px', marginBottom: 14,
-        }}>{error}</div>
-      )}
-
-      <button type="button" onClick={onProceed} disabled={busy || !canProceed}
-        style={{
-          width: '100%', padding: '13px 0', borderRadius: 10,
-          background: (busy || !canProceed) ? T3 : ACCENT, color: '#fff',
-          fontSize: 14, fontWeight: 700, border: 'none',
-          cursor: (busy || !canProceed) ? 'not-allowed' : 'pointer',
-          fontFamily: 'inherit', transition: 'opacity 0.15s',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          opacity: !canProceed ? 0.6 : 1,
-        }}
-        onMouseEnter={e => { if (!busy && canProceed) e.currentTarget.style.opacity = '0.85'; }}
-        onMouseLeave={e => { e.currentTarget.style.opacity = (!canProceed ? '0.6' : '1'); }}
-      >
-        {`${methodLabel}로 계속하기 →`}
-      </button>
     </div>
   );
 }
@@ -489,16 +265,8 @@ export default function Signup() {
   const location  = useLocation();
   const { user, role: authRole, signUp, signOut, signInWithGoogle } = useAuth();
 
-  // useRef: React setState(setLoading)는 비동기 배칭 대상이므로 signUp() 완료 후
-  // onAuthStateChange가 user/authRole을 세팅하는 시점에 loading=true가 아직 커밋되지
-  // 않을 수 있음 → 클로저 stale 값으로 !loading 조건 통과 → 컴포넌트 언마운트로 업로드 코드 미실행.
-  // useRef는 동기·즉시 반영이므로 이 경쟁 조건을 완전히 차단함 (D-95 참조)
-  const isSubmittingRef = useRef(false);
-
   useEffect(() => {
-    // 폼 제출 진행 중(isSubmittingRef.current=true)에는 리다이렉트 금지
-    // Storage 업로드·panels UPDATE가 완료될 때까지 컴포넌트 언마운트를 막음
-    if (user && authRole && !isSubmittingRef.current) navigate(DEST[authRole] ?? '/company', { replace: true });
+    if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
   }, [user, authRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // bfcache fix
@@ -518,11 +286,6 @@ export default function Signup() {
   // Panel multi-step state
   const [panelStep,    setPanelStep]    = useState(STEP.CHOOSE);
   const [panelMethod,  setPanelMethod]  = useState(null);
-  const [certFile,     setCertFile]     = useState(null);
-  const [careerChoice, setCareerChoice] = useState(null);
-  const [linkedinUrl,  setLinkedinUrl]  = useState('');
-  const [portfolioFile, setPortfolioFile] = useState(null);
-  const [portfolioText, setPortfolioText] = useState('');
 
   // Email form state
   const [name,     setName]     = useState('');
@@ -551,11 +314,6 @@ export default function Signup() {
   useEffect(() => {
     setPanelStep(STEP.CHOOSE);
     setPanelMethod(null);
-    setCertFile(null);
-    setCareerChoice(null);
-    setLinkedinUrl('');
-    setPortfolioFile(null);
-    setPortfolioText('');
     setError('');
     setSuccessMsg('');
   }, [role]);
@@ -563,52 +321,17 @@ export default function Signup() {
   const handleChooseMethod = method => {
     setError('');
     setPanelMethod(method);
-    setPanelStep(STEP.CREDS);
+    if (method === 'google') {
+      handleGoogle();
+    } else {
+      setPanelStep(STEP.EMAIL);
+    }
   };
 
   const handleBack = () => {
     setError('');
-    if (panelStep === STEP.EMAIL) {
-      setPanelStep(STEP.CREDS);
-    } else {
-      setPanelStep(STEP.CHOOSE);
-      setPanelMethod(null);
-      setCertFile(null);
-      setCareerChoice(null);
-      setLinkedinUrl('');
-      setPortfolioFile(null);
-      setPortfolioText('');
-    }
-  };
-
-  const handleVerifyAndProceed = () => {
-    setError('');
-    if (!certFile) {
-      setError('건강보험 자격득실 확인서를 첨부해 주세요.'); return;
-    }
-    if (!careerChoice) {
-      setError('LinkedIn 프로필 또는 포트폴리오/이력서 중 하나를 선택해 주세요.'); return;
-    }
-    if (careerChoice === 'linkedin' && !linkedinUrl.trim()) {
-      setError('LinkedIn 프로필 URL을 입력해 주세요.'); return;
-    }
-    if (careerChoice === 'portfolio' && !portfolioText.trim() && !portfolioFile) {
-      setError('포트폴리오/이력서 URL을 입력하거나 파일을 첨부해 주세요.'); return;
-    }
-
-    try {
-      sessionStorage.setItem('purit_panel_creds', JSON.stringify({
-        linkedinUrl:   linkedinUrl.trim(),
-        portfolioText: portfolioText.trim(),
-      }));
-    } catch { /* ignore */ }
-
-    if (panelMethod === 'google') {
-      handleGoogle();
-      return;
-    }
-
-    setPanelStep(STEP.EMAIL);
+    setPanelStep(STEP.CHOOSE);
+    setPanelMethod(null);
   };
 
   const handleSubmit = async e => {
@@ -619,75 +342,13 @@ export default function Signup() {
     if (password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); return; }
 
     setLoading(true);
-    isSubmittingRef.current = true; // 리다이렉트 useEffect 차단 (동기·즉시 반영)
     try {
-      const signUpData = await signUp({ email, password, name, role });
-      const panelUserId = signUpData?.user?.id;
-
-      // 패널 가입 시 검증 자료를 Supabase Storage에 업로드 (signOut 전에 실행)
-      if (role === 'panel' && panelUserId) {
-        let healthInsuranceUrl = null;
-        let portfolioFileUrl   = null;
-
-        // 건강보험 자격득실 확인서 업로드
-        if (certFile) {
-          const ext  = certFile.name.split('.').pop();
-          const path = `${panelUserId}/health_insurance.${ext}`;
-          const { error: uploadErr } = await supabase.storage
-            .from('panel-verification-docs')
-            .upload(path, certFile, { upsert: true });
-          if (!uploadErr) {
-            healthInsuranceUrl = path; // private bucket → path만 저장, 열람 시 createSignedUrl 사용
-          } else {
-            console.warn('[Signup] 건강보험 파일 업로드 실패:', uploadErr.message);
-          }
-        }
-
-        // 포트폴리오/이력서 파일 업로드 (선택)
-        if (portfolioFile) {
-          const ext  = portfolioFile.name.split('.').pop();
-          const path = `${panelUserId}/portfolio.${ext}`;
-          const { error: uploadErr } = await supabase.storage
-            .from('panel-verification-docs')
-            .upload(path, portfolioFile, { upsert: true });
-          if (!uploadErr) {
-            portfolioFileUrl = path;
-          } else {
-            console.warn('[Signup] 포트폴리오 파일 업로드 실패:', uploadErr.message);
-          }
-        }
-
-        // panels 테이블 검증 자료 저장 — SECURITY DEFINER RPC 사용 (D-95)
-        // 이메일 미확인 상태 또는 RLS 설정으로 직접 UPDATE가 차단될 수 있으므로 RPC 경유
-        const rpcPayload = {
-          p_user_id:              panelUserId,
-          p_health_insurance_url: healthInsuranceUrl || null,
-          p_linkedin_url:         linkedinUrl.trim()  || null,
-          p_portfolio_url:        portfolioFileUrl
-                                    || (careerChoice === 'portfolio' && portfolioText.trim()
-                                        ? portfolioText.trim()
-                                        : null),
-        };
-        // 실제로 저장할 값이 하나라도 있을 때만 RPC 호출
-        if (rpcPayload.p_health_insurance_url || rpcPayload.p_linkedin_url || rpcPayload.p_portfolio_url) {
-          const { data: rpcOk, error: rpcErr } = await supabase.rpc(
-            'save_panel_verification_docs',
-            rpcPayload,
-          );
-          if (rpcErr) {
-            console.warn('[Signup] save_panel_verification_docs RPC 실패:', rpcErr.message);
-          } else if (!rpcOk) {
-            console.warn('[Signup] save_panel_verification_docs: FOUND=false (패널 레코드 없음 or 인증 불일치)');
-          }
-        }
-      }
-
+      await signUp({ email, password, name, role });
       await signOut();
       navigate('/login', { replace: true, state: { message: '가입이 완료되었습니다. 로그인해 주세요.' } });
     } catch (err) {
       setError(toKoreanAuthError(err));
     } finally {
-      isSubmittingRef.current = false; // 차단 해제 (에러 발생 시에도 반드시 해제)
       setLoading(false);
     }
   };
@@ -769,20 +430,6 @@ export default function Signup() {
           <>
             {panelStep === STEP.CHOOSE && (
               <PanelChooseStep onChoose={handleChooseMethod} busy={busy} />
-            )}
-
-            {panelStep === STEP.CREDS && (
-              <PanelCredsStep
-                panelMethod={panelMethod}
-                certFile={certFile} setCertFile={setCertFile}
-                careerChoice={careerChoice} setCareerChoice={setCareerChoice}
-                linkedinUrl={linkedinUrl} setLinkedinUrl={setLinkedinUrl}
-                portfolioFile={portfolioFile} setPortfolioFile={setPortfolioFile}
-                portfolioText={portfolioText} setPortfolioText={setPortfolioText}
-                error={error} busy={busy}
-                onBack={handleBack}
-                onProceed={handleVerifyAndProceed}
-              />
             )}
 
             {panelStep === STEP.EMAIL && (
