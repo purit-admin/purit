@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-19 (정산 완료→정산 확정 워딩 변경 + 패널 반려 피드백 처리 UX 추가)
+최종 업데이트: 2026-05-28 (어드민 완료 처리 버튼 조건 개선 — 승인 0건 차단 + 피드백 0건 시 버튼 미표시)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -776,12 +776,16 @@
      · 같은 카드 재클릭 → 인라인 패널 닫힘 / 탭 전환 → 패널 자동 닫힘
      · MissionCard 내부 버튼(완료 처리·취소 등): e.stopPropagation()으로 카드 클릭과 분리
      · updateStatus / deleteMission 후 selectedMission 로컬 동기화
-   - ★ 완료 처리 버튼 블락 조건 (진행·취소 탭 공통) ★ 개편 (2026-05-18)
-     · completeBlocked = allFbs.length === 0 || pendingFbs.length > 0
+   - ★ 완료 처리 버튼 블락 조건 (진행·취소 탭 공통) ★ 개편 (2026-05-28)
+     · completeBlocked = allFbs.length === 0 || approved.length === 0 || pendingFbs.length > 0 || drafts.length > 0
        - allFbs: feedbacks 중 status≠'draft'인 건
+       - approved: allFbs 중 purity_passed=true인 건
        - pendingFbs: allFbs 중 purity_passed=false && status≠'rejected'인 건(검토 중)
-     · 피드백 0건 → 버튼 비활성화 + "수집된 피드백이 없습니다" 안내 (진행 탭만)
+       - drafts: 마감 미만료 status='draft' 피드백
+     · 피드백 0건 → 버튼 자체 미표시 (진행 탭만) ★ 변경 (비활성화→미표시)
+     · 승인 0건(반려만 존재) → 버튼 비활성화 + "승인된 피드백이 없습니다" 안내 ★ 신규
      · 검토 중 피드백 존재 → 버튼 비활성화 + "검토 중 N건 먼저 처리 필요" 경고 (노란색, 진행·취소 공통)
+     · 작성 중 피드백 존재 → 버튼 비활성화 + "작성 중 N건 완료 대기" 경고 (노란색)
    - ★ 조기 종료 완료 처리 (earlyCompleteMission) ★ 개편 (2026-05-18)
      · 취소 탭 "완료 처리" 버튼: allFbs.length > 0 && pendingFbs.length === 0 일 때만 활성화
      · 클릭 → ConfirmModal(승인된 피드백 N건 기업 공개 안내) → 확인 시:

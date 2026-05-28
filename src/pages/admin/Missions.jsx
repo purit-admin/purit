@@ -171,7 +171,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
     const deadline = f.rejection_deadline || f.submission_deadline;
     return deadline && new Date(deadline) > new Date();
   });
-  const completeBlocked = allFbs.length === 0 || reviewing.length > 0 || drafts.length > 0;
+  const completeBlocked = allFbs.length === 0 || approved.length === 0 || reviewing.length > 0 || drafts.length > 0;
 
   return (
     <Card key={m.id} onClick={() => onSelect(m)} style={{ outline: isHighlighted ? '2px solid var(--accent)' : isSelected ? '2px solid var(--border)' : 'none', background: isSelected ? 'var(--accent-dim2)' : undefined, transition: 'outline 0.3s, background 0.15s', cursor: 'pointer', padding: '10px 14px' }}>
@@ -205,7 +205,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
           {/* 버튼 + 안내 문구 */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {m.status === 'active' && (
+              {m.status === 'active' && allFbs.length > 0 && (
                 <Btn size="sm" variant="secondary"
                   disabled={completeBlocked}
                   onClick={(e) => { e.stopPropagation(); onCompleteMission(m); }}>
@@ -238,6 +238,9 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             </div>
             {m.status === 'active' && allFbs.length === 0 && (
               <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>수집된 피드백이 없습니다</div>
+            )}
+            {m.status === 'active' && allFbs.length > 0 && approved.length === 0 && reviewing.length === 0 && drafts.length === 0 && (
+              <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right' }}>승인된 피드백이 없습니다</div>
             )}
             {m.status === 'active' && reviewing.length > 0 && (
               <div style={{ fontSize: 10, color: '#F59E0B', textAlign: 'right' }}>검토 중 {reviewing.length}건 먼저 처리 필요</div>
