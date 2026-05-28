@@ -375,7 +375,7 @@ export default function PanelProfile() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
-        {[['profile', '기본 정보'], ['payment', '정산 계좌'], ['password', '비밀번호'], ['achievement', '성과'], ['notifications', '알림 설정']].map(([v, l]) => (
+        {[['profile', '기본 정보'], ['achievement', '성과'], ['payment', '정산 계좌'], ['password', '비밀번호'], ['notifications', '알림 설정']].map(([v, l]) => (
           <button key={v} onClick={() => handleTabClick(v)} style={{
             padding: '10px 18px', fontSize: 13, fontWeight: 500,
             background: 'none', border: 'none', cursor: 'pointer',

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-28 (어드민 완료 처리 버튼 조건 개선 — 승인 0건 차단 + 피드백 0건 시 버튼 미표시)
+최종 업데이트: 2026-05-28 (패널 프로필 탭 순서 변경 — 성과 탭을 기본 정보 바로 다음 2번째로 이동)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -649,12 +649,7 @@
        - 번호 입력 → "인증번호 발송" (800ms delay mock) → OTP 6자리 입력 → "확인" (600ms delay)
        - 6자리 아무 숫자 허용 (Mock 환경) → 성공 시 phone·phone_verified=true DB UPDATE
        - 인증 완료 시 "✓ 인증 완료" 뱃지 표시, "번호 변경" 링크로 재인증 가능
-   - 탭 정산 계좌: bank_name·bank_account·bank_holder → panels UPDATE
-   - 탭 비밀번호: signInWithPassword 검증 → supabase.auth.updateUser({ password })  ★ 신규
-   - 탭 알림 설정: panels.notif_prefs JSONB DB 저장 (migration 042) ★ 신규
-     · 3가지 토글: 피드백 승인(feedbackApproved) / 피드백 반려(feedbackRejected) / 마감 임박 알림(deadlineWarning)
-     · 낙관적 UI + 에러 시 rollback / 키 미설정=수신, false=차단
-   - 탭 성과 — 뱃지 시스템 v2 ★ 개편 (2026-05-11)
+   - 탭 성과 — 뱃지 시스템 v2 ★ 개편 (2026-05-11) ★ 탭 순서: 기본 정보 바로 다음 2번째
      · 요약 3칸: 완료 미션 / 이번 주 제출 / 취득 뱃지 수
      · 신뢰도(Purity Filter 통과율) 게이지
      · 뱃지 컬렉션: 12개 계층형 뱃지, 4개 섹션(ROOKIE/ELITE/MASTER/HIDDEN)
@@ -671,6 +666,11 @@
      · ⓘ 아이콘 호버 → 검은 툴팁 박스 (left:0 고정, wordBreak:'keep-all' — 사이드바 겹침·세로 찢김 방지)
        hidden 미달성 툴팁: "이 뱃지의 달성 조건은 숨겨져 있습니다"
      · 획득 뱃지 호버 → "대표 뱃지로 설정" 버튼 / 재클릭 → null 해제 / 파란 outline 강조
+   - 탭 정산 계좌: bank_name·bank_account·bank_holder → panels UPDATE
+   - 탭 비밀번호: signInWithPassword 검증 → supabase.auth.updateUser({ password })  ★ 신규
+   - 탭 알림 설정: panels.notif_prefs JSONB DB 저장 (migration 042) ★ 신규
+     · 3가지 토글: 피드백 승인(feedbackApproved) / 피드백 반려(feedbackRejected) / 마감 임박 알림(deadlineWarning)
+     · 낙관적 UI + 에러 시 rollback / 키 미설정=수신, false=차단
    - 프로필 헤더: 대표 뱃지 설정 시 이름 옆에 tier 색상 태그 표시 / 미설정 시 아무것도 표시 안 함 (ACTIVE 제거) ★
    - 패널 대시보드 헤더: panel.selected_badge + 획득 여부 확인 → 이름 옆 11px 소형 태그 표시 ★
    - 뱃지 자동 달성: 피드백 제출 후 및 도움됨 평가 후 check_and_award_badges RPC fire-and-forget ★
