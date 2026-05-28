@@ -4,6 +4,7 @@ import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
+import { sendNotification } from '../../lib/notify';
 
 const DETAIL_PAGE_SIZE = 5;
 
@@ -149,11 +150,30 @@ export default function AdminPanels() {
 
   async function updatePanel(id, fields) {
     setActing(true);
-    const { error } = await supabase.from('panels').update(fields).eq('id', id);
+    const { error, count } = await supabase.from('panels').update(fields, { count: 'exact' }).eq('id', id);
     if (error) {
       setActionMsg('저장 실패: ' + error.message);
       setActing(false);
       return;
+    }
+    if (count === 0) {
+      setActionMsg('저장 실패: 권한이 없습니다. Supabase SQL Editor에서 066 마이그레이션을 실행해 주세요.');
+      setActing(false);
+      return;
+    }
+    // 첫 심사 승인(pending → active) 시 환영 알림 발송
+    if (fields.status === 'active') {
+      const targetPanel = panels.find(p => p.id === id);
+      if (targetPanel?.user_id && targetPanel?.status === 'pending') {
+        sendNotification(targetPanel.user_id, {
+          type: 'success',
+          icon: '🎉',
+          title: '전문 마케터로 승인되었습니다!',
+          body: 'Purit이 인증한 마케터로 공식 합류하셨습니다. 실제 기업의 랜딩페이지·광고 소재를 전문가 시각으로 진단하고, 더 나은 마케팅을 함께 만들어 나가요.',
+          actionUrl: '/panel/missions',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 환영 알림 발송 실패:', err));
+      }
     }
     setPanels(ps => ps.map(p => p.id === id ? { ...p, ...fields } : p));
     setActing(false);

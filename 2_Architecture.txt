@@ -417,6 +417,7 @@ purit/
 │                063(panel_verification_bucket_rls: 'panel-verification-docs' private Storage 버킷 생성 + panel_upload_own_docs·admin_read_all_docs·panel_read_own_docs RLS 정책)
 │                064(fix_oauth_panel_status_pending: create_oauth_user_profile RPC 재정의 — 패널 status='pending'으로 수정(061에서 active 하드코딩 → pending) RETURNS BOOLEAN 시그니처 유지)
 │                065(save_panel_verification_docs: 패널 검증 자료 저장 SECURITY DEFINER RPC — 이메일 미확인 상태/RLS 차단 우회, auth.uid()=p_user_id 본인 검증, COALESCE 패턴으로 NULL 값 무시)
+│                066(admin_update_panels_rls: 어드민 panels UPDATE RLS 정책 추가 — app_metadata role='admin' 조건, 기존 본인 UPDATE 정책과 공존, D-5 silent failure 해결)
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)

@@ -126,8 +126,9 @@ export default function VerifyDocs() {
   };
 
   return (
-    <div className="page-wrap" style={{ maxWidth: 560 }}>
-      <div style={{ marginBottom: 28 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 24px' }}>
+    <div style={{ width: '100%', maxWidth: 560 }}>
+      <div style={{ marginBottom: 28, textAlign: 'center' }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: T1, marginBottom: 6 }}>경력 인증 서류 제출</div>
         <div style={{ fontSize: 14, color: T2 }}>심사 승인을 위해 아래 서류를 제출해 주세요.</div>
       </div>
@@ -135,10 +136,13 @@ export default function VerifyDocs() {
       {/* 건강보험 자격득실 확인서 */}
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: T1, marginBottom: 4 }}>
-          건강보험 자격득실 확인서 <span style={{ color: '#E53E3E', fontSize: 13 }}>*</span>
+          연차 인증 (건강보험 자격득실 확인서) <span style={{ color: '#E53E3E', fontSize: 13 }}>*</span>
         </div>
-        <div style={{ fontSize: 13, color: T2, marginBottom: 12 }}>
-          국민건강보험공단에서 발급한 자격득실 확인서 (PDF 또는 이미지, 5MB 이하)
+        <div style={{ fontSize: 13, color: T2, marginBottom: 4 }}>
+          토스 · 카카오톡에서 30초 발급 가능합니다.
+        </div>
+        <div style={{ fontSize: 12, color: T3, marginBottom: 12 }}>
+          PDF 또는 이미지, 5MB 이하
         </div>
         <UploadZone
           file={certFile} onFile={setCertFile}
@@ -239,6 +243,7 @@ export default function VerifyDocs() {
       <div style={{ fontSize: 12, color: T3, textAlign: 'center', marginTop: 12 }}>
         서류 검토 후 어드민이 심사를 완료하면 미션 참여가 가능합니다.
       </div>
+    </div>
     </div>
   );
 }
