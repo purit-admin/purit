@@ -212,6 +212,7 @@ export default function MissionList() {
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]               = useState(null);
   const [panelStatus, setPanelStatus]       = useState('active');
+  const [panelHasDocs, setPanelHasDocs]     = useState(false);
   const [panelHonorPoints, setPanelHonorPoints] = useState(0);
   const [panelExperience, setPanelExperience]   = useState('');
   const [loading, setLoading]         = useState(true);
@@ -261,10 +262,11 @@ export default function MissionList() {
       if (!user) { setLoading(false); return; }
 
       const { data: p } = await supabase
-        .from('panels').select('id, honor_points, experience, status').eq('user_id', user.id).single();
+        .from('panels').select('id, honor_points, experience, status, health_insurance_url, linkedin_url, portfolio_url').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
       setPanelStatus(p.status || 'active');
+      setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url));
       setPanelHonorPoints(p.honor_points ?? 0);
       setPanelExperience(p.experience || '');
 
@@ -436,15 +438,23 @@ export default function MissionList() {
 
   if (panelStatus === 'pending') return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
-      <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
-        <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>심사 대기 중</h2>
-        <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
-          제출하신 검증 서류를 검토 중입니다.<br/>
-          승인 완료 후 미션 참여가 가능합니다.<br/>
-          보통 1–2 영업일 내에 처리됩니다.
-        </p>
-      </Card>
+      {panelHasDocs ? (
+        <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid #F59E0B', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 20 }}>⏳</span>
+          <span style={{ fontSize: 14, color: 'var(--text-2)' }}>
+            <strong>심사 대기 중입니다.</strong> 검증 서류 검토 후 미션 참여가 활성화됩니다. (1–2 영업일 소요)
+          </span>
+        </div>
+      ) : (
+        <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>서비스 이용을 위한 경력 인증을 해주세요.</h2>
+          <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+            서류 검토 후 승인이 완료되면 미션 참여가 가능합니다.
+          </p>
+          <Btn onClick={() => navigate('/panel/verify-docs')}>서류 제출하기 →</Btn>
+        </Card>
+      )}
     </div>
   );
 

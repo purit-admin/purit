@@ -118,6 +118,7 @@ export default function Layout({ role, children }) {
   const [rejectedCount, setRejectedCount] = useState(0);
   const [panelId, setPanelId] = useState(null);
   const [panelStatus, setPanelStatus] = useState(null);
+  const [panelStatusLoaded, setPanelStatusLoaded] = useState(false);
   const [panelHasDocs, setPanelHasDocs] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -157,6 +158,7 @@ export default function Layout({ role, children }) {
 
   useEffect(() => {
     if (!user?.id || role !== 'panel') return;
+    setPanelStatusLoaded(false);
     supabase.from('panels').select('id, status, health_insurance_url, linkedin_url, portfolio_url').eq('user_id', user.id).single()
       .then(({ data: p }) => {
         if (p) {
@@ -164,6 +166,7 @@ export default function Layout({ role, children }) {
           setPanelStatus(p.status);
           setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url));
         }
+        setPanelStatusLoaded(true);
       });
   }, [user?.id, role, location.pathname]);
 
@@ -509,7 +512,9 @@ export default function Layout({ role, children }) {
           <div style={{ width: 34 }} />
         </div>
         <main style={{ flex: 1, background: '#F8FAFC' }}>
-          {role === 'panel' && panelStatus === 'pending' && location.pathname !== '/panel/verify-docs'
+          {role === 'panel' && !panelStatusLoaded && !['/panel', '/panel/verify-docs'].includes(location.pathname)
+            ? null
+            : role === 'panel' && panelStatus === 'pending' && !['/panel', '/panel/verify-docs'].includes(location.pathname)
             ? (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 24px' }}>
                 {panelHasDocs ? (

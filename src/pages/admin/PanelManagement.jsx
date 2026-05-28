@@ -157,7 +157,7 @@ export default function AdminPanels() {
       return;
     }
     if (count === 0) {
-      setActionMsg('저장 실패: 권한이 없습니다. Supabase SQL Editor에서 066 마이그레이션을 실행해 주세요.');
+      setActionMsg('저장 실패: 권한이 없습니다.');
       setActing(false);
       return;
     }

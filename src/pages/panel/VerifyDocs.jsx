@@ -66,6 +66,26 @@ export default function VerifyDocs() {
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState('');
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+  const handleCertFile = (f) => {
+    if (f && f.size > MAX_FILE_SIZE) {
+      setError('파일 크기가 5MB를 초과합니다. 5MB 이하의 파일을 선택해 주세요.');
+      return;
+    }
+    if (f) setError('');
+    setCertFile(f);
+  };
+
+  const handlePortfolioFile = (f) => {
+    if (f && f.size > MAX_FILE_SIZE) {
+      setError('포트폴리오 파일 크기가 5MB를 초과합니다. 5MB 이하의 파일을 선택해 주세요.');
+      return;
+    }
+    if (f) setError('');
+    setPortfolioFile(f);
+  };
+
   const handleSubmit = async () => {
     setError('');
     if (!certFile) {
@@ -145,7 +165,7 @@ export default function VerifyDocs() {
           PDF 또는 이미지, 5MB 이하
         </div>
         <UploadZone
-          file={certFile} onFile={setCertFile}
+          file={certFile} onFile={handleCertFile}
           accept=".pdf,.jpg,.jpeg,.png"
           label="자격득실 확인서 업로드"
         />
@@ -213,7 +233,7 @@ export default function VerifyDocs() {
               onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
             />
             <UploadZone
-              file={portfolioFile} onFile={setPortfolioFile}
+              file={portfolioFile} onFile={handlePortfolioFile}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               label="파일로 업로드 (선택)"
             />

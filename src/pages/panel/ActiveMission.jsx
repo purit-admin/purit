@@ -859,18 +859,30 @@ export default function ActiveMission() {
     );
   })() : null;
 
-  if (panelPending) return (
-    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>심사 대기 중</h2>
-      <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
-        제출하신 검증 서류를 검토 중입니다.<br />
-        승인 완료 후 미션 참여가 가능합니다.<br />
-        보통 1–2 영업일 내에 처리됩니다.
-      </p>
-      <Btn onClick={() => navigate('/panel')}>대시보드로 돌아가기</Btn>
-    </div>
-  );
+  if (panelPending) {
+    const hasDocs = !!(panel?.health_insurance_url || panel?.linkedin_url || panel?.portfolio_url);
+    return (
+      <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, animation: 'fadeUp 0.4s ease both' }}>
+        {hasDocs ? (
+          <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid #F59E0B', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>⏳</span>
+            <span style={{ fontSize: 14, color: 'var(--text-2)' }}>
+              <strong>심사 대기 중입니다.</strong> 검증 서류 검토 후 미션 참여가 활성화됩니다. (1–2 영업일 소요)
+            </span>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>서비스 이용을 위한 경력 인증을 해주세요.</h2>
+            <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
+              서류 검토 후 승인이 완료되면 미션 참여가 가능합니다.
+            </p>
+            <Btn onClick={() => navigate('/panel/verify-docs')}>서류 제출하기 →</Btn>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (slotTaken) return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, textAlign: 'center', animation: 'fadeUp 0.4s ease both' }}>
