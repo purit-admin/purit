@@ -17,7 +17,7 @@ DECLARE
   v_type         TEXT;
   v_description  TEXT;
   v_image_urls   TEXT[];
-  v_persona      JSONB;
+  v_persona      TEXT;
   v_created      TIMESTAMPTZ;
   v_perms        JSONB;
   v_count        INT;

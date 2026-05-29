@@ -45,10 +45,15 @@ export default function ShareResult() {
 
   useEffect(() => {
     async function load() {
-      const { data: result, error } = await supabase.rpc('get_shared_mission', { p_token: token });
-      if (error || !result) { setNotFound(true); setLoading(false); return; }
-      setData(result);
-      setLoading(false);
+      try {
+        const { data: result, error } = await supabase.rpc('get_shared_mission', { p_token: token });
+        if (error || !result) { setNotFound(true); setLoading(false); return; }
+        setData(result);
+        setLoading(false);
+      } catch {
+        setNotFound(true);
+        setLoading(false);
+      }
     }
     load();
   }, [token]);
@@ -69,7 +74,7 @@ export default function ShareResult() {
 
   const scores = data.scores || {};
   const overallAvg = DIMS.reduce((sum, d) => sum + (scores[d.key] || 0), 0) / DIMS.length;
-  const persona = (typeof data.persona === 'object' && data.persona) ? data.persona : {};
+  const persona = (typeof data.persona === 'string' && data.persona.trim()) ? data.persona.trim() : '';
   const createdDate = data.created_at ? new Date(data.created_at).toLocaleDateString('ko-KR') : '';
   const perms = data.share_permissions || { show_comments: true, show_annotations: true };
   const isImage = Array.isArray(data.image_urls) && data.image_urls.length > 0;
@@ -164,22 +169,10 @@ export default function ShareResult() {
         </div>
 
         {/* Persona */}
-        {Object.keys(persona).length > 0 && (
+        {persona && (
           <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '20px 24px', marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#4B556D', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>검증 타겟 페르소나</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {[
-                ['산업군', persona.industry],
-                ['직책', persona.role],
-                ['경력', persona.experience],
-                ['지역', persona.region],
-              ].filter(([, v]) => v).map(([label, value]) => (
-                <div key={label} style={{ padding: '10px 14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: '#8598AA', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{value}</div>
-                </div>
-              ))}
-            </div>
+            <div style={{ fontSize: 13, color: '#0F172A', lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'keep-all' }}>{persona}</div>
           </div>
         )}
 

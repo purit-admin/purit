@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-29 (D-97 추가 — signUp 후 signOut 전 navigate 시 stale user 세션 race condition)
+최종 업데이트: 2026-05-29 (D-98 추가 — SECURITY DEFINER RPC DECLARE 변수 타입과 실제 DB 컬럼 타입 불일치로 RPC가 NULL 반환)
 ================================================================
 
 ## 핵심 원칙
@@ -1452,3 +1452,29 @@ D-97. signUp() 후 signOut() 완료 전 navigate() 호출 시 목적지 페이�
              signOut()을 호출하는 패턴은 항상 이 Race Condition에 취약함
              해결 방향: navigate() 대상 페이지에서 "가입 완료 상태"를 감지해 auto-redirect를 선택적으로 억제할 것
              location.state.message 또는 URL 파라미터(signup=google)를 "auto-redirect 억제 신호"로 활용하는 것이 최소 침습적 해결책
+
+D-98. SECURITY DEFINER RPC의 DECLARE 변수 타입이 실제 DB 컬럼 타입과 불일치하면 SELECT INTO 시 암묵적 캐스팅 실패로 RPC 전체가 NULL 반환하는 패턴 ✅ 해결
+     → 증상: `/share/:token` 공유 페이지 전체가 404("공유 링크를 찾을 수 없습니다") 화면 표시
+             `supabase.rpc('get_shared_mission', { p_token })` 반환값이 error=null인데도 data=null
+             특정 토큰만 실패하는 것이 아니라 모든 share 링크가 동일하게 404
+     → 원인: DECLARE 섹션의 변수 타입이 SELECT INTO 대상 컬럼의 실제 타입과 다를 때
+             PostgreSQL이 암묵적 캐스팅을 시도하다 실패하면 EXCEPTION을 발생시키지 않고
+             SELECT INTO 결과 전체를 NULL로 처리하는 경우가 있음
+             구체적 사례: `v_persona JSONB;` 로 선언 후 `missions.persona` (TEXT 컬럼) 값을 SELECT INTO 시도
+             → TEXT→JSONB 암묵적 캐스트 실패 (persona 값이 유효한 JSON 형식이 아닌 자유 텍스트이므로)
+             → v_id(UUID)를 포함한 SELECT 전체가 NULL로 취급됨 → `IF v_id IS NULL THEN RETURN NULL;` 조건 충족
+             → RPC가 NULL 반환 → 클라이언트 `if (!result)` 조건 → setNotFound(true) → 404 화면
+     → 진단 어려움:
+             1) 클라이언트에서 error 객체가 null이고 data만 null → 일반적인 "토큰 없음" 케이스와 구별 불가
+             2) SQL 로그나 Supabase Dashboard의 Functions 탭에도 에러 로그가 남지 않음
+             3) SQL Editor에서 `SELECT get_shared_mission('토큰값');` 을 직접 실행해도 NULL 반환만 확인 가능
+             → SQL EXCEPTION이 발생하지 않아 PostgreSQL 에러 로그에도 기록 안 됨
+     → 해결: DECLARE 섹션의 모든 변수 타입을 DB 컬럼 실제 타입과 정확히 일치시킬 것
+             `v_persona JSONB;` → `v_persona TEXT;` (missions.persona는 TEXT 컬럼)
+             점검 방법: 정보 스키마 조회로 대상 컬럼의 실제 타입 확인
+             `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'missions';`
+     → 원칙: SECURITY DEFINER RPC를 작성할 때 DECLARE 섹션 변수 타입은 반드시 DB 스키마의 실제 컬럼 타입을 조회해 맞출 것
+             특히 TEXT와 JSONB/UUID/NUMERIC/TIMESTAMPTZ는 서로 암묵적 캐스트가 보장되지 않음
+             "타입이 맞겠지"라는 가정은 절대 금지 — 컬럼 타입 확인 없이 DECLARE를 작성하면
+             모든 SELECT INTO가 NULL을 반환하는 무음 실패로 이어질 수 있음
+             4_DBSchema.txt의 컬럼 타입 정보를 반드시 참조할 것 (CLAUDE.md 조건부 로드 규칙)

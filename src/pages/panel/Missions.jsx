@@ -58,6 +58,16 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
+function getImprovementTip(text) {
+  const t = (text || '').toLowerCase();
+  if (!text || text.trim().length < 5) return '각 항목에 30자 이상의 구체적인 이유를 작성해 보세요.';
+  if (t.includes('짧') || t.includes('길이') || t.includes('글자') || t.includes('단어') || t.includes('너무 적')) return '각 항목에 30자 이상의 구체적인 이유를 작성해 보세요.';
+  if (t.includes('ai') || t.includes('인공지능') || t.includes('패턴') || t.includes('복사') || t.includes('생성')) return '실제 경험과 개인 의견을 바탕으로 자신의 언어로 작성해 주세요.';
+  if (t.includes('구체') || t.includes('근거') || t.includes('예시') || t.includes('이유가 없')) return '개선이 필요한 이유나 구체적인 예시를 포함해 주세요.';
+  if (t.includes('성의') || t.includes('대충') || t.includes('불성실') || t.includes('형식적')) return '더 성의 있는 피드백을 작성할수록 심사 통과에 유리합니다.';
+  return '각 항목에 구체적인 의견과 개선 방향을 포함해 주세요.';
+}
+
 function formatRemaining(deadline) {
   if (!deadline) return null;
   const diff = new Date(deadline) - new Date();
@@ -134,8 +144,13 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, submissionDeadlin
             );
           })()}
           {mode === 'needsRevision' && reasonOpen && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface)', borderRadius: 6, padding: '8px 12px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {suggestions || 'Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함하여 재작성해주세요.'}
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', background: 'var(--surface)', borderRadius: 6, padding: '8px 12px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {suggestions || 'Purit Filter 기준 미달로 반려되었습니다. 구체적인 근거와 개선 방향을 포함하여 재작성해주세요.'}
+              </div>
+              <div style={{ marginTop: 6, fontSize: 12, color: '#059669', background: 'rgba(5,150,105,0.07)', borderRadius: 6, padding: '8px 12px', borderLeft: '3px solid #059669', lineHeight: 1.6 }}>
+                💡 {getImprovementTip(suggestions)}
+              </div>
             </div>
           )}
         </div>

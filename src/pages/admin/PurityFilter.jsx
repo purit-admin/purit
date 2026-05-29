@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
@@ -180,6 +181,7 @@ export default function PurityFilter() {
   const [statusError, setStatusError]     = useState('');
   const [searchQuery, setSearchQuery]     = useState('');
   const [panelQuery, setPanelQuery]       = useState('');
+  const [rejectNote, setRejectNote]       = useState('');
 
   useEffect(() => {
     const pendingDeeplink = location.state?.feedbackId;
@@ -301,15 +303,18 @@ export default function PurityFilter() {
     return true;
   };
 
-  const reject = async (id) => {
+  const reject = async (id, note = '') => {
     setActing(true); setStatusError('');
     const fb = feedbacks.find(f => f.id === id);
     const isSub = ['preference', 'pricing', 'email'].includes(fb?.missions?.type);
     const hoursOffset = isSub ? 2 : 4;
     const rejectionDeadline = new Date(Date.now() + hoursOffset * 60 * 60 * 1000).toISOString();
-    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline }).eq('id', id);
+    const updatePayload = { purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline };
+    if (note.trim()) updatePayload.suggestions = note.trim();
+    const { error } = await supabase.from('feedbacks').update(updatePayload).eq('id', id);
     if (error) { setStatusError('반려 실패: ' + error.message); setActing(false); return; }
-    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline } : f));
+    const noteUpdate = note.trim() ? { suggestions: note.trim() } : {};
+    setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline, ...noteUpdate } : f));
 
     if (fb?.mission_id) {
       supabase.rpc('decrement_mission_filled_count', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[decrement_slot]', e.message); });
@@ -1212,16 +1217,28 @@ export default function PurityFilter() {
         />
       )}
 
-      {confirmRejectId && (
-        <ConfirmModal
-          title="피드백 반려"
-          desc="이 피드백을 반려 처리합니까? 패널에게 반려 알림이 발송됩니다."
-          confirmLabel="✕ 반려"
-          errorMsg={statusError}
-          onConfirm={async () => { setStatusError(''); const ok = await reject(confirmRejectId); if (ok) setConfirmRejectId(null); }}
-          onCancel={() => { setStatusError(''); setConfirmRejectId(null); }}
-          danger
-        />
+      {confirmRejectId && ReactDOM.createPortal(
+        <div onClick={() => { setStatusError(''); setRejectNote(''); setConfirmRejectId(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div onClick={e => e.stopPropagation()} className="confirm-modal-inner" style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 20px', width: 440, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12 }}>피드백 반려</div>
+            <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>반려 사유를 입력해 주세요. 패널에게 반려 알림과 함께 전달됩니다.</div>
+            <textarea
+              value={rejectNote}
+              onChange={e => setRejectNote(e.target.value)}
+              placeholder="예) 피드백이 너무 짧고 구체적인 근거가 없습니다. 각 차원마다 30자 이상의 이유를 작성해 주세요."
+              rows={4}
+              style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--border)', padding: '10px 12px', fontSize: 13, color: 'var(--text)', lineHeight: 1.6, resize: 'vertical', fontFamily: 'var(--font-sans)', outline: 'none' }}
+            />
+            {statusError && <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444', background: 'rgba(239,68,68,0.07)', borderRadius: 6, padding: '8px 12px' }}>{statusError}</div>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <Btn variant="ghost" onClick={() => { setStatusError(''); setRejectNote(''); setConfirmRejectId(null); }}>취소</Btn>
+              <Btn variant="danger" disabled={acting} onClick={async () => { setStatusError(''); const ok = await reject(confirmRejectId, rejectNote); if (ok) { setRejectNote(''); setConfirmRejectId(null); } }}>
+                {acting ? '처리 중...' : '✕ 반려'}
+              </Btn>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {confirmResetId && (

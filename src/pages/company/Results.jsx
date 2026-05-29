@@ -1092,12 +1092,17 @@ export default function Results() {
   };
 
   const handlePermissionToggle = async (key) => {
+    const prev = sharePermissions;
     const next = { ...sharePermissions, [key]: !sharePermissions[key] };
     setSharePermissions(next);
     if (shareToken) {
       const { error } = await supabase.from('missions').update({ share_permissions: next }).eq('id', selected);
-      if (error) setShareError('권한 저장 실패: ' + error.message);
-      else setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_permissions: next } : m));
+      if (error) {
+        setSharePermissions(prev);
+        setShareError('권한 저장 실패: ' + error.message);
+      } else {
+        setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_permissions: next } : m));
+      }
     }
   };
 

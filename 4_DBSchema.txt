@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-29 (067 team_invite_token — team_members에 invite_token/invite_expires_at 추가 + accept_team_invite/peek_team_invite RPC 추가)
+최종 업데이트: 2026-05-29 (067_enhanced_sharing — missions.share_permissions JSONB 추가 + get_shared_mission RPC 전면 확장)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -85,6 +85,7 @@
   estimated_minutes  INT   DEFAULT 5  (예상 소요 시간, 009_gamification.sql)
   difficulty         TEXT  DEFAULT 'normal'  CHECK IN ('easy','normal','hard')  (009_gamification.sql)
   share_token        TEXT  UNIQUE  (010_sharing.sql, NULL이면 비공개)
+  share_permissions  JSONB NOT NULL DEFAULT '{"show_comments":true,"show_annotations":true}'::jsonb  ← 067 추가 (공유 페이지 공개 권한 설정)
   credits_reserved   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (의뢰 등록 시 차감 예약 크레딧)
   credits_consumed   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (퓨릿 필터 승인 시 실시간 갱신·완료 처리 시 최종 확정)
   company_notified_at TIMESTAMPTZ    DEFAULT NULL        ← 039 추가 (조기종료 기업 공개 게이트 — earlyCompleteMission 호출 시 SET, NULL이면 Results.jsx 취소 탭 미노출)
@@ -405,9 +406,15 @@
     → 파일: supabase/migrations/012_panel_phone_public_profiles.sql
 
   get_shared_mission(p_token TEXT) RETURNS jsonb
-    → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 반환
+    → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 + 어노테이션 + 서브 미션 응답 반환
     → 인증 불필요 (SECURITY DEFINER), /share/:token 공개 페이지에서 사용
-    → 파일: supabase/migrations/010_sharing.sql
+    → 반환 필드: title / type / description / image_urls / persona(TEXT) / created_at /
+                 feedback_count / share_permissions / scores(5차원) /
+                 feedbacks(익명 배열: idx·suggestions·5차원점수) /
+                 annotations(배열: dimension·x_pct·y_pct·w_pct·h_pct·comment·score·image_index) /
+                 sub_responses(타입별: preference=choice_a/b_count+2점수 / pricing=would_buy_count+2점수 / email=would_reply_count+4점수)
+    → share_permissions.show_comments=false이면 feedbacks=[] / show_annotations=false이면 annotations=[]
+    → 파일: supabase/migrations/067_enhanced_sharing.sql (010_sharing.sql 재정의)
 
   add_panel_honor_points(p_panel_id UUID, p_delta INT)
     → panels.honor_points = GREATEST(0, honor_points + p_delta) 원자 업데이트
