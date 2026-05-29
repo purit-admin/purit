@@ -1,0 +1,86 @@
+================================================================
+팀 초대 이메일 기능 구현 요약
+작성일: 2026-05-29
+================================================================
+
+## 구현 완료된 것
+
+1. supabase/migrations/067_team_invite_token.sql
+   - team_members 테이블에 invite_token, invite_expires_at 컬럼 추가
+   - accept_team_invite(p_token) RPC — 토큰 검증 후 status='active' 전환
+   - peek_team_invite(p_token) RPC — 비로그인 상태에서 초대 정보 조회 가능
+
+2. supabase/functions/send-invite-email/index.ts
+   - Resend API로 초대 이메일 발송하는 Deno Edge Function
+   - 수신: to, companyName, inviterName, role, inviteUrl
+   - 발신: Purit <noreply@purit.io>
+   - 환경변수: RESEND_API_KEY 필요
+
+3. src/pages/company/Settings.jsx
+   - handleInvite() 함수 수정
+   - DB INSERT 시 invite_token + invite_expires_at(7일) 함께 저장
+   - 이메일 발송 실패해도 DB 레코드는 유지, 초대 링크 직접 표시
+
+4. src/pages/InviteAccept.jsx (신규)
+   - /invite?token=xxx 공개 페이지
+   - 비로그인 → 로그인/회원가입 유도, 토큰 localStorage 보존
+   - 로그인 상태 → 수락 버튼 → accept_team_invite RPC → /company 이동
+
+5. src/App.jsx
+   - /invite 공개 라우트 추가 (RoleRoute 밖)
+
+
+================================================================
+## 배포 전 직접 해야 할 작업 (순서대로)
+================================================================
+
+STEP 1. Supabase SQL Editor에서 마이그레이션 실행
+   - 파일: supabase/migrations/067_team_invite_token.sql
+   - 위치: Supabase 대시보드 → SQL Editor → 파일 내용 붙여넣기 → Run
+
+STEP 2. Resend 계정 및 API 키 준비
+   - https://resend.com 가입
+   - API Keys 메뉴에서 새 키 발급 (re_xxxx 형식)
+   - 도메인 인증: Domains 메뉴에서 purit.io DNS 레코드 추가
+     (테스트만 하려면 도메인 인증 없이 onboarding@resend.dev 발신 주소 임시 사용 가능)
+
+STEP 3. Supabase Edge Function 시크릿 등록
+   터미널에서:
+   supabase secrets set RESEND_API_KEY=re_여기에_실제_키_입력
+
+STEP 4. Edge Function 배포
+   터미널에서:
+   supabase functions deploy send-invite-email
+
+STEP 5. 동작 확인
+   - /company/settings → 팀 관리 탭 → 이메일 입력 → 초대 전송
+   - 수신 이메일함에서 초대 메일 확인
+   - 링크 클릭 → /invite?token=xxx → 회사명, 역할 표시 확인
+   - 수락 → team_members.status = 'active' 전환 확인
+
+
+================================================================
+## 초대 수락 흐름 요약
+================================================================
+
+[발송]
+기업 설정 → 이메일 입력 → 초대 전송
+→ DB: team_members INSERT (status='invited', invite_token, invite_expires_at)
+→ Edge Function: Resend API로 이메일 발송
+
+[수락 - 비로그인]
+이메일 링크 클릭 → /invite?token=xxx
+→ peek_team_invite RPC로 초대 정보 표시 (회사명, 역할)
+→ "로그인하고 수락하기" 클릭 → localStorage에 토큰 저장 → /login 이동
+→ 로그인 후 다시 /invite?token=xxx 접근 → 수락
+
+[수락 - 로그인 상태]
+이메일 링크 클릭 → /invite?token=xxx
+→ 초대 정보 + "초대 수락하기" 버튼 표시
+→ 클릭 → accept_team_invite RPC → status='active' → /company 이동
+
+[만료]
+7일 경과한 토큰 → "초대가 만료되었습니다" 화면
+→ 팀 관리자에게 재초대 요청 안내
+
+================================================================

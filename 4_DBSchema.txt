@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-28 (066 admin_update_panels RLS 추가 — 어드민의 panels UPDATE 권한 부여)
+최종 업데이트: 2026-05-29 (067 team_invite_token — team_members에 invite_token/invite_expires_at 추가 + accept_team_invite/peek_team_invite RPC 추가)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -218,14 +218,17 @@
 ---
 
 ### [team_members] — 기업 팀원
-  id          UUID  PK
-  company_id  UUID  FK → companies.id  ON DELETE CASCADE
-  name        TEXT
-  email       TEXT
-  role        TEXT  ('admin'|'member'|'viewer')
-  status      TEXT  ('active'|'invited'|'inactive')
-  joined_at   DATE
-  created_at  TIMESTAMPTZ
+  id                UUID  PK
+  company_id        UUID  FK → companies.id  ON DELETE CASCADE
+  name              TEXT
+  email             TEXT
+  role              TEXT  ('admin'|'member'|'viewer'|'editor')
+  status            TEXT  ('active'|'invited'|'inactive')
+  joined_at         DATE
+  created_at        TIMESTAMPTZ
+  invite_token      UUID  DEFAULT gen_random_uuid()  ← 067 추가 (초대 링크 토큰, 수락 후 NULL로 초기화)
+  invite_expires_at TIMESTAMPTZ                       ← 067 추가 (초대 유효기간, 7일)
+  ※ 067_team_invite_token.sql: team_members_invite_token_idx UNIQUE INDEX (invite_token) WHERE NOT NULL
 
 ---
 
@@ -605,3 +608,21 @@
     → COALESCE(p_xxx, health_insurance_url) 패턴 — NULL 인자는 기존 DB 값 유지, 덮어쓰지 않음
     → Signup.jsx handleSubmit에서 Storage 업로드 직후, signOut() 직전 호출 (D-95 타이밍 원칙)
     → 파일: supabase/migrations/065_save_panel_verification_docs.sql
+
+  accept_team_invite(p_token UUID) RETURNS JSONB
+    → SECURITY DEFINER — 비로그인 상태에서도 토큰으로 호출 가능 (RLS 우회)
+    → team_members WHERE invite_token=p_token AND status='invited' AND invite_expires_at > now() 검증
+    → 토큰 미존재·만료·이미수락: {error: 'invalid_or_expired'} 반환
+    → 성공 시: status='active', invite_token=NULL, invite_expires_at=NULL, joined_at=CURRENT_DATE UPDATE
+    → Returns: {ok: true, company_id, role, email} 또는 {error: 'invalid_or_expired'}
+    → InviteAccept.jsx handleAccept()에서 호출 (로그인 상태에서만 실제 호출)
+    → 파일: supabase/migrations/067_team_invite_token.sql
+
+  peek_team_invite(p_token UUID) RETURNS JSONB
+    → SECURITY DEFINER — 비로그인(anon) 상태에서 초대 정보 조회 가능 (RLS 우회)
+    → team_members + companies 조인으로 회사명 포함 조회
+    → team_members WHERE invite_token=p_token AND status='invited' AND invite_expires_at > now() 검증
+    → 토큰 미존재·만료·이미수락: {error: 'invalid_or_expired'} 반환
+    → Returns: {ok: true, email, role, company_name, expires_at} 또는 {error: 'invalid_or_expired'}
+    → InviteAccept.jsx useEffect init()에서 마운트 시 호출 (로그인 여부 무관)
+    → 파일: supabase/migrations/067_team_invite_token.sql

@@ -16,10 +16,12 @@ export default function AccountSettings() {
   const [company, setCompany] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState('');
+  const [inviteSuccess, setInviteSuccess] = useState('');
   const [removeError, setRemoveError] = useState('');
   const [confirmRemoveMemberId, setConfirmRemoveMemberId] = useState(null);
 
@@ -34,6 +36,7 @@ export default function AccountSettings() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUser(user);
 
       const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
       setCompany(co);
@@ -56,19 +59,52 @@ export default function AccountSettings() {
   async function handleInvite() {
     if (!inviteEmail.trim() || !company) return;
     setInviting(true);
+    setInviteError('');
+    setInviteSuccess('');
+
+    const inviteToken = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    // 1. DB INSERT (토큰 포함)
     const { data, error } = await supabase.from('team_members').insert({
       company_id: company.id,
       email: inviteEmail.trim(),
       role: inviteRole,
       status: 'invited',
+      invite_token: inviteToken,
+      invite_expires_at: expiresAt,
     }).select().single();
-    if (!error) {
-      setMembers(m => [...m, data]);
-      setInviteEmail('');
-      setInviteError('');
-    } else {
+
+    if (error) {
       setInviteError('초대 실패: ' + error.message);
+      setInviting(false);
+      return;
     }
+
+    // 2. 이메일 발송 Edge Function 호출
+    const inviteUrl = `${window.location.origin}/invite?token=${inviteToken}`;
+    const inviterName = user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email || '관리자';
+
+    const { error: fnError } = await supabase.functions.invoke('send-invite-email', {
+      body: {
+        to: inviteEmail.trim(),
+        companyName: company.name || '회사',
+        inviterName,
+        role: inviteRole,
+        inviteUrl,
+      },
+    });
+
+    setMembers(m => [...m, data]);
+    setInviteEmail('');
+
+    if (fnError) {
+      // 이메일 실패해도 DB 레코드는 유지 — 링크를 직접 공유할 수 있도록 표시
+      setInviteError(`이메일 발송 실패. 아래 링크를 직접 공유하세요:\n${inviteUrl}`);
+    } else {
+      setInviteSuccess(`${inviteEmail.trim()}으로 초대 이메일을 발송했습니다. (7일 후 만료)`);
+    }
+
     setInviting(false);
   }
 
@@ -126,10 +162,15 @@ export default function AccountSettings() {
                   <option value="viewer">뷰어</option>
                 </select>
               </div>
-              <Btn size="md" onClick={() => { setInviteError(''); handleInvite(); }} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>
+              <Btn size="md" onClick={handleInvite} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>
             </div>
+            {inviteSuccess && (
+              <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(16,185,129,0.08)', color: '#059669', fontSize: 13, fontWeight: 600 }}>
+                ✓ {inviteSuccess}
+              </div>
+            )}
             {inviteError && (
-              <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
+              <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {inviteError}
               </div>
             )}

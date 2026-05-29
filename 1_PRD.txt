@@ -413,6 +413,13 @@
     - 탭 팀 관리: team_members INSERT/UPDATE (초대·제거)
       · 초대 권한 2종: 편집자(editor, 의뢰 등록·수정·결과 열람) / 뷰어(viewer, 결과 열람만) ★
       · 기본 선택: 편집자 / 뱃지 색상: 편집자=blue, 뷰어=gray
+      · 초대 이메일 발송 ★: DB INSERT 시 invite_token(UUID) + invite_expires_at(7일) 함께 저장
+        → supabase.functions.invoke('send-invite-email') 호출 → Resend API로 초대 이메일 발송
+        → 이메일 발송 실패 시 DB 레코드는 유지 + 초대 링크 inviteError 배너에 표시 (graceful fallback)
+        → 성공 시 inviteSuccess 배너 표시, inviterName = user.user_metadata.name 또는 email
+      · 수락 흐름: /invite?token=xxx 공개 페이지 → peek_team_invite RPC로 초대 정보 조회
+                   로그인 상태이면 "초대 수락하기" → accept_team_invite RPC → status='active' 전환
+                   비로그인이면 로그인/회원가입 유도 + token을 localStorage('purit_pending_invite')에 보존
       팀원 "제거" 버튼: ConfirmModal(danger) 경유 → status='inactive' UPDATE ★
     - 탭 플랜 & 결제: companies.plan 표시 + invoices 결제 내역
       "플랜 변경" 버튼 → /company/plans 이동

@@ -475,11 +475,17 @@ purit/
 │                      최초 draft(submission_deadline 임박) + 재제출 draft/rejected(rejection_deadline 임박) 체크
 │                      발송 후 feedbacks.deadline_alimtalk_sent = true (중복 방지)
 │                    _shared/solapi.ts  (Deno, Solapi 알림톡 공통 헬퍼 — HMAC-SHA256 인증 + sendAlimtalk 함수)
+│                    send-invite-email/index.ts  (Deno, Resend API → 팀 초대 이메일 발송) ★ 신규
+│                      수신: { to, companyName, inviterName, role, inviteUrl }
+│                      발신: Purit <noreply@purit.io> (Resend 도메인 인증 필요 / 테스트: onboarding@resend.dev 임시 사용 가능)
+│                      환경변수: RESEND_API_KEY (supabase secrets set으로 등록)
+│                      Settings.jsx handleInvite() → supabase.functions.invoke('send-invite-email') 호출
+│                      발송 실패 시 DB 레코드 유지 + 초대 링크 inviteError 배너에 표시 (graceful fallback)
 ├── assets/    purit-logo.html (브랜드 로고 — 아이소메트릭 큐브 다이아몬드 프레임, Canvas 렌더링, Light/Dark/Mono 변형 포함)
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (33개)
+## 라우트 전체 목록 (34개)
 ================================================================
 
 [공개]
@@ -488,6 +494,7 @@ purit/
   /signup                    → Signup.jsx
   /oauth/callback            → OAuthCallback.jsx (공개, Google OAuth 리다이렉트 처리) ★ 신규
   /share/:token              → ShareResult.jsx (공개, 인증 불필요)
+  /invite                    → InviteAccept.jsx (공개, 팀 초대 수락) ★ 신규
 
 [Company 포털] — RoleRoute role="company"
   /company                   → Dashboard.jsx
@@ -659,6 +666,8 @@ purit/
   [Supabase Edge Function Secrets — supabase secrets set 명령어로 등록]
   ANTHROPIC_API_KEY = sk-ant-api03-...  ← generate-ai-report 함수에서 사용
                                            미설정 시 Mock 응답 폴백 (서비스 중단 없음)
+  RESEND_API_KEY = re_xxxx              ← send-invite-email 함수에서 사용 ★ 신규
+                                           purit.io 도메인 Resend 인증 필요 (테스트: onboarding@resend.dev 발신 임시 가능)
 
   ※ Vite 규칙: 클라이언트 노출 변수는 반드시 VITE_ 접두사 필요
   ※ import.meta.env.VITE_* 로 접근

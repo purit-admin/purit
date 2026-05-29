@@ -6,6 +6,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import OAuthCallback from './pages/OAuthCallback';
+import InviteAccept from './pages/InviteAccept';
 
 // Company pages
 import CompanyDashboard from './pages/company/Dashboard';
@@ -75,6 +76,7 @@ function AppRoutes() {
       <Route path="/oauth/callback" element={<OAuthCallback />} />
       <Route path="/share/:token" element={<ShareResult />} />
       <Route path="/panel/register" element={<PanelRegister />} />
+      <Route path="/invite" element={<InviteAccept />} />
 
       {/* Company — company 역할만 접근 가능 */}
       <Route path="/company" element={<RoleRoute role="company"><CL><CompanyDashboard /></CL></RoleRoute>} />
