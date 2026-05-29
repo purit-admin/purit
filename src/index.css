@@ -468,3 +468,21 @@ input:focus, textarea:focus, select:focus {
 }
 
 .chip-scroll-row::-webkit-scrollbar { display: none; }
+
+/* ─── 공유 페이지 반응형 ─── */
+.share-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 640px) {
+  .share-two-col { grid-template-columns: 1fr !important; }
+}
+
+/* ─── 공유 페이지 PDF 인쇄 ─── */
+@media print {
+  .share-print-hide { display: none !important; }
+  .share-page { background: #fff !important; }
+  .share-chart-section { page-break-inside: avoid; }
+  body { background: #fff !important; }
+}

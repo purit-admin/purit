@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-05-29 (팀 초대 이메일 기능 구현 — 신규 D-xx 없음)
+최종 업데이트: 2026-05-29 (D-97 추가 — signUp 후 signOut 전 navigate 시 stale user 세션 race condition)
 ================================================================
 
 ## 핵심 원칙
@@ -1425,3 +1425,30 @@ D-96. React StrictMode 이중 실행에서 고정 채널명으로 Supabase Realt
      → 원칙: Supabase Realtime supabase.channel(name) 호출 시 고정 문자열을 채널명으로 사용하지 말 것
              `${userId}-${Date.now()}` 조합을 기본 패턴으로 적용 — 사용자별 고유성(userId) + 마운트별 고유성(Date.now()) 동시 보장
              cleanup에서 supabase.removeChannel(subscription)을 올바르게 호출하는 것만으로는 StrictMode 이중 실행을 방어하기에 불충분
+
+D-97. signUp() 후 signOut() 완료 전 navigate() 호출 시 목적지 페이지에서 stale user 세션으로 auto-redirect가 발동하는 Race Condition 패턴 ✅ 해결
+     → 증상: 이메일 회원가입 완료 후 로그인 페이지로 이동했을 때 "로그인 처리 중..." 버튼이 순간 깜빡이거나,
+             대시보드로 이동했다가 다시 로그인 페이지로 튕겨 돌아오는 현상 발생
+     → 원인: Supabase는 signUp() 성공 시 자동으로 세션을 생성함 (사용자가 즉시 로그인됨)
+             Signup.jsx 흐름: signUp() → SIGNED_IN 이벤트 비동기 발화 시작 → signOut() → SIGNED_OUT 이벤트 비동기 발화 시작 → navigate('/login')
+             navigate('/login')이 실행되는 시점에 onAuthStateChange SIGNED_OUT 이벤트가 아직 처리 중일 수 있어
+             AuthContext의 user 값이 여전히 non-null인 채로 Login 컴포넌트가 마운트됨
+             Login.jsx useEffect: `if (user && authRole) navigate(DEST[authRole])` → 대시보드로 redirect
+             그 직후 SIGNED_OUT 완료 → user = null → 대시보드 RoleRoute가 /login으로 다시 튕김
+             이 ping-pong 과정에서 로딩 상태가 순간 노출됨
+     → 핵심 오해: await signOut()이 완료되었다고 React state(user)가 동기적으로 null이 되지 않음
+             onAuthStateChange는 비동기 이벤트 — setState는 다음 render cycle에서야 적용됨
+             navigate() 직후 컴포넌트가 마운트되는 시점의 user 값은 이전 render의 stale 값일 수 있음
+     → 해결: Login.jsx auto-redirect useEffect에 successMsg 가드 추가
+             ```jsx
+             useEffect(() => {
+               if (successMsg) return; // 가입 완료 직후는 자동 redirect 안 함
+               if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
+             }, [user, authRole]);
+             ```
+             successMsg는 이메일 가입(location.state?.message)·Google OAuth 가입(?signup=google) 모두 truthy
+             → 두 가입 경로 모두 커버 / 일반 로그인(successMsg='') 시 auto-redirect 정상 동작 유지
+     → 원칙: "로그인 중인 사용자를 대시보드로 보내는 useEffect"가 있는 페이지로 navigate 직전에
+             signOut()을 호출하는 패턴은 항상 이 Race Condition에 취약함
+             해결 방향: navigate() 대상 페이지에서 "가입 완료 상태"를 감지해 auto-redirect를 선택적으로 억제할 것
+             location.state.message 또는 URL 파라미터(signup=google)를 "auto-redirect 억제 신호"로 활용하는 것이 최소 침습적 해결책

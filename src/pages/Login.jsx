@@ -46,6 +46,7 @@ export default function Login() {
 
   // 이미 로그인된 사용자는 대시보드로 즉시 리디렉트
   useEffect(() => {
+    if (successMsg) return; // 가입 완료 직후는 자동 redirect 안 함
     if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
   }, [user, authRole]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -869,6 +869,7 @@ export default function Results() {
   const [shareLoading, setShareLoading]   = useState(false);
   const [shareCopied, setShareCopied]     = useState(false);
   const [shareError, setShareError]       = useState('');
+  const [sharePermissions, setSharePermissions] = useState({ show_comments: true, show_annotations: true });
   const [panelProfiles, setPanelProfiles] = useState({});
   const [companyId, setCompanyId]         = useState(null);
   const [helpRatings, setHelpRatings]     = useState({});
@@ -900,6 +901,7 @@ export default function Results() {
         const target = initialMission || ms[0];
         setSelected(target.id);
         setShareToken(target.share_token || null);
+        setSharePermissions(target.share_permissions || { show_comments: true, show_annotations: true });
         if (target.status === 'cancelled') setMissionTab('cancelled');
         // 초기 선택 미션이 속한 페이지로 이동
         const mains = ms.filter(m => !m.type || m.type === 'landing_page');
@@ -931,6 +933,7 @@ export default function Results() {
 
     const m = missions.find(mx => mx.id === selected);
     setShareToken(m?.share_token || null);
+    setSharePermissions(m?.share_permissions || { show_comments: true, show_annotations: true });
     const mType = m?.type;
     const hasImgs = Array.isArray(m?.image_urls) && m.image_urls.length > 0;
 
@@ -1058,10 +1061,10 @@ export default function Results() {
     setShareLoading(true);
     setShareError('');
     const token = crypto.randomUUID().replace(/-/g, '');
-    const { error } = await supabase.from('missions').update({ share_token: token }).eq('id', selected);
+    const { error } = await supabase.from('missions').update({ share_token: token, share_permissions: sharePermissions }).eq('id', selected);
     if (!error) {
       setShareToken(token);
-      setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_token: token } : m));
+      setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_token: token, share_permissions: sharePermissions } : m));
     } else {
       setShareError('공유 링크 생성 실패: ' + error.message);
     }
@@ -1086,6 +1089,16 @@ export default function Results() {
     }
     setShareToken(null);
     setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_token: null } : m));
+  };
+
+  const handlePermissionToggle = async (key) => {
+    const next = { ...sharePermissions, [key]: !sharePermissions[key] };
+    setSharePermissions(next);
+    if (shareToken) {
+      const { error } = await supabase.from('missions').update({ share_permissions: next }).eq('id', selected);
+      if (error) setShareError('권한 저장 실패: ' + error.message);
+      else setMissions(ms => ms.map(m => m.id === selected ? { ...m, share_permissions: next } : m));
+    }
   };
 
   if (loading) return (
@@ -1206,7 +1219,25 @@ export default function Results() {
                   </div>
                 </div>
                 {mission?.status === 'completed' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                    {/* 공개 범위 토글 */}
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      {[
+                        { key: 'show_comments',    label: '코멘트' },
+                        { key: 'show_annotations', label: '어노테이션' },
+                      ].map(({ key, label }) => (
+                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)', userSelect: 'none' }}>
+                          <input
+                            type="checkbox"
+                            checked={sharePermissions[key]}
+                            onChange={() => handlePermissionToggle(key)}
+                            style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
+                          />
+                          {label} 공개
+                        </label>
+                      ))}
+                    </div>
+                    {/* 공유 링크 버튼 */}
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       {shareToken ? (
                         <>

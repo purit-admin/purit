@@ -348,6 +348,9 @@ purit/
 │              이메일 가입: location.state?.message (Signup.jsx navigate state)
 │              Google OAuth 가입: ?signup=google URL 파라미터 → 'Google 계정으로 가입이 완료되었습니다. 로그인해 주세요.' (D-93)
 │              ?role= 파라미터: 로그인 역할 탭 자동 선택 (OAuthCallback에서 savedRole 전달)
+│              ★ 자동 redirect useEffect: successMsg truthy 시 redirect 차단 (D-97)
+│                → 가입 완료 직후 stale user 세션으로 인한 대시보드 bounce 방지
+│                → if (successMsg) return; 가드가 이메일·Google OAuth 가입 두 경로 모두 커버
 │   ※ AuthContext.jsx: signInWithGoogle(role, source='signup') 추가 ★ 신규 (D-94)
 │              localStorage.setItem('purit_oauth_role', role) + localStorage.setItem('purit_oauth_source', source)
 │              → signInWithOAuth({ provider:'google', redirectTo: origin+'/oauth/callback', queryParams:{prompt:'select_account'} })
