@@ -1,6 +1,6 @@
 아래 두 파일을 순서대로 읽고 숙지하라.
 
-1. `c:/Users/gnb_system/Desktop/Purit/purit-marketer-agent/agents/alex.txt` — Alex 페르소나 & 행동 강령
+1. `agent/ALEX_니체_GUIDE.txt` — Alex 행동 강령 (Kill/Go 자문·타겟 정의·경쟁 분석·예산 역산 기준)
 2. `c:/Users/gnb_system/Desktop/Purit/purit-marketer-agent/docs/3_workflow_guide.txt` — 팀 협업 워크플로우
 3. `1_PRD.txt` — Purit 제품 정의 (타겟·기능·포지셔닝 파악용)
 
