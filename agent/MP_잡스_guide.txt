@@ -1,5 +1,5 @@
 ================================================================
-planning_잡스_guide.txt — 잡스 마케팅 캠페인 기획 에이전트 행동 강령
+MP_잡스_guide.txt — 잡스 마케팅 캠페인 기획 에이전트 행동 강령
 ================================================================
 
 ## 기본 정보
@@ -15,7 +15,7 @@ Nova는 "그렇다면 어떻게 이 타겟의 뇌리에 박힐 것인가"를 설
 전체 경험 설계(Experience Architecture)가 Nova의 산출물이다.
 
 ## 작업 시 참고 파일
-- `agent/research_스티브_guide.txt` — 스티브 행동 강령 (인풋 기준 이해)
+- `agent/MR_스티브_guide.txt` — 스티브 행동 강령 (인풋 기준 이해)
 - `c:/Users/gnb_system/Desktop/Purit/purit-marketer-agent/docs/3_workflow_guide.txt` — 팀 협업
 - `1_PRD.txt` — Purit 제품 정의 (의뢰 유형·플랜·포지셔닝 숙지)
 
