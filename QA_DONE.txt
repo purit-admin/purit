@@ -1,0 +1,243 @@
+################################################################
+## QA_DONE.txt — Purit MVP 완료 항목 보관소
+################################################################
+※ 이 파일은 QA_REPORT.txt에서 수정 완료(✅)된 항목만 분리 보관합니다.
+  재조사 금지. 이력 확인 전용.
+  새 완료 항목은 QA_REPORT.txt 아카이브에 기록하지 말고 이 파일에만 추가할 것.
+
+총 완료: 169건 (2026-05-29 기준)
+
+================================================================
+
+-- CRITICAL --
+[C-1] 어드민 미션 "취소" 버튼 — 확인 모달 없이 즉시 실행  ✅
+[C-2] 반려 알림 메시지와 실제 UI 흐름 불일치 — 재작성 방법 없는 페이지로 유도  ✅
+[C-3] OAuthCallback — 에러 발생 시 무한 로딩 화면  ✅
+[C-4] 패널 대시보드 load() — try-catch 없어 무한 로딩 가능  ✅
+
+-- MAJOR --
+[M-1] LP검증 취소 카드 — cursor:pointer인데 클릭 시 아무 동작 없음  ✅
+[M-2] 어드민 검색 (패널명/기업명) — 디바운스 없음  ✅
+[M-3] 정산 내역 — 미션 등록 시 고정 예상금액 표시 (실제 지급액 아님)  ✅
+[M-4] panelTier — 구버전 tier 컬럼 사용으로 미션 정렬 신뢰도 저하  ✅
+[M-5] 어드민 "완료 처리" — 확인 모달 없이 즉시 RPC 실행  ✅
+[M-6] 이미지 어노테이션 — 드래프트 복원 시 이미지 탭 방문 기록 초기화  ✅
+[신규-A] 어드민 미션 "재진행" / "재개" — 확인 모달 없이 즉시 status='active' 복원  ✅
+[신규-C] 이미지 미션 — 드래프트 복원 시 총평(overallComment) 미복원으로 제출 불가  ✅
+[신규-D] 이미지 미션 — 드래프트 복원 시 건너뛴 차원(skippedDims) 미복원으로 제출 불가  ✅
+[신규-E] 어드민 미션 "재진행" — 완료 처리 시 환불된 크레딧 미회수로 기업 부당 보유  ✅
+[신규-F] 패널 미션 관리 (panel/Missions.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-G] 패널 정산 내역 (panel/History.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-H] 패널 미션 수행 (panel/ActiveMission.jsx) — try-catch 추가 (loading state 없음 — false positive)  ✅
+[신규-I] 어드민 Purity Filter — D-51 Type B try-catch 추가 (setLoading 위치 Promise.all 전 유지)  ✅
+[신규-J] 패널 미션 수행 — postSubmitActions()의 Dead RPC 'update_panel_gamification' 제거  ✅
+[신규-K] 어드민 Purity Filter — bulkReject() 루프에 add_panel_honor_points(-5) 추가  ✅
+[신규-L] 기업 대시보드·NewMission — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-M] 기업 소재 A/B 비교 (company/PreferenceTest.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-N] 기업 가격 페이지 테스트 (company/PricingTest.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-O] 기업 이메일 검증 (company/ColdEmailTest.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-P] 기업 소재 A/B 비교 — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-Q] 기업 가격 페이지 테스트 — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-R] 기업 이메일 검증 — handleTerminate() 성공 후 recalc_mission_consumed RPC 추가  ✅
+[신규-S] 조기 종료 ConfirmModal 4개 파일 — PRD 기준 경고 문구·버튼 레이블 통일  ✅
+[신규-T] 패널 프로필 설정 (panel/Profile.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-U] 기업 피드백 결과 (company/Results.jsx) — D-51 Type A early return setLoading 누락 수정  ✅
+[신규-V] 기업 플랜 & 가격 (company/Pricing.jsx) — try-catch 추가 (loading state 없음 — false positive)  ✅
+[신규-W] 어드민 미션 관리 (admin/Missions.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-X] 어드민 플랫폼 대시보드 (admin/Dashboard.jsx) — D-51 Type B try-catch 추가  ✅
+[신규-Y] 어드민 패널 관리 (admin/PanelManagement.jsx) — D-51 Type B try-catch 추가  ✅
+
+-- MINOR --
+[N-1]  반려 사유 — 안내 문구 하드코딩 (실제 사유와 중복 표시)  ✅
+[N-2]  취소된 서브미션 카드 — 삭제 버튼 없음 (목록에 계속 누적)  ✅
+[N-3]  기업 대시보드 — 의뢰 조기종료 후 잔여 크레딧 미갱신  ✅
+[N-4]  알림 클릭 → '/company/results' 이동 시 의뢰 자동 선택 안 됨  ✅
+[N-5]  회원가입 — 중복 이메일 감지 문자열 취약  ✅
+[N-6]  패널 사이드바 "미션 관리" — 반려 건수 뱃지 없음  ✅
+[N-7]  패널 프로필 탭 전환 시 미저장 경고 없음  ✅
+[N-10] 어드민 패널 "활동 정지" / "심사 거절" 확인 모달 없음  ✅
+[N-11] 어드민 기업 "플랜 변경" 확인 모달 없음  ✅
+[N-12] 기업 커스텀 질문 "×" 확인 모달 없음  ✅
+[N-13] Purity Filter "반려" 확인 모달 없음  ✅
+[신규-B] 기업 팀원 "제거" 확인 모달 없음  ✅
+
+-- 기업 포털 심층 검사 (2026-05-14) --
+[기업-A] 기업 내 계정 (company/Account.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[기업-B] 기업 팀 & 설정 (company/Settings.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[기업-C] 기업 의뢰 조기 종료 (Dashboard/NewMission/PreferenceTest/PricingTest/ColdEmailTest) — handleTerminate() DB 실패 시 낙관적 롤백 없이 모달 닫힘  ✅
+[기업-D] 기업 의뢰 삭제 (Dashboard/NewMission/PreferenceTest/PricingTest/ColdEmailTest) — handleDeleteMission() error 캡처 없이 항상 로컬 상태 제거  ✅
+[기업-E] NewMission.jsx 신규 의뢰 제출 — reward_amount를 calcCredits()*10000으로 계산해 패널 정산 금액 완전히 오염  ✅
+[기업-F] 기업 플랜 변경 (company/Pricing.jsx) — 플랜 변경 중 다른 플랜 버튼 비활성화 미적용으로 동시 중복 변경 가능  ✅
+[기업-G] 기업 피드백 결과 (company/Results.jsx) — SummaryTabView의 commentPage가 미션 전환 시 초기화되지 않아 잘못된 페이지 표시  ✅
+
+-- 수평 전개 조사 2차 (2026-05-14) --
+[수평-A] 기업 5차원 진단 (company/Diagnosis.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-B] 기업 질문 템플릿 (company/QuestionTemplates.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-C] 알림 센터 공용 컴포넌트 (NotificationCenter.jsx) — load() try-catch 없어 기업·패널·어드민 전 포털 무한 로딩 가능  ✅
+[수평-D] 기업 시계열 추적 (company/TimelineTracker.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-E] 어드민 내 계정 (admin/Account.jsx) — load() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-F] 어드민 수익 & 정산 (admin/Revenue.jsx) — loadAll() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[수평-G] 어드민 미션 관리 (admin/Missions.jsx) — deleteMission() error 미캡처, DB 삭제 실패 시에도 항상 로컬 상태 제거  ✅
+
+-- 패널 포털 심층 검사 (2026-05-14) --
+[패널-A] 패널 미션 수행 (panel/ActiveMission.jsx) — 목록 뷰 load() catch에서 setDrafts([]) 미호출  ✅
+[패널-B] 패널 미션 수행 (panel/ActiveMission.jsx) — canSubmit 이메일 조건에서 emailCuriosity 누락  ✅
+[패널-C] 패널 대시보드 (panel/Dashboard.jsx) — 수익 현황 집계에 missions.reward_amount 고정값 사용  ✅
+[패널-D] 패널 미션 수행 (panel/ActiveMission.jsx) — willResubmit 이미지 미션 분기에서 setViewedImages 복원 누락  ✅
+[패널-E] 패널 미션 수행 (panel/ActiveMission.jsx) — handleStart() DB 에러 시에도 setStep(1) 실행  ✅
+[패널-F] 패널 프로필 (panel/Profile.jsx) — handleSelectBadge() 낙관적 UI 업데이트 후 DB 실패 시 롤백 없음  ✅
+[패널-G] 패널 프로필 (panel/Profile.jsx) — toggleExpertise() 최대 5개 제한 없어 무제한 전문 분야 선택 가능  ✅
+[패널-H] 패널 미션 관리 (panel/Missions.jsx) — missions 쿼리에 .neq('status','draft') 누락  ✅
+[패널-I] 패널 미션 수행 (panel/ActiveMission.jsx) — hasSavedProgress 이메일 조건에서 emailCuriosity 누락  ✅
+
+-- 수평 전개 조사 3차 (2026-05-14) --
+[수평-H] 어드민 플랫폼 대시보드 (admin/Dashboard.jsx) — missions·feedbacks 카운트 쿼리에 .neq('status','draft') 누락  ✅
+[수평-I] 기업 5차원 진단 (company/Diagnosis.jsx) — missions 쿼리 draft 필터 누락  ✅
+[수평-J] 기업 시계열 추적 (company/TimelineTracker.jsx) — missions 쿼리 draft 필터 누락  ✅
+
+-- 수평 전개 조사 4차 (2026-05-14) --
+[수평-K] 기업 팀 & 설정 (company/Settings.jsx) — handleInvite() DB 실패 시 에러 미캡처  ✅
+[수평-L] 기업 팀 & 설정 (company/Settings.jsx) — handleRemove() ConfirmModal onConfirm에서 async await 누락  ✅
+[수평-M] 기업 피드백 결과 (company/Results.jsx) — handleGenerateShare() DB 실패 시 shareError state 없음  ✅
+[수평-N] 기업 피드백 결과 (company/Results.jsx) — handleRevokeShare() error 캡처 없이 await 결과 폐기  ✅
+
+-- 수평 전개 조사 5차 (2026-05-15) --
+[수평-O] 패널 미션 관리 (panel/Missions.jsx) — "수정 필요" 탭 뱃지 숫자(rejectedCount)에 rejection_deadline 만료 필터 누락  ✅
+
+-- 5차 전체 재조사 (2026-05-15) --
+[5차-C] PanelTargetStep handlePurchase() — companies 직접 UPDATE D-5 위반. handlePurchase() 제거 + /company/plans 이동으로 교체  ✅
+[5차-E] admin/Missions.jsx ConfirmModal 3개소 onConfirm — D-69 위반. async/await + return true + errorMsg prop 패턴 적용  ✅
+[5차-F] admin/CompanyManagement.jsx confirmPlan ConfirmModal — D-69 위반. handlePlanChange() return true + async onConfirm + errorMsg prop 적용  ✅
+[5차-G] admin/PanelManagement.jsx PanelDetail confirmAction ConfirmModal — D-69 위반. updatePanel() return true + async onConfirm + updateError state + errorMsg prop 적용  ✅
+[5차-J] admin/BugReports.jsx handleStatusChange() — DB 실패 에러 미표시. saveError state 추가 + if (error) early return + 인라인 빨간 에러 배너 표시  ✅
+[5차-K] company/Dashboard.jsx STATUS_COLOR.completed — 'gold'→'blue' 색상 수정  ✅
+[5차-L] ImageAnnotator.jsx 드래그 점수 팝업 — createPortal 미사용 D-19 위반. ReactDOM.createPortal 적용  ✅
+[5차-M] company/NewMission.jsx buildDescription() — product·lpUrl·focusAreas 필드 누락. 3개 필드 조건부 포함 추가  ✅
+[5차-N] company/AIReport.jsx load() — try-catch 없어 예외 시 무한 로딩 D-51 위반. try-catch-finally 감싸기  ✅
+[5차-Q] admin/PurityFilter.jsx 개별 반려 ConfirmModal — D-69 위반. reject() return true + async onConfirm + errorMsg prop 적용  ✅
+[5차-R] company/QuestionTemplates.jsx 커스텀 질문 삭제 — D-69 위반 + DB 에러 미처리. const { error } = await delete(); if (error) early return + return true + async onConfirm + deleteQError state + errorMsg prop  ✅
+[5차-S] Sidebar.jsx 패널 "수정 필요" 뱃지 — rejection_deadline 만료 stale 카운트. 만료 필터 추가  ✅
+
+-- Landing·Login·Signup 페이지 심층 검사 (2026-05-15) --
+[LG-1] OAuthCallback — localStorage 역할 주입으로 관리자 계정 탈취 가능 — ALLOWED_ROLES 화이트리스트 검증 추가  ✅
+[LG-2] Landing 푸터 링크 — onClick 핸들러 미연결 — onClick → '준비 중입니다.' alert 연결  ✅
+[LG-3] OAuthCallback — 패널 Google 가입 시 panels INSERT honor_points·selected_badge 컬럼 누락  ✅
+[LG-4] Landing CTA "무료로 시작하기" — /login 대신 /signup?role=company 로 변경  ✅
+[LG-5] Login — 이메일 버튼 disabled 조건에 googleLoading 추가  ✅
+[LG-6] Login·Signup — URLSearchParams('role') 파싱 → initialRole state 초기화 적용  ✅
+[LG-7] Signup — session null 체크 추가 — 이메일 인증 대기 시 successMsg 표시 후 navigate 차단  ✅
+
+-- 어드민 포털 심층 검사 (2026-05-14) --
+[A-01] 어드민 Purity Filter (admin/PurityFilter.jsx) — feedbacks 쿼리에 .neq('status','draft') 누락  ✅
+[A-02] 어드민 플랫폼 대시보드 (admin/Dashboard.jsx) — purity_passed=true 카운트 쿼리에 .neq('status','draft') 누락  ✅
+[A-03] 어드민 버그 리포트 (admin/BugReports.jsx) — loadAll()·loadTab() try-catch 없어 네트워크 오류 시 무한 로딩  ✅
+[A-05] 어드민 수익 & 정산 (admin/Revenue.jsx) — 일괄 정산 처리 버튼 ConfirmModal 없이 즉시 실행  ✅
+[A-06] 어드민 수익 & 정산 (admin/Revenue.jsx) — 개별 정산·수납 처리 버튼 ConfirmModal 없이 즉시 실행  ✅
+[A-07] 어드민 패널 관리 (admin/PanelManagement.jsx) — loadStats() try-catch 없어 통계 로드 실패 시 로딩 영구 고착  ✅
+[A-08] 어드민 패널 관리 (admin/PanelManagement.jsx) — loadPanelDetail() try-catch 없어 패널 상세 로드 실패 시 로딩 영구 고착  ✅
+[A-09] 어드민 패널 관리 (admin/PanelManagement.jsx) — updatePanel() error 미캡처로 DB 실패 시 화면만 성공 처리  ✅
+[A-10] 어드민 미션 관리 (admin/Missions.jsx) — 페이지네이션 단순 선형 렌더, 슬라이딩 5-윈도우 미적용  ✅
+[A-11] 어드민 버그 리포트 (admin/BugReports.jsx) — 버그 답장 알림 actionUrl이 존재하지 않는 경로로 발송  ✅
+[A-12] 어드민 Purity Filter (admin/PurityFilter.jsx) — approve/reject/reset 에러 시 alert() 사용, 인라인 상태 표시 없음  ✅
+[A-13] 어드민 내 계정 (admin/Account.jsx) — handleChangePw() try-catch 없어 예외 발생 시 pwSaving 영구 true 고착  ✅
+[A-14] 어드민 미션 관리 (admin/Missions.jsx) — updateStatus() non-completed 분기 error 미캡처  ✅
+[A-17] 어드민 패널 관리 (admin/PanelManagement.jsx) — PanelDetail 에러 메시지 표시용 actionMsg state 미존재  ✅
+
+-- 어드민 포털 2차 심층 검사 (2026-05-16) --
+[A-18] 어드민 Purity Filter (admin/PurityFilter.jsx) — reset() 반려 취소 시 decrement된 filled_count 미복원 + rejection_penalty_applied 미초기화  ✅
+[A-19] 어드민 기업 관리 (admin/CompanyManagement.jsx) — 크레딧 추가 지급 버튼이 ConfirmModal 없이 즉시 실행  ✅
+[A-21] 어드민 미션 관리 (admin/Missions.jsx) — statusError 외부 배너에 "완료 처리 실패:" 접두사 하드코딩, 이중 접두사 표시. 하드코딩 접두사 제거  ✅
+[A-22] 어드민 수익 & 정산 (admin/Revenue.jsx) — GMV=0 시 margin/gmv 나누기 연산으로 NaN%/Infinity% 렌더. gmv > 0 가드 3곳 추가  ✅
+
+-- 기업 포털 2차 심층 검사 (2026-05-16) --
+[기업-H] 기업 피드백 결과 (company/Results.jsx) — loadFeedback() try-catch 없어 fbLoading 영구 true 고착. D-51 위반  ✅
+[기업-I] 기업 피드백 결과 (company/Results.jsx) — PreferenceResults/PricingResults/EmailResults에 key 미부여. D-67 위반  ✅
+[기업-J] 기업 피드백 결과 (company/Results.jsx) — DimTabView에 key 미부여. D-67 위반  ✅
+[기업-K] 기업 피드백 결과 (company/Results.jsx) — TextMissionResults에 key 미부여. D-67 위반  ✅
+[기업-L] 기업 의뢰 등록 (company/NewMission.jsx) — loadMissions() try-catch 없어 loadingList 영구 true 고착. D-51 위반  ✅
+[기업-M] 기업 의뢰 등록 (company/NewMission.jsx) — handleSubmit() submittingRef 없음. D-22 위반  ✅
+[기업-N] 기업 팀 & 설정 (company/Settings.jsx) — handleRemove() D-65 위반 (모달 즉시 닫힘)  ✅
+[기업-O] ICP 리서치 (company/ICPResearch.jsx) — load() try-catch 없어 loading 영구 true 고착. D-51 위반  ✅
+[기업-P] ICP Pulse (company/ICPPulse.jsx) — load() try-catch 없어 loading 영구 true 고착. D-51 위반  ✅
+[기업-Q] 브랜드 트래킹 (company/BrandTracking.jsx) — load() try-catch 없어 loading 영구 true 고착. D-51 위반  ✅
+
+-- 기간 필터 무결성 검증 (2026-05-18) --
+[B-145] 기업 대시보드 — 기간 필터 전환 시 긍/부정 분포 캐러셀 페이지 미리셋  ✅
+
+-- 알림 시스템 무결성 검증 (2026-05-18) --
+[B-146] 패널 대시보드 — 24h draft 알림 로직이 submission_deadline(메인 4h/서브 2h)과 충돌해 이미 만료된 draft에 임박 알림 발송. created_at < now-24h 조건 → submission_deadline 1시간 이내 기준으로 교체  ✅
+
+-- 알림 시스템 무결성 검증 2차 (2026-05-18) --
+[B-147] 패널 대시보드 — 마감 임박 알림이 재작성 draft·미수락 반려 케이스를 미커버. 3개 병렬 쿼리로 분리  ✅
+[B-148] 패널 대시보드 — expire_panel_drafts RPC 호출이 panel/Missions.jsx에만 있어 Dashboard 전용 사용자에게 만료 알림 미발송  ✅
+
+-- 재작성 draft 재진입 무결성 검증 (2026-05-18) --
+[B-149] 패널 미션 수행 — 재작성 draft 두 번째 방문 시 else 분기가 submission_deadline(이미 만료)만 체크해 deadlineExpired=true 오표시·isResubmit 미설정으로 서브미션 INSERT 충돌·미션 카운트 중복  ✅
+
+-- 패널 포털 파일 수준 전수 재조사 (2026-05-16) --
+[Pnl-A] 패널 미션 수행 (panel/ActiveMission.jsx) — loadMission() 내 deadlineExpired 분기 3곳에서 선언되지 않은 setLoading(false) 호출. ReferenceError 발생 → try-catch가 삼켜 무증상  ✅
+[Pnl-B] 패널 미션 관리 (panel/Missions.jsx) — handleConfirmCancel() 에러 시 setCancelError state 미표시. D-65 위반  ✅
+[Pnl-C] 패널 대시보드 (panel/Dashboard.jsx) — "이번 주 활동" stat card가 PRD 명세("7일 내 제출")와 달리 panel.streak_count(연속 수락 횟수)를 표시함  ✅
+[Pnl-D] 패널 미션 수행 (panel/ActiveMission.jsx) — handleCancelAccept() 에러 시 setCancelError()를 호출하나, 이미지 어노테이션 뷰(step≥1)에는 cancelError 렌더 UI가 없어 에러가 무음 처리됨  ✅
+[Pnl-E] 패널 미션 관리/정산 내역 (panel/Missions.jsx, panel/History.jsx) — 페이지네이션이 선형 Array.from 방식. 슬라이딩 5-윈도우 + «/» 5페이지 점프 패턴으로 교체  ✅
+[Pnl-F] 패널 프로필 설정 (panel/Profile.jsx) — 구 티어 시스템의 TIER_META 상수가 데드코드로 잔류. 삭제  ✅
+
+-- 기업 포털 서브미션 폼 신규 전수 조사 (2026-05-18) --
+[기업-R] 기업 서브미션 폼 목록 4개 파일 — Pagination 컴포넌트 선형 Array.from 방식. 슬라이딩 5-윈도우로 교체  ✅
+[기업-S] 기업 서브미션 폼 이어쓰기 4개 파일 — openDraftOrActiveForEdit()에 .catch() 없음. .catch(e => console.error()) 추가  ✅
+[기업-T] 기업 서브미션 폼 임시 저장 4개 파일 — saveDraft() catch가 에러를 삼킴. re-throw + 버튼 핸들러에서 try-catch로 잡아 에러 시 이동 차단  ✅
+[기업-U] 기업 서브미션 폼 템플릿 저장 4개 파일 — handleSaveTmpl() catch 블록이 console.error만 호출. saveTmplError state 추가 + ConfirmModal errorMsg prop 전달  ✅
+
+-- missionTitle 신규 기능 전수 조사 (2026-05-18) --
+[기능-A] 기업 서브미션 폼 editMode 진입 3개 파일 — useEffect editMode 블록에서 parsed.missionTitle 복원 누락  ✅
+[기능-B] 기업 서브미션 폼 Step 3 검토 3개 파일 — 검토 화면에 missionTitle(의뢰명) 행 미표시  ✅
+
+-- 신규 개발 기능 전수 조사 (2026-05-18) --
+[B-150] 어드민 미션 관리 (admin/Missions.jsx) — earlyCompleteMission() 리로드 후 setSelectedMission 미동기화  ✅
+[B-151] 어드민 미션 관리 (admin/Missions.jsx) — admin 취소 처리 알림 actionUrl이 `/company/results?id=` → company_notified_at=NULL이라 Results.jsx에 미노출. actionUrl='/company'로 교체  ✅
+[B-152] 어드민 미션 관리 (admin/Missions.jsx) — 취소→재개·완료→재진행 알림 actionUrl이 `/company/results?id=` → active 미션은 Results.jsx에서 제외되어 클릭 시 목표 미션 미발견. 2곳 모두 '/company'로 교체  ✅
+[B-153] 어드민 미션 관리 (admin/Missions.jsx) — earlyCompleteMission()이 sendNotification()을 await로 호출. fire-and-forget으로 통일  ✅
+[B-154] 기업 피드백 결과 (company/Results.jsx) — loadFeedback() 내 active 분기 dead code 제거  ✅
+[B-155] 기업 피드백 결과 (company/Results.jsx) — ?id 파라미터로 취소(cancelled) 미션 진입 시 '취소' 탭 자동 선택 안 됨  ✅
+
+-- navigate 전진 추적 수평전개 조사 (2026-05-18) --
+[B-156] 기업 포털 5개 페이지 카드 클릭 — cancelled+company_notified_at IS NULL 미션이 Results.jsx ?id로 이동, 쿼리 게이트에서 제외되어 ms[0] 자동 선택. 5개 파일 카드 onClick 조건 분기에 토스트 표시로 변경  ✅
+[B-157] 기업 대시보드 (company/Dashboard.jsx) — CompanyMissionCard activeToast가 createPortal 없이 렌더됨. D-19 위반. createPortal 적용  ✅
+
+-- Google OAuth 로그인 전수 조사 (2026-05-19) --
+[로그인-1] OAuthCallback.jsx — URL ?error 파라미터 미체크로 Google 취소 시 기존 세션으로 자동 로그인됨  ✅
+[로그인-2] AuthContext.jsx — signInWithOAuth options에 queryParams:{prompt:'select_account'} 미전달  ✅
+[로그인-3] Login.jsx — 이미 로그인된 사용자가 /login에 접근 가능. redirect 가드 미적용  ✅
+[로그인-4] Login.jsx — handleGoogle() catch 블록에만 setGoogleLoading(false) 있고 catch → finally로 교체  ✅
+[로그인-5] OAuthCallback.jsx — oauthError 분기에서 localStorage.removeItem('purit_oauth_role') 누락  ✅
+[로그인-6] Signup.jsx — 이미 로그인된 사용자가 /signup 접근 가능. [로그인-3] 수평 전개. redirect 가드 추가  ✅
+
+-- 어드민 의뢰명 검색 기능 신규 전수 조사 (2026-05-19) --
+[검색-A] admin/Missions.jsx + PurityFilter.jsx — 딥링크 발화 시 활성 검색어 미초기화 → 대상 항목 목록 미표시  ✅
+[검색-B] admin/PurityFilter.jsx — 검색 활성 시 타입 pill 카운트가 검색 전 수치 유지. filteredBaseBySearch 변수 추가 후 pill 카운트 교체  ✅
+
+-- restore_mission_slot + 슬롯 관리 체계 무결성 전수 조사 (2026-05-19) --
+[슬롯-A] migrations 043/048 — admin 권한 체크에 user_metadata OR 패턴 사용(D-58 위반). 049로 app_metadata 단독 체크 재정의  ✅
+[슬롯-B] migration 048 restore_mission_slot — filled_count 상한 오버플로우 가드 없음. 049에서 LEAST 상한 클램프 추가  ✅
+[슬롯-C] migration 046 — SQL 한글 자모 혼입으로 PostgreSQL parse 오류 발생. 046 자모 제거 + 049로 reaccept 047 버전 재적용  ✅
+
+-- 퓨릿 필터 65점 서브필터 카운트 불일치 조사 (2026-05-20) --
+[P-1] admin/PurityFilter.jsx — 65점 서브필터 카운트가 검색 전 filteredBase 기준 계산(D-72). filteredBySearch로 교체  ✅
+
+-- 비교 모드 3개 확장 QA 조사 (2026-05-21) --
+[Diag-C1] company/Diagnosis.jsx 비교 모드 — 키워드 탭 COMPARE_C 태그 색상 2분기 누락으로 A와 동일하게 렌더  ✅
+[Diag-H1] company/Diagnosis.jsx — loadFeedbacks·loadCompare try-catch 누락(D-51). 두 함수 모두 try-catch + catch에서 setHasData(false) 추가  ✅
+[Diag-M1] company/Diagnosis.jsx 비교 모드 — 벤치마크 탭 부제목 "두 의뢰" 하드코딩. compareItems.length 동적 처리  ✅
+[Diag-M2] company/Diagnosis.jsx 비교 모드 — 부분 동점 verdict 누락(A=B>C 시 "A 우세" 오표시). winner.length>1 분기 추가  ✅
+[Diag-M3] company/Diagnosis.jsx 비교 모드 — 피드백 없는 의뢰 점수 "0.0/5.0" 표시. noData 플래그 → "—" + 피드백 없음 dimmed 처리  ✅
+
+-- D-93·D-94·trust_score 수정 QA 전수 조사 (2026-05-27) --
+[OAuth-A] capturedSourceRef 패턴 대칭성 (구조 무결성 검증) — handledRef / capturedRoleRef와 동일한 useRef(undefined) 패턴. StrictMode cleanup/remount에서도 값 보존 확인  ✅
+[OAuth-B] localStorage 모든 종료 경로 키 정리 — purit_oauth_role + purit_oauth_source 양쪽 키가 모든 종료 경로에서 제거 확인  ✅
+[OAuth-C] migration 061 UPDATE 범위 무결성 — WHERE total_missions=0 AND trust_score=100 조건으로 보정 대상이 신규 OAuth 패널로만 한정  ✅
+[OAuth-D] D-93 navigate 전진 추적 — 신규 OAuth 가입 → signOut() → /login?role=X&signup=google → Login.jsx 감지 → successMsg 표시. 이메일 가입 흐름과 UX 동등 확인  ✅
+
+-- 제품 완성도 전수 조사 (2026-05-26) --
+[완성도-A] accept_mission_slot RPC에 AND status='active' 추가(057.sql) + reaccept_rejected_feedback RPC에 동일 체크 추가(058.sql) + panel/Missions.jsx·Dashboard.jsx suspended 차단 UI 적용  ✅
+
+================================================================
