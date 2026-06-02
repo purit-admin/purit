@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-02 (D-100 추가 — 회원가입 페이지에서 이미 가입된 Google 계정으로 재가입 시도 시 자동 로그인)
+최종 업데이트: 2026-05-29 (D-99 추가 — 단일 일상어를 키워드 분류 로직에 사용할 때 다른 도메인에서 오탐하는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1495,31 +1495,3 @@ D-99. 단일 일상어를 키워드 분류 로직에 사용할 때 동일 단어
              대안 1: 복합어 사용 ('ai 생성', 'chatgpt', 'gpt' 등 — 정상 문맥에서 출현 확률 낮음)
              대안 2: 공동 출현 조건 (A AND B 두 단어가 함께 있을 때만 매칭)
              동일 함수가 복수 파일에 복사된 경우 모든 파일을 동시에 수정할 것 (D-35 참조)
-
-D-100. 회원가입 페이지 출처 + 이미 가입된 Google 계정 → 자동 로그인되는 패턴 ✅ 해결
-     → 증상: /signup에서 Google 회원가입 시도 시 이미 가입된 계정으로 인증하면
-             에러 없이 대시보드로 자동 로그인됨 ("이미 가입된 계정이니 로그인 페이지를 이용하라"는 안내 없음)
-     → 원인: OAuthCallback.jsx의 기존 유저(existingRole 존재) 분기에서 role 충돌 체크 이후
-             capturedSourceRef 값(source='signup' vs 'login')을 전혀 확인하지 않고
-             무조건 `window.location.replace(DEST[existingRole])` 대시보드로 이동
-             D-94에서 capturedSourceRef 인프라를 구축했으나 "신규 계정 + 로그인 페이지" 방향만 처리했고,
-             "기존 계정 + 회원가입 페이지" 방향은 누락됨
-     → 해결: OAuthCallback.jsx role 충돌 체크 이후, 대시보드 리다이렉트 전에 source 분기 추가
-             ```js
-             // 회원가입 페이지 출처 + 기존 계정 → 자동 로그인 차단, 로그인 안내
-             if (capturedSourceRef.current === 'signup') {
-               try { await supabase.auth.signOut(); } catch { /* ignore */ }
-               setError('이미 가입된 Google 계정입니다. 로그인 페이지에서 로그인해 주세요.');
-               return;
-             }
-             // 로그인 페이지 출처 + 기존 계정 → 정상 로그인
-             window.location.replace(DEST[existingRole] ?? '/company');
-             ```
-     → source별 기존 유저 처리 결과표:
-             source='signup' + existingRole + 역할 충돌 → "다른 역할로 가입됨" 에러 (D-94 기존 처리)
-             source='signup' + existingRole + 역할 동일 → "이미 가입된 계정" 에러 (D-100 신규)
-             source='login'  + existingRole             → 대시보드 정상 이동 (기존 동작 유지)
-     → 원칙: OAuth 콜백의 기존 유저 분기도 source('login'/'signup')를 기준으로 처리를 분기해야 함
-             D-94가 "신규 유저 분기의 source 체크"를 다뤘다면, D-100은 "기존 유저 분기의 source 체크"
-             두 분기 모두 source를 확인해야 완전한 대칭 처리가 됨
-             신규 인프라(capturedSourceRef 등)를 추가할 때, 적용이 필요한 모든 분기를 전수 검토할 것
