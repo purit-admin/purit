@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-05-27 (D-94 반영 — AuthContext signInWithGoogle source 파라미터 추가 / OAuthCallback capturedSourceRef 추가 / 로그인 출처 신규 계정 생성 차단)
+최종 업데이트: 2026-06-02 (D-100 반영 — OAuthCallback 기존 유저 분기에서 source='signup' 시 자동 로그인 차단 추가)
 ================================================================
 
 ## 기술 스택
@@ -342,7 +342,9 @@ purit/
 │                - trust_score: 0으로 초기화 (migration 061에서 100→0 수정, D-92 참조)
 │              신규 유저 성공 시: signOut() 후 /login?role=${savedRole}&signup=google 이동 (D-93) ★
 │                → 이메일 가입과 동일한 UX: 가입 완료 메시지 확인 후 직접 로그인 유도
-│              기존 유저: existingRole 있으면 role 충돌 체크 후 대시보드 full reload 이동
+│              기존 유저: existingRole 있으면 role 충돌 체크 후 source 분기 (D-100) ★
+│                - source='signup' → signOut + "이미 가입된 계정" 에러 (자동 로그인 차단)
+│                - source='login'  → 대시보드 full reload 이동 (정상 로그인)
 │              user.user_metadata.full_name || name || email prefix → displayName으로 사용
 │   ※ Login.jsx: successMsg 감지 2경로 ★ 개편
 │              이메일 가입: location.state?.message (Signup.jsx navigate state)

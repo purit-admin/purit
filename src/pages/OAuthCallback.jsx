@@ -67,7 +67,13 @@ export default function OAuthCallback() {
             setError(`이 Google 계정은 이미 '${existingLabel}'으로 가입되어 있습니다. '${pendingLabel}'로 가입하려면 다른 Google 계정을 사용해 주세요.`);
             return;
           }
-          // 충돌 없음 — 바로 대시보드로 (full reload로 AuthContext 확실히 초기화)
+          // 회원가입 페이지 출처 + 기존 계정 → 자동 로그인 차단, 로그인 안내
+          if (capturedSourceRef.current === 'signup') {
+            try { await supabase.auth.signOut(); } catch { /* ignore */ }
+            setError('이미 가입된 Google 계정입니다. 로그인 페이지에서 로그인해 주세요.');
+            return;
+          }
+          // 로그인 페이지 출처 + 기존 계정 → 정상 로그인 (full reload로 AuthContext 확실히 초기화)
           window.location.replace(DEST[existingRole] ?? '/company');
           return;
         }
