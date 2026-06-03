@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-05 (Scale-A~K 확장성 결함 11건 수정 완료 → DONE.txt 이동)
+최종 업데이트: 2026-06-06 (기업 포털 전수 조사 — 신규 3건 추가)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -17,8 +17,47 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ================================================================
 
 ================================================================
-## 🟡 P2 Major (2건)
+## 🟡 P2 Major (4건)
 ================================================================
+
+[Admin-A] PurityFilter.jsx — 반려 취소(reset) 시 feedbacks DB 변경 후 slot 복원 실패 → 미션 슬롯 카운트 영구 불일치
+- 🚨 중요도: P2 — 어드민이 에러 모달을 "취소"로 닫으면 feedbacks.status는 'submitted'인데 missions.filled_count는 감소된 채 방치됨. 미션이 실제보다 빈 슬롯이 1개 더 있는 것으로 보여 패널이 초과 수락 가능.
+- 📍 위치: src/pages/admin/PurityFilter.jsx (lines 349-367, reset 함수)
+- 🕵️‍♂️ 재현: 반려된 피드백을 "반려 취소" → 확인 클릭 → Supabase `restore_mission_slot` RPC 호출 실패 → 에러 모달 표시 → "돌아가기"로 모달 닫기
+- 🤦‍♂️ 현재:
+    ```js
+    // 1. DB UPDATE 먼저 실행 (성공)
+    await supabase.from('feedbacks').update({status:'submitted'...})
+    // 2. 로컬 state도 즉시 업데이트
+    setFeedbacks(fbs => fbs.map(...status:'submitted'...))
+    // 3. slot 복원 RPC (실패 가능)
+    const { error: slotErr } = await supabase.rpc('restore_mission_slot', ...)
+    if (slotErr) { setResetError('슬롯 복원 실패...'); setActing(false); return; }
+    // → setConfirmResetId(null) 미호출, 모달 유지 (D-65 준수)
+    // → 그러나 feedbacks는 이미 'submitted'로 변경 완료된 상태
+    // → 어드민이 "돌아가기" 클릭 시: DB는 불일치(feedback=submitted, filled_count 낮음)
+    ```
+- ✨ 기대: 순서를 역전 — restore_mission_slot 먼저 실행, 성공 시에만 feedbacks UPDATE 실행. 또는 두 작업을 단일 RPC로 묶어 원자적 처리.
+- 🔍 수평 전개: reject() 함수(line 321~347)도 decrement_mission_filled_count가 fire-and-forget이라 실패 시 슬롯 과잉 문제 가능. 단 reject()는 decrement가 부가 처리라 심각도 낮음.
+
+[Pnl-Active-A] 패널 미션 수행 — handleCancelAccept() D-65 재위반: 이미지 모드·만료·종료 화면에서 수락 취소 오류 무음 처리
+- 🚨 중요도: P2 — 취소 버튼을 눌렀는데 DB 실패 시 오류 메시지가 전혀 표시되지 않아 패널이 성공인지 실패인지 알 수 없음
+- 📍 위치: src/pages/panel/ActiveMission.jsx (line 485-491, handleCancelAccept)
+- 🕵️‍♂️ 재현: 이미지 어노테이션 폼(step≥1)에서 "수락 취소" 버튼 → 모달 열림 → "수락 취소" 클릭 → DB RPC 실패 시
+- 🤦‍♂️ 현재:
+    ```js
+    if (error) { setCancelModal(false); setCancelError('취소 중 오류: ' + error.message); return; }
+    ```
+    에러 경로에서 setCancelModal(false)로 모달이 닫힘 → 이미지 모드의 cancelError는
+    `{cancelModal && <ConfirmModal errorMsg={cancelError} />}` 패턴이라 모달이 닫히면 에러 미렌더.
+    deadlineExpired·missionEnded 화면도 동일 구조 → 3개 화면에서 에러 무음 처리.
+    (브리핑 step=0은 lines 1018-1022에 standalone cancelError 렌더가 있어 정상)
+- ✨ 기대: error 경로에서 setCancelModal(false) 제거 → 모달 유지 + errorMsg로 에러 표시 (D-65 패턴)
+    ```js
+    if (error) { setCancelError('취소 중 오류: ' + error.message); return; }
+    ```
+- 🔍 수평 전개: [Pnl-D] 항목에서 이미지 모드에 errorMsg={cancelError} prop을 추가했으나,
+    setCancelModal(false)가 에러 경로에 그대로 남아 fix가 무효화됨. [Pnl-D]의 불완전 수정.
 
 [완성도-C] 경력 미설정 패널에게 careerLevels 제한 미션 전부 노출
 - 📍 위치: src/pages/panel/Missions.jsx (line 406-416)
@@ -39,8 +78,55 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 ================================================================
-## 🟢 P3 Minor (1건)
+## 🟢 P3 Minor (4건)
 ================================================================
+
+[Admin-B] PurityFilter.jsx — bulkReject() 슬롯 차감 일부 실패 시 ConfirmModal이 영구 열림 상태로 고착
+- 🚨 중요도: P3 — 반려 작업은 완료됐는데 모달이 닫히지 않아 어드민이 혼란 (취소 버튼으로만 닫힘). 재클릭 시 checkedIds가 비어 아무 동작 안 함. 단, rejection_deadline 재설정 및 decrement 재호출 위험은 checkedIds 초기화로 인해 실질적으로 발생하지 않음.
+- 📍 위치: src/pages/admin/PurityFilter.jsx (lines 507-508, bulkReject 마지막 부분)
+- 🕵️‍♂️ 재현: 일괄 반려 → decrement_mission_filled_count RPC가 일부 실패 → slotFailCount > 0 → return true 없음 → onConfirm의 ok=undefined → setConfirmBulkReject(false) 미호출 → 모달 열린 채 고착
+- 🤦‍♂️ 현재:
+    ```js
+    setCheckedIds(new Set()); setBulkActing(false);
+    if (slotFailCount === 0) return true;
+    // slotFailCount > 0 이면 return없음(undefined 반환) → 모달 미닫힘
+    // 그러나 checkedIds는 이미 비워져 재클릭 시 bulkReject 즉시 early return
+    ```
+- ✨ 기대: 슬롯 차감 부분 실패 여부와 무관하게 반려 자체가 완료됐으면 모달 닫기. statusError에 경고 메시지 유지.
+    ```js
+    setCheckedIds(new Set()); setBulkActing(false);
+    return true; // 항상 모달 닫기 (slotFailCount 경고는 statusError로 표시)
+    ```
+
+[Admin-C] BugReports.jsx — 어드민 역할 버그 제출자에게 알림 발송 시 actionUrl 오류
+- 🚨 중요도: P3 — 어드민이 버그/불편을 직접 제출한 경우, 답변 알림의 actionUrl이 '/panel/notifications'로 잘못 설정되어 알림 클릭 시 패널 포털로 이동함.
+- 📍 위치: src/pages/admin/BugReports.jsx (lines 160-167, handleSendReply)
+- 🕵️‍♂️ 재현: 어드민 계정으로 버그 신고(role='admin') → 어드민이 BugReports 페이지에서 답변 전송 → 알림 발송 → 클릭 시 /panel/notifications로 이동(어드민 페이지가 아님)
+- 🤦‍♂️ 현재:
+    ```js
+    const actionUrl = selected.role === 'company'
+      ? '/company/notifications'
+      : '/panel/notifications'; // role='admin'도 여기에 걸림
+    ```
+- ✨ 기대:
+    ```js
+    const actionUrl = selected.role === 'company'
+      ? '/company/notifications'
+      : selected.role === 'admin'
+      ? '/admin/notifications'
+      : '/panel/notifications';
+    ```
+- 🔍 수평 전개: 어드민이 직접 버그를 제출하는 경우가 많지 않으나, ROLE_LABEL에 'admin'이 정의되어 있어 발생 가능.
+
+[Admin-D] Dashboard.jsx·CompanyManagement.jsx — select('*') 아키텍처 원칙 위반
+- 🚨 중요도: P3 — Architecture 규칙 "panels 전체: 명시적 컬럼 select(select('*') 금지)", "companies 전체: 전체 로드 금지" 위반. 패널·기업 수 증가 시 응답 크기 부담.
+- 📍 위치:
+    · src/pages/admin/Dashboard.jsx (line 39): `supabase.from('panels').select('*').limit(10)` → limit(10)이라 당장 문제 없으나 원칙 위반
+    · src/pages/admin/CompanyManagement.jsx (line 429): `supabase.from('companies').select('*')` → 기업 수 증가 시 모든 컬럼 전체 로드
+- ✨ 기대: 실제 렌더에 사용하는 컬럼만 명시적으로 select.
+    · Dashboard.jsx panels: `select('id, name, industry, trust_score, honor_points, total_missions, status')`
+    · CompanyManagement.jsx companies: `select('id, name, industry, website, plan, credit_balance, user_id, created_at')`
+- 🔍 수평 전개: PanelManagement.jsx load()는 이미 명시적 컬럼 select 적용됨(line 91). Dashboard·CompanyManagement만 누락.
 
 [완성도-E] AI 리포트 Mock/실제 UI 구분 없음
 - 📍 위치: src/pages/company/AIReport.jsx generateReport(), supabase/functions/generate-ai-report/index.ts
@@ -109,10 +195,10 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 3건
+미완료 합계: 7건
   🔴 P1  0건
-  🟡 P2  2건
-  🟢 P3  1건
+  🟡 P2  4건
+  🟢 P3  3건
   ⚪ P4  0건
 
 스킵/보류: 22건
