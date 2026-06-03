@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-04 (D-103 추가 — 이메일 가입 트리거·OAuth RPC 양쪽에서 동일 비즈니스 로직 미동기화 패턴)
+최종 업데이트: 2026-06-04 (D-103·D-104 추가 — 가입 경로 비즈니스 로직 미동기화 + useEffect 가드 우선순위 역전)
 ================================================================
 
 ## 핵심 원칙
@@ -1451,3 +1451,29 @@ D-103. 이메일 가입(트리거)과 OAuth 가입(RPC) 두 경로가 동일 비
              모든 경로를 체크리스트로 나열하고 규칙이 각 경로에 구현됐는지 대조할 것
              로컬스토리지 키(purit_oauth_invite_token)도 모든 종료 경로(성공·취소·에러)에서 정리해야 stale 토큰 잔류 방지
              D-101(트리거 조기 발화)과 연계 — 가입 순서(상태 변경)와 조건 검증(invite 유효성) 모두 원자적으로 처리해야 함
+
+D-104. useEffect 내 복수 가드 조건에서 나중에 추가된 케이스가 앞선 가드에 차단되는 우선순위 역전 패턴 ✅ 해결
+     → 증상: 팀원이 초대 후 이메일로 신규 가입 → 가입 완료 메시지와 함께 /login 도착 → 로그인 완료 →
+             /invite?token=xxx로 이동하지 않고 대시보드로 바로 이동 → 수락 불가 상태
+     → 원인: Login.jsx useEffect의 가드 순서가 역전되어 있었음
+             ```js
+             // 잘못된 순서
+             if (successMsg) return;           // ← 먼저 걸림 (가입 완료 직후 truthy)
+             const pendingInvite = ...;        // ← 여기까지 도달 못 함
+             if (pendingInvite) navigate('/invite?token=...'); // ← 영구 차단
+             ```
+             successMsg는 "가입 완료 직후 대시보드 bounce 방지"를 위해 나중에 추가된 가드 (D-97)
+             pendingInvite는 원래부터 있던 로직 — 새 가드가 추가될 때 기존 로직의 차단 여부를 검토하지 않음
+     → 해결: pendingInvite를 successMsg 가드보다 앞에 배치
+             ```js
+             // 올바른 순서
+             const pendingInvite = ...;
+             if (pendingInvite) { navigate('/invite?token=...'); return; } // ← 최우선
+             if (successMsg) return;           // ← 팀원 초대 케이스에선 도달 안 함
+             navigate(DEST[authRole]);
+             ```
+     → 원칙: useEffect 내에 `if (X) return;` 형태의 복수 가드가 있을 때,
+             나중에 새 가드를 추가하면 반드시 기존 모든 케이스(pendingInvite 등)가 새 가드보다 아래에서 차단되지 않는지 점검할 것
+             "가드 A가 먼저 실행되어 가드 B가 도달 불가" 패턴은 컴파일 에러가 없어 자동 감지가 안 됨
+             점검 방법: useEffect 내 early return을 전수 나열 → 각 return이 차단하는 케이스 목록 작성 →
+             의도치 않게 차단되는 케이스(pendingInvite → 초대 흐름, resetToken → 비밀번호 리셋 등) 없는지 대조

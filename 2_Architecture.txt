@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-03 (문서-코드 불일치 수정 — 라우트 수 34→41, Sidebar 5대 지표 진단 레이블, earlyComplete 버튼 조건 보완, Sidebar pending 게이트 문서화)
+최종 업데이트: 2026-06-04 (팀원 포털 접근 완성 — resolveCompany.js 헬퍼 추가, migration 067-072, AuthContext signUp inviteToken, Login.jsx pendingInvite 우선순위 정정, Signup.jsx invite_token URL 처리)
 ================================================================
 
 ## 기술 스택
