@@ -111,10 +111,6 @@ export default function OAuthCallback() {
         });
         if (profileErr) throw new Error(`프로필 생성 실패: ${profileErr.message}`);
 
-        if (savedRole === 'panel') {
-          try { sessionStorage.removeItem('purit_panel_creds'); } catch { /* skip */ }
-        }
-
         // 신규 OAuth 가입 완료 → 로그아웃 후 로그인 페이지로 유도
         // 이메일 가입과 동일한 UX: 가입 완료 메시지를 보고 직접 로그인하게 함
         try { await supabase.auth.signOut(); } catch { /* ignore */ }

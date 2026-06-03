@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-05-28 (패널 프로필 탭 순서 변경 — 성과 탭을 기본 정보 바로 다음 2번째로 이동)
+최종 업데이트: 2026-06-03 (VerifyDocs 검증 서류 필수 구조 명확화 — 건강보험=연차 인증·LinkedIn/포트폴리오=직무 인증, 둘 다 필수)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -685,8 +685,10 @@
 6. 검증 서류 제출 (/panel/verify-docs) — VerifyDocs.jsx  ★ 신규 (2026-05-28)
    - 패널 포털 전용 경력 인증 서류 제출 페이지
    - 접근 조건: 인증된 패널(role='panel')이면 언제나 접근 가능 (pending/active 무관)
-   - 건강보험 득실확인서 파일 업로드 (이미지/PDF, 5MB 제한, 필수)
-   - LinkedIn URL 입력 + 포트폴리오 파일 업로드 또는 URL 입력 (옵션)
+   - 건강보험 득실확인서 파일 업로드 (이미지/PDF, 5MB 제한, 필수) — 연차 인증
+   - 직무 인증 방식 선택 (필수): LinkedIn URL 또는 포트폴리오 중 하나 선택
+     · LinkedIn 선택 시: https://linkedin.com/in/... 형식 URL 입력 (필수)
+     · 포트폴리오 선택 시: URL 입력 또는 파일 업로드 중 하나 (필수)
    - 직군/직책 입력 (옵션)
    - 파일 업로드 경로: panel-verification-docs/{user.id}/health_insurance.{ext}, portfolio.{ext} (upsert:true)
    - 제출 시 save_panel_verification_docs RPC 호출 (SECURITY DEFINER — auth.uid()=p_user_id 본인 검증, COALESCE 패턴으로 null 값은 기존 DB값 유지)

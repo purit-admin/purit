@@ -1,9 +1,9 @@
 ################################################################
-## QA_DONE.txt — Purit MVP 완료 항목 보관소
+## QA_DONE.txt — 수정 완료 항목 보관소
 ################################################################
-※ 이 파일은 QA_REPORT.txt에서 수정 완료(✅)된 항목만 분리 보관합니다.
+※ 이 파일은 수정 완료된 항목만 보관합니다.
   재조사 금지. 이력 확인 전용.
-  새 완료 항목은 QA_REPORT.txt 아카이브에 기록하지 말고 이 파일에만 추가할 것.
+  새 완료 항목은 PROGRESS.txt에서 해당 행을 삭제하고 이 파일 하단에만 추가할 것.
 
 총 완료: 169건 (2026-05-29 기준)
 
@@ -203,6 +203,27 @@
 -- navigate 전진 추적 수평전개 조사 (2026-05-18) --
 [B-156] 기업 포털 5개 페이지 카드 클릭 — cancelled+company_notified_at IS NULL 미션이 Results.jsx ?id로 이동, 쿼리 게이트에서 제외되어 ms[0] 자동 선택. 5개 파일 카드 onClick 조건 분기에 토스트 표시로 변경  ✅
 [B-157] 기업 대시보드 (company/Dashboard.jsx) — CompanyMissionCard activeToast가 createPortal 없이 렌더됨. D-19 위반. createPortal 적용  ✅
+
+-- 1차 즉시 수정 8건 (2026-06-03) --
+[BUG-OAUTH-1] OAuthCallback.jsx — 삭제된 CREDS 스텝의 sessionStorage.removeItem dead code 제거  ✅
+[BUG-NEW-9]   panel/Dashboard.jsx — HP 툴팁 '반려 −5 pts' 오표시 항목 삭제  ✅
+[BUG-NEW-11]  company/NewMission.jsx — LP 섹션 그룹핑 curLabel null → undefined (D-46)  ✅
+[BUG-NEW-7]   admin/CompanyManagement.jsx — CompanyDetail에 key={co.id} 추가, 기업 전환 시 에러 state 자동 초기화  ✅
+[BUG-PM-1]    admin/PanelManagement.jsx — 패널 행 클릭 시 setActionMsg('') 동시 호출  ✅
+[BUG-NEW-5]   layout/Sidebar.jsx — loadRejected 쿼리에 .eq('dismissed', false) 추가  ✅
+[BUG-SU-1]    Signup.jsx — auto-redirect useEffect에 if (successMsg) return; 가드 추가  ✅
+[BUG-AUTH-1]  AuthContext.jsx — getSession().then().catch(() => setLoading(false)) 추가  ✅
+
+-- 서브미션 폼 3개 파일 일괄 수정 (2026-06-03) --
+[BUG-PRE-1] PreferenceTest.jsx — submitError state 추가 + catch에서 setSubmitError 호출  ✅
+[BUG-PRE-2] PreferenceTest.jsx — descJson에 missionTitle·assetType·panelSize 3개 필드 추가  ✅
+[BUG-PRE-3] PreferenceTest.jsx — showSubmitConfirm ConfirmModal D-69 위반 수정 (async/await + errorMsg prop)  ✅
+[BUG-PRI-1] PricingTest.jsx — submitError state 추가 + catch에서 setSubmitError 호출  ✅
+[BUG-PRI-2] PricingTest.jsx — descJson에 missionTitle·panelSize 2개 필드 추가  ✅
+[BUG-PRI-3] PricingTest.jsx — showSubmitConfirm ConfirmModal D-69 위반 수정  ✅
+[BUG-CEL-1] ColdEmailTest.jsx — descJson에 missionTitle·panelSize 2개 필드 추가  ✅
+[BUG-CEL-2] ColdEmailTest.jsx — submitError state 추가 + catch에서 setSubmitError 호출  ✅
+[BUG-CEL-3] ColdEmailTest.jsx — showSubmitConfirm ConfirmModal D-69 위반 수정  ✅
 
 -- Google OAuth 로그인 전수 조사 (2026-05-19) --
 [로그인-1] OAuthCallback.jsx — URL ?error 파라미터 미체크로 Google 취소 시 기존 세션으로 자동 로그인됨  ✅

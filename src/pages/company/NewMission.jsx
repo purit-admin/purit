@@ -1338,7 +1338,7 @@ export default function NewMission() {
                 {/* 템플릿 아코디언 (섹션 구분) */}
                 {(() => {
                   const groups = [];
-                  let curLabel = null;
+                  let curLabel = undefined;
                   lpTemplates.forEach(tmpl => {
                     const label = tmpl.sectionLabel || null;
                     if (label !== curLabel) { curLabel = label; groups.push({ label, items: [] }); }

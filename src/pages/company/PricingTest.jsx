@@ -114,6 +114,7 @@ export default function PricingTest() {
   const [deleteError, setDeleteError] = useState('');
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [terminateError, setTerminateError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [activeToast, setActiveToast] = useState(null);
   const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
@@ -376,14 +377,17 @@ export default function PricingTest() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
+    setSubmitError('');
     const targetId = draftId || missionUuid;
     const descJson = JSON.stringify({
+      missionTitle,
       content: pricingDesc.trim() || '가격 페이지 4축 진단',
       image: pricingImage || null,
       productDescription: productDescription.trim(),
       industry: industry || null,
       selectedQuestions: [...selectedQuestions, ...localCustomQs],
       careerLevels,
+      panelSize,
     });
     try {
       const finalTitle = missionTitle.trim() || '가격 페이지 검증';
@@ -425,8 +429,10 @@ export default function PricingTest() {
 
       setMissionUuid(crypto.randomUUID());
       navigate('/company');
+      return true;
     } catch (err) {
       console.error('[PricingTest] 등록 실패:', err.message);
+      setSubmitError(err.message || '의뢰 등록 중 오류가 발생했습니다.');
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -1099,8 +1105,9 @@ export default function PricingTest() {
             }
             confirmLabel="제출하기"
             cancelLabel="다시 확인"
-            onConfirm={() => { setShowSubmitConfirm(false); handleSubmit(); }}
-            onCancel={() => setShowSubmitConfirm(false)}
+            onConfirm={async () => { const ok = await handleSubmit(); if (ok) setShowSubmitConfirm(false); }}
+            onCancel={() => { setShowSubmitConfirm(false); setSubmitError(''); }}
+            errorMsg={submitError}
           />
         );
       })()}

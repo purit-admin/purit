@@ -106,6 +106,7 @@ export default function ColdEmailTest() {
   const [deleteError, setDeleteError] = useState('');
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [terminateError, setTerminateError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [activeToast, setActiveToast] = useState(null);
   const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
@@ -346,11 +347,15 @@ export default function ColdEmailTest() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
+    setSubmitError('');
     const targetId = draftId || missionUuid;
     const descJson = JSON.stringify({
+      missionTitle,
       content: emailText.trim(), productDescription: productDescription.trim(),
       industry: industry || null,
-      selectedQuestions: [...selectedQuestions, ...localCustomQs], careerLevels,
+      selectedQuestions: [...selectedQuestions, ...localCustomQs],
+      careerLevels,
+      panelSize,
     });
     try {
       const finalTitle = missionTitle.trim() || '이메일 검증';
@@ -393,8 +398,10 @@ export default function ColdEmailTest() {
 
       setMissionUuid(crypto.randomUUID());
       navigate('/company');
+      return true;
     } catch (err) {
       console.error('[ColdEmailTest] 등록 실패:', err.message);
+      setSubmitError(err.message || '의뢰 등록 중 오류가 발생했습니다.');
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -1050,8 +1057,9 @@ export default function ColdEmailTest() {
             }
             confirmLabel="제출하기"
             cancelLabel="다시 확인"
-            onConfirm={() => { setShowSubmitConfirm(false); handleSubmit(); }}
-            onCancel={() => setShowSubmitConfirm(false)}
+            onConfirm={async () => { const ok = await handleSubmit(); if (ok) setShowSubmitConfirm(false); }}
+            onCancel={() => { setShowSubmitConfirm(false); setSubmitError(''); }}
+            errorMsg={submitError}
           />
         );
       })()}

@@ -266,8 +266,9 @@ export default function Signup() {
   const { user, role: authRole, signUp, signOut, signInWithGoogle } = useAuth();
 
   useEffect(() => {
+    if (successMsg) return;
     if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
-  }, [user, authRole]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, authRole, successMsg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // bfcache fix
   useEffect(() => {

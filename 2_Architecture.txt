@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-02 (D-100 반영 — OAuthCallback 기존 유저 분기에서 source='signup' 시 자동 로그인 차단 추가)
+최종 업데이트: 2026-06-03 (서브미션 폼 descJson 공통 필드 보강 — panelSize·assetType 포함 명시 / VerifyDocs 직무 인증 필수 설계 반영)
 ================================================================
 
 ## 기술 스택
@@ -167,14 +167,21 @@ purit/
 │   │                    ColdEmailTest: STEPS=['이메일 입력','질문 설정','패널 설정','검토']
 │   │                      Step 0: 의뢰명(missionTitle, 선택)+이메일원문+제품설명+산업군 통합 ★ 의뢰명 추가
 │   │                    Step 3 '검토': 의뢰명 포함 입력 내용 요약 + 패널수·직급·크레딧 표시 + 제출 버튼 (메인의뢰 Step 4와 동일 패턴) ★
+│   │                    descJson 공통 포함 필드 (3개 파일):
+│   │                      - 공통: missionTitle, productDescription, industry, selectedQuestions, careerLevels, panelSize
+│   │                      - PreferenceTest 추가: variantA, variantB, variantAImage, variantBImage, assetType
+│   │                      - PricingTest 추가: content(pricingDesc), image(pricingImage)
+│   │                      - ColdEmailTest 추가: content(emailText)
+│   │                      ※ panelSize·assetType descJson 포함 필수 — editMode 복원 시 패널 수·소재유형 소실 방지
 │   │                    missionTitle 공통 패턴 (3개 파일):
 │   │                      - state: missionTitle ('' 초기값)
 │   │                      - shouldBlockNav: missionTitle 포함 (|| missionTitle)
 │   │                      - saveDraft: description JSON에 missionTitle 포함
 │   │                      - openDraftOrActiveForEdit: parsed.missionTitle 우선 복원 + ms.title 폴백
 │   │                      - useEffect editMode 블록: parsed.missionTitle 우선 복원 + ms.title 폴백 (D-77 참조)
-│   │                      - handleSubmit: finalTitle = missionTitle.trim() || 타입별 기본값
+│   │                      - handleSubmit: finalTitle = missionTitle.trim() || 타입별 기본값, submitError state로 에러 표시
 │   │                      - missions INSERT: title=finalTitle, description JSON에도 missionTitle 저장
+│   │                      - ConfirmModal onConfirm: async () => { const ok = await handleSubmit(); if (ok) setShowSubmitConfirm(false); } (D-69)
 │   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|➕ 커스텀 질문
 │   │                탭 이모지: lp/preference/pricing/email 탭은 icon: null (이모지 없음), 커스텀 탭만 icon: '➕'
 │   │                "질문 만들기" → "커스텀 질문" (탭 레이블 + 탭 콘텐츠 헤더 모두 변경)
@@ -433,10 +440,11 @@ purit/
 │   │   ※ pages/panel/VerifyDocs.jsx: 패널 검증 서류 제출 전용 페이지 ★ 신규 (2026-05-28)
 │   │                  접근 조건: 인증된 패널(role='panel')이면 언제나 접근 가능 (pending/active 무관)
 │   │                  파일 업로드 UI: 드래그&드롭 + 클릭 UploadZone (이미지/PDF, 5MB, accept=".jpg,.jpeg,.png,.pdf")
-│   │                  건강보험 자격득실 확인서(certFile) — 필수, Storage 경로: {user.id}/health_insurance.{ext}
-│   │                  LinkedIn URL(linkedinUrl) — 선택, https://linkedin.com 정규식 검증
-│   │                  포트폴리오 파일(portfolioFile) — 선택, 파일 우선 / 없으면 URL(portfolioText) 사용
-│   │                    Storage 경로: {user.id}/portfolio.{ext}
+│   │                  건강보험 자격득실 확인서(certFile) — 연차 인증, 필수, Storage 경로: {user.id}/health_insurance.{ext}
+│   │                  직무 인증(careerChoice) — 필수, linkedin / portfolio 중 하나 선택
+│   │                    linkedin 선택 시: LinkedIn URL(linkedinUrl) 입력 필수, https://linkedin.com 정규식 검증
+│   │                    portfolio 선택 시: 포트폴리오 파일(portfolioFile) 또는 URL(portfolioText) 중 하나 필수
+│   │                    포트폴리오 파일 Storage 경로: {user.id}/portfolio.{ext}
 │   │                  제출 시: supabase.storage.from('panel-verification-docs').upload(..., { upsert: true })
 │   │                           → supabase.rpc('save_panel_verification_docs', { p_user_id, p_health_insurance_url, p_linkedin_url, p_portfolio_url })
 │   │                  제출 성공 → navigate('/panel') 대시보드 이동

@@ -679,6 +679,7 @@ export default function CompanyManagement() {
         {/* 우측 상세 패널 */}
         {co && (
           <CompanyDetail
+            key={co.id}
             co={co}
             stats={missionStats}
             recent={recentMissions}

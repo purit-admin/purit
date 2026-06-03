@@ -335,7 +335,6 @@ export default function PanelDashboard() {
                   ['미션 제출 완료', '+5 pts'],
                   ['기업 도움 됨 평가', '+15 pts'],
                   ['기업 도움 안 됨 평가', '−20 pts'],
-                  ['Purit Filter 반려', '−5 pts'],
                   ['30일 비활동 후 매주', '−200 pts'],
                 ].map(([desc, val]) => (
                   <div key={desc} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>

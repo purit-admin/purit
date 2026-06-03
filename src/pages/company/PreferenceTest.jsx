@@ -121,6 +121,7 @@ export default function PreferenceTest() {
   const [deleteError, setDeleteError] = useState('');
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [terminateError, setTerminateError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [activeToast, setActiveToast] = useState(null);
   const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
@@ -399,14 +400,18 @@ export default function PreferenceTest() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
+    setSubmitError('');
     const targetId = draftId || missionUuid;
     const descJson = JSON.stringify({
+      missionTitle,
       variantA: variantA.trim(), variantB: variantB.trim(),
       variantAImage: variantAImage || null, variantBImage: variantBImage || null,
       productDescription: productDescription.trim(),
       industry: industry || null,
+      assetType,
       selectedQuestions: [...selectedQuestions, ...localCustomQs],
       careerLevels,
+      panelSize,
     });
     try {
       const finalTitle = missionTitle.trim() || `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`;
@@ -453,8 +458,10 @@ export default function PreferenceTest() {
 
       setMissionUuid(crypto.randomUUID());
       navigate('/company');
+      return true;
     } catch (err) {
       console.error('[PreferenceTest] 등록 실패:', err.message);
+      setSubmitError(err.message || '의뢰 등록 중 오류가 발생했습니다.');
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -1162,8 +1169,9 @@ export default function PreferenceTest() {
             }
             confirmLabel="제출하기"
             cancelLabel="다시 확인"
-            onConfirm={() => { setShowSubmitConfirm(false); handleSubmit(); }}
-            onCancel={() => setShowSubmitConfirm(false)}
+            onConfirm={async () => { const ok = await handleSubmit(); if (ok) setShowSubmitConfirm(false); }}
+            onCancel={() => { setShowSubmitConfirm(false); setSubmitError(''); }}
+            errorMsg={submitError}
           />
         );
       })()}

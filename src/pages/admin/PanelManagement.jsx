@@ -377,7 +377,7 @@ export default function AdminPanels() {
                   const isSelected = selected === p.id;
                   return (
                     <tr key={p.id}
-                      onClick={() => setSelected(isSelected ? null : p.id)}
+                      onClick={() => { setSelected(isSelected ? null : p.id); setActionMsg(''); }}
                       style={{
                         borderBottom: i < paged.length - 1 ? '1px solid var(--border)' : 'none',
                         background: isSelected ? 'var(--accent-dim2)' : 'transparent',
