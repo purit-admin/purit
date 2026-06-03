@@ -1387,3 +1387,22 @@ D-99. 단일 일상어를 키워드 분류 로직에 사용할 때 동일 단어
              대안 1: 복합어 사용 ('ai 생성', 'chatgpt', 'gpt' 등 — 정상 문맥에서 출현 확률 낮음)
              대안 2: 공동 출현 조건 (A AND B 두 단어가 함께 있을 때만 매칭)
              동일 함수가 복수 파일에 복사된 경우 모든 파일을 동시에 수정할 것 (D-35 참조)
+
+D-100. 대시보드 KPI에서 "미처리 = 전체 - 완료" 공식이 중간 상태(반려 등)를 포함해 실제 미처리 수보다 부풀어 있는 패턴
+     → 증상: admin/Dashboard.jsx "검토 대기 피드백: N"이 PurityFilter "검토 대기" 탭 실제 건수보다 항상 크게 표시됨
+             어드민이 대시보드에서 N건을 보고 PurityFilter 진입 시 실제로는 더 적은 건수만 존재
+     → 원인: `pendingFeedbacks = stats.feedbacks - stats.passed`
+             stats.feedbacks = submitted(검토중) + rejected(반려됨) + approved(승인됨) — draft 제외 전체
+             stats.passed = approved만
+             따라서 pendingFeedbacks = submitted + rejected → 반려 피드백이 "검토 대기"에 포함됨
+             직관적으로 "미처리 = 전체 - 완료"가 맞아 보이지만, 상태가 3단계(검토중/승인/반려) 이상일 때
+             이 공식은 "검토 완료됐지만 실패한" 상태(반려)를 미처리로 오분류함
+     → 해결: 별도 submitted count 쿼리 추가
+             `.from('feedbacks').select('*', {count:'exact', head:true}).eq('purity_passed', false).eq('status', 'submitted').neq('status', 'draft')`
+             또는 stats.feedbacks - stats.passed - rejectedCount 방식으로 반려 건수를 별도 집계 후 차감
+     → 원칙: "미처리 = 전체 - 완료" KPI 공식은 상태가 정확히 2단계(처리중/완료)일 때만 유효함
+             처리 흐름이 3단계 이상(검토중 → 승인 or 반려)인 시스템에서는
+             반드시 목표 상태(검토중=submitted)를 직접 count하거나
+             중간 실패 상태(반려=rejected)를 명시적으로 제외해야 함
+             D-68(집계 쿼리 draft 필터 누락)과 유사하지만 원인이 다름:
+             D-68은 필터 누락, D-100은 공식 설계 오류 — 두 가지 모두 집계 쿼리 작성 시 점검할 것

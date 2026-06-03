@@ -1,11 +1,12 @@
 ================================================================
 QA_PROGRESS.txt — 전수 버그 조사 현황 (니체 QA 에이전트)
 작성일: 2026-05-31
+최종 업데이트: 2026-06-03 (1~9번 파일 재조사 — 신규 버그 4건 추가, 총 32건)
 조사 방식: Read-only (코드 수정 없음), 파일별 전수 검토
 ================================================================
 
 ================================================================
-## 1. 발견된 버그 전체 목록 (28건)
+## 1. 발견된 버그 전체 목록 (32건)
 ================================================================
 
 ────────────────────────────────────────
@@ -154,8 +155,47 @@ BUG-VD-1 [P2] VerifyDocs.jsx — 경력 인증을 필수로 강제 (PRD는 선�
   영향: LinkedIn이나 포트폴리오 없는 패널이 건강보험 서류만으로 제출 불가
 
 ────────────────────────────────────────
-### P3 (7건) — 마이너 오작동 / UX 이슈
+### P3 (11건) — 마이너 오작동 / UX 이슈
 ────────────────────────────────────────
+
+BUG-DASH-1 [P3] admin/Dashboard.jsx — "검토 대기 피드백" 카운트에 반려 피드백 포함
+  파일: src/pages/admin/Dashboard.jsx
+  위치: line 66, 97, 130
+  원인: `pendingFeedbacks = stats.feedbacks - stats.passed`
+        stats.feedbacks = submitted + rejected + approved (non-draft 전체)
+        stats.passed = approved만 → pendingFeedbacks = submitted + rejected (반려 포함)
+        빠른 작업 카드 "검토 대기 피드백: N"과 Purit 현황 "미통과 N건" 모두 반려 피드백을 포함해
+        PurityFilter "검토 대기" 탭의 실제 건수보다 항상 부풀어 있음
+  영향: 어드민이 "검토 대기 N건"을 보고 PurityFilter 진입 시 실제 건수와 불일치 → 혼란
+        올바른 공식: 별도 submitted count 쿼리가 필요하거나, 반려 count를 빼야 함
+
+BUG-ADM-1 [P3] admin/BugReports.jsx — handleSaveMemo() error 미캡처 + 항상 낙관적 갱신
+  파일: src/pages/admin/BugReports.jsx
+  위치: handleSaveMemo() (lines 131-138)
+  파일: src/pages/admin/BugReports.jsx
+  위치: handleSaveMemo() 함수 (lines 131-138)
+  원인: `await supabase.from('bug_reports').update({ admin_memo: memo }).eq('id', selected.id)` 반환값의
+        error를 구조분해하지 않음 + error 분기 없이 `setSelected` / `setReports` 항상 실행
+        → DB 실패 시에도 로컬 state가 갱신되어 저장된 것처럼 보임 (D-79 위반)
+  영향: 메모 저장 실패 시 사용자에게 성공으로 오표시. 새로고침 후 이전 메모로 복원되어 혼란
+
+BUG-ADM-2 [P3] admin/BugReports.jsx — handleSendReply() 에러 state 없어 실패 시 무음 처리
+  파일: src/pages/admin/BugReports.jsx
+  위치: handleSendReply() (lines 140-163)
+  원인: error 발생 시 `if (!error) { ... }` 분기를 건너뛰어 낙관적 갱신은 하지 않지만,
+        `sendReplyError` state 자체가 없어 에러 메시지를 렌더할 방법이 없음
+        버튼이 스피너에서 원래 상태로 돌아올 뿐 사용자에게 실패 원인 전달 불가
+  영향: "답글 발송" 실패 시 어드민이 알 수 없음. 재시도 여부 판단 불가
+
+BUG-ACT-1 [P3 잠정] panel/ActiveMission.jsx — handleStart() 중복 feedbacks INSERT 가능성
+  파일: src/pages/panel/ActiveMission.jsx
+  위치: handleStart() 함수 (lines 489-509)
+  원인: draftId 없는 상태에서 feedbacks를 직접 INSERT 시도
+        정상 흐름에서 accept_mission_slot RPC가 draftId를 보장해야 하나,
+        예외 상황에서 draftId=null로 handleStart 진입 가능 → 중복 INSERT 시도
+  영향: 잠정 — 수락 없이 URL 직접 접근 시 feedbacks 중복 생성 가능성
+        (accept_mission_slot의 이중 방어가 있어 실제 중복은 DB unique constraint가 차단하나
+         불필요한 INSERT 시도 + 에러 메시지 노출)
 
 BUG-NEW-7 [P3] CompanyManagement.jsx — 이전 기업의 에러 메시지 잔류
   파일: src/pages/admin/CompanyManagement.jsx
@@ -214,11 +254,12 @@ BUG-OAUTH-1 [P4] OAuthCallback.jsx — dead code 잔류
 P1 Critical (2건): BUG-NEW-3, BUG-NEW-4
 P2 중요 버그 (18건): BUG-NEW-1, 2, 5, 6, 8, 10, BUG-AUTH-1, 2, BUG-SU-1
                      BUG-PRE-1~3, BUG-PRI-1~3, BUG-CEL-1~3, BUG-VD-1
-P3 마이너 (7건): BUG-NEW-7, 9, 11(잠정), BUG-VD-2, BUG-SU-2, BUG-PM-1(잠정), BUG-OAUTH-1
-합계: 28건
+P3 마이너 (11건): BUG-NEW-7, 9, 11(잠정), BUG-VD-2, BUG-SU-2, BUG-PM-1(잠정), BUG-OAUTH-1
+                  BUG-DASH-1, BUG-ADM-1, BUG-ADM-2, BUG-ACT-1(잠정)
+합계: 32건
 
 ================================================================
-## 3. 조사 완료 파일 (18개)
+## 3. 조사 완료 파일 (31개)
 ================================================================
 
 ✅ src/pages/company/Dashboard.jsx         — 확정 버그 없음
@@ -228,15 +269,24 @@ P3 마이너 (7건): BUG-NEW-7, 9, 11(잠정), BUG-VD-2, BUG-SU-2, BUG-PM-1(잠�
 ✅ src/pages/company/PricingTest.jsx       — BUG-PRI-1~3
 ✅ src/pages/company/ColdEmailTest.jsx     — BUG-CEL-1~3
 ✅ src/pages/company/Settings.jsx          — BUG-NEW-3 (P1 Critical)
+✅ src/pages/company/AIReport.jsx          — 확정 버그 없음 (Edge Function try-catch+state ✅)
+✅ src/pages/company/Diagnosis.jsx         — 확정 버그 없음 (D-89 두 인자 패턴 ✅, hasData 전경로 ✅)
+✅ src/pages/company/Pricing.jsx           — 확정 버그 없음 (RPC 에러 처리 ✅)
+✅ src/pages/company/Account.jsx           — 확정 버그 없음 (isDirty ✅, D-10 ✅)
 ✅ src/pages/panel/Dashboard.jsx           — BUG-NEW-9
 ✅ src/pages/panel/History.jsx             — 확정 버그 없음
 ✅ src/pages/panel/Profile.jsx             — 확정 버그 없음
+✅ src/pages/panel/Missions.jsx            — 확정 버그 없음 (dismissed 필터 ✅, D-72 ✅, D-69 ✅, RPC 에러처리 ✅)
+✅ src/pages/panel/ActiveMission.jsx       — BUG-ACT-1(잠정) / D-29 ✅, D-59 ✅, D-30 ✅, D-76 ✅, D-4/C-4 ✅
 ✅ src/pages/panel/VerifyDocs.jsx          — BUG-VD-1, 2
 ✅ src/pages/InviteAccept.jsx              — BUG-NEW-1, 2
 ✅ src/pages/Login.jsx                     — 확정 버그 없음
 ✅ src/pages/Signup.jsx                    — BUG-SU-1, 2
 ✅ src/pages/OAuthCallback.jsx             — BUG-OAUTH-1(P4)
 ✅ src/pages/ShareResult.jsx               — 확정 버그 없음
+✅ src/pages/admin/Dashboard.jsx           — BUG-DASH-1 (pendingFeedbacks 공식 오류 — 반려 피드백 포함)
+✅ src/pages/admin/Revenue.jsx             — 확정 버그 없음 (D-68 ✅, D-65+D-69 ✅)
+✅ src/pages/admin/BugReports.jsx          — BUG-ADM-1 (handleSaveMemo error 미캡처+항상낙관적갱신), BUG-ADM-2 (handleSendReply 에러state 없음)
 ✅ src/pages/admin/CompanyManagement.jsx   — BUG-NEW-7
 ✅ src/pages/admin/Missions.jsx            — BUG-NEW-6
 ✅ src/pages/admin/PurityFilter.jsx        — BUG-NEW-8
@@ -248,102 +298,52 @@ P3 마이너 (7건): BUG-NEW-7, 9, 11(잠정), BUG-VD-2, BUG-SU-2, BUG-PM-1(잠�
 ## 4. 조사 미완료 파일 (우선순위 순)
 ================================================================
 
-1.  src/pages/panel/Missions.jsx
+1.  src/pages/admin/Account.jsx
     확인 포인트:
-    - feedbackMap에 dismissed 필드 포함 여부 (BUG-NEW-5 수평전개)
-    - [수정 필요] 탭 뱃지 카운트 dismissed/만료 필터 일관성 (D-72)
-    - 수락 모달 onConfirm await 패턴 (D-69)
-    - accept_mission_slot RPC 에러 처리
-    - cancel_panel_feedback RPC D-3 준수
-
-2.  src/pages/panel/ActiveMission.jsx
-    확인 포인트:
-    - 제출 후 filled_count/total_missions RPC 호출 패턴 (D-4, C-4)
-    - 재작성 모드 isResubmit 분기 (D-29)
-    - deadline 만료 체크 로직 (D-76)
-    - 서브미션 자동저장 JSON에 제출 게이트 state 포함 여부 (D-59)
-    - 이미지 미션 코멘트 debounce flush (D-30)
-
-3.  src/pages/admin/Revenue.jsx
-    확인 포인트:
-    - feedbacks 기반 정산 집계 패턴
-    - draft 필터 포함 여부 (D-68)
-    - ConfirmModal D-65+D-69 준수
-
-4.  src/pages/admin/BugReports.jsx
-    확인 포인트:
-    - handleStatusChange() 낙관적 UI + DB 에러 처리
-
-5.  src/pages/admin/Dashboard.jsx
-    확인 포인트:
-    - 통계 count 쿼리 draft 필터 (D-68)
-    - Realtime 채널명 Date.now() 접미사 (D-96)
-
-6.  src/pages/company/AIReport.jsx
-    확인 포인트:
-    - Edge Function 호출 에러 처리
-
-7.  src/pages/company/Diagnosis.jsx
-    확인 포인트:
-    - loadFeedbacks(ids, msList) 두 인자 패턴 (D-89)
-    - hasData 모든 경로 갱신 (D-89)
-    - period useEffect 의존 배열
-
-8.  src/pages/company/Pricing.jsx
-    확인 포인트:
-    - grant_plan_credits RPC 에러 처리
-    - ConfirmModal D-65+D-69
-
-9.  src/pages/company/Account.jsx
-    확인 포인트:
-    - isDirty 탭 전환 경고 로직
+    - isDirty 탭 전환 경고 로직 (company/Account와 동일 패턴)
     - 비밀번호 변경 재검증 패턴 (D-10)
 
-10. src/pages/admin/Account.jsx
-    확인 포인트:
-    - 동일 패턴 확인
-
-11. src/pages/Landing.jsx
+2.  src/pages/Landing.jsx
     확인 포인트:
     - CSS className 연결 여부 (D-39)
     - StepAnimations/ExpertPanelCloud 에러 처리
 
-12. src/components/ui/index.jsx
+3.  src/components/ui/index.jsx
     확인 포인트:
     - ConfirmModal errorMsg prop 구현 (D-65)
     - createPortal 사용 여부 (D-19)
 
-13. src/components/ui/ImageAnnotator.jsx
+4.  src/components/ui/ImageAnnotator.jsx
     확인 포인트:
     - imgError state + onError 핸들러 (D-45)
     - readonly 모드 분기
 
-14. src/components/ui/PanelTargetStep.jsx
+5.  src/components/ui/PanelTargetStep.jsx
     확인 포인트:
     - forwardRef + useImperativeHandle 패턴
     - 업그레이드 팝업 createPortal (D-19)
 
-15. src/components/ui/BugReportModal.jsx
+6.  src/components/ui/BugReportModal.jsx
     확인 포인트:
     - Storage 업로드 실패 graceful fallback
     - createPortal (D-19)
 
-16. src/components/ui/NotificationCenter.jsx
+7.  src/components/ui/NotificationCenter.jsx
     확인 포인트:
     - Realtime 채널명 Date.now() 접미사 (D-96)
     - delete { error } 캡처 (D-79)
     - 포털별 .or() 필터
 
-17. src/lib/notify.js
+8.  src/lib/notify.js
     확인 포인트:
     - prefKey 조회 로직
     - targetRole 파라미터 처리
 
-18. src/lib/honorLevels.js
+9.  src/lib/honorLevels.js
     확인 포인트:
     - getPanelReward 계산 로직 정확성
 
-19. src/App.jsx
+10. src/App.jsx
     확인 포인트:
     - 라우트 목록이 2_Architecture.txt와 일치하는지
     - RoleRoute 정의 및 리다이렉트 로직
