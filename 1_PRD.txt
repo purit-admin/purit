@@ -226,6 +226,8 @@
      C. 텍스트 미션 (image_urls 없음 && !isSubMission):
         · 패널 목록 + 상세 뷰 + 하단 CustomQuestionsSection 집계 (LP 추가 질문 있을 때) + 도움됨 버튼
    - 공유 링크: 우측 미션 헤더 영역 배치 (missions.share_token 생성/복사/해제)
+     · 코멘트 공개/어노테이션 공개 체크박스: share_permissions JSONB DB 저장 (낙관적 UI)
+       - 기업 포털 Results.jsx 자체 열람에는 영향 없음 — /share/:token 외부 공유 시에만 적용
    - 패널 직군/경력 뱃지: 각 피드백 항목 옆에 패널의 직군(blue)·경력(gray) 뱃지 표시
      · 이름·전화번호 비공개 — get_panel_public_profiles RPC(SECURITY DEFINER) 경유
      · 표시 위치: 종합 탭 총평, 차원 탭 어노테이션, 텍스트 미션 패널 목록,
@@ -992,8 +994,20 @@
 - /signup : Signup.jsx (공개, role 선택 포함)
 - /share/:token : ShareResult.jsx (공개, 인증 불필요)
   - get_shared_mission(p_token) SECURITY DEFINER RPC 호출
-  - 미션 제목·페르소나·피드백 수·5차원 평균 점수 표시
+  - 미션 제목·페르소나·피드백 수·5차원 평균 점수(레이더+바) 표시
   - 토큰 없거나 만료 시 404 화면
+  - share_permissions: 기업이 Results.jsx에서 체크박스로 제어
+    · 코멘트 공개(show_comments): 패널 총평 섹션 노출 여부
+    · 어노테이션 공개(show_annotations): 이미지 어노테이션 섹션 노출 여부
+  - 이미지 어노테이션 뷰어 ★ 신규:
+    · 이미지 탭 (복수 이미지 시): 전환 시 강조·차원 필터 초기화
+    · 차원 탭 5개 항상 표시 (어노테이션 없어도 숨기지 않음)
+      - 탭 카운트: 전체 이미지 합산 건수 표시
+      - 어노테이션 없는 차원: 회색 텍스트로 표시
+    · 이미지(좌) + 코멘트 패널(우) 2열 레이아웃
+      - ImageAnnotator readonly 모드: 차원 탭 필터 적용 어노테이션만 표시
+      - 코멘트 클릭 → highlightedId로 해당 박스만 강조, 재클릭 해제
+    · ANN_DIMS: ImageAnnotator와 동일한 차원별 색상 사용
 - /*/notifications : NotificationCenter.jsx (역할별 알림, 각 포털 공유)
   - 알림 클릭 시 action_url 페이지로 자동 이동 (읽음 처리 동시)
   - notifications.target_role 컬럼으로 포털별 알림 분리 ('admin'|'company'|'panel'|null)

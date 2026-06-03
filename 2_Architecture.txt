@@ -349,7 +349,23 @@ purit/
 │   │                  loadPanelDetail: .limit(5) 제거 → 전체 로드, feedbackDetailPage state + DETAIL_PAGE_SIZE=5
 │   │                  onFeedbackClick prop: navigate('/admin/purity', { state: { feedbackId } })
 │   └── pages/
-│       ├── Landing.jsx, Login.jsx, Signup.jsx, ShareResult.jsx (/share/:token 공개), OAuthCallback.jsx (/oauth/callback 공개) ★
+│       ├── Landing.jsx, Login.jsx, Signup.jsx, OAuthCallback.jsx (/oauth/callback 공개) ★
+│   ※ ShareResult.jsx (/share/:token 공개) ★ 어노테이션 뷰어 개편 (2026-06-06)
+│              state: activeImg(0) / activeDim('all') / highlightedId(null)
+│              ANN_DIMS: ImageAnnotator와 동일한 차원 키·색상 (clarity=#34C759 / relevance=#f59e0b / value=#6366f1 / differentiation=#ef4444 / trust=#94a3b8)
+│              annotations: RPC 반환 배열에 인덱스 기반 id 부여 → (data.annotations||[]).map((a,i)=>({...a,id:i}))
+│                id 필요 이유: ImageAnnotator의 getDimSeq·highlightedId·selectedAnn이 ann.id 사용
+│              이미지 탭: 전환 시 setActiveImg(i) + setHighlightedId(null)
+│              차원 탭 5개: 어노테이션 0건이어도 항상 표시 (숨김 금지)
+│                탭 카운트: annotations.filter(a=>a.dimension===d.key).length — 전체 이미지 합산 (activeImg 미적용)
+│                0건 차원: color='#C0C9D4' 회색 텍스트, 숫자 미표시
+│              이미지+코멘트 패널:
+│                imgAnns = annotations.filter(a=>a.image_index===activeImg)
+│                dimAnns = activeDim==='all' ? imgAnns : imgAnns.filter(a=>a.dimension===activeDim)
+│                ImageAnnotator: imageUrl / imageIndex / annotations=dimAnns / seqPool=annotations / readonly=true / highlightedId
+│                코멘트 패널(width:260): withComment(dimAnns 중 comment 있는 것) 목록
+│                  seqNum = annotations.filter(x=>x.dimension===a.dimension).findIndex(x=>x.id===a.id)+1 (seqPool 일치 계산)
+│                  클릭 → setHighlightedId(isHl ? null : a.id) 토글
 │   ※ Login.jsx: 역할 선택(기업/패널) → Google 로그인 버튼 + 이메일/비밀번호 폼 구조 ★ 개편
 │              role state + googleLoading state / handleGoogle(): signInWithGoogle(role, 'login') 호출 (D-94)
 │              GoogleIcon 인라인 SVG 컴포넌트 (Google 공식 4색)

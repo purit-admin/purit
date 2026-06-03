@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from 'recharts';
+import ImageAnnotator from '../components/ui/ImageAnnotator';
 
 const DIMS = [
   { key: 'clarity',         label: '명확성',  color: '#6366F1' },
@@ -19,13 +20,13 @@ const TYPE_LABELS = {
   email: '이메일 검증',
 };
 
-const DIM_LABEL_MAP = {
-  clarity: '명확성',
-  relevance: '관련성',
-  value: '가치',
-  differentiation: '차별화',
-  trust: '신뢰',
-};
+const ANN_DIMS = [
+  { key: 'clarity',         label: '명확성', color: '#34C759' },
+  { key: 'relevance',       label: '관련성', color: '#f59e0b' },
+  { key: 'value',           label: '가치',   color: '#6366f1' },
+  { key: 'differentiation', label: '차별화', color: '#ef4444' },
+  { key: 'trust',           label: '신뢰',   color: '#94a3b8' },
+];
 
 function extractOverallComment(suggestions) {
   if (!suggestions) return '';
@@ -42,6 +43,9 @@ export default function ShareResult() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [activeImg, setActiveImg] = useState(0);
+  const [activeDim, setActiveDim] = useState('all');
+  const [highlightedId, setHighlightedId] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -81,7 +85,7 @@ export default function ShareResult() {
   const isSub = ['preference', 'pricing', 'email'].includes(data.type);
   const typeLabel = TYPE_LABELS[data.type];
   const feedbacks = data.feedbacks || [];
-  const annotations = data.annotations || [];
+  const annotations = (data.annotations || []).map((a, i) => ({ ...a, id: i }));
   const subResp = data.sub_responses;
 
   const radarData = DIMS.map(d => ({
@@ -89,12 +93,6 @@ export default function ShareResult() {
     value: scores[d.key] || 0,
     fullMark: 5,
   }));
-
-  const annByDim = {};
-  annotations.forEach(a => {
-    if (!annByDim[a.dimension]) annByDim[a.dimension] = [];
-    annByDim[a.dimension].push(a);
-  });
 
   const scoreColor = overallAvg >= 4 ? '#10B981' : overallAvg <= 2 ? '#EF4444' : '#0F172A';
 
@@ -197,32 +195,101 @@ export default function ShareResult() {
           </div>
         )}
 
-        {/* Annotation summary */}
-        {isImage && perms.show_annotations && annotations.length > 0 && (
+        {/* Image + Annotations */}
+        {isImage && perms.show_annotations && (
           <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '20px 24px', marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#4B556D', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>차원별 어노테이션 코멘트</div>
-            {Object.entries(annByDim).map(([dim, anns]) => {
-              const withComment = anns.filter(a => a.comment);
-              if (!withComment.length) return null;
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#4B556D', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>이미지 어노테이션</div>
+
+            {/* 이미지 탭 */}
+            {data.image_urls.length > 1 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                {data.image_urls.map((_, i) => (
+                  <button key={i} onClick={() => { setActiveImg(i); setHighlightedId(null); }}
+                    style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid',
+                      borderColor: activeImg === i ? '#10367D' : '#E2E8F0',
+                      background: activeImg === i ? '#10367D' : '#fff',
+                      color: activeImg === i ? '#fff' : '#4B556D',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    이미지 {i + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* 차원 탭 */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+              <button onClick={() => { setActiveDim('all'); setHighlightedId(null); }}
+                style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid',
+                  borderColor: activeDim === 'all' ? '#10367D' : '#E2E8F0',
+                  background: activeDim === 'all' ? '#10367D' : '#fff',
+                  color: activeDim === 'all' ? '#fff' : '#4B556D',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                전체 {annotations.filter(a => a.image_index === activeImg).length}
+              </button>
+              {ANN_DIMS.map(d => {
+                const cntAll = annotations.filter(a => a.dimension === d.key).length;
+                const cntImg = annotations.filter(a => a.image_index === activeImg && a.dimension === d.key).length;
+                const isAct = activeDim === d.key;
+                return (
+                  <button key={d.key} onClick={() => { setActiveDim(d.key); setHighlightedId(null); }}
+                    style={{ padding: '5px 14px', borderRadius: 20,
+                      border: `1px solid ${isAct ? d.color : '#E2E8F0'}`,
+                      background: isAct ? d.color : '#fff',
+                      color: isAct ? '#fff' : cntAll === 0 ? '#C0C9D4' : '#4B556D',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {d.label}{cntAll > 0 ? ` ${cntAll}` : ''}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 이미지 + 코멘트 패널 */}
+            {(() => {
+              const imgAnns = annotations.filter(a => a.image_index === activeImg);
+              const dimAnns = activeDim === 'all' ? imgAnns : imgAnns.filter(a => a.dimension === activeDim);
+              const withComment = dimAnns.filter(a => a.comment);
               return (
-                <div key={dim} style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ background: 'rgba(16,54,125,0.08)', color: '#10367D', padding: '2px 8px', borderRadius: 10, fontSize: 11 }}>
-                      {DIM_LABEL_MAP[dim] || dim}
-                    </span>
-                    <span style={{ color: '#8598AA', fontWeight: 400, fontSize: 12 }}>{withComment.length}개 코멘트</span>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <ImageAnnotator
+                      imageUrl={data.image_urls[activeImg]}
+                      imageIndex={activeImg}
+                      annotations={dimAnns}
+                      seqPool={annotations}
+                      readonly={true}
+                      highlightedId={highlightedId}
+                    />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {withComment.map((a, i) => (
-                      <div key={i} style={{ fontSize: 13, color: '#0F172A', padding: '8px 12px', background: '#F8FAFC', borderRadius: 8, lineHeight: 1.6, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: 11, color: '#8598AA', flexShrink: 0, marginTop: 2 }}>점수 {a.score}</span>
-                        <span>{a.comment}</span>
+                  {withComment.length > 0 && (
+                    <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#8598AA', marginBottom: 2 }}>
+                        코멘트 {withComment.length}개 · 클릭하면 해당 박스 강조
                       </div>
-                    ))}
-                  </div>
+                      {withComment.map(a => {
+                        const dm = ANN_DIMS.find(d => d.key === a.dimension);
+                        const isHl = highlightedId === a.id;
+                        const seqNum = annotations.filter(x => x.dimension === a.dimension).findIndex(x => x.id === a.id) + 1;
+                        return (
+                          <div key={a.id}
+                            onClick={() => setHighlightedId(isHl ? null : a.id)}
+                            style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                              border: `1px solid ${isHl ? (dm?.color || '#10367D') : '#E2E8F0'}`,
+                              background: isHl ? `${dm?.color}18` : '#F8FAFC',
+                              transition: 'border-color 0.15s, background 0.15s' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <span style={{ background: dm?.color || '#888', color: '#fff', borderRadius: 4, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{seqNum}</span>
+                              <span style={{ fontSize: 11, color: dm?.color || '#888', fontWeight: 600 }}>{dm?.label}</span>
+                              <span style={{ fontSize: 11, color: '#8598AA', marginLeft: 'auto' }}>{a.score}점</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: '#0F172A', lineHeight: 1.6 }}>{a.comment}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
-            })}
+            })()}
           </div>
         )}
 
