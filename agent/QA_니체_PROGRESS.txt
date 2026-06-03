@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-06 (기업 포털 전수 조사 — 신규 3건 추가)
+최종 업데이트: 2026-06-06 (패널 포털 전수 조사 — Pnl-Active-A·Pnl-Dash-A 추가)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -78,8 +78,32 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 ================================================================
-## 🟢 P3 Minor (6건)
+## 🟢 P3 Minor (7건)
 ================================================================
+
+[Pnl-Dash-A] 패널 대시보드 — '이번 주 활동' 수치에 최근 승인/반려된 과거 피드백이 포함됨
+- 🚨 중요도: P3 — '이번 주 활동' 수치가 실제 이번 주 제출 건수보다 부풀려질 수 있어 패널에게 오해 소지
+- 📍 위치: src/pages/panel/Dashboard.jsx (line 172-175)
+- 🕵️‍♂️ 재현: 패널이 30일 전 제출한 피드백을 어드민이 오늘 승인/반려 → "이번 주 활동: 1" 오표시
+- 🤦‍♂️ 현재:
+    ```js
+    const weeklyCount = histFeedbacks.filter(f => {
+      if (!f.updated_at) return false;
+      return new Date(f.updated_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    }).length;
+    ```
+    updated_at은 승인(purity_passed=true) 및 반려(status='rejected') 시점에도 갱신됨.
+    30일 전 제출 후 오늘 승인된 피드백의 updated_at=오늘 → 이번 주 카운트에 포함됨.
+    PRD: "이번 주 활동(7일 내 제출)" — 제출 시점 기준이어야 함.
+- ✨ 기대: status==='submitted'인 것만 updated_at 기준 7일 필터 (draft→submitted UPDATE = 제출 시점)
+    ```js
+    const weeklyCount = histFeedbacks.filter(f => {
+      if (!f.updated_at) return false;
+      const isRecent = new Date(f.updated_at) >= new Date(Date.now() - 7*24*60*60*1000);
+      return isRecent && (f.status === 'submitted' || f.purity_passed);  // 제출·승인 모두 포함하되 최근 updated_at
+    }).length;
+    ```
+    더 간단한 대안: `f.created_at` 기준 7일 필터 (수락=초안 생성 시점 ≈ 제출 시점)
 
 [기업-설정-A] company/Settings.jsx — handleChangeRole() DB 실패 시 에러 메시지 화면 미표시
 - 🚨 중요도: P3 — 역할 드롭다운이 갑자기 이전 값으로 되돌아가지만 사용자에게 아무런 안내 없음. 왜 변경이 안 됐는지 알 수 없어 혼란.
@@ -242,10 +266,10 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 11건
+미완료 합계: 12건
   🔴 P1  0건
   🟡 P2  4건
-  🟢 P3  6건
+  🟢 P3  7건
   ⚪ P4  1건
 
 스킵/보류: 22건
