@@ -356,6 +356,9 @@ export default function MissionList() {
       return;
     }
     setFeedbackMap(prev => ({ ...prev, [modal.mission.id]: { status: 'draft', id: newFbId, suggestions: null } }));
+    // 기업에게 첫 패널 매칭 알림 (RPC 내부에서 filled_count=1 조건 검사)
+    supabase.rpc('notify_company_first_panel_accepted', { p_mission_id: modal.mission.id })
+      .then(({ error }) => { if (error) console.warn('[notify_first_panel]', error.message); });
     const target = modal.mission.id;
     setModal(null);
     navigate(`/panel/active?id=${target}`);

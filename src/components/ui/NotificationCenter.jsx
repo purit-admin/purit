@@ -21,20 +21,29 @@ export default function NotificationCenter({ role = 'company' }) {
   const navigate = useNavigate();
   const [notifs, setNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('general'); // 'general' | 'bugs' (admin only)
+  const [tab, setTab] = useState('missions'); // admin: 'missions' | 'feedback' | 'bugs'
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
 
-  const isBug = n => n.action_url === '/admin/reports';
+  const isBug      = n => n.action_url === '/admin/reports';
+  const isFeedback = n => n.action_url?.startsWith('/admin/purity');
+  const isMission  = n => !isBug(n) && !isFeedback(n);
+
+  const ADMIN_TABS = [
+    { key: 'missions', label: '의뢰',       filter: isMission  },
+    { key: 'feedback', label: '피드백',      filter: isFeedback },
+    { key: 'bugs',     label: '버그 리포트', filter: isBug      },
+  ];
+
   const displayed = role === 'admin'
-    ? notifs.filter(n => tab === 'bugs' ? isBug(n) : !isBug(n))
+    ? notifs.filter(ADMIN_TABS.find(t => t.key === tab)?.filter ?? isMission)
     : notifs;
   const totalPages = Math.ceil(displayed.length / PAGE_SIZE);
   const paged = displayed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const unread = displayed.filter(n => !n.read).length;
-  const bugUnread = notifs.filter(n => isBug(n) && !n.read).length;
-  const generalUnread = notifs.filter(n => !isBug(n) && !n.read).length;
+
+  const tabUnread = key => notifs.filter(n => (ADMIN_TABS.find(t => t.key === key)?.filter ?? (() => false))(n) && !n.read).length;
 
   const pagedIds = paged.map(n => n.id);
   const allPageSelected = pagedIds.length > 0 && pagedIds.every(id => selected.has(id));
@@ -174,29 +183,29 @@ export default function NotificationCenter({ role = 'company' }) {
       {/* 어드민 탭 */}
       {role === 'admin' && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
-          {[
-            { key: 'general', label: '일반 알림', count: generalUnread },
-            { key: 'bugs', label: '버그 리포트', count: bugUnread },
-          ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => { setTab(t.key); setPage(1); }}
-              style={{
-                padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
-                color: tab === t.key ? 'var(--text)' : 'var(--text-3)',
-                borderBottom: tab === t.key ? '2px solid var(--text)' : '2px solid transparent',
-                marginBottom: -1, transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
-              }}
-            >
-              {t.label}
-              {t.count > 0 && (
-                <span style={{ background: 'var(--red)', color: '#fff', fontSize: 11, fontFamily: 'var(--font-sans)', padding: '1px 7px', borderRadius: 20 }}>
-                  {t.count}
-                </span>
-              )}
-            </button>
-          ))}
+          {ADMIN_TABS.map(t => {
+            const cnt = tabUnread(t.key);
+            return (
+              <button
+                key={t.key}
+                onClick={() => { setTab(t.key); setPage(1); }}
+                style={{
+                  padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
+                  color: tab === t.key ? 'var(--text)' : 'var(--text-3)',
+                  borderBottom: tab === t.key ? '2px solid var(--text)' : '2px solid transparent',
+                  marginBottom: -1, transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                {t.label}
+                {cnt > 0 && (
+                  <span style={{ background: 'var(--red)', color: '#fff', fontSize: 11, fontFamily: 'var(--font-sans)', padding: '1px 7px', borderRadius: 20 }}>
+                    {cnt}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 

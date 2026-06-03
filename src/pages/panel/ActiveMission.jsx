@@ -463,7 +463,7 @@ export default function ActiveMission() {
       .eq('id', draftId).then(() => setAutoSaving(false));
   };
 
-  // 제출 후 공통 후처리: 게이미피케이션 RPC + 기업 알림
+  // 제출 후 공통 후처리: 게이미피케이션 RPC + 어드민 알림
   const postSubmitActions = async (resubmitMode = false) => {
     if (!panel?.id) return;
     if (!resubmitMode) {
@@ -472,6 +472,10 @@ export default function ActiveMission() {
     }
     supabase.rpc('check_and_award_badges', { p_panel_id: panel.id })
       .then(({ error }) => { if (error) console.warn('[check_and_award_badges]', error.message); });
+    if (mission?.id) {
+      supabase.rpc('notify_admin_on_feedback_submitted', { p_mission_id: mission.id, p_is_resubmit: resubmitMode })
+        .then(({ error }) => { if (error) console.warn('[notify_admin_feedback]', error.message); });
+    }
     if (resubmitMode && mission?.id) {
       supabase.rpc('recalc_mission_consumed', { p_mission_id: mission.id })
         .then(({ error }) => { if (error) console.warn('[recalc_consumed]', error.message); });

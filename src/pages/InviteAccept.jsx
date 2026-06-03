@@ -73,6 +73,14 @@ export default function InviteAccept() {
       return;
     }
 
+    // 기업 오너에게 팀원 합류 알림
+    const memberName = authUser.user_metadata?.name || authUser.user_metadata?.full_name || authUser.email;
+    supabase.rpc('notify_owner_team_member_joined', {
+      p_company_id:  data.company_id,
+      p_member_role: data.role,
+      p_member_name: memberName,
+    }).catch(err => console.warn('[notify_team_joined]', err));
+
     setStatus('accepted');
     setTimeout(() => navigate('/company'), 2500);
   }

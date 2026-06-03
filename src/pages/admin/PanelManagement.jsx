@@ -162,10 +162,10 @@ export default function AdminPanels() {
       setActing(false);
       return;
     }
-    // 첫 심사 승인(pending → active) 시 환영 알림 발송
-    if (fields.status === 'active') {
-      const targetPanel = panels.find(p => p.id === id);
-      if (targetPanel?.user_id && targetPanel?.status === 'pending') {
+    const targetPanel = panels.find(p => p.id === id);
+    if (targetPanel?.user_id) {
+      // 첫 심사 승인(pending → active)
+      if (fields.status === 'active' && targetPanel.status === 'pending') {
         sendNotification(targetPanel.user_id, {
           type: 'success',
           icon: '🎉',
@@ -173,7 +173,32 @@ export default function AdminPanels() {
           body: 'Purit이 인증한 마케터로 공식 합류하셨습니다. 실제 기업의 랜딩페이지·광고 소재를 전문가 시각으로 진단하고, 더 나은 마케팅을 함께 만들어 나가요.',
           actionUrl: '/panel/missions',
           targetRole: 'panel',
-        }).catch(err => console.warn('[updatePanel] 환영 알림 발송 실패:', err));
+        }).catch(err => console.warn('[updatePanel] 승인 알림 실패:', err));
+      }
+      // 계정 정지 (심사 거절: pending→suspended / 활동 정지: active→suspended)
+      if (fields.status === 'suspended') {
+        const isPendingRejection = targetPanel.status === 'pending';
+        sendNotification(targetPanel.user_id, {
+          type: 'warning',
+          icon: isPendingRejection ? '❌' : '🚫',
+          title: isPendingRejection ? '심사에서 탈락하였습니다' : '계정이 정지되었습니다',
+          body: isPendingRejection
+            ? '아쉽게도 이번 심사에서 탈락하였습니다. 문의사항이 있으시면 고객센터에 연락해 주세요.'
+            : '계정 이용이 정지되었습니다. 사유가 있으시면 고객센터에 문의해 주세요.',
+          actionUrl: '/panel',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 정지 알림 실패:', err));
+      }
+      // 계정 재활성화 (suspended → active)
+      if (fields.status === 'active' && targetPanel.status === 'suspended') {
+        sendNotification(targetPanel.user_id, {
+          type: 'success',
+          icon: '✅',
+          title: '계정 정지가 해제되었습니다',
+          body: '계정이 다시 활성화되었습니다. 미션 탐색 페이지에서 새로운 의뢰에 참여할 수 있습니다.',
+          actionUrl: '/panel/missions',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 재활성화 알림 실패:', err));
       }
     }
     setPanels(ps => ps.map(p => p.id === id ? { ...p, ...fields } : p));

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-05 (확장성 쿼리 최적화 — 기업 10개/패널 100명 규모 Scale-A~K 11건 수정)
+최종 업데이트: 2026-06-06 (알림 6종 추가 + 어드민 알림 탭 3분류 개편 — migration 073)
 ================================================================
 
 ## 기술 스택
@@ -40,7 +40,7 @@ purit/
 │   │                  panels/companies.notif_prefs 키 미설정=수신, false=차단 (옵트아웃 방식)
 │   │                  panel prefKey 목록: feedbackApproved / feedbackRejected / deadlineWarning
 │   │                  company prefKey 목록: missionComplete / missionStatusChange / earlyComplete
-│   │                  prefKey 없음: admin 대상 알림 또는 PRD에서 사용자 토글 불가 알림 (버그 답변 등)
+│   │                  prefKey 없음: admin 대상 알림 / 첫 패널 매칭은 missionStatusChange 적용 / 팀원 합류·심사 거절·정지·재활성화는 항상 발송 (토글 불가)
 │   │              lp 템플릿 sectionLabel 필드: '랜딩페이지 진단'(3종)·'광고 소재 진단'(3종)·'제품 상세 페이지 진단'(3종)·'영상/숏폼 광고 진단'(3종)
 │   │              QuestionTemplates.jsx·NewMission.jsx: sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링 (category='랜딩페이지' 유지 — 기존 필터 로직 불변)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getExperienceCareerKey·getPanelReward·fmtWon·fmtKRW 헬퍼)
@@ -90,7 +90,11 @@ purit/
 │   │                  어노테이션 뱃지: 한국어 접두사 없이 숫자만 표시 (색상으로 차원 구분)
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   │                  쿼리: .or('target_role.eq.${role},target_role.is.null') — 포털별 알림 분리 ★
-│   │                  어드민 탭: 'general'|'bugs' — isBug(n)=action_url==='/admin/reports' 구분, 탭별 unread 뱃지
+│   │                  어드민 탭 3개 ★ 개편: 'missions'|'feedback'|'bugs' (기본 탭: 'missions')
+│   │                    isBug(n): action_url === '/admin/reports' → 버그 탭
+│   │                    isFeedback(n): action_url?.startsWith('/admin/purity') → 피드백 탭
+│   │                    isMission(n): !isBug && !isFeedback → 의뢰 탭
+│   │                    ADMIN_TABS 배열로 filter 함수 정의, tabUnread(key) 헬퍼로 탭별 미읽음 수 계산
 │   │                  페이지네이션: PAGE_SIZE=10, paged 슬라이스, 탭·페이지 전환 시 선택 초기화 ★
 │   │                  선택/삭제: selected Set + toggleOne/toggleAll + deleteSelected (notifications DELETE .in('id', ids)) ★
 │   │                  markAll(): displayed(현재 탭 전체) 기준 일괄 읽음, 페이지 무관
@@ -469,6 +473,17 @@ purit/
 │                072(create_oauth_user_profile_invite: create_oauth_user_profile RPC 시그니처 확장 — p_invite_token TEXT DEFAULT NULL 추가
 │                  기존 2-param 함수 DROP 후 3-param 재생성 / company 분기에서 valid invite_token 있으면 companies INSERT 건너뜀
 │                  migration 071(이메일 경로)과 대칭 구조 완성 — D-103 참조)
+│                073(notify_feedback_and_team: 알림 추가 6종 — SECURITY DEFINER RPC 3개)
+│                  notify_admin_on_feedback_submitted(p_mission_id, p_is_resubmit): 패널 피드백 제출/재제출 시 어드민 전원 알림 (피드백 탭)
+│                    p_is_resubmit=false → 📝 "새 피드백 제출됨" / true → 🔄 "반려 피드백 재제출됨"
+│                    actionUrl: /admin/purity
+│                  notify_company_first_panel_accepted(p_mission_id): 첫 패널 수락 시 기업 오너 알림
+│                    내부에서 filled_count=1 조건 검사 → 중복 발송 방지 / missionStatusChange prefKey 적용
+│                    actionUrl: /company
+│                  notify_owner_team_member_joined(p_company_id, p_member_role, p_member_name): 팀원 초대 수락 시 기업 오너 알림
+│                    actionUrl: /company/settings
+│                  ※ 심사 거절(pending→suspended) / 활동 정지(active→suspended) / 재활성화(suspended→active) 알림:
+│                    client-side sendNotification (PanelManagement.jsx updatePanel) — RPC 불필요
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)

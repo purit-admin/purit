@@ -636,3 +636,25 @@
     → Returns: {ok: true, email, role, company_name, expires_at} 또는 {error: 'invalid_or_expired'}
     → InviteAccept.jsx useEffect init()에서 마운트 시 호출 (로그인 여부 무관)
     → 파일: supabase/migrations/067_team_invite_token.sql
+
+  notify_admin_on_feedback_submitted(p_mission_id UUID, p_is_resubmit BOOLEAN DEFAULT false) RETURNS void
+    → SECURITY DEFINER — 어드민 전원(raw_app_meta_data->>'role'='admin') 루프로 알림 INSERT
+    → p_is_resubmit=false: 📝 "새 피드백 제출됨" / true: 🔄 "반려 피드백 재제출됨"
+    → actionUrl: /admin/purity (NotificationCenter 피드백 탭으로 분류)
+    → 호출: panel/ActiveMission.jsx postSubmitActions() fire-and-forget
+    → 파일: supabase/migrations/073_notify_feedback_and_team.sql
+
+  notify_company_first_panel_accepted(p_mission_id UUID) RETURNS void
+    → SECURITY DEFINER — missions JOIN companies 로 오너 user_id 조회
+    → 내부에서 filled_count=1 조건 검사 → 첫 번째 패널 수락 시에만 발송 (중복 방지)
+    → missionStatusChange prefKey 적용 (companies.notif_prefs 확인)
+    → actionUrl: /company
+    → 호출: panel/Missions.jsx accept_mission_slot 성공 직후 fire-and-forget
+    → 파일: supabase/migrations/073_notify_feedback_and_team.sql
+
+  notify_owner_team_member_joined(p_company_id UUID, p_member_role TEXT, p_member_name TEXT) RETURNS void
+    → SECURITY DEFINER — companies WHERE id=p_company_id 로 오너 user_id 조회
+    → 역할명 한글 변환: editor→편집자, viewer→뷰어
+    → actionUrl: /company/settings
+    → 호출: InviteAccept.jsx handleAccept() 성공 직후 fire-and-forget
+    → 파일: supabase/migrations/073_notify_feedback_and_team.sql
