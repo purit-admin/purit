@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-06 (알림 6종 추가 + 어드민 알림 탭 3분류 개편 — migration 073)
+최종 업데이트: 2026-06-06 (companies RLS 긴급 수정 + RPC GRANT 누락 보완 — migration 074·075)
 ================================================================
 
 ## 기술 스택
@@ -484,6 +484,18 @@ purit/
 │                    actionUrl: /company/settings
 │                  ※ 심사 거절(pending→suspended) / 활동 정지(active→suspended) / 재활성화(suspended→active) 알림:
 │                    client-side sendNotification (PanelManagement.jsx updatePanel) — RPC 불필요
+│                074(fix_companies_rls_owner_admin: companies RLS 긴급 수정 — 두 가지 복합 버그 수정)
+│                  [1] 오너/어드민 정책 추가: company_owner_select(user_id=auth.uid()) / company_owner_update / admin_all_companies(app_metadata)
+│                  [2] companies↔team_members RLS 순환 참조 제거:
+│                    get_my_owned_company_ids() SECURITY DEFINER 함수 생성 — companies를 RLS 우회하여 조회
+│                    team_members 정책 4개(SELECT/INSERT/UPDATE/DELETE) 재정의 — company_id IN (SELECT get_my_owned_company_ids())로 교체
+│                    → PostgreSQL "infinite recursion detected in policy" 500 에러 완전 해소 (D-109 참조)
+│                075(fix_rpc_grants: RPC GRANT EXECUTE 누락 보완)
+│                  peek_team_invite(UUID) → TO anon, authenticated (비로그인 사용자 초대 링크 조회용)
+│                  accept_team_invite(UUID) → TO authenticated
+│                  notify_admin_on_feedback_submitted(UUID, BOOLEAN) → TO authenticated
+│                  notify_company_first_panel_accepted(UUID) → TO authenticated
+│                  notify_owner_team_member_joined(UUID, TEXT, TEXT) → TO authenticated
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)

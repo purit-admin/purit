@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-05 (D-105·D-106·D-107·D-108 추가 — 확장성 쿼리 결함 패턴 4종)
+최종 업데이트: 2026-06-06 (D-109 추가 — RLS 활성화 시 순환 참조 + 오너 정책 누락 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1517,3 +1517,30 @@ D-108. 일괄 처리(bulk) 핸들러에서 알림 발송이 개별 N회 → 배�
              배열 INSERT 전 `.filter(f => f.panels?.notif_prefs?.feedbackApproved !== false)` 적용
      → 원칙: sendNotification()을 배열 INSERT로 대체할 때 내부 로직(prefKey 체크·targetRole 검증)을
              반드시 수동으로 복제해야 함. "INSERT만 하면 된다" 착각 → 수신 설정 무시 알림 남발
+
+D-109. 새 테이블에 RLS를 활성화할 때 기존 정책이 없으면 오너/어드민도 접근 불가 + 상호 참조 테이블 간 순환 참조로 500 에러 패턴 ✅ 해결
+     → 증상 1: companies RLS 활성화 후 기업 포털 전체가 "초대 수락 필요" 화면으로 전락 — 오너 본인도 자기 회사 데이터 읽지 못함
+     → 증상 2: 어드민 기업 관리·미션 관리·피드백 관리 데이터 전부 공백
+     → 증상 3: 모든 API 호출이 HTTP 500 반환 (단순 403이 아님)
+     → 원인 1 (정책 누락): migration 069가 companies에 `ENABLE ROW LEVEL SECURITY` 후 팀원 SELECT 정책만 추가
+             PostgreSQL RLS는 "정책 없으면 전원 차단" → 오너·어드민도 데이터 접근 불가
+             → resolveCompany() null 반환 → 기업 포털 전체 붕괴
+     → 원인 2 (순환 참조): companies 정책이 team_members를 조회하고, team_members 정책이 companies를 조회
+             companies RLS → team_members 조회 → team_members RLS → companies 조회 → companies RLS → ...
+             → PostgreSQL "ERROR: infinite recursion detected in policy for relation companies" → HTTP 500
+     → 해결 1: companies에 오너 정책(`user_id = auth.uid()`) + 어드민 정책(`app_metadata.role='admin'`) 추가
+     → 해결 2: `get_my_owned_company_ids()` SECURITY DEFINER 함수 생성 (companies RLS 우회)
+             team_members 정책의 `company_id IN (SELECT id FROM companies WHERE ...)` →
+             `company_id IN (SELECT get_my_owned_company_ids())`로 교체 → 순환 참조 완전 제거
+             SECURITY DEFINER 함수는 postgres 소유 = BYPASSRLS → auth.uid()는 세션 클레임 기반이라 함수 내에서도 동작
+     → 원칙 1: 테이블에 RLS를 처음 활성화할 때 반드시 다음 3가지 정책을 동시에 추가할 것:
+             ① 오너 정책 (user_id = auth.uid() 또는 동등 조건)
+             ② 어드민 정책 (app_metadata.role='admin')
+             ③ 팀원·공유 접근 정책 (해당하는 경우)
+             어느 하나라도 빠지면 해당 유형의 사용자가 데이터를 전혀 읽지 못함
+     → 원칙 2: 두 테이블이 서로의 RLS 정책에서 상대방을 조회하면 반드시 순환 참조 발생
+             진단: 500 에러 + PostgreSQL 로그에 "infinite recursion detected in policy" 메시지
+             해결: 한쪽 방향을 SECURITY DEFINER 함수로 래핑해 RLS를 우회하는 것이 가장 깔끔한 패턴
+     → 원칙 3: GRANT EXECUTE 누락 주의 — SECURITY DEFINER RPC 생성 후 반드시 GRANT 구문 포함할 것
+             비로그인 사용자가 호출해야 하면 `TO anon`, 로그인 사용자는 `TO authenticated`
+             누락 시 클라이언트에서 호출 시 권한 오류 (migration 075 패턴)
