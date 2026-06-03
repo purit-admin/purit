@@ -109,7 +109,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Purit <noreply@purit.io>',
+        from: 'Purit <onboarding@resend.dev>',
         to,
         subject: `[Purit] ${companyName} 팀 초대`,
         html,

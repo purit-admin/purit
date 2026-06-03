@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 import { motion } from 'framer-motion';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -131,7 +132,7 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick }) {
+function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick, canEdit = true }) {
   const filled = m.filled_count ?? 0;
   const isLive = m.status === 'active' && filled >= 1;
   const isDraft = m.status === 'draft';
@@ -197,16 +198,18 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick 
               >
                 이어 작성하기 →
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); onDelete(m.id); }}
-                style={{
-                  padding: '5px 12px', fontSize: 11, fontWeight: 600,
-                  borderRadius: 8, border: 'none',
-                  background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
-                }}
-              >
-                삭제
-              </button>
+              {canEdit && (
+                <button
+                  onClick={e => { e.stopPropagation(); onDelete(m.id); }}
+                  style={{
+                    padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                    borderRadius: 8, border: 'none',
+                    background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer',
+                  }}
+                >
+                  삭제
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -220,7 +223,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick 
               <div style={{ fontSize: 11, color: C.text3 }}>
                 {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
               </div>
-              {m.status === 'active' && filled === 0 && (
+              {canEdit && m.status === 'active' && filled === 0 && (
                 <button
                   onClick={e => { e.stopPropagation(); navigate(DRAFT_ROUTE[m.type || 'landing_page'] || '/company/new', { state: { editMode: true, missionId: m.id } }); }}
                   style={{
@@ -233,7 +236,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick 
                   수정
                 </button>
               )}
-              {m.status === 'active' && filled >= 1 && (
+              {canEdit && m.status === 'active' && filled >= 1 && (
                 <button
                   onClick={e => { e.stopPropagation(); onTerminate(m); }}
                   style={{
@@ -246,7 +249,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick 
                   의뢰 조기 종료
                 </button>
               )}
-              {m.status === 'completed' && (
+              {canEdit && m.status === 'completed' && (
                 <button
                   onClick={e => { e.stopPropagation(); onDelete(m.id); }}
                   style={{
@@ -269,6 +272,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick 
 export default function CompanyDashboard() {
   const navigate = useNavigate();
   const [company, setCompany]         = useState(null);
+  const [teamRole, setTeamRole]       = useState(null); // null=오너, 'editor'|'viewer'=팀원
   const [missions, setMissions]       = useState([]);
   const [feedbacks, setFeedbacks]     = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -341,12 +345,9 @@ export default function CompanyDashboard() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { setLoading(false); return; }
 
-        const { data: co } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+        const { company: co, teamRole: tr } = await resolveCompany(user.id);
         setCompany(co);
+        setTeamRole(tr);
 
         if (co) {
           const { data: ms } = await supabase
@@ -444,6 +445,20 @@ export default function CompanyDashboard() {
     <div style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', color: C.text3, fontSize: 14 }}>불러오는 중...</div>
   );
 
+  if (!company) return (
+    <div style={{ background: C.pageBg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)' }}>
+      <div style={{ textAlign: 'center', maxWidth: 400, padding: '0 24px' }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>✉️</div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 10 }}>초대 수락이 필요합니다</h2>
+        <p style={{ fontSize: 14, color: C.text2, lineHeight: 1.7, marginBottom: 24 }}>
+          팀 초대 이메일에서 수락 링크를 클릭해 주세요.<br/>
+          이미 수락하셨다면 잠시 후 새로고침해 주세요.
+        </p>
+        <Btn onClick={() => navigate('/login')} variant="outline">로그인 페이지로</Btn>
+      </div>
+    </div>
+  );
+
   return (
     <>
     <div className="page-wrap" style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', maxWidth: 1100 }}>
@@ -464,6 +479,21 @@ export default function CompanyDashboard() {
         </div>
       )}
 
+      {/* 팀원 역할 안내 배너 */}
+      {teamRole && (
+        <div style={{
+          marginBottom: 20, padding: '10px 16px', borderRadius: 'var(--radius)',
+          background: 'rgba(16,54,125,0.06)', color: 'var(--text-2)', fontSize: 13,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span>👤</span>
+          <span>
+            <strong>{company?.name}</strong> 팀원으로 접속 중 ·{' '}
+            {teamRole === 'editor' ? '편집자 (의뢰 등록·수정·결과 열람 가능)' : '뷰어 (결과 열람만 가능)'}
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <motion.div {...fadeUp(0)} className="dash-header-row">
         <div>
@@ -472,12 +502,14 @@ export default function CompanyDashboard() {
           </h1>
           <p style={{ color: C.text2, fontSize: 14 }}>광고비 집행 전 전환 결함을 미리 잡으세요.</p>
         </div>
-        <button
-          onClick={() => navigate('/company/new')}
-          style={{ padding: '12px 24px', borderRadius: 12, background: C.primary, color: '#fff', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', height: 48, transition: 'opacity 0.15s' }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >+ 새 의뢰 등록</button>
+        {teamRole !== 'viewer' && (
+          <button
+            onClick={() => navigate('/company/new')}
+            style={{ padding: '12px 24px', borderRadius: 12, background: C.primary, color: '#fff', fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', height: 48, transition: 'opacity 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >+ 새 의뢰 등록</button>
+        )}
       </motion.div>
 
       {/* Stats */}
@@ -699,7 +731,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} onActiveClick={handleActiveCardClick} />)}
+                    {mainPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} onActiveClick={handleActiveCardClick} canEdit={teamRole !== 'viewer'} />)}
                   </div>
                   <Pagination page={mainMissionPage} total={mainMissions.length} onPage={setMainMissionPage} />
                 </>
@@ -719,7 +751,7 @@ export default function CompanyDashboard() {
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} onActiveClick={handleActiveCardClick} />)}
+                    {subPaged.map(m => <CompanyMissionCard key={m.id} m={m} navigate={navigate} onTerminate={setTerminateTarget} onDelete={setDeleteTarget} onActiveClick={handleActiveCardClick} canEdit={teamRole !== 'viewer'} />)}
                   </div>
                   <Pagination page={subMissionPage} total={subMissions.length} onPage={setSubMissionPage} />
                 </>

@@ -595,18 +595,21 @@
     → company/Account.jsx 기업 프로필 탭 저장 시 호출 → true이면 이름 중복 차단
     → 파일: supabase/migrations/055_name_uniqueness.sql
 
-  create_oauth_user_profile(p_role TEXT, p_display_name TEXT) RETURNS BOOLEAN
+  create_oauth_user_profile(p_role TEXT, p_display_name TEXT, p_invite_token TEXT DEFAULT NULL) RETURNS BOOLEAN
     → SECURITY DEFINER — Google OAuth 신규 유저 panels/companies 레코드 생성 (클라이언트 직접 INSERT는 RLS 차단)
     → auth.uid() 기준 인증된 유저만 호출 가능 (authenticated role GRANT)
     → auth.users에서 이메일 조회 → panels.email / companies.email NOT NULL 컬럼에 공급
     → p_role='panel': panels INSERT (user_id, name, email, status='pending', trust_score=0, total_missions=0, honor_points=0, selected_badge=NULL)
-    → p_role='company': companies INSERT (user_id, name, email, plan='starter', credit_balance=0)
+    → p_role='company': p_invite_token이 있고 team_members에 유효한 초대 레코드(status='invited') 매칭 시 INSERT 건너뜀
+      그 외: companies INSERT (user_id, name, email, plan='starter', credit_balance=0)
     → 기존 레코드(user_id 일치) 존재 시 INSERT 생략 → RETURN TRUE (멱등성 보장)
     → OAuthCallback.jsx 신규 OAuth 유저 가입 흐름에서 updateUser(role) 직후 호출
+      capturedInviteTokenRef.current → p_invite_token 파라미터로 전달
     → 파일: supabase/migrations/059_create_oauth_user_profile.sql (최초 생성)
-             + 060_fix_oauth_profile_email.sql (email 컬럼 누락 수정 — CREATE OR REPLACE)
+             + 060_fix_oauth_profile_email.sql (email 컬럼 누락 수정)
              + 061_fix_oauth_panel_trust_score.sql (trust_score=100→0 수정)
-             + 064_fix_oauth_panel_status_pending.sql (status='active'→'pending' 수정) ★ 현재 최신
+             + 064_fix_oauth_panel_status_pending.sql (status='active'→'pending' 수정)
+             + 072_create_oauth_user_profile_invite.sql (p_invite_token 파라미터 추가, 기존 2-param DROP 후 3-param 재생성) ★ 현재 최신
 
   save_panel_verification_docs(p_user_id UUID, p_health_insurance_url TEXT DEFAULT NULL, p_linkedin_url TEXT DEFAULT NULL, p_portfolio_url TEXT DEFAULT NULL) RETURNS BOOLEAN
     → SECURITY DEFINER — 패널 가입 직후 검증 자료(건강보험·LinkedIn·포트폴리오) panels 테이블 저장

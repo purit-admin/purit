@@ -28,6 +28,13 @@ export default function InviteAccept() {
       const { data: { user } } = await supabase.auth.getUser();
       setAuthUser(user);
 
+      // 패널 계정으로 로그인 중이면 수락 불가 안내
+      if (user?.user_metadata?.role === 'panel') {
+        setStatus('error');
+        setErrorMsg('패널 계정으로 로그인되어 있습니다.\n초대 수락은 기업 계정으로 로그인 후 진행해 주세요.');
+        return;
+      }
+
       // 2. 토큰 유효성 확인 (peek_team_invite SECURITY DEFINER RPC)
       const { data, error } = await supabase.rpc('peek_team_invite', { p_token: token });
 
@@ -56,11 +63,13 @@ export default function InviteAccept() {
 
     if (error || data?.error) {
       setStatus('error');
-      setErrorMsg(
-        data?.error === 'invalid_or_expired'
-          ? '초대가 만료되었거나 이미 수락된 링크입니다.'
-          : (error?.message || '수락 처리 중 오류가 발생했습니다.')
-      );
+      if (data?.error === 'invalid_or_expired') {
+        setErrorMsg('초대가 만료되었거나 이미 수락된 링크입니다.');
+      } else if (data?.error === 'email_mismatch') {
+        setErrorMsg(`초대받은 이메일(${data.expected_email || inviteInfo?.email})과 로그인 계정이 다릅니다.\n초대받은 이메일로 로그인해 주세요.`);
+      } else {
+        setErrorMsg(error?.message || '수락 처리 중 오류가 발생했습니다.');
+      }
       return;
     }
 
@@ -76,7 +85,9 @@ export default function InviteAccept() {
 
   function handleSignupRedirect() {
     localStorage.setItem('purit_pending_invite', token);
-    navigate(`/signup?email=${encodeURIComponent(inviteInfo?.email || '')}&role=company`);
+    // invite_token을 URL에 포함 → Signup.jsx가 user_metadata에 심어줌
+    // → handle_new_user 트리거가 companies 레코드 생성을 건너뜀
+    navigate(`/signup?email=${encodeURIComponent(inviteInfo?.email || '')}&role=company&invite_token=${token}`);
   }
 
   // ── 렌더 ──────────────────────────────────────────────────────────────────
@@ -130,8 +141,20 @@ export default function InviteAccept() {
             <>
               <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
               <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>오류가 발생했습니다</h2>
-              <p style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 24 }}>{errorMsg}</p>
-              <Btn onClick={() => navigate('/')} variant="outline" style={{ width: '100%' }}>홈으로</Btn>
+              <p style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 24, whiteSpace: 'pre-line' }}>{errorMsg}</p>
+              {authUser?.user_metadata?.role === 'panel' ? (
+                <Btn
+                  onClick={() => {
+                    localStorage.setItem('purit_pending_invite', token);
+                    navigate('/login?role=company');
+                  }}
+                  style={{ width: '100%', marginBottom: 10 }}
+                >
+                  기업 계정으로 로그인하기 →
+                </Btn>
+              ) : (
+                <Btn onClick={() => navigate('/')} variant="outline" style={{ width: '100%' }}>홈으로</Btn>
+              )}
             </>
           )}
 
@@ -173,6 +196,10 @@ export default function InviteAccept() {
                   <Btn variant="ghost" onClick={() => navigate('/')} style={{ width: '100%', fontSize: 13, color: 'var(--text-3)' }}>
                     취소
                   </Btn>
+                  <p style={{ marginTop: 16, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6, textAlign: 'center' }}>
+                    본인 명의의 Purit 회사 계정이 따로 있다면,<br/>
+                    다른 이메일로 가입 후 수락해 주세요.
+                  </p>
                 </>
               ) : (
                 <>

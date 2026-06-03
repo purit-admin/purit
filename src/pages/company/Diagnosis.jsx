@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 import TimelineTracker from './TimelineTracker';
 
 const DIM_LABEL_MAP = {
@@ -153,7 +154,7 @@ export default function Diagnosis() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
 
-      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      const { company: co } = await resolveCompany(user.id);
       if (!co) { setLoading(false); return; }
 
       const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').order('created_at', { ascending: false });

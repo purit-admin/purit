@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 import { QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
 const TABS = [
@@ -57,7 +58,7 @@ export default function QuestionTemplates() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
 
-      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      const { company: co } = await resolveCompany(user.id);
       if (co) setCompanyId(co.id);
 
       const baseQuery = supabase

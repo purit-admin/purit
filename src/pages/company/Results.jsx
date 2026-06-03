@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, ScoreBar, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip,
@@ -885,7 +886,7 @@ export default function Results() {
       try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
-      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      const { company: co } = await resolveCompany(user.id);
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
       // completed는 전부 표시, cancelled는 어드민이 완료 처리(company_notified_at SET)한 경우만 표시

@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 
 const ROLE_LABELS = { admin: '관리자', member: '멤버', editor: '편집자', viewer: '뷰어' };
 const ROLE_PERMS = {
@@ -17,6 +18,7 @@ export default function AccountSettings() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
   const [inviting, setInviting] = useState(false);
@@ -38,8 +40,9 @@ export default function AccountSettings() {
       if (!user) return;
       setUser(user);
 
-      const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
+      const { company: co, teamRole: tr } = await resolveCompany(user.id);
       setCompany(co);
+      setIsOwner(tr === null);
       if (co) {
         setNotifPrefs(co.notif_prefs || {});
         const [membersRes, invRes] = await Promise.all([
@@ -57,6 +60,7 @@ export default function AccountSettings() {
   }
 
   async function handleInvite() {
+    if (!isOwner) return; // 오너만 팀원 초대 가능
     if (!inviteEmail.trim() || !company) return;
     setInviting(true);
     setInviteError('');
@@ -99,8 +103,8 @@ export default function AccountSettings() {
     setInviteEmail('');
 
     if (fnError) {
-      // 이메일 실패해도 DB 레코드는 유지 — 링크를 직접 공유할 수 있도록 표시
-      setInviteError(`이메일 발송 실패. 아래 링크를 직접 공유하세요:\n${inviteUrl}`);
+      // 이메일 발송 실패해도 DB 레코드는 유지 — 링크를 직접 공유할 수 있도록 안내
+      setInviteSuccess(`초대 링크가 생성됐습니다. 아래 링크를 직접 공유하세요. (7일 후 만료)\n${inviteUrl}`);
     } else {
       setInviteSuccess(`${inviteEmail.trim()}으로 초대 이메일을 발송했습니다. (7일 후 만료)`);
     }
@@ -113,6 +117,16 @@ export default function AccountSettings() {
     if (error) throw new Error('팀원 제거 실패: ' + error.message);
     setMembers(m => m.filter(x => x.id !== id));
     setRemoveError('');
+  }
+
+  async function handleChangeRole(id, newRole) {
+    const prevMembers = members;
+    setMembers(m => m.map(x => x.id === id ? { ...x, role: newRole } : x));
+    const { error } = await supabase.from('team_members').update({ role: newRole }).eq('id', id);
+    if (error) {
+      setMembers(prevMembers); // 실패 시 롤백
+      console.error('[changeRole]', error.message);
+    }
   }
 
   if (loading) return (
@@ -143,7 +157,12 @@ export default function AccountSettings() {
       {/* TEAM TAB */}
       {activeTab === 'team' && (
         <div>
-          <Card style={{ marginBottom: 24, padding: '22px 24px' }}>
+          {!isOwner && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(16,54,125,0.06)', color: 'var(--text-2)', fontSize: 13 }}>
+              팀원은 팀 구성원 목록을 볼 수 있지만, 초대·제거는 오너만 가능합니다.
+            </div>
+          )}
+          {isOwner && <Card style={{ marginBottom: 24, padding: '22px 24px' }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>팀원 초대</div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}>
@@ -162,7 +181,7 @@ export default function AccountSettings() {
                   <option value="viewer">뷰어</option>
                 </select>
               </div>
-              <Btn size="md" onClick={handleInvite} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>
+              {isOwner && <Btn size="md" onClick={handleInvite} disabled={inviting}>{inviting ? '전송 중…' : '초대 전송'}</Btn>}
             </div>
             {inviteSuccess && (
               <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(16,185,129,0.08)', color: '#059669', fontSize: 13, fontWeight: 600 }}>
@@ -179,7 +198,7 @@ export default function AccountSettings() {
                 {ROLE_LABELS[inviteRole]} 권한: {ROLE_PERMS[inviteRole].join(' · ')}
               </div>
             )}
-          </Card>
+          </Card>}
 
           {removeError && (
             <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 600 }}>
@@ -207,11 +226,25 @@ export default function AccountSettings() {
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name || '(이름 없음)'}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{m.email}</div>
                   </div>
-                  <Badge type={m.status === 'invited' ? 'gray' : m.role === 'editor' ? 'blue' : 'gray'}>
-                    {m.status === 'invited' ? '초대됨' : ROLE_LABELS[m.role]}
-                  </Badge>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>가입 {m.joined_at}</div>
-                  {m.role !== 'admin' && (
+                  {/* 활성 팀원이고 오너라면 역할 드롭다운, 그 외엔 뱃지 */}
+                  {isOwner && m.status === 'active' && m.role !== 'admin' ? (
+                    <select
+                      value={m.role}
+                      onChange={e => handleChangeRole(m.id, e.target.value)}
+                      style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text)', cursor: 'pointer' }}
+                    >
+                      <option value="editor">편집자</option>
+                      <option value="viewer">뷰어</option>
+                    </select>
+                  ) : (
+                    <Badge type={m.status === 'invited' ? 'gray' : m.role === 'editor' ? 'blue' : 'gray'}>
+                      {m.status === 'invited' ? '초대됨' : ROLE_LABELS[m.role]}
+                    </Badge>
+                  )}
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                    {m.status === 'invited' ? '초대 발송됨' : `가입 ${m.joined_at ? new Date(m.joined_at).toLocaleDateString('ko-KR') : '-'}`}
+                  </div>
+                  {isOwner && m.role !== 'admin' && (
                     <Btn size="sm" variant="ghost" style={{ color: 'var(--red)', fontSize: 12 }} onClick={() => setConfirmRemoveMemberId(m.id)}>제거</Btn>
                   )}
                 </div>

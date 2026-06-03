@@ -410,17 +410,42 @@
     - 사이드바 '계정' 그룹 최상단에 위치
 
 14. 팀 & 설정 (/company/settings) — Settings.jsx
-    - 탭 팀 관리: team_members INSERT/UPDATE (초대·제거)
-      · 초대 권한 2종: 편집자(editor, 의뢰 등록·수정·결과 열람) / 뷰어(viewer, 결과 열람만) ★
-      · 기본 선택: 편집자 / 뱃지 색상: 편집자=blue, 뷰어=gray
-      · 초대 이메일 발송 ★: DB INSERT 시 invite_token(UUID) + invite_expires_at(7일) 함께 저장
+    - 탭 팀 관리: team_members INSERT/UPDATE (초대·역할변경·제거) ★ 팀원 포털 접근 완성 (2026-06-04)
+      · 초대 권한 2종: 편집자(editor, 의뢰 등록·수정·결과 열람) / 뷰어(viewer, 결과 열람만)
+      · 기본 선택: 편집자
+      · 역할 변경 ★: 활성 팀원 행에 editor/viewer 드롭다운 → 선택 즉시 DB UPDATE (낙관적 UI)
+                      초대됨(status='invited') 상태는 드롭다운 없이 뱃지만 표시
+      · 오너 전용: 초대 폼·역할 변경·제거 버튼은 isOwner=true 계정에서만 표시
+                   비오너에게는 "팀원은 초대·제거는 오너만 가능합니다." 안내 표시
+      · 초대 이메일 발송: DB INSERT 시 invite_token(UUID) + invite_expires_at(7일) 함께 저장
         → supabase.functions.invoke('send-invite-email') 호출 → Resend API로 초대 이메일 발송
-        → 이메일 발송 실패 시 DB 레코드는 유지 + 초대 링크 inviteError 배너에 표시 (graceful fallback)
-        → 성공 시 inviteSuccess 배너 표시, inviterName = user.user_metadata.name 또는 email
-      · 수락 흐름: /invite?token=xxx 공개 페이지 → peek_team_invite RPC로 초대 정보 조회
-                   로그인 상태이면 "초대 수락하기" → accept_team_invite RPC → status='active' 전환
-                   비로그인이면 로그인/회원가입 유도 + token을 localStorage('purit_pending_invite')에 보존
-      팀원 "제거" 버튼: ConfirmModal(danger) 경유 → status='inactive' UPDATE ★
+        → 이메일 발송 실패 시 DB 레코드 유지 + inviteSuccess 배너에 "초대 링크가 생성됐습니다. 링크를 직접 공유하세요." 표시
+        → 성공 시 inviteSuccess 배너 표시
+      · 수락 흐름 (/invite?token=xxx):
+        - peek_team_invite RPC로 초대 정보(회사명·역할) 표시
+        - 패널 계정 로그인 상태 → "기업 계정으로 로그인하기" 버튼 (패널 계정으로는 수락 불가)
+        - 로그인 상태(기업 계정) → "초대 수락하기" → accept_team_invite RPC(이메일 일치 검증 + user_id 저장)
+        - 비로그인 → 로그인/회원가입 선택 + token을 localStorage('purit_pending_invite')에 보존
+          · 신규 가입 시 /signup?invite_token=TOKEN → Signup.jsx가 inviteToken을 user_metadata에 포함
+            → 이메일 가입: handle_new_user 트리거에서 invite_token 유효성 검증 후 companies 레코드 생성 SKIP (migration 071)
+            → Google OAuth 가입: Signup.jsx handleGoogle이 inviteToken을 signInWithGoogle에 전달
+              → OAuthCallback.jsx capturedInviteTokenRef → create_oauth_user_profile RPC p_invite_token → companies 생성 SKIP (migration 072)
+          · 로그인 완료 후 Login.jsx useEffect: pendingInvite 감지(successMsg 가드보다 우선) → /invite 자동 복귀
+        - 이메일 불일치 → "초대받은 이메일과 로그인 계정이 다릅니다" 안내
+        - 수락 성공 → "팀 합류 완료!" → /company 이동
+        - 만료 토큰 → "초대가 만료되었습니다. 팀 관리자에게 재초대 요청" 안내
+      · 팀원 제거 버튼: ConfirmModal(danger) 경유 → status='inactive' UPDATE
+      · 날짜 표시: status='invited' → "초대 발송됨" / status='active' → "가입 YYYY.MM.DD"
+      ※ 팀원 접근 구조 (resolveCompany 헬퍼):
+         기업 포털 모든 페이지가 resolveCompany(user.id)로 회사 데이터 로드
+         1순위: companies.user_id = auth.uid() (오너)
+         2순위: team_members.user_id = auth.uid() + status='active' (팀원)
+         teamRole: null=오너 / 'editor'|'viewer'=팀원
+      ※ 권한 분기:
+         오너/편집자: 의뢰 등록·수정·조기종료·삭제 + 결과 열람 모두 가능
+         뷰어: 결과 열람만 (의뢰 등록 버튼 숨김, 제출 비활성화, 수정·삭제 버튼 숨김)
+         팀원 공통: Settings 초대·제거 불가 / Account 프로필 수정 불가 / Pricing 플랜 변경 불가
+      ※ Dashboard: 팀원 접속 시 상단에 "A사 팀원으로 접속 중 · 편집자/뷰어" 배너 표시
     - 탭 플랜 & 결제: companies.plan 표시 + invoices 결제 내역
       "플랜 변경" 버튼 → /company/plans 이동
     - 탭 알림 설정: companies.notif_prefs JSONB DB 저장 (migration 042) ★ localStorage→DB 전환

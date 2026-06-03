@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-03 (완성도-F 수정 완료 → DONE.txt 이동)
+최종 업데이트: 2026-06-04 (migration 071 무결성 검사 5건 수정 완료 → DONE.txt 이동)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -13,39 +13,8 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
   ⏭      보류/스킵 — 하단 섹션에 별도 관리
 
 ================================================================
-## 🔴 P1 Critical (3건)
+## 🔴 P1 Critical (0건)
 ================================================================
-
-[완성도-B / BUG-STRUCT-2] 팀원 초대 시스템 — 구조적 동작 불가 (4단계 붕괴)
-- 📍 위치: supabase/migrations/001_all_tables.sql (line 56-65), 067_team_invite_token.sql
-           src/pages/InviteAccept.jsx, src/pages/company/Settings.jsx
-- 🕵️ 재현: 설정 → 팀 관리 → 이메일 초대 → team_members INSERT만 됨.
-           초대 이메일 미발송. 초대받은 이메일로 가입해도 포털 접근 불가.
-- 🤦 현재: team_members 테이블에 user_id 컬럼 없음.
-           accept_team_invite RPC가 status='active'만 업데이트하고 auth.uid() 저장 불가.
-           inviteRole 기본값 'editor'인데 DB CHECK 제약이 IN ('admin','member','viewer') → INSERT 자체 실패.
-           editor/viewer 권한 체크 코드 프론트엔드에 단 한 줄도 없음.
-- ✨ 기대: team_members.user_id 컬럼 추가. accept RPC 소유권 검증. DB role 값 통일. 권한 분기 구현.
-- 🔍 수평전개: 팀원 제거 버튼도 status='inactive' UPDATE만 있고 실제 접근 차단 로직 없음
-
-[BUG-NEW-4] 067_team_invite_token.sql — accept_team_invite RPC 소유권 검증 누락 (보안)
-- 📍 위치: supabase/migrations/067_team_invite_token.sql (lines 13-44)
-- 🤦 현재: RPC가 p_token으로만 검색. auth.uid()와 team_members를 비교하는 로직 없음.
-           → 유효 토큰을 아는 누구든 수락 가능
-- ✨ 기대: RPC 내부에 auth.uid() 기반 소유권 검증 추가
-
-
-[BUG-STRUCT-3 / BUG-STRUCT-4] 미션 활성화 + 크레딧 예약 순서 오류 — 트리거 조기 발화 (4파일)
-- 📍 위치: src/pages/company/NewMission.jsx (line 688-700)
-           src/pages/company/PreferenceTest.jsx (line 414-438)
-           src/pages/company/PricingTest.jsx, src/pages/company/ColdEmailTest.jsx (동일 패턴)
-- 🤦 현재: missions INSERT/UPDATE(status='active') → reserve_mission_credits() 순서.
-           active UPDATE 순간 on_mission_created/on_mission_activated 트리거 발화 → 어드민 알림 발송.
-           이후 크레딧 부족 → reserve 실패 → missions rollback(draft/DELETE).
-           두 작업이 같은 트랜잭션이 아니라 원자성 없음.
-           rollback 전 race window에서 패널이 수락하면 filled_count 불일치 가능.
-- ✨ 기대: reserve_mission_credits() 먼저 실행 → 성공 시에만 status='active' UPDATE.
-           또는 단일 RPC로 크레딧 예약 + 상태 변경 원자적 처리. (D-101 참조)
 
 ================================================================
 ## 🟡 P2 Major (2건)
@@ -132,11 +101,6 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 [BUG-AUTH-2] AuthContext.jsx LinkedIn OAuth source 저장 누락 — OAuth-E와 동일 사유. LinkedIn 미활성화 상태.
              LinkedIn 기능 구현 시 함께 처리  ⏭
 
-[BUG-NEW-2] InviteAccept.jsx 이메일 일치 검증 누락 — 팀 초대 이메일 발송 자체가 미구현.
-            팀 초대 시스템(완성도-B) 구축 시 함께 처리  ⏭
-
-[BUG-NEW-1] InviteAccept.jsx 로그인/가입 후 초대 자동 수락 코드 없음 — 팀 초대 이메일 발송 자체가 미구현.
-            팀 초대 시스템(완성도-B) 구축 시 함께 처리  ⏭
 
 -- 비활성 페이지 조사 스킵 --
 [ICPPulse/BrandTracking] 사이드바 비노출 페이지 (PRD 명시: 파일 유지만, 기능 미활성)  ⏭
@@ -145,14 +109,14 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 6건
-  🔴 P1  3건
+미완료 합계: 3건
+  🔴 P1  0건
   🟡 P2  2건
   🟢 P3  1건
   ⚪ P4  0건
 
-스킵/보류: 24건
+스킵/보류: 22건
 
-완료 항목: QA_DONE.txt 참조 (총 180건)
+완료 항목: QA_DONE.txt 참조 (총 189건)
 
 ================================================================

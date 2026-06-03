@@ -2,6 +2,7 @@
 import { Card, Stat, Badge, Btn } from '../../components/ui';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 
 export default function BrandTracking() {
   const [campaign, setCampaign] = useState(null);
@@ -18,7 +19,7 @@ export default function BrandTracking() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      const { company: co } = await resolveCompany(user.id);
       setCompanyId(co?.id);
       if (co) {
         const { data: cam } = await supabase.from('brand_tracking_campaigns').select('*').eq('company_id', co.id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single();

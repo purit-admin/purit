@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn, Stat } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 
 export default function ICPPulse() {
   const [subscription, setSubscription] = useState(null);
@@ -19,7 +20,7 @@ export default function ICPPulse() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      const { company: co } = await resolveCompany(user.id);
       setCompanyId(co?.id);
       if (co) {
         const { data: sub } = await supabase.from('icp_pulse_subscriptions').select('*').eq('company_id', co.id).eq('status', 'active').single();

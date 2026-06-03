@@ -16,6 +16,9 @@ export default function OAuthCallback() {
   // capturedSourceRef: 'login' | 'signup' — 출처 페이지 식별 (D-94)
   // 로그인 페이지 출처 + 신규 계정 → 계정 생성 차단 (로그인 페이지는 로그인 전용)
   const capturedSourceRef = useRef(undefined);
+  // capturedInviteTokenRef: 초대 링크 경유 가입 시 invite_token 보존 (D-91 패턴)
+  // create_oauth_user_profile RPC에 전달 → companies 레코드 생성 건너뜀 (migration 072)
+  const capturedInviteTokenRef = useRef(undefined);
 
   useEffect(() => {
     // Google이 취소/에러를 ?error= 파라미터로 전달 — 즉시 /login 복귀 (D-82)
@@ -23,6 +26,7 @@ export default function OAuthCallback() {
     if (urlParams.get('error')) {
       localStorage.removeItem('purit_oauth_role');
       localStorage.removeItem('purit_oauth_source');
+      localStorage.removeItem('purit_oauth_invite_token');
       window.location.replace('/login');
       return;
     }
@@ -38,6 +42,10 @@ export default function OAuthCallback() {
       const src = localStorage.getItem('purit_oauth_source');
       capturedSourceRef.current = (src === 'login' || src === 'signup') ? src : 'signup'; // 미설정 시 signup 폴백
       localStorage.removeItem('purit_oauth_source');
+
+      // 초대 토큰: 초대 링크 경유 Google 가입 시에만 존재 (D-91 패턴 동일)
+      capturedInviteTokenRef.current = localStorage.getItem('purit_oauth_invite_token') || null;
+      localStorage.removeItem('purit_oauth_invite_token');
     }
 
     async function processSession(session) {
@@ -95,6 +103,7 @@ export default function OAuthCallback() {
         }
 
         const savedRole = capturedPendingRole;
+        const capturedInviteToken = capturedInviteTokenRef.current;
 
         const { error: updateErr } = await supabase.auth.updateUser({ data: { role: savedRole } });
         if (updateErr) throw new Error(`역할 설정 실패: ${updateErr.message}`);
@@ -105,9 +114,11 @@ export default function OAuthCallback() {
           || '사용자';
 
         // SECURITY DEFINER RPC로 레코드 생성 — 클라이언트 직접 INSERT는 RLS 차단 (migration 059/060)
+        // invite_token이 있으면 RPC 내부에서 companies 생성 건너뜀 (migration 072)
         const { error: profileErr } = await supabase.rpc('create_oauth_user_profile', {
           p_role: savedRole,
           p_display_name: displayName,
+          p_invite_token: capturedInviteToken,
         });
         if (profileErr) throw new Error(`프로필 생성 실패: ${profileErr.message}`);
 

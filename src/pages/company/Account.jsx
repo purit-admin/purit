@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Card, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 
 const lbl = { display: 'flex', flexDirection: 'column', gap: 8 };
 const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
@@ -13,6 +14,7 @@ export default function CompanyAccount() {
   const [industry, setIndustry] = useState('');
   const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(true);
+  const [teamRole, setTeamRole] = useState(null); // null=오너, 'editor'|'viewer'=팀원
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [orig, setOrig] = useState(null);
@@ -31,7 +33,8 @@ export default function CompanyAccount() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         setEmail(user.email || '');
-        const { data: co } = await supabase.from('companies').select('*').eq('user_id', user.id).single();
+        const { company: co, teamRole: tr } = await resolveCompany(user.id);
+        setTeamRole(tr);
         if (co) {
           setCompany(co);
           setName(co.name || '');
@@ -50,6 +53,7 @@ export default function CompanyAccount() {
 
   async function handleSaveProfile() {
     if (!company) return;
+    if (teamRole !== null) return; // 팀원은 기업 프로필 수정 불가
     setMsg('');
     if (name.trim()) {
       const { data: taken } = await supabase.rpc('check_company_name_taken', {
@@ -187,10 +191,15 @@ export default function CompanyAccount() {
       {/* 기업 프로필 탭 */}
       {tab === 'profile' && (
         <Card>
+          {teamRole !== null && (
+            <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(16,54,125,0.06)', color: 'var(--text-2)', fontSize: 13 }}>
+              🔒 기업 프로필 수정은 계정 오너만 가능합니다. (현재: {teamRole === 'editor' ? '편집자' : '뷰어'})
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <label style={lbl}>
               <span style={lblTxt}>기업명</span>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="(주)회사명" />
+              <input value={name} onChange={e => teamRole === null && setName(e.target.value)} placeholder="(주)회사명" disabled={teamRole !== null} style={teamRole !== null ? { opacity: 0.6 } : {}} />
             </label>
             <label style={lbl}>
               <span style={lblTxt}>이메일 (변경 불가)</span>
@@ -198,15 +207,17 @@ export default function CompanyAccount() {
             </label>
             <label style={lbl}>
               <span style={lblTxt}>업종</span>
-              <input value={industry} onChange={e => setIndustry(e.target.value)} placeholder="예: SaaS, 이커머스" />
+              <input value={industry} onChange={e => teamRole === null && setIndustry(e.target.value)} placeholder="예: SaaS, 이커머스" disabled={teamRole !== null} style={teamRole !== null ? { opacity: 0.6 } : {}} />
             </label>
             <label style={lbl}>
               <span style={lblTxt}>웹사이트</span>
-              <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://company.com" />
+              <input value={website} onChange={e => teamRole === null && setWebsite(e.target.value)} placeholder="https://company.com" disabled={teamRole !== null} style={teamRole !== null ? { opacity: 0.6 } : {}} />
             </label>
-            <Btn style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={handleSaveProfile}>
-              {saving ? '저장 중...' : '변경사항 저장'}
-            </Btn>
+            {teamRole === null && (
+              <Btn style={{ alignSelf: 'flex-start' }} disabled={saving} onClick={handleSaveProfile}>
+                {saving ? '저장 중...' : '변경사항 저장'}
+              </Btn>
+            )}
           </div>
         </Card>
       )}

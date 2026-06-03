@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-03 (D-102 추가 — saveDraft/buildDescription 필드 불일치로 editMode 필드 소실)
+최종 업데이트: 2026-06-04 (D-103 추가 — 이메일 가입 트리거·OAuth RPC 양쪽에서 동일 비즈니스 로직 미동기화 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1437,3 +1437,17 @@ D-102. 같은 컴포넌트에서 임시저장(saveDraft)과 최종제출(buildDe
              신규 필드 추가 시 두 함수 모두 동시에 업데이트해야 함
              점검 방법: saveDraft()의 저장 객체 키 목록과 buildDescription()의 저장 객체 키 목록을 나란히 놓고 diff 확인
              D-59(자동저장 누락으로 제출 불가)와 다른 층위 — D-59는 autosave state 누락이고, D-102는 두 저장 함수 간 필드 불일치
+
+D-103. 이메일 가입(트리거)과 OAuth 가입(RPC) 두 경로가 동일 비즈니스 로직을 처리해야 할 때 한쪽에만 구현하고 다른 쪽을 누락하는 패턴
+     → 증상: invite_token 처리를 handle_new_user 트리거(이메일 가입)에만 추가하고 create_oauth_user_profile RPC(Google OAuth 가입)에는 미적용
+             → Google로 가입한 초대 팀원에게 빈 companies 레코드가 생성됨
+     → 원인: 두 경로(DB 트리거·SECURITY DEFINER RPC)가 서로 다른 파일에 구현되어 있어 한쪽을 수정할 때 다른 쪽을 인지하지 못함
+             이메일 가입과 OAuth 가입은 UI에서 동일한 역할을 하지만 내부적으로 완전히 다른 코드 경로를 밟음
+             "트리거를 수정했으니 됐다"는 착각 — RPC는 트리거와 별개로 독립 실행됨
+     → 해결: handle_new_user(migration 071) + create_oauth_user_profile(migration 072) 양쪽에 동일한 invite_token 유효성 검증 로직 구현
+             검증 조건: NOT EXISTS(team_members WHERE invite_token::text = p_invite_token AND status='invited')
+     → 원칙: "가입 경로가 N개"인 시스템에서 비즈니스 규칙을 추가할 때
+             이메일 가입(DB 트리거) / Google OAuth(SECURITY DEFINER RPC) / 추후 추가될 다른 OAuth 제공자 등
+             모든 경로를 체크리스트로 나열하고 규칙이 각 경로에 구현됐는지 대조할 것
+             로컬스토리지 키(purit_oauth_invite_token)도 모든 종료 경로(성공·취소·에러)에서 정리해야 stale 토큰 잔류 방지
+             D-101(트리거 조기 발화)과 연계 — 가입 순서(상태 변경)와 조건 검증(invite 유효성) 모두 원자적으로 처리해야 함

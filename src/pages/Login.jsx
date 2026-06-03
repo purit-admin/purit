@@ -46,8 +46,16 @@ export default function Login() {
 
   // 이미 로그인된 사용자는 대시보드로 즉시 리디렉트
   useEffect(() => {
-    if (successMsg) return; // 가입 완료 직후는 자동 redirect 안 함
-    if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
+    if (!user || !authRole) return;
+    // pending invite는 successMsg 가드보다 항상 우선 처리
+    const pendingInvite = localStorage.getItem('purit_pending_invite');
+    if (pendingInvite) {
+      localStorage.removeItem('purit_pending_invite');
+      navigate(`/invite?token=${pendingInvite}`, { replace: true });
+      return;
+    }
+    if (successMsg) return; // D-97: 가입 완료 직후 stale session bounce 방지
+    navigate(DEST[authRole] ?? '/company', { replace: true });
   }, [user, authRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initialRole = useMemo(() => {

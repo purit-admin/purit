@@ -23,11 +23,14 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signUp({ email, password, name, role: selectedRole }) {
+  async function signUp({ email, password, name, role: selectedRole, inviteToken }) {
+    const metadata = { name, role: selectedRole };
+    // 초대 토큰이 있으면 포함 → handle_new_user 트리거가 companies 생성 건너뜀
+    if (inviteToken) metadata.invite_token = inviteToken;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name, role: selectedRole } },
+      options: { data: metadata },
     });
     if (error) throw error;
     // 테이블 insert는 DB 트리거(handle_new_user)가 자동 처리
@@ -40,9 +43,11 @@ export function AuthProvider({ children }) {
     return data;
   }
 
-  async function signInWithGoogle(role, source = 'signup') {
+  async function signInWithGoogle(role, source = 'signup', inviteToken = null) {
     localStorage.setItem('purit_oauth_role', role);
     localStorage.setItem('purit_oauth_source', source); // 'login' | 'signup'
+    if (inviteToken) localStorage.setItem('purit_oauth_invite_token', inviteToken);
+    else localStorage.removeItem('purit_oauth_invite_token');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

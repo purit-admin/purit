@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 
 const FREQ_COLORS = { high: 'green', mid: 'gold', low: 'gray' };
 const FREQ_LABELS = { high: '높음', mid: '보통', low: '낮음' };
@@ -25,7 +26,7 @@ export default function ICPResearch() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      const { company: co } = await resolveCompany(user.id);
       setCompanyId(co?.id);
       if (co) {
         const { data } = await supabase.from('icp_research').select('*').eq('company_id', co.id).order('created_at', { ascending: false });

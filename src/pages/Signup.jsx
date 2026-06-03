@@ -266,6 +266,9 @@ export default function Signup() {
   const location  = useLocation();
   const { user, role: authRole, signUp, signOut, signInWithGoogle } = useAuth();
 
+  // successMsg를 useEffect 의존성 배열보다 먼저 선언 — TDZ(초기화 전 접근) 방지
+  const [successMsg, setSuccessMsg] = useState('');
+
   useEffect(() => {
     if (successMsg) return;
     if (user && authRole) navigate(DEST[authRole] ?? '/company', { replace: true });
@@ -283,6 +286,12 @@ export default function Signup() {
     return ['company', 'panel'].includes(r) ? r : 'company';
   }, [location.search]);
 
+  // 초대 링크에서 넘어온 토큰 — signUp options.data에 포함해 트리거가 companies 생성 건너뜀
+  const inviteToken = useMemo(
+    () => new URLSearchParams(location.search).get('invite_token') || undefined,
+    [location.search]
+  );
+
   const [role,     setRole]     = useState(initialRole);
 
   // Panel multi-step state
@@ -296,7 +305,6 @@ export default function Signup() {
   const [showPw,   setShowPw]   = useState(false);
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const busy = loading || googleLoading;
@@ -305,7 +313,7 @@ export default function Signup() {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle(role, 'signup');
+      await signInWithGoogle(role, 'signup', inviteToken || null);
     } catch (err) {
       setError('Google 로그인 중 오류가 발생했습니다.');
       setGoogleLoading(false);
@@ -345,9 +353,12 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      await signUp({ email, password, name, role });
+      await signUp({ email, password, name, role, inviteToken });
       await signOut();
-      navigate('/login', { replace: true, state: { message: '가입이 완료되었습니다. 로그인해 주세요.' } });
+      const loginMsg = inviteToken
+        ? '가입이 완료되었습니다. 로그인하면 초대 수락 페이지로 이동합니다.'
+        : '가입이 완료되었습니다. 로그인해 주세요.';
+      navigate('/login', { replace: true, state: { message: loginMsg } });
     } catch (err) {
       setError(toKoreanAuthError(err));
     } finally {

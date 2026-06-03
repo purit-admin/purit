@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
@@ -259,6 +260,7 @@ export default function NewMission() {
   const [companyPlan, setCompanyPlan]     = useState(null);
   const [companyId, setCompanyId]         = useState(null);
   const [creditBalance, setCreditBalance] = useState(null);
+  const [teamRole, setTeamRole]           = useState(null);
   const [careerLevels, setCareerLevels]   = useState(['junior']);
   const [missions, setMissions]           = useState([]);
   const [loadingList, setLoadingList]     = useState(true);
@@ -296,10 +298,11 @@ export default function NewMission() {
     async function fetchPlan() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('companies').select('id, plan, credit_balance').eq('user_id', user.id).single();
+      const { company: data, teamRole: tr } = await resolveCompany(user.id);
       setCompanyPlan(data?.plan?.toLowerCase() || 'starter');
       if (data?.id) setCompanyId(data.id);
       if (data != null) setCreditBalance(data.credit_balance ?? 0);
+      setTeamRole(tr);
     }
     fetchPlan();
   }, []);
@@ -337,7 +340,7 @@ export default function NewMission() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data: co } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+        const { company: co } = await resolveCompany(user.id);
         if (co) {
           const { data } = await supabase.from('missions')
             .select('id, title, status, panel_count, filled_count, created_at, company_notified_at')
@@ -495,8 +498,8 @@ export default function NewMission() {
     setUploading(true);
     setUploadError('');
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: company } = await supabase.from('companies').select('id').eq('user_id', user.id).single();
+      if (!companyId) { setUploadError('회사 정보를 불러오는 중입니다. 잠시 후 다시 시도하세요.'); setUploading(false); return; }
+      const company = { id: companyId };
 
       const urls = [];
       for (const file of toUpload) {
@@ -658,15 +661,15 @@ export default function NewMission() {
   };
 
   const handleSubmit = async () => {
+    if (teamRole === 'viewer') return;
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
     setSubmitError('');
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: company, error: companyError } = await supabase
-        .from('companies').select('id').eq('user_id', user.id).single();
-      if (companyError) throw companyError;
+      if (!companyId) throw new Error('company not found');
+      const company = { id: companyId };
 
       const persona = [
         form.personaAge && `연령: ${form.personaAge}`,
@@ -689,9 +692,6 @@ export default function NewMission() {
           assets:        form.focusAreas,
           image_urls:    form.imageUrls,
         };
-        if (isDraftMode) updatePayload.status = 'active';
-        const { error } = await supabase.from('missions').update(updatePayload).eq('id', effectiveEditId);
-        if (error) throw error;
         if (isDraftMode) {
           const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
           const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
@@ -700,14 +700,16 @@ export default function NewMission() {
             p_credits:    requiredCredits,
           });
           if (creditErr || !creditData?.success) {
-            await supabase.from('missions').update({ status: 'draft' }).eq('id', effectiveEditId);
             throw new Error(
               creditData?.error === 'INSUFFICIENT_CREDITS'
                 ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
                 : '크레딧 처리 중 오류가 발생했습니다.'
             );
           }
+          updatePayload.status = 'active';
         }
+        const { error } = await supabase.from('missions').update(updatePayload).eq('id', effectiveEditId);
+        if (error) throw error;
       } else {
         const { error } = await supabase.from('missions').insert({
           id:                missionUuid,
@@ -719,28 +721,32 @@ export default function NewMission() {
           persona,
           panel_count:       form.panels,
           reward_amount:     calcPanelPayout(careerLevels, 'main'),
-          status:            'active',
+          status:            'draft',
           assets:            form.focusAreas,
           image_urls:        form.imageUrls,
           estimated_minutes: form.estimatedMinutes,
         });
         if (error) throw error;
 
-        // 크레딧 예약
+        // 크레딧 예약 — 성공 후에만 active 전환 (트리거 조기 발화 방지)
         const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
         const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
           p_mission_id: missionUuid,
           p_company_id: company.id,
           p_credits:    requiredCredits,
         });
-        if (creditErr) throw creditErr;
-        if (!creditData?.success) {
+        if (creditErr || !creditData?.success) {
           await supabase.from('missions').delete().eq('id', missionUuid);
           throw new Error(
             creditData?.error === 'INSUFFICIENT_CREDITS'
               ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
               : '크레딧 처리 중 오류가 발생했습니다.'
           );
+        }
+        const { error: activateErr } = await supabase.from('missions').update({ status: 'active' }).eq('id', missionUuid);
+        if (activateErr) {
+          await supabase.from('missions').delete().eq('id', missionUuid);
+          throw activateErr;
         }
       }
       navigate('/company');
@@ -920,6 +926,13 @@ export default function NewMission() {
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>{effectiveEditMode ? 'EDIT MISSION' : 'NEW MISSION'}</div>
             <h1 style={{ fontSize: 28, fontWeight: 800 }}>{effectiveEditMode ? '의뢰 수정' : '마케팅 소재 종합 진단 등록'}</h1>
           </div>
+
+          {/* 뷰어 차단 배너 */}
+          {teamRole === 'viewer' && (
+            <div style={{ padding: '12px 16px', marginBottom: 16, borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.07)', color: '#b91c1c', fontSize: 13, fontWeight: 600 }}>
+              🔒 열람 전용 권한입니다. 의뢰 등록은 편집자(Editor) 이상만 가능합니다.
+            </div>
+          )}
 
           {/* NDA 안내 배너 */}
           <div style={{
@@ -1662,7 +1675,7 @@ export default function NewMission() {
                 step < STEPS.length - 1 ? setStep(s => s + 1) : setShowSubmitConfirm(true);
               }}
               size="md"
-              disabled={submitting || uploading || !stepValid || (step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
+              disabled={teamRole === 'viewer' || submitting || uploading || !stepValid || (step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
             >
               {step === STEPS.length - 1 ? (submitting ? '처리 중...' : effectiveEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
             </Btn>

@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 
 const PLANS = [
   {
@@ -90,6 +91,7 @@ const ADD_ONS = [
 export default function PricingPage() {
   const [billing, setBilling] = useState('annual');
   const [company, setCompany] = useState(null);
+  const [teamRole, setTeamRole] = useState(null);
   const [changing, setChanging] = useState('');
   const [msg, setMsg] = useState('');
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
@@ -102,8 +104,9 @@ export default function PricingPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const { data: co } = await supabase.from('companies').select('id, plan').eq('user_id', user.id).single();
+        const { company: co, teamRole: tr } = await resolveCompany(user.id);
         if (co) setCompany(co);
+        setTeamRole(tr);
       } catch (err) {
         console.error('[Pricing load]', err);
       }
@@ -112,6 +115,10 @@ export default function PricingPage() {
   }, []);
 
   async function handleSelectPlan(planId) {
+    if (teamRole !== null) {
+      setMsg('플랜 변경은 계정 오너만 가능합니다.');
+      return;
+    }
     if (planId === 'enterprise') {
       setShowEnterpriseModal(true);
       return;
@@ -257,7 +264,7 @@ export default function PricingPage() {
             <Btn
               variant={currentPlan === plan.id ? 'secondary' : plan.highlight ? 'primary' : 'secondary'}
               style={{ width: '100%', justifyContent: 'center' }}
-              disabled={currentPlan === plan.id || !!changing}
+              disabled={currentPlan === plan.id || !!changing || teamRole !== null}
               onClick={() => handleSelectPlan(plan.id)}
             >
               {currentPlan === plan.id ? '사용 중' : changing === plan.id ? '변경 중...' : plan.cta}

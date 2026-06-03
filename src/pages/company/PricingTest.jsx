@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout } from '../../components/ui/PanelTargetStep';
 import { supabase } from '../../lib/supabase';
+import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 
@@ -104,6 +105,7 @@ export default function PricingTest() {
   const [companyPlan, setCompanyPlan] = useState(null);
   const [careerLevels, setCareerLevels] = useState(['junior']);
   const [creditBalance, setCreditBalance] = useState(null);
+  const [teamRole, setTeamRole] = useState(null);
   const [draftId, setDraftId] = useState(null);
   const [listFilter, setListFilter] = useState('active');
   const [listPage, setListPage] = useState(1);
@@ -162,10 +164,11 @@ export default function PricingTest() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
-      const { data: co } = await supabase.from('companies').select('id, plan, credit_balance').eq('user_id', user.id).single();
+      const { company: co, teamRole: tr } = await resolveCompany(user.id);
       setCompanyId(co?.id);
       setCompanyPlan(co?.plan?.toLowerCase() || 'starter');
       if (co != null) setCreditBalance(co.credit_balance ?? 0);
+      setTeamRole(tr);
       if (co) {
         const { data: missionsData } = await supabase
           .from('missions').select('id, title, status, panel_count, filled_count, created_at, company_notified_at')
@@ -373,6 +376,7 @@ export default function PricingTest() {
   }
 
   async function handleSubmit() {
+    if (teamRole === 'viewer') return;
     if (!companyId) return;
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -391,7 +395,20 @@ export default function PricingTest() {
     });
     try {
       const finalTitle = missionTitle.trim() || '가격 페이지 검증';
+      // 크레딧 예약 먼저 — 성공 후에만 status='active' DB 반영 (트리거 조기 발화 방지)
+      const requiredCredits = calcCredits(panelSize, careerLevels, 'sub');
       if (draftId) {
+        const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+          p_mission_id: draftId, p_company_id: companyId, p_credits: requiredCredits,
+        });
+        if (creditErr) throw creditErr;
+        if (!creditData?.success) {
+          throw new Error(
+            creditData?.error === 'INSUFFICIENT_CREDITS'
+              ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+              : '크레딧 처리 중 오류가 발생했습니다.'
+          );
+        }
         const { error: mErr } = await supabase.from('missions').update({
           title: finalTitle, description: descJson,
           panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'), status: 'active',
@@ -402,24 +419,25 @@ export default function PricingTest() {
           id: targetId, company_id: companyId, title: finalTitle,
           type: 'pricing', description: descJson,
           panel_count: panelSize, reward_amount: calcPanelPayout(careerLevels, 'sub'),
-          status: 'active', assets: [],
+          status: 'draft', assets: [],
         });
         if (mErr) throw mErr;
-      }
-
-      const requiredCredits = calcCredits(panelSize, careerLevels, 'sub');
-      const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
-        p_mission_id: targetId, p_company_id: companyId, p_credits: requiredCredits,
-      });
-      if (creditErr) throw creditErr;
-      if (!creditData?.success) {
-        if (draftId) await supabase.from('missions').update({ status: 'draft' }).eq('id', draftId);
-        else await supabase.from('missions').delete().eq('id', targetId);
-        throw new Error(
-          creditData?.error === 'INSUFFICIENT_CREDITS'
-            ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
-            : '크레딧 처리 중 오류가 발생했습니다.'
-        );
+        const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+          p_mission_id: targetId, p_company_id: companyId, p_credits: requiredCredits,
+        });
+        if (creditErr || !creditData?.success) {
+          await supabase.from('missions').delete().eq('id', targetId);
+          throw new Error(
+            creditData?.error === 'INSUFFICIENT_CREDITS'
+              ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+              : '크레딧 처리 중 오류가 발생했습니다.'
+          );
+        }
+        const { error: activateErr } = await supabase.from('missions').update({ status: 'active' }).eq('id', targetId);
+        if (activateErr) {
+          await supabase.from('missions').delete().eq('id', targetId);
+          throw activateErr;
+        }
       }
 
       const { error: tErr } = await supabase.from('pricing_tests').insert({
@@ -460,6 +478,11 @@ export default function PricingTest() {
       {/* ── 생성 폼 (스텝 기반) ── */}
       {view === 'create' && (
         <div>
+          {teamRole === 'viewer' && (
+            <div style={{ padding: '12px 16px', marginBottom: 16, borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.07)', color: '#b91c1c', fontSize: 13, fontWeight: 600 }}>
+              🔒 열람 전용 권한입니다. 의뢰 등록은 편집자(Editor) 이상만 가능합니다.
+            </div>
+          )}
           {/* NDA 안내 배너 */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10,
@@ -956,7 +979,7 @@ export default function PricingTest() {
                 createStep === 0 && (!pricingDesc.trim() || !productDescription.trim() || !industry)
               }>다음 →</Btn>
             ) : (
-              <Btn onClick={() => setShowSubmitConfirm(true)} disabled={submitting || (creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
+              <Btn onClick={() => setShowSubmitConfirm(true)} disabled={teamRole === 'viewer' || submitting || (creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
                 {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}

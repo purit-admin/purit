@@ -26,7 +26,14 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js (sendNotification 중앙 헬퍼 — prefKey + targetRole 파라미터 포함) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
+│   ├── lib/       supabase.js | data.js | notify.js | templates.js | honorLevels.js | navigationGuard.js | resolveCompany.js ★ 신규
+│   │              resolveCompany.js — 오너/팀원 공통 회사 조회 헬퍼 (기업 포털 17개 페이지 공통 사용) ★ 신규
+│   │                export async function resolveCompany(userId): { company, teamRole }
+│   │                  1순위: companies.user_id = userId → { company, teamRole: null } (오너)
+│   │                  2순위: team_members.user_id = userId + status='active' → { company, teamRole: 'editor'|'viewer' } (팀원)
+│   │                  미매칭: { company: null, teamRole: null }
+│   │                canEdit = teamRole === null || teamRole === 'editor' 패턴으로 권한 분기
+│   │              notify.js (sendNotification 중앙 헬퍼 — prefKey + targetRole 파라미터 포함) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
 │   │              notify.js sendNotification(userId, { type, icon, title, body, actionUrl, targetRole, prefKey }): notifications INSERT
 │   │                targetRole: 'admin'|'company'|'panel'|null — 포털별 알림 분리 (030 마이그레이션)
 │   │                prefKey: 수신자의 notif_prefs JSONB 키 — panel/company 수신자인 경우 DB에서 prefs 조회, false이면 발송 차단 (042 마이그레이션) ★
@@ -139,7 +146,8 @@ purit/
 │   │                  shouldBlockNav: view==='form' && (!effectiveEditMode || isDraftMode) && 입력값 존재
 │   │                  useBlocker: 라우터 이탈 감지 / showDraftModal: 로컬 setView('list') 이탈 감지
 │   │                  saveDraft(): description JSON에 모든 필드(step 포함) 저장 → missions INSERT/UPDATE(status='draft')
-│   │                  draft→active 제출: UPDATE(status='active') + reserve_mission_credits 호출, 실패 시 'draft' 롤백
+│   │                  draft→active 제출: reserve_mission_credits 먼저 호출 → 성공 시에만 UPDATE(status='active') (D-101 수정 완료)
+│   │                  신규 INSERT 경로: INSERT(status='draft') → reserve_mission_credits → UPDATE(status='active') 순 (트리거 조기 발화 방지)
 │   │                  editMode 복원: description JSON 전체 파싱 → 개별 필드 set (personaAge/Income/Role/Context/industry/step 포함)
 │   │   ※ 임시저장 공통 패턴 (4개 등록 폼 — NewMission/PreferenceTest/PricingTest/ColdEmailTest):
 │   │                  navigationGuard (src/lib/navigationGuard.js) 싱글톤 import
@@ -352,7 +360,11 @@ purit/
 │                - capturedRoleRef와 동일한 초기화 패턴 — undefined 조건에서만 localStorage 읽기+삭제
 │                - 'login' | 'signup' 값 저장 (미설정 시 'signup' 폴백)
 │                - processSession 내 신규 계정 분기 앞에서 체크: source==='login' → signOut + 에러 표시, 계정 생성 차단
-│              URL ?error 파라미터 체크(D-82): Google 취소/에러 시 purit_oauth_role + purit_oauth_source 모두 정리 후 /login 즉시 복귀
+│              capturedInviteTokenRef = useRef(undefined) 컴포넌트 레벨 선언 ★ 신규 (D-103)
+│                - capturedRoleRef와 동일한 초기화 패턴 — 1회만 localStorage 읽기+삭제
+│                - 초대 링크 경유 Google 가입 시에만 값 존재 / 일반 가입·로그인 시 null
+│                - processSession 내: capturedInviteToken = capturedInviteTokenRef.current → create_oauth_user_profile RPC p_invite_token으로 전달
+│              URL ?error 파라미터 체크(D-82): Google 취소/에러 시 purit_oauth_role + purit_oauth_source + purit_oauth_invite_token 모두 정리 후 /login 즉시 복귀
 │              신규 유저: capturedPendingRole 없으면 에러 표시 (기존 ?? 'company' 위험 폴백 제거)
 │              신규 유저: updateUser(role) + create_oauth_user_profile RPC (migration 059/060/061)
 │                - trust_score: 0으로 초기화 (migration 061에서 100→0 수정, D-92 참조)
@@ -366,14 +378,24 @@ purit/
 │              이메일 가입: location.state?.message (Signup.jsx navigate state)
 │              Google OAuth 가입: ?signup=google URL 파라미터 → 'Google 계정으로 가입이 완료되었습니다. 로그인해 주세요.' (D-93)
 │              ?role= 파라미터: 로그인 역할 탭 자동 선택 (OAuthCallback에서 savedRole 전달)
-│              ★ 자동 redirect useEffect: successMsg truthy 시 redirect 차단 (D-97)
-│                → 가입 완료 직후 stale user 세션으로 인한 대시보드 bounce 방지
-│                → if (successMsg) return; 가드가 이메일·Google OAuth 가입 두 경로 모두 커버
-│   ※ AuthContext.jsx: signInWithGoogle(role, source='signup') 추가 ★ 신규 (D-94)
+│              ★ 자동 redirect useEffect 가드 순서 (D-97·D-103) ★ 변경:
+│                1순위: purit_pending_invite 감지 → /invite?token=xxx 이동 (successMsg 가드보다 항상 우선)
+│                2순위: successMsg truthy 시 redirect 차단 (가입 완료 직후 stale session bounce 방지)
+│                3순위: user && authRole → 대시보드 이동
+│                순서가 반전되면(successMsg 먼저) 팀원 초대 후 가입 완료 상태에서 /invite 복귀가 영구 차단됨 — D-103
+│   ※ AuthContext.jsx: signInWithGoogle(role, source='signup', inviteToken=null) ★ 시그니처 확장 (D-94·D-103)
 │              localStorage.setItem('purit_oauth_role', role) + localStorage.setItem('purit_oauth_source', source)
+│              inviteToken 있으면 localStorage.setItem('purit_oauth_invite_token', inviteToken) / 없으면 removeItem
+│              signUp({ email, password, name, role, inviteToken }) ★ inviteToken 파라미터 추가
+│                inviteToken 있으면 user_metadata.invite_token = inviteToken 포함 → handle_new_user 트리거가 감지
 │              → signInWithOAuth({ provider:'google', redirectTo: origin+'/oauth/callback', queryParams:{prompt:'select_account'} })
 │              source: 'login'(로그인 페이지) | 'signup'(회원가입 페이지, 기본값)
 │              context value에 signInWithGoogle 노출
+│   ※ Signup.jsx: invite_token URL 파라미터 처리 ★ 신규
+│              inviteToken = useMemo(() => new URLSearchParams(location.search).get('invite_token') || undefined)
+│              handleSubmit: signUp({ email, password, name, role, inviteToken }) — 이메일 가입 경로
+│              handleGoogle: signInWithGoogle(role, 'signup', inviteToken || null) — Google OAuth 경로
+│              loginMsg: inviteToken 있으면 "로그인하면 초대 수락 페이지로 이동합니다." 커스텀 메시지 ★
 │       ├── company/  (17개 — 라우트 목록 참조)
 │       ├── panel/    (5개 — 라우트 목록 참조)
 │       └── admin/    (7개 — 라우트 목록 참조)
@@ -439,6 +461,14 @@ purit/
 │                064(fix_oauth_panel_status_pending: create_oauth_user_profile RPC 재정의 — 패널 status='pending'으로 수정(061에서 active 하드코딩 → pending) RETURNS BOOLEAN 시그니처 유지)
 │                065(save_panel_verification_docs: 패널 검증 자료 저장 SECURITY DEFINER RPC — 이메일 미확인 상태/RLS 차단 우회, auth.uid()=p_user_id 본인 검증, COALESCE 패턴으로 NULL 값 무시)
 │                066(admin_update_panels_rls: 어드민 panels UPDATE RLS 정책 추가 — app_metadata role='admin' 조건, 기존 본인 UPDATE 정책과 공존, D-5 silent failure 해결)
+│                067(team_invite_token: team_members 테이블 invite_token·invite_expires_at·joined_at 컬럼 추가 + peek_team_invite SECURITY DEFINER RPC)
+│                068(fix_team_members_structure: team_members.user_id UUID 컬럼 추가 + role CHECK 제약 수정(member→editor) + accept_team_invite RPC 재정의 — user_id=auth.uid() 저장·이메일 일치 검증)
+│                069(companies_team_member_rls: companies 테이블 RLS 활성화 + 팀원 SELECT 정책 추가)
+│                070(team_members_rls: team_members 테이블 RLS 활성화 + SELECT/INSERT/UPDATE/DELETE 정책)
+│                071(handle_new_user_skip_invite: handle_new_user 트리거 재정의 — invite_token 있고 유효한 team_members 레코드(status='invited')와 매칭되면 companies 생성 SKIP)
+│                072(create_oauth_user_profile_invite: create_oauth_user_profile RPC 시그니처 확장 — p_invite_token TEXT DEFAULT NULL 추가
+│                  기존 2-param 함수 DROP 후 3-param 재생성 / company 분기에서 valid invite_token 있으면 companies INSERT 건너뜀
+│                  migration 071(이메일 경로)과 대칭 구조 완성 — D-103 참조)
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)
@@ -618,6 +648,9 @@ purit/
   .dash-stat-grid-5     — 5열 통계 카드 (768px↓: 2열) — company/Dashboard
   .dash-stat-grid-3     — 3열 통계 카드 (768px↓: 2열, 480px↓: 1열) — panel/Dashboard
   .dash-two-col         — 1fr+300px 2열 (768px↓: 1열) — admin/Dashboard
+  ※ company/Dashboard.jsx: !loading && !company → "초대 수락이 필요합니다" 안내 화면 ★ 신규
+      초대 수락 전 또는 purit_pending_invite localStorage 소실 시(다른 기기 로그인 등) 진입하는 null 상태
+      resolveCompany({ company:null, teamRole:null }) → missions/feedbacks 로드 없이 안내 렌더
   ※ company/Dashboard 차트 섹션: className="chart-three-col" + 인라인 repeat(3, 1fr)
     - 차트 데이터 소스: completedIds(status='completed' 미션) + feedbacks.eq('purity_passed', true) ★ 수정
       활성(active) 의뢰·미승인 피드백은 차트에서 제외 — 어드민 완료 처리 이후에야 반영
