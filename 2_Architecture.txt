@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-06 (companies RLS 긴급 수정 + RPC GRANT 누락 보완 — migration 074·075)
+최종 업데이트: 2026-06-06 (migration 번호 중복 정리 — 067_enhanced_sharing → 076)
 ================================================================
 
 ## 기술 스택
@@ -496,6 +496,12 @@ purit/
 │                  notify_admin_on_feedback_submitted(UUID, BOOLEAN) → TO authenticated
 │                  notify_company_first_panel_accepted(UUID) → TO authenticated
 │                  notify_owner_team_member_joined(UUID, TEXT, TEXT) → TO authenticated
+│                076(enhanced_sharing: 공유 페이지 고도화 — share_permissions 컬럼 + get_shared_mission RPC 전면 확장)
+│                  missions.share_permissions JSONB DEFAULT '{"show_comments":true,"show_annotations":true}'
+│                  get_shared_mission(p_token TEXT) 재정의: 코멘트·어노테이션·서브미션 응답 집계 포함
+│                    show_comments=false → feedbacks 배열 미포함 / show_annotations=false → annotations 미포함
+│                    서브 미션(preference/pricing/email): sub_responses JSONB 집계 반환
+│                  ※ 067_enhanced_sharing.sql에서 번호 중복으로 076으로 이동 (067은 team_invite_token 유지)
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)
