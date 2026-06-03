@@ -223,7 +223,7 @@ export default function MissionList() {
   const navigate = useNavigate();
   const location = useLocation();
   const [missions, setMissions]       = useState([]);
-  // feedbackMap: { [missionId]: { status, id, suggestions, rejection_deadline } }
+  // feedbackMap: { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]               = useState(null);
   const [panelStatus, setPanelStatus]       = useState('active');

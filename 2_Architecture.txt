@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-03 (서브미션 폼 descJson 공통 필드 보강 — panelSize·assetType 포함 명시 / VerifyDocs 직무 인증 필수 설계 반영)
+최종 업데이트: 2026-06-03 (문서-코드 불일치 수정 — 라우트 수 34→41, Sidebar 5대 지표 진단 레이블, earlyComplete 버튼 조건 보완, Sidebar pending 게이트 문서화)
 ================================================================
 
 ## 기술 스택
@@ -43,7 +43,7 @@ purit/
 │   │              navigationGuard.js (싱글톤 — register(config)/unregister()/intercept(path); 폼 페이지가 register, Sidebar가 intercept 호출)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
-│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(질문템플릿·피드백결과·5차원진단·AI리포트)/계정)
+│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(질문템플릿·피드백결과·5대 지표 진단·AI리포트)/계정)
 │   │   │              ★ Supabase Realtime 채널 명명 패턴 (D-96):
 │   │   │                모든 supabase.channel(name) 호출 시 name에 `-${Date.now()}` 접미사 필수
 │   │   │                예) 'sidebar-notif-badge-${userId}-${Date.now()}'
@@ -68,6 +68,13 @@ purit/
 │   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   │              showBugReport state + "버그/불편 신고" 버튼(로그아웃 버튼 위, 전 포털 공통) + BugReportModal 렌더
 │   │   │              어드민 NAV '운영' 그룹 순서: 기업 관리 → 패널 관리 → 미션 관리 → 피드백 관리(구 'Purit Filter') → 수익 & 정산 → 버그 리포트 ★
+│   │   │              ★ 패널 pending 게이트 (Layout <main> 블록) ★ 신규:
+│   │   │                panelStatusLoaded=false + /panel·/panel/verify-docs 외 경로 → null 렌더 (로딩 대기)
+│   │   │                panelStatus==='pending' + /panel·/panel/verify-docs 외 경로 → 개별 페이지 대신 pending 콘텐츠 표시
+│   │   │                  - panelHasDocs=true (서류 제출 완료): amber "심사 대기 중" 배너 표시
+│   │   │                  - panelHasDocs=false (서류 미제출): "서비스 이용을 위한 경력 인증" Card + "서류 제출하기 →" Btn
+│   │   │                ※ 개별 페이지(Missions.jsx·ActiveMission.jsx)의 pending 게이트와 이중 방어 구조
+│   │   │                  Sidebar 레벨이 1차 차단, 개별 페이지 게이트가 URL 직접 접근 방어(2차)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
 │   │                  ConfirmModal props: title·desc·confirmLabel·cancelLabel·danger·onConfirm·onCancel + errorMsg=''(선택)
 │   │                    errorMsg 있으면 모달 내부 하단에 빨간 배너 표시 → 확인 실패 시 모달 유지 (낙관적 롤백 패턴 — D-65 참조)
@@ -307,7 +314,9 @@ purit/
 │   │                      → missions.company_notified_at = now() UPDATE (기업 공개 게이트 해제, migration 039)
 │   │                      → sendNotification(기업, actionUrl='/company/results?id=...') fire-and-forget
 │   │                      → setMissions 리로드 + setSelectedMission(prev→data.find) 동기화 ★
-│   │                    "완료 처리" 버튼: m.status==='cancelled' && allFbs.length>0 && pendingFbs.length===0 일 때만 활성화
+│   │                    "완료 처리" 버튼 표시 조건: m.status==='cancelled' && allFbs.length>0 && !m.company_notified_at
+│   │                      disabled 조건: reviewing.length>0 (검토 중 피드백 존재 시 비활성화)
+│   │                      완료 처리 후(company_notified_at SET): 버튼 대신 "기업 공개됨" 초록 Badge 표시
 │   │                  confirmReactivate state: { id, label, desc, fromStatus } — fromStatus로 completed/cancelled 분기
 │   │                    fromStatus='completed': reactivateCompleted(id) 호출 → reactivate_mission_and_reclaim RPC + 기업 재진행 알림 발송
 │   │                      INSUFFICIENT_CREDITS 에러 시 잔액/필요량 표시 + 상태 변경 없음
@@ -498,7 +507,7 @@ purit/
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (34개)
+## 라우트 전체 목록 (41개)
 ================================================================
 
 [공개]
