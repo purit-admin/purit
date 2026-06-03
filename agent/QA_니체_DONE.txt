@@ -204,6 +204,10 @@
 [B-156] 기업 포털 5개 페이지 카드 클릭 — cancelled+company_notified_at IS NULL 미션이 Results.jsx ?id로 이동, 쿼리 게이트에서 제외되어 ms[0] 자동 선택. 5개 파일 카드 onClick 조건 분기에 토스트 표시로 변경  ✅
 [B-157] 기업 대시보드 (company/Dashboard.jsx) — CompanyMissionCard activeToast가 createPortal 없이 렌더됨. D-19 위반. createPortal 적용  ✅
 
+-- PanelRegister.jsx 레거시 제거 (2026-06-03) --
+[BUG-STRUCT-1] PanelRegister.jsx — 가짜 가입 폼 파일 삭제 + App.jsx import·라우트(경로) 제거  ✅
+[BUG-APP-1]    App.jsx — /panel/register 미문서화 공개 라우트(경로) 제거 (BUG-STRUCT-1과 함께 처리)  ✅
+
 -- 1차 즉시 수정 8건 (2026-06-03) --
 [BUG-OAUTH-1] OAuthCallback.jsx — 삭제된 CREDS 스텝의 sessionStorage.removeItem dead code 제거  ✅
 [BUG-NEW-9]   panel/Dashboard.jsx — HP 툴팁 '반려 −5 pts' 오표시 항목 삭제  ✅
