@@ -78,8 +78,48 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 ================================================================
-## 🟢 P3 Minor (4건)
+## 🟢 P3 Minor (6건)
 ================================================================
+
+[기업-설정-A] company/Settings.jsx — handleChangeRole() DB 실패 시 에러 메시지 화면 미표시
+- 🚨 중요도: P3 — 역할 드롭다운이 갑자기 이전 값으로 되돌아가지만 사용자에게 아무런 안내 없음. 왜 변경이 안 됐는지 알 수 없어 혼란.
+- 📍 위치: src/pages/company/Settings.jsx (lines 122-130, handleChangeRole)
+- 🕵️‍♂️ 재현: 팀 관리 탭 → 활성 팀원 역할 드롭다운 변경 → DB 업데이트 실패 시 (예: RLS 오류, 네트워크 단절)
+- 🤦‍♂️ 현재:
+    ```js
+    if (error) {
+      setMembers(prevMembers); // UI 롤백만 됨
+      console.error('[changeRole]', error.message); // 에러 메시지 콘솔에만 출력
+    }
+    ```
+    롤백은 되지만 사용자에게는 아무런 피드백 없음.
+- ✨ 기대: roleChangeError state 추가 + UI 인라인 에러 표시:
+    ```js
+    if (error) {
+      setMembers(prevMembers);
+      setRoleChangeError('역할 변경 중 오류가 발생했습니다.');
+      setTimeout(() => setRoleChangeError(''), 3000);
+    }
+    ```
+- 🔍 수평 전개: handleChangeRole은 isOwner 조건에서만 드롭다운이 표시되므로 RLS 실패 케이스는 드물지만, 네트워크 단절 시 재현 가능.
+
+[기업-버그보고-A] company/BugReports.jsx — 페이지 전환 시 우측 상세 패널 `selected` 상태 미초기화
+- 🚨 중요도: P3 — 버그 리포트가 6건 이상일 때, 페이지 1에서 항목 선택 후 다음 페이지로 이동 시 우측 패널에 이전 페이지 항목 상세가 계속 표시됨. 좌측 목록에는 선택 강조 없어 어떤 항목의 상세인지 파악 불가.
+- 📍 위치: src/pages/company/BugReports.jsx (line 36)
+- 🕵️‍♂️ 재현: 버그 리포트 6건 이상 존재 → 페이지 1에서 임의 항목 클릭 → 페이지 이동 버튼(다음) 클릭 → 우측 상세 패널이 이전 항목 내용 유지
+- 🤦‍♂️ 현재:
+    ```js
+    useEffect(() => { load(); }, [page]); // setSelected(null) 누락
+    ```
+    load()가 새 reports 배열을 로드하지만 selected 상태(state)는 초기화되지 않음.
+- ✨ 기대:
+    ```js
+    useEffect(() => {
+      setSelected(null); // 페이지 전환 시 선택 초기화
+      load();
+    }, [page]);
+    ```
+- 🔍 수평 전개: panel/BugReports.jsx도 동일 구조 → 동일 버그 존재 가능. panel/BugReports.jsx 동시 수정 필요.
 
 [Admin-B] PurityFilter.jsx — bulkReject() 슬롯 차감 일부 실패 시 ConfirmModal이 영구 열림 상태로 고착
 - 🚨 중요도: P3 — 반려 작업은 완료됐는데 모달이 닫히지 않아 어드민이 혼란 (취소 버튼으로만 닫힘). 재클릭 시 checkedIds가 비어 아무 동작 안 함. 단, rejection_deadline 재설정 및 decrement 재호출 위험은 checkedIds 초기화로 인해 실질적으로 발생하지 않음.
@@ -135,8 +175,15 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 ================================================================
-## ⚪ P4 Dead Code (0건)
+## ⚪ P4 Dead Code (1건)
 ================================================================
+
+[기업-문서-A] 4_DBSchema.txt — missions 테이블 `dismissed` 컬럼 미기재
+- 🚨 중요도: P4 — 코드(Dashboard.jsx, NewMission.jsx 등 5개 파일)는 dismissed 컬럼을 실제 사용 중이지만 4_DBSchema.txt에 컬럼 정의 누락. 신규 개발 시 스키마 참조 오류 가능.
+- 📍 위치: 4_DBSchema.txt의 [missions] 섹션 (line 71-93)
+- 🤦‍♂️ 현재: migrations/056_missions_dismissed.sql에 `dismissed BOOLEAN DEFAULT FALSE` 컬럼이 추가됐으나 문서 미반영.
+- ✨ 기대: [missions] 섹션에 아래 한 줄 추가:
+    `dismissed BOOLEAN DEFAULT FALSE ← 056 추가 (기업 포털 소프트 삭제 — dismissed=true 시 기업 목록에서 숨김, 어드민은 전체 조회)`
 
 ================================================================
 ## ⏭ 보류·스킵 목록 (재조사 금지)
@@ -195,11 +242,11 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 7건
+미완료 합계: 11건
   🔴 P1  0건
   🟡 P2  4건
-  🟢 P3  3건
-  ⚪ P4  0건
+  🟢 P3  6건
+  ⚪ P4  1건
 
 스킵/보류: 22건
 

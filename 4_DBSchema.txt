@@ -85,10 +85,11 @@
   estimated_minutes  INT   DEFAULT 5  (예상 소요 시간, 009_gamification.sql)
   difficulty         TEXT  DEFAULT 'normal'  CHECK IN ('easy','normal','hard')  (009_gamification.sql)
   share_token        TEXT  UNIQUE  (010_sharing.sql, NULL이면 비공개)
-  share_permissions  JSONB NOT NULL DEFAULT '{"show_comments":true,"show_annotations":true}'::jsonb  ← 067 추가 (공유 페이지 공개 권한 설정)
+  share_permissions  JSONB NOT NULL DEFAULT '{"show_comments":true,"show_annotations":true}'::jsonb  ← 076 추가 (공유 페이지 공개 권한 설정 — 이전 067 번호 중복으로 076으로 이동)
   credits_reserved   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (의뢰 등록 시 차감 예약 크레딧)
   credits_consumed   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (퓨릿 필터 승인 시 실시간 갱신·완료 처리 시 최종 확정)
   company_notified_at TIMESTAMPTZ    DEFAULT NULL        ← 039 추가 (조기종료 기업 공개 게이트 — earlyCompleteMission 호출 시 SET, NULL이면 Results.jsx 취소 탭 미노출)
+  dismissed          BOOLEAN DEFAULT FALSE               ← 056 추가 (기업 포털 소프트 삭제 — dismissed=true 시 기업 목록에서 숨김, 어드민은 전체 조회)
   created_at         TIMESTAMPTZ DEFAULT now()
 
 ---
