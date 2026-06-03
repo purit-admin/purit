@@ -5,7 +5,7 @@
   재조사 금지. 이력 확인 전용.
   새 완료 항목은 PROGRESS.txt에서 해당 행을 삭제하고 이 파일 하단에만 추가할 것.
 
-총 완료: 183건 (2026-06-04 기준)
+총 완료: 194건 (2026-06-05 기준)
 
 ================================================================
 
@@ -302,3 +302,18 @@
 [STRUCT-071-E] Signup.jsx successMsg TDZ 위반 — successMsg useState 선언을 useEffect 의존성 배열 사용 위치보다 먼저 배치  ✅
 
 ================================================================
+
+-- 확장성(Scale) 결함 수정 (2026-06-05) — 기업 10개/패널 100명 규모 대응 --
+[Scale-A] admin/Missions.jsx — missions×feedbacks×panels 3중 중첩 JOIN → feedbacks panels(name) 제거, MissionDetail 열 때 lazy load  ✅
+[Scale-B] panel/Missions.jsx — select('*') → 명시적 컬럼(렌더 필요 필드만)  ✅
+[Scale-C] panel/Dashboard.jsx — missions.select('*, feedbacks(id)') → feedbacks(id) 중첩 JOIN 제거  ✅
+[Scale-D] panel/Dashboard.jsx — 마감 임박 알림 쿼리 4개 → 2개(feedbacks 통합 1개 + notifications 중복 체크 1개)  ✅
+[Scale-E] admin/PurityFilter.jsx — 전체 feedbacks 무제한 로드 → pending 전체 + approved/rejected 최근 300건 limit  ✅
+[Scale-F] admin/PanelManagement.jsx — panels select('*') → 명시적 컬럼 / feedbacks loadStats limit(2000)  ✅
+[Scale-G] company/Diagnosis.jsx — 전체 회사 승인 피드백 벤치마크 로드 제거 → DIMENSIONS 정적 benchmark 상수  ✅
+[Scale-H] admin/PurityFilter.jsx — bulkReject rejection_deadline N개 → 메인/서브 2개 배치 UPDATE / 알림 N회 → 배열 INSERT 1회 + notif_prefs 필터  ✅
+[Scale-I] NotificationCenter.jsx — 전체 알림 로드 → limit(200)  ✅
+[Scale-J] admin/Revenue.jsx — 전체 승인 피드백 로드 → limit(500)  ✅
+[Scale-K] company/Dashboard.jsx — Pagination 전체 번호 렌더 → WINDOW=5 슬라이딩 윈도우  ✅
+[Scale-K-수평-1] company/Results.jsx — Pagination 전체 번호 렌더 → 슬라이딩 윈도우  ✅
+[Scale-K-수평-2] NotificationCenter.jsx — Pagination 전체 번호 렌더 → 슬라이딩 윈도우  ✅

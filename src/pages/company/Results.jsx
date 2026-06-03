@@ -24,11 +24,15 @@ function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
   const base = { padding: '3px 7px', borderRadius: 5, fontSize: 11, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer' };
+  const winStart = Math.max(1, page - 2);
+  const winEnd   = Math.min(totalPages, winStart + 4);
+  const pageNums = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
   return (
     <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+      {page > 5 && <button onClick={() => onPage(Math.max(1, page - 5))} style={base}>«</button>}
       <button onClick={() => onPage(page - 1)} disabled={page === 1}
         style={{ ...base, opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}>‹</button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+      {pageNums.map(n => (
         <button key={n} onClick={() => onPage(n)} style={{
           ...base,
           background: page === n ? 'var(--accent)' : 'var(--surface)',
@@ -39,6 +43,7 @@ function Pagination({ page, total, onPage }) {
       ))}
       <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
         style={{ ...base, opacity: page === totalPages ? 0.4 : 1, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>›</button>
+      {page <= totalPages - 5 && <button onClick={() => onPage(Math.min(totalPages, page + 5))} style={base}>»</button>}
     </div>
   );
 }

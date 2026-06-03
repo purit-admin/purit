@@ -63,13 +63,28 @@ function getFeedbackStatus(f) {
 function MissionDetail({ mission, onFeedbackClick }) {
   const [fbFilter, setFbFilter] = useState('all');
   const [detailPage, setDetailPage] = useState(1);
+  const [detailFbs, setDetailFbs] = useState(mission.feedbacks || []);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  const drafts   = (mission.feedbacks || []).filter(f => {
+  useEffect(() => {
+    if (!mission?.id) return;
+    setDetailFbs(mission.feedbacks || []);
+    setDetailLoading(true);
+    supabase.from('feedbacks')
+      .select('id, status, purity_passed, created_at, submission_deadline, rejection_deadline, panels(name)')
+      .eq('mission_id', mission.id)
+      .then(({ data }) => {
+        if (data) setDetailFbs(data);
+        setDetailLoading(false);
+      });
+  }, [mission?.id]);
+
+  const drafts   = detailFbs.filter(f => {
     if (f.status !== 'draft') return false;
     const deadline = f.rejection_deadline || f.submission_deadline;
     return deadline && new Date(deadline) > new Date();
   });
-  const allFbs   = (mission.feedbacks || []).filter(f => f.status !== 'draft');
+  const allFbs   = detailFbs.filter(f => f.status !== 'draft');
   const approved = allFbs.filter(f => f.purity_passed);
   const rejected = allFbs.filter(f => !f.purity_passed && f.status === 'rejected');
   const pending  = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
@@ -106,6 +121,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
         </div>
       </Card>
       <Card style={{ padding: '14px 16px' }}>
+        {detailLoading && <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>피드백 로딩 중...</div>}
         <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
           {TABS.map(t => (
             <button key={t.v} onClick={() => handleTab(t.v)} style={{
@@ -299,9 +315,10 @@ export default function AdminMissions() {
   useEffect(() => {
     async function load() {
       try {
+        // feedbacks panels(name) 중첩 join 제거 — 카드 클릭 시 lazy load로 분리
         const { data, error } = await supabase
           .from('missions')
-          .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, created_at, submission_deadline, rejection_deadline, panels(name))')
+          .select('*, companies(name, user_id), feedbacks(id, status, purity_passed, submission_deadline, rejection_deadline)')
           .neq('status', 'draft')
           .order('created_at', { ascending: false });
         if (error) console.error('[AdminMissions]', error.message);

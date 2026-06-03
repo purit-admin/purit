@@ -53,7 +53,8 @@ export default function NotificationCenter({ role = 'company' }) {
           .select('*')
           .eq('user_id', user.id)
           .or(`target_role.eq.${role},target_role.is.null`)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(200);
 
         if (data) setNotifs(data);
         setLoading(false);
@@ -306,6 +307,7 @@ export default function NotificationCenter({ role = 'company' }) {
           {/* 페이지네이션 */}
           {totalPages > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 20 }}>
+              {page > 5 && <button onClick={() => setPage(p => Math.max(1, p - 5))} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', color: 'var(--text)', fontSize: 13 }}>«</button>}
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -313,7 +315,10 @@ export default function NotificationCenter({ role = 'company' }) {
               >
                 ‹
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const winStart = Math.max(1, page - 2);
+                return winStart + i;
+              }).filter(n => n <= totalPages).map(p => (
                 <button
                   key={p}
                   onClick={() => setPage(p)}

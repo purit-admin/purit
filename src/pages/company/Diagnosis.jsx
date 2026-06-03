@@ -105,7 +105,7 @@ export default function Diagnosis() {
   const [showGuide, setShowGuide] = useState(false);
   const [rawFeedbacks, setRawFeedbacks] = useState([]);
   const [period, setPeriod] = useState('all');
-  const [allBenchmarkFbs, setAllBenchmarkFbs] = useState([]);
+  // allBenchmarkFbs 제거 — 벤치마크는 DIMENSIONS 정적 상수 사용
 
   useEffect(() => { load(); }, []);
 
@@ -114,7 +114,7 @@ export default function Diagnosis() {
     const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
     const periodMissionIds = cutoff ? new Set(missions.filter(m => new Date(m.created_at) >= cutoff).map(m => m.id)) : null;
     const filtered = periodMissionIds ? rawFeedbacks.filter(f => periodMissionIds.has(f.mission_id)) : rawFeedbacks;
-    const { newScores, newDistributions, newBenchmarks } = computeForFbs(filtered, allBenchmarkFbs);
+    const { newScores, newDistributions, newBenchmarks } = computeForFbs(filtered);
     setScores(newScores);
     setDistributions(newDistributions);
     setBenchmarks(newBenchmarks);
@@ -134,7 +134,7 @@ export default function Diagnosis() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds, compareMode]);
 
-  function computeForFbs(myFeedbacks, allFeedbacks) {
+  function computeForFbs(myFeedbacks) {
     const newScores = {}, newDistributions = {}, newBenchmarks = {};
     DIMENSIONS.forEach(d => {
       const myVals = myFeedbacks.map(f => f[d.key]).filter(Boolean);
@@ -142,8 +142,7 @@ export default function Diagnosis() {
       const dist = [0, 0, 0, 0, 0];
       myVals.forEach(v => { const i = Math.round(v) - 1; if (i >= 0 && i <= 4) dist[i]++; });
       newDistributions[d.key] = dist;
-      const allVals = (allFeedbacks || []).map(f => f[d.key]).filter(Boolean);
-      newBenchmarks[d.key] = allVals.length ? avg(allVals) : d.benchmark;
+      newBenchmarks[d.key] = d.benchmark;
     });
     return { newScores, newDistributions, newBenchmarks };
   }
@@ -175,21 +174,20 @@ export default function Diagnosis() {
     if (!ids.length) { setHasData(false); return; }
 
     try {
-      const [myRes, allRes] = await Promise.all([
-        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses,created_at,mission_id').in('mission_id', ids).eq('purity_passed', true),
-        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
-      ]);
+      const { data: myFbs } = await supabase
+        .from('feedbacks')
+        .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses,created_at,mission_id')
+        .in('mission_id', ids)
+        .eq('purity_passed', true);
 
-      const myFeedbacks = myRes.data || [];
-      const allFeedbacks = allRes.data || [];
+      const myFeedbacks = myFbs || [];
       setCompareData(null);
       setRawFeedbacks(myFeedbacks);
-      setAllBenchmarkFbs(allFeedbacks);
 
       const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
       const periodMissionIds = cutoff ? new Set(msList.filter(m => new Date(m.created_at) >= cutoff).map(m => m.id)) : null;
       const periodFiltered = periodMissionIds ? myFeedbacks.filter(f => periodMissionIds.has(f.mission_id)) : myFeedbacks;
-      const { newScores, newDistributions, newBenchmarks } = computeForFbs(periodFiltered, allFeedbacks);
+      const { newScores, newDistributions, newBenchmarks } = computeForFbs(periodFiltered);
       setScores(newScores);
       setDistributions(newDistributions);
       setBenchmarks(newBenchmarks);
@@ -210,25 +208,23 @@ export default function Diagnosis() {
       const requests = [
         supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idA).eq('purity_passed', true),
         supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idB).eq('purity_passed', true),
-        supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score').eq('purity_passed', true),
       ];
       if (idC) requests.push(supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idC).eq('purity_passed', true));
 
       const results = await Promise.all(requests);
       const fbsA = results[0].data || [];
       const fbsB = results[1].data || [];
-      const allFbs = results[2].data || [];
-      const fbsC = idC ? (results[3].data || []) : [];
+      const fbsC = idC ? (results[2].data || []) : [];
 
-      const comA = computeForFbs(fbsA, allFbs);
-      const comB = computeForFbs(fbsB, allFbs);
+      const comA = computeForFbs(fbsA);
+      const comB = computeForFbs(fbsB);
 
       const data = {
         a: { id: idA, title: mA?.title || 'A', scores: comA.newScores, distributions: comA.newDistributions, keywords: extractKeywords(fbsA) },
         b: { id: idB, title: mB?.title || 'B', scores: comB.newScores, distributions: comB.newDistributions, keywords: extractKeywords(fbsB) },
       };
       if (idC) {
-        const comC = computeForFbs(fbsC, allFbs);
+        const comC = computeForFbs(fbsC);
         data.c = { id: idC, title: mC?.title || 'C', scores: comC.newScores, distributions: comC.newDistributions, keywords: extractKeywords(fbsC) };
       }
 

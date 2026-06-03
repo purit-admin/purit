@@ -187,12 +187,27 @@ export default function PurityFilter() {
     const pendingDeeplink = location.state?.feedbackId;
     async function load() {
       try {
-      const { data } = await supabase
-        .from('feedbacks')
-        .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience)')
-        .neq('status', 'draft')
-        .order('created_at', { ascending: true });
-      const fbs = data || [];
+      // 검토 대기(pending) 탭을 기본으로 로드. 승인/반려는 최근 300건으로 제한해 초기 로딩 부하 감소.
+      // panels에 notif_prefs 포함 — 일괄 승인/반려 알림 시 수신 설정 필터에 사용
+      const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+        supabase.from('feedbacks')
+          .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
+          .eq('status', 'submitted').eq('purity_passed', false)
+          .order('created_at', { ascending: true }),
+        supabase.from('feedbacks')
+          .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
+          .eq('purity_passed', true).neq('status', 'draft')
+          .order('created_at', { ascending: false }).limit(300),
+        supabase.from('feedbacks')
+          .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
+          .eq('status', 'rejected').eq('purity_passed', false)
+          .order('created_at', { ascending: false }).limit(300),
+      ]);
+      const fbs = [
+        ...(pendingRes.data  || []),
+        ...(approvedRes.data || []),
+        ...(rejectedRes.data || []),
+      ];
       setFeedbacks(fbs);
       if (!pendingDeeplink && fbs.length > 0) setSelected(fbs[0].id);
       setLoading(false);
@@ -380,21 +395,42 @@ export default function PurityFilter() {
     const { error } = await supabase.from('feedbacks')
       .update({ purity_passed: true, status: 'approved', rejection_penalty_applied: false }).in('id', ids);
     if (error) { setStatusError('일괄 승인 실패: ' + error.message); setBulkActing(false); return; }
+
+    // payout_amount: 타입별 금액이 달라 개별 업데이트 필요 — 병렬 처리로 최소화
     await Promise.all(ids.map(id =>
       supabase.from('feedbacks').update({ payout_amount: payoutMap[id] }).eq('id', id)
     ));
+
     setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved', payout_amount: payoutMap[f.id], rejection_penalty_applied: false } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
+
+    // HP 복원 (반려 패널 재승인 시)
     ids.forEach(id => {
       const f = feedbacks.find(fb => fb.id === id);
-      if (!f) return;
-      const mTitle = f.missions?.title || '미션';
-      if (f.rejection_penalty_applied && f.panel_id) {
+      if (f?.rejection_penalty_applied && f?.panel_id) {
         supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: 5 }).then(({ error: he }) => { if (he) console.warn('[bulk_honor_restore]', he.message); });
       }
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'success', icon: '✅', title: '피드백 승인', body: `[${mTitle}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, actionUrl: '/panel/history', targetRole: 'panel', prefKey: 'feedbackApproved' });
     });
+
+    // 알림: notif_prefs.feedbackApproved !== false 패널만 배열 INSERT (1회)
+    const approvedFbs = ids.map(id => feedbacks.find(fb => fb.id === id)).filter(Boolean);
+    const notifRows = approvedFbs
+      .filter(f => f.panels?.user_id && f.panels?.notif_prefs?.feedbackApproved !== false)
+      .map(f => ({
+        user_id: f.panels.user_id,
+        type: 'success',
+        icon: '✅',
+        title: '피드백 승인',
+        body: `[${f.missions?.title || '미션'}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`,
+        action_url: '/panel/history',
+        target_role: 'panel',
+        read: false,
+      }));
+    if (notifRows.length > 0) {
+      supabase.from('notifications').insert(notifRows).then(({ error: ne }) => { if (ne) console.warn('[bulk_approve_notif]', ne.message); });
+    }
+
     setCheckedIds(new Set()); setBulkActing(false);
     return true;
   };
@@ -404,40 +440,70 @@ export default function PurityFilter() {
     setBulkActing(true); setStatusError('');
     const ids = [...checkedIds];
     const now = Date.now();
-    // rejection_deadline은 미션 타입별로 다르므로 feedbackId → deadline 맵 사전 계산
+
+    // rejection_deadline: 메인(4h) / 서브(2h) 2개 그룹으로 분리 → 2개 UPDATE로 처리
+    const mainDeadline = new Date(now + 4 * 60 * 60 * 1000).toISOString();
+    const subDeadline  = new Date(now + 2 * 60 * 60 * 1000).toISOString();
+    const subTypes = ['preference', 'pricing', 'email'];
+    const mainIds = ids.filter(id => !subTypes.includes(feedbacks.find(fb => fb.id === id)?.missions?.type));
+    const subIds  = ids.filter(id =>  subTypes.includes(feedbacks.find(fb => fb.id === id)?.missions?.type));
     const deadlineMap = {};
-    ids.forEach(id => {
-      const f = feedbacks.find(fb => fb.id === id);
-      if (!f) return;
-      const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
-      deadlineMap[id] = new Date(now + (isSub ? 2 : 4) * 60 * 60 * 1000).toISOString();
-    });
+    mainIds.forEach(id => { deadlineMap[id] = mainDeadline; });
+    subIds.forEach(id =>  { deadlineMap[id] = subDeadline;  });
+
     const { error } = await supabase.from('feedbacks')
       .update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true }).in('id', ids);
     if (error) { setStatusError('일괄 반려 실패: ' + error.message); setBulkActing(false); return; }
-    // rejection_deadline 개별 저장 + filled_count 차감 (타입별 deadline이 다르므로 개별 처리)
+
+    // rejection_deadline: 2번의 배치 UPDATE (N개 개별 → 2개로 감소)
+    const deadlineUpdates = [];
+    if (mainIds.length > 0) deadlineUpdates.push(supabase.from('feedbacks').update({ rejection_deadline: mainDeadline }).in('id', mainIds));
+    if (subIds.length > 0)  deadlineUpdates.push(supabase.from('feedbacks').update({ rejection_deadline: subDeadline  }).in('id', subIds));
+    await Promise.all(deadlineUpdates);
+
+    // filled_count 차감: 미션별로 묶어 RPC 호출 수 최소화
+    const missionIdSet = new Set(ids.map(id => feedbacks.find(fb => fb.id === id)?.mission_id).filter(Boolean));
     let slotFailCount = 0;
-    await Promise.all(ids.map(async id => {
-      await supabase.from('feedbacks').update({ rejection_deadline: deadlineMap[id] }).eq('id', id);
-      const f = feedbacks.find(fb => fb.id === id);
-      if (f?.mission_id) {
-        const { error: se } = await supabase.rpc('decrement_mission_filled_count', { p_mission_id: f.mission_id });
+    await Promise.all([...missionIdSet].map(async mId => {
+      const mFbCount = ids.filter(id => feedbacks.find(fb => fb.id === id)?.mission_id === mId).length;
+      for (let i = 0; i < mFbCount; i++) {
+        const { error: se } = await supabase.rpc('decrement_mission_filled_count', { p_mission_id: mId });
         if (se) { console.warn('[bulk_decrement_slot]', se.message); slotFailCount++; }
       }
     }));
     if (slotFailCount > 0) setStatusError(`일괄 반려 완료. 단, ${slotFailCount}건의 슬롯 차감이 실패했습니다. 해당 미션의 슬롯 카운트를 수동으로 확인해 주세요.`);
+
     setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: deadlineMap[f.id] } : f));
-    const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
+    const mIds = [...missionIdSet];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
+
+    // HP -5 패널티 (병렬)
     ids.forEach(id => {
       const f = feedbacks.find(fb => fb.id === id);
-      if (!f) return;
-      const mTitle = f.missions?.title || '미션';
-      const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
-      if (f.panels?.user_id) sendNotification(f.panels.user_id, { type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${mTitle}] 피드백이 반려되었습니다. ${isSub ? 2 : 4}시간 내 재제출하면 보상 기회가 유지됩니다.`, actionUrl: '/panel/missions?tab=needsRevision', targetRole: 'panel', prefKey: 'feedbackRejected' });
-      if (f.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 })
-        .then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
+      if (f?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 }).then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
     });
+
+    // 알림: 배열 INSERT 1회
+    const rejectedFbs = ids.map(id => feedbacks.find(fb => fb.id === id)).filter(Boolean);
+    const notifRows = rejectedFbs
+      .filter(f => f.panels?.user_id && f.panels?.notif_prefs?.feedbackRejected !== false)
+      .map(f => {
+        const isSub = subTypes.includes(f.missions?.type);
+        return {
+          user_id: f.panels.user_id,
+          type: 'warning',
+          icon: '⚠️',
+          title: '피드백 반려',
+          body: `[${f.missions?.title || '미션'}] 피드백이 반려되었습니다. ${isSub ? 2 : 4}시간 내 재제출하면 보상 기회가 유지됩니다.`,
+          action_url: '/panel/missions?tab=needsRevision',
+          target_role: 'panel',
+          read: false,
+        };
+      });
+    if (notifRows.length > 0) {
+      supabase.from('notifications').insert(notifRows).then(({ error: ne }) => { if (ne) console.warn('[bulk_reject_notif]', ne.message); });
+    }
+
     setCheckedIds(new Set()); setBulkActing(false);
     if (slotFailCount === 0) return true;
   };

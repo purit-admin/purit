@@ -109,25 +109,29 @@ function isBannerDismissed() {
 
 const PAGE_SIZE = 5;
 
+const PAGI_WINDOW = 5;
 function Pagination({ page, total, onPage }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
+  const winStart = Math.max(1, page - 2);
+  const winEnd   = Math.min(totalPages, winStart + PAGI_WINDOW - 1);
+  const pageNums = Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i);
+  const base = { padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13 };
+  const btnStyle = (active) => ({ ...base, background: active ? C.primary : C.cardBg, color: active ? '#fff' : C.text2, fontWeight: active ? 700 : 400 });
+  const disabledStyle = { ...base, cursor: 'not-allowed', opacity: 0.4, background: C.cardBg, color: C.text2 };
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, justifyContent: 'center' }}>
-      <button onClick={() => onPage(page - 1)} disabled={page === 1}
-        style={{ padding: '5px 10px', borderRadius: 6, background: C.cardBg, color: C.text2, border: 'none', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>
-        이전
-      </button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-        <button key={n} onClick={() => onPage(n)}
-          style={{ padding: '5px 10px', borderRadius: 6, background: page === n ? C.primary : C.cardBg, color: page === n ? '#fff' : C.text2, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: page === n ? 700 : 400 }}>
-          {n}
-        </button>
+      {page > PAGI_WINDOW && (
+        <button onClick={() => onPage(Math.max(1, page - PAGI_WINDOW))} style={btnStyle(false)}>«</button>
+      )}
+      <button onClick={() => onPage(page - 1)} disabled={page === 1} style={page === 1 ? disabledStyle : btnStyle(false)}>이전</button>
+      {pageNums.map(n => (
+        <button key={n} onClick={() => onPage(n)} style={btnStyle(page === n)}>{n}</button>
       ))}
-      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
-        style={{ padding: '5px 10px', borderRadius: 6, background: C.cardBg, color: C.text2, border: 'none', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>
-        다음
-      </button>
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages} style={page === totalPages ? disabledStyle : btnStyle(false)}>다음</button>
+      {page <= totalPages - PAGI_WINDOW && (
+        <button onClick={() => onPage(Math.min(totalPages, page + PAGI_WINDOW))} style={btnStyle(false)}>»</button>
+      )}
     </div>
   );
 }

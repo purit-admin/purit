@@ -75,7 +75,7 @@ export default function PanelDashboard() {
       });
 
       const [{ data: ms }, { data: myFeedbacks }, { data: hFbs }] = await Promise.all([
-        supabase.from('missions').select('*, feedbacks(id)').eq('status', 'active')
+        supabase.from('missions').select('id, title, type, status, persona, description, image_urls, panel_count, filled_count, created_at').eq('status', 'active')
           .order('created_at', { ascending: false }),
         supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p?.id),
         supabase.from('feedbacks')
@@ -101,84 +101,42 @@ export default function PanelDashboard() {
       );
       setHistFeedbacks(hFbs || []);
 
-      // 마감 1시간 전 알림 (submission_deadline + rejection_deadline 모두 커버)
-      if (p?.id && user?.id) {
+      // 마감 임박 알림: 쿼리 3개 → 1개로 최적화 (deadline 임박 draft+rejected 통합 조회)
+      if (p?.id && user?.id && p?.notif_prefs?.deadlineWarning !== false) {
         const now = new Date();
         const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
+        const { data: soonFbs } = await supabase
+          .from('feedbacks')
+          .select('id, mission_id, status, submission_deadline, rejection_deadline, missions(title)')
+          .eq('panel_id', p.id)
+          .in('status', ['draft', 'rejected'])
+          .not('submission_deadline', 'is', null)
+          .or(`submission_deadline.lte.${inOneHour.toISOString()},rejection_deadline.lte.${inOneHour.toISOString()}`);
 
-        const [
-          { data: soonExpiring },
-          { data: soonExpiringRejDraft },
-          { data: soonRejected },
-        ] = await Promise.all([
-          // 최초 draft: rejection_deadline 없는 draft의 submission_deadline 임박
-          supabase.from('feedbacks')
-            .select('mission_id, submission_deadline, missions(title)')
-            .eq('panel_id', p.id).eq('status', 'draft')
-            .is('rejection_deadline', null)
-            .gt('submission_deadline', now.toISOString())
-            .lte('submission_deadline', inOneHour.toISOString()),
-          // 재작성 draft: 이미 재수락 클릭 후 작성 중인 draft의 rejection_deadline 임박
-          supabase.from('feedbacks')
-            .select('id, mission_id, rejection_deadline, missions(title)')
-            .eq('panel_id', p.id).eq('status', 'draft')
-            .not('rejection_deadline', 'is', null)
-            .gt('rejection_deadline', now.toISOString())
-            .lte('rejection_deadline', inOneHour.toISOString()),
-          // 아직 재수락 안 한 rejected 피드백의 rejection_deadline 임박
-          supabase.from('feedbacks')
-            .select('mission_id, rejection_deadline, missions(title)')
-            .eq('panel_id', p.id).eq('status', 'rejected')
-            .not('rejection_deadline', 'is', null)
-            .gt('rejection_deadline', now.toISOString())
-            .lte('rejection_deadline', inOneHour.toISOString()),
-        ]);
-
-        const allCandidates = [
-          ...(soonExpiring || []).map(d => ({
-            title: `[${d.missions?.title || '미션'}] 마감 임박 알림`,
-            body: '1시간 후 제출 마감입니다. 지금 바로 참여해주세요.',
-            action_url: `/panel/active?id=${d.mission_id}`,
-          })),
-          ...(soonExpiringRejDraft || []).map(d => ({
-            title: `[${d.missions?.title || '미션'}] 재제출 마감 임박 알림`,
-            body: '1시간 후 재제출 마감입니다. 지금 바로 완료해주세요.',
-            action_url: `/panel/active?id=${d.mission_id}&resubmit=${d.id}`,
-          })),
-          ...(soonRejected || []).map(d => ({
-            title: `[${d.missions?.title || '미션'}] 재제출 마감 임박 알림`,
-            body: '1시간 후 재제출 기회가 만료됩니다. 지금 바로 재작성하세요.',
-            action_url: `/panel/missions`,
-          })),
-        ];
-
-        if (allCandidates.length > 0 && p?.notif_prefs?.deadlineWarning !== false) {
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-          const { data: existingNotifs } = await supabase
-            .from('notifications')
-            .select('title')
-            .eq('user_id', user.id)
-            .ilike('title', '%마감 임박%')
-            .gte('created_at', todayStart.toISOString());
-
-          const sentTitles = new Set((existingNotifs || []).map(n => n.title));
-          const toInsert = allCandidates
-            .filter(d => !sentTitles.has(d.title))
-            .map(d => ({
-              user_id: user.id,
-              type: 'warning',
-              icon: '⏰',
-              title: d.title,
-              body: d.body,
-              action_url: d.action_url,
-              read: false,
-              target_role: 'panel',
-            }));
-
-          if (toInsert.length > 0) {
-            await supabase.from('notifications').insert(toInsert);
+        const candidates = (soonFbs || []).flatMap(d => {
+          const items = [];
+          const subDl = d.submission_deadline ? new Date(d.submission_deadline) : null;
+          const rejDl = d.rejection_deadline  ? new Date(d.rejection_deadline)  : null;
+          if (d.status === 'draft' && !d.rejection_deadline && subDl && subDl > now && subDl <= inOneHour) {
+            items.push({ title: `[${d.missions?.title || '미션'}] 마감 임박 알림`, body: '1시간 후 제출 마감입니다. 지금 바로 참여해주세요.', action_url: `/panel/active?id=${d.mission_id}` });
           }
+          if (d.status === 'draft' && d.rejection_deadline && rejDl && rejDl > now && rejDl <= inOneHour) {
+            items.push({ title: `[${d.missions?.title || '미션'}] 재제출 마감 임박 알림`, body: '1시간 후 재제출 마감입니다. 지금 바로 완료해주세요.', action_url: `/panel/active?id=${d.mission_id}&resubmit=${d.id}` });
+          }
+          if (d.status === 'rejected' && rejDl && rejDl > now && rejDl <= inOneHour) {
+            items.push({ title: `[${d.missions?.title || '미션'}] 재제출 마감 임박 알림`, body: '1시간 후 재제출 기회가 만료됩니다. 지금 바로 재작성하세요.', action_url: '/panel/missions' });
+          }
+          return items;
+        });
+
+        if (candidates.length > 0) {
+          const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+          const { data: existingNotifs } = await supabase
+            .from('notifications').select('title').eq('user_id', user.id)
+            .ilike('title', '%마감 임박%').gte('created_at', todayStart.toISOString());
+          const sentTitles = new Set((existingNotifs || []).map(n => n.title));
+          const toInsert = candidates.filter(d => !sentTitles.has(d.title)).map(d => ({ user_id: user.id, type: 'warning', icon: '⏰', title: d.title, body: d.body, action_url: d.action_url, read: false, target_role: 'panel' }));
+          if (toInsert.length > 0) supabase.from('notifications').insert(toInsert).then(({ error: ne }) => { if (ne) console.warn('[deadline_notif]', ne.message); });
         }
       }
 

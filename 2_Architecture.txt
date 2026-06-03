@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-04 (팀원 포털 접근 완성 — resolveCompany.js 헬퍼 추가, migration 067-072, AuthContext signUp inviteToken, Login.jsx pendingInvite 우선순위 정정, Signup.jsx invite_token URL 처리)
+최종 업데이트: 2026-06-05 (확장성 쿼리 최적화 — 기업 10개/패널 100명 규모 Scale-A~K 11건 수정)
 ================================================================
 
 ## 기술 스택
@@ -709,6 +709,41 @@ purit/
   ※ Sidebar <aside> bg: #FFFFFF (순백) + borderRight: 1px solid #E9ECF0
   ※ <main> bg: #F8FAFC (모든 서브페이지 통일)
   ※ Landing.jsx: PRIMARY = '#10367D', BG = '#F8FAFC', BG2 = '#EDF0F4', BG3 = '#DCDCDC'
+
+================================================================
+## Supabase 쿼리 최적화 원칙 (확장성 대응, 2026-06-05 적용)
+================================================================
+
+  ### 전체 테이블 무제한 로드 금지 원칙
+  아래 쿼리는 기업/패널 수가 늘어나면 응답 크기 폭발 → 반드시 limit 또는 필터 적용:
+  - feedbacks 전체: limit(300~500) 또는 탭별 status 필터 (PurityFilter, Revenue)
+  - notifications 전체: limit(200) (NotificationCenter)
+  - panels 전체: 명시적 컬럼 select (select('*') 금지) (PanelManagement)
+  - missions 전체(패널 뷰): 명시적 컬럼 select, description·image_urls 포함해야 하면 유지 (Missions.jsx)
+
+  ### 중첩 JOIN 축소 원칙
+  missions → feedbacks → panels 3중 중첩은 응답이 기하급수적으로 커짐:
+  - Admin/Missions.jsx: 초기 로드 `feedbacks(id, status, purity_passed, submission_deadline, rejection_deadline)` (panels 중첩 제거)
+    선택 미션 피드백 상세(MissionDetail): 별도 select + panels(name) lazy load
+  - Panel/Dashboard.jsx: `missions.select('...')` 에서 `feedbacks(id)` 중첩 JOIN 제거
+    슬롯 체크는 `filled_count`, `panel_count` 컬럼 직접 사용
+
+  ### 벤치마크 데이터 전체 로드 금지
+  - company/Diagnosis.jsx: 전체 회사 승인 피드백 로드 대신 DIMENSIONS 배열의 정적 `d.benchmark` 상수 사용
+    (전체 로드 시 크로스컴퍼니 데이터 접근 + DB 부하 동시 발생)
+
+  ### 매 대시보드 진입 알림 쿼리 최적화
+  - panel/Dashboard.jsx 마감 임박 알림: 쿼리 3개(별도 feedbacks 조건) → 1개(draft+rejected 통합) + 1개(notifications 중복 체크)
+
+  ### 일괄 처리 배치 쿼리 원칙
+  - PurityFilter bulkApprove/bulkReject: rejection_deadline UPDATE는 메인(4h)/서브(2h) 2개 배치 UPDATE
+    알림 발송: forEach sendNotification (N쿼리) → 배열 INSERT 1회
+    notif_prefs 확인: panels select에 notif_prefs 포함 → filter(notif_prefs.X !== false) 패턴
+
+  ### Pagination 슬라이딩 윈도우 원칙
+  모든 페이지네이션 컴포넌트는 전체 번호 렌더(Array.from{length:totalPages}) 금지 → WINDOW=5 슬라이딩 윈도우:
+  - 적용 완료: company/Dashboard, panel/Missions, panel/History, company/Results, NotificationCenter
+  - 패턴: winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) → pageNums 슬라이스
 
 ================================================================
 ## 환경 변수 (.env)

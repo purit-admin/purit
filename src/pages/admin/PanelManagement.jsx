@@ -88,7 +88,7 @@ export default function AdminPanels() {
     try {
       const { data, error } = await supabase
         .from('panels')
-        .select('*')
+        .select('id, user_id, name, email, industry, experience, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, created_at')
         .order('created_at', { ascending: false });
       if (!error) setPanels(data || []);
       setLoading(false);
@@ -104,7 +104,8 @@ export default function AdminPanels() {
       let query = supabase
         .from('feedbacks')
         .select('panel_id, created_at, status, purity_passed')
-        .neq('status', 'draft');
+        .neq('status', 'draft')
+        .limit(2000);
       const from = periodStart(period);
       if (from) query = query.gte('created_at', from);
       const { data } = await query;

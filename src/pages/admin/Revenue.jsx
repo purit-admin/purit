@@ -27,7 +27,8 @@ export default function RevenueManagement() {
           .select('id, payout_amount, missions(id, title, type, status), panels(id, name, honor_points, experience)')
           .eq('purity_passed', true)
           .neq('status', 'draft')
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(500),
         supabase.from('invoices').select('*').order('invoice_date', { ascending: false }),
       ]);
       if (!gmvRes.error) setGmvData(gmvRes.data || []);
