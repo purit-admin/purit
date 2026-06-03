@@ -116,8 +116,12 @@ export default function VerifyDocs() {
         const path = `${user.id}/health_insurance.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from('panel-verification-docs').upload(path, certFile, { upsert: true });
-        if (!uploadErr) healthInsuranceUrl = path;
-        else console.warn('[VerifyDocs] 건강보험 파일 업로드 실패:', uploadErr.message);
+        if (!uploadErr) {
+          healthInsuranceUrl = path;
+        } else {
+          setError('건강보험 파일 업로드에 실패했습니다. 파일을 확인 후 다시 시도해 주세요.');
+          return;
+        }
       }
 
       if (portfolioFile) {
@@ -125,8 +129,12 @@ export default function VerifyDocs() {
         const path = `${user.id}/portfolio.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from('panel-verification-docs').upload(path, portfolioFile, { upsert: true });
-        if (!uploadErr) portfolioFileUrl = path;
-        else console.warn('[VerifyDocs] 포트폴리오 파일 업로드 실패:', uploadErr.message);
+        if (!uploadErr) {
+          portfolioFileUrl = path;
+        } else {
+          setError('포트폴리오 파일 업로드에 실패했습니다. 파일을 확인 후 다시 시도해 주세요.');
+          return;
+        }
       }
 
       const { error: rpcErr } = await supabase.rpc('save_panel_verification_docs', {

@@ -46,6 +46,7 @@ export default function BugReports() {
   const [saveError, setSaveError] = useState('');
   const [adminReply, setAdminReply] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+  const [sendReplyError, setSendReplyError] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -131,15 +132,21 @@ export default function BugReports() {
   async function handleSaveMemo() {
     if (!selected) return;
     setSaving(true);
-    await supabase.from('bug_reports').update({ admin_memo: memo }).eq('id', selected.id);
-    setSelected(s => ({ ...s, admin_memo: memo }));
-    setReports(rs => rs.map(r => r.id === selected.id ? { ...r, admin_memo: memo } : r));
+    setSaveError('');
+    const { error } = await supabase.from('bug_reports').update({ admin_memo: memo }).eq('id', selected.id);
+    if (!error) {
+      setSelected(s => ({ ...s, admin_memo: memo }));
+      setReports(rs => rs.map(r => r.id === selected.id ? { ...r, admin_memo: memo } : r));
+    } else {
+      setSaveError('메모 저장 중 오류가 발생했습니다: ' + error.message);
+    }
     setSaving(false);
   }
 
   async function handleSendReply() {
     if (!selected || !adminReply.trim()) return;
     setSendingReply(true);
+    setSendReplyError('');
     const now = new Date().toISOString();
     const { error } = await supabase
       .from('bug_reports')
@@ -158,6 +165,8 @@ export default function BugReports() {
         actionUrl,
         targetRole: selected.role,
       });
+    } else {
+      setSendReplyError('답변 전송에 실패했습니다. 다시 시도해 주세요.');
     }
     setSendingReply(false);
   }
@@ -429,6 +438,11 @@ export default function BugReports() {
               {selected.replied_at && (
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
                   마지막 발송: {fmtDate(selected.replied_at)}
+                </div>
+              )}
+              {sendReplyError && (
+                <div style={{ marginTop: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 12, fontWeight: 600 }}>
+                  {sendReplyError}
                 </div>
               )}
               <div style={{ marginTop: 6, textAlign: 'right' }}>

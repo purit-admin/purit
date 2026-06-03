@@ -645,11 +645,15 @@ export default function NewMission() {
 
   const buildDescription = () => {
     const base = { briefText: form.briefText, careerLevels };
-    if (allLPSelected.length > 0) base.selectedQuestions = allLPSelected;
-    if (form.industry)              base.industry    = form.industry;
-    if (form.product)               base.product     = form.product;
-    if (form.lpUrl)                 base.lpUrl       = form.lpUrl;
-    if (form.focusAreas?.length > 0) base.focusAreas = form.focusAreas;
+    if (allLPSelected.length > 0)    base.selectedQuestions = allLPSelected;
+    if (form.industry)               base.industry          = form.industry;
+    if (form.product)                base.product           = form.product;
+    if (form.lpUrl)                  base.lpUrl             = form.lpUrl;
+    if (form.focusAreas?.length > 0) base.focusAreas        = form.focusAreas;
+    if (form.personaAge)             base.personaAge        = form.personaAge;
+    if (form.personaIncome)          base.personaIncome     = form.personaIncome;
+    if (form.personaRole)            base.personaRole       = form.personaRole;
+    if (form.personaContext)         base.personaContext    = form.personaContext;
     return JSON.stringify(base);
   };
 

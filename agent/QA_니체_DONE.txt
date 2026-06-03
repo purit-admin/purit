@@ -5,7 +5,7 @@
   재조사 금지. 이력 확인 전용.
   새 완료 항목은 PROGRESS.txt에서 해당 행을 삭제하고 이 파일 하단에만 추가할 것.
 
-총 완료: 169건 (2026-05-29 기준)
+총 완료: 179건 (2026-06-03 기준)
 
 ================================================================
 
@@ -264,5 +264,22 @@
 
 -- 제품 완성도 전수 조사 (2026-05-26) --
 [완성도-A] accept_mission_slot RPC에 AND status='active' 추가(057.sql) + reaccept_rejected_feedback RPC에 동일 체크 추가(058.sql) + panel/Missions.jsx·Dashboard.jsx suspended 차단 UI 적용  ✅
+
+-- 무결성 검사 추가 수정 2건 (2026-06-03) --
+[BUG-ADM-1-보완] admin/BugReports.jsx — handleSaveMemo() 에러를 console.error만 하고 UI에 미표시. 기존 saveError state에 연결해 화면에도 표시되도록 수정  ✅
+[BUG-VD-3] panel/VerifyDocs.jsx — 포트폴리오 파일 업로드 실패 시 console.warn만 하고 제출 진행. setError() + return으로 제출 중단 추가 (BUG-VD-2 수평 전개)  ✅
+
+-- 2단계 수정 5건 (2026-06-03) --
+[BUG-ADM-2] admin/BugReports.jsx — handleSendReply() 에러 state 부재. sendReplyError state 추가 + else { setSendReplyError(...) } 분기 + 버튼 위 인라인 에러 UI 추가  ✅
+[BUG-NEW-10] company/NewMission.jsx — buildDescription()에서 personaAge·personaIncome·personaRole·personaContext 4개 필드 누락. 4개 필드 조건부 포함 추가  ✅
+[BUG-DASH-1] admin/Dashboard.jsx — pendingFeedbacks = feedbacks - passed 공식이 반려 피드백 포함. status='submitted'·purity_passed=false 전용 쿼리 추가 + stats.pending으로 교체  ✅
+[BUG-ACT-1] panel/ActiveMission.jsx — handleStart() draftId 없을 때 feedbacks INSERT 시도 → DB 에러 문구 노출. INSERT 코드 제거 + 안내 메시지 표시로 교체  ✅
+[BUG-SU-2]  Signup.jsx — LinkedIn 버튼이 이메일 폼으로 전환만 수행. disabled: true + 회색 비활성 스타일 + "준비 중입니다." desc 적용  ✅
+
+-- 1단계 즉시 수정 4건 (2026-06-03) --
+[BUG-NEW-8] admin/PurityFilter.jsx — 일괄 반려 ConfirmModal onConfirm에서 bulkReject() 반환값 미확인으로 에러 시에도 모달 무조건 닫힘. `const ok = await bulkReject(); if (ok) setConfirmBulkReject(false);` 패턴 적용  ✅
+[BUG-ADM-1] admin/BugReports.jsx — handleSaveMemo() DB 업데이트 error 미캡처. `const { error } = await supabase...` + `if (!error)` 조건부 state 갱신 추가  ✅
+[BUG-NC-1] components/ui/NotificationCenter.jsx — markAll()·markOne() DB 업데이트 error 미캡처. 두 함수 모두 `const { error } = await supabase...` + `if (!error)` 조건부 state·이벤트 발화 추가  ✅
+[BUG-VD-2] panel/VerifyDocs.jsx — handleSubmit() 건강보험 파일 업로드 실패 시 console.warn만 하고 navigate('/panel') 진행. uploadErr 발생 시 setError() + return으로 제출 중단 추가  ✅
 
 ================================================================

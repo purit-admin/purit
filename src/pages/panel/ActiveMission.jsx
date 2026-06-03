@@ -489,23 +489,7 @@ export default function ActiveMission() {
   const handleStart = async () => {
     if (!mission || !panel) return;
     if (draftId) { setStep(1); return; }
-    const { data, error } = await supabase.from('feedbacks').insert({
-      mission_id:            mission.id,
-      panel_id:              panel.id,
-      clarity_score:         null,
-      relevance_score:       null,
-      value_score:           null,
-      differentiation_score: null,
-      trust_score:           null,
-      strengths:             null,
-      weaknesses:            null,
-      suggestions:           null,
-      purity_passed:         false,
-      status:                'draft',
-    }).select('id').single();
-    if (error) { setStartError('초안 생성 중 오류: ' + error.message); return; }
-    if (data) setDraftId(data.id);
-    setStep(1);
+    setStartError('미션을 먼저 수락해 주세요. 미션 목록에서 수락 후 다시 시도해 주세요.');
   };
 
   const hasSavedProgress = Boolean(draftId) && (

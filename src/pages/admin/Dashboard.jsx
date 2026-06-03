@@ -17,7 +17,7 @@ const C = {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats]   = useState({ missions: 0, panels: 0, feedbacks: 0, passed: 0 });
+  const [stats, setStats]   = useState({ missions: 0, panels: 0, feedbacks: 0, passed: 0, pending: 0 });
   const [panels, setPanels] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,20 +30,23 @@ export default function AdminDashboard() {
           { count: fbCount, error: e3 },
           { count: passedCount, error: e4 },
           { data: panelList, error: e5 },
+          { count: pendingCount, error: e6 },
         ] = await Promise.all([
           supabase.from('missions').select('*', { count: 'exact', head: true }).neq('status', 'draft'),
           supabase.from('panels').select('*', { count: 'exact', head: true }),
           supabase.from('feedbacks').select('*', { count: 'exact', head: true }).neq('status', 'draft'),
           supabase.from('feedbacks').select('*', { count: 'exact', head: true }).neq('status', 'draft').eq('purity_passed', true),
           supabase.from('panels').select('*').order('created_at', { ascending: false }).limit(10),
+          supabase.from('feedbacks').select('*', { count: 'exact', head: true }).eq('status', 'submitted').eq('purity_passed', false),
         ]);
 
-        [e1,e2,e3,e4,e5].forEach((e,i) => e && console.error(`[AdminDashboard] query${i+1}:`, e.message));
+        [e1,e2,e3,e4,e5,e6].forEach((e,i) => e && console.error(`[AdminDashboard] query${i+1}:`, e.message));
         setStats({
           missions:  mCount  || 0,
           panels:    pCount  || 0,
           feedbacks: fbCount || 0,
           passed:    passedCount || 0,
+          pending:   pendingCount || 0,
         });
         setPanels(panelList || []);
         setLoading(false);
@@ -63,7 +66,7 @@ export default function AdminDashboard() {
     ? Math.round((stats.passed / stats.feedbacks) * 100)
     : 0;
 
-  const pendingFeedbacks = stats.feedbacks - stats.passed;
+  const pendingFeedbacks = stats.pending;
   const purityColor = purityRate >= 70 ? '#22C55E' : purityRate >= 50 ? C.primary : '#EF4444';
 
   return (

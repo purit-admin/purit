@@ -87,15 +87,23 @@ export default function NotificationCenter({ role = 'company' }) {
     if (!user) return;
     const ids = displayed.filter(n => !n.read).map(n => n.id);
     if (ids.length === 0) return;
-    await supabase.from('notifications').update({ read: true }).in('id', ids);
-    setNotifs(ns => ns.map(n => ids.includes(n.id) ? { ...n, read: true } : n));
-    window.dispatchEvent(new CustomEvent('purit:notif-read'));
+    const { error } = await supabase.from('notifications').update({ read: true }).in('id', ids);
+    if (!error) {
+      setNotifs(ns => ns.map(n => ids.includes(n.id) ? { ...n, read: true } : n));
+      window.dispatchEvent(new CustomEvent('purit:notif-read'));
+    } else {
+      console.error('[markAll]', error.message);
+    }
   }
 
   async function markOne(id, actionUrl) {
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
-    window.dispatchEvent(new CustomEvent('purit:notif-read'));
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+    if (!error) {
+      setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
+      window.dispatchEvent(new CustomEvent('purit:notif-read'));
+    } else {
+      console.error('[markOne]', error.message);
+    }
     if (actionUrl) navigate(actionUrl);
   }
 

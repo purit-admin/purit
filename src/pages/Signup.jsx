@@ -77,31 +77,32 @@ function EmailIcon() {
 
 function PanelChooseStep({ onChoose, busy }) {
   const methods = [
-    { id: 'google',   label: 'Google로 가입',    Icon: GoogleIcon,   desc: 'Google 계정으로 간편 가입' },
-    { id: 'linkedin', label: 'LinkedIn으로 가입', Icon: LinkedInSVG,  desc: '링크드인 프로필로 경력 인증' },
-    { id: 'email',    label: '이메일로 가입',     Icon: EmailIcon,    desc: '이메일·비밀번호로 직접 가입' },
+    { id: 'google',   label: 'Google로 가입',    Icon: GoogleIcon,   desc: 'Google 계정으로 간편 가입',        disabled: false },
+    { id: 'linkedin', label: 'LinkedIn으로 가입', Icon: LinkedInSVG,  desc: '준비 중입니다.',                   disabled: true  },
+    { id: 'email',    label: '이메일로 가입',     Icon: EmailIcon,    desc: '이메일·비밀번호로 직접 가입',       disabled: false },
   ];
 
   return (
     <div>
       <div style={{ fontSize: 13, fontWeight: 600, color: T2, marginBottom: 10 }}>가입 방법 선택</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {methods.map(({ id, label, Icon, desc }) => (
-          <button key={id} type="button" disabled={busy} onClick={() => onChoose(id)}
+        {methods.map(({ id, label, Icon, desc, disabled: itemDisabled }) => (
+          <button key={id} type="button" disabled={busy || itemDisabled} onClick={() => !itemDisabled && onChoose(id)}
             style={{
               width: '100%', padding: '13px 16px', borderRadius: 12,
-              background: '#fff', border: `1.5px solid ${BORDER}`,
+              background: itemDisabled ? '#F8FAFC' : '#fff',
+              border: `1.5px solid ${itemDisabled ? '#E2E8F0' : BORDER}`,
               display: 'flex', alignItems: 'center', gap: 12,
-              cursor: busy ? 'not-allowed' : 'pointer',
+              cursor: (busy || itemDisabled) ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', transition: 'background 0.15s, border-color 0.15s',
-              textAlign: 'left', opacity: busy ? 0.7 : 1,
+              textAlign: 'left', opacity: (busy || itemDisabled) ? 0.5 : 1,
             }}
-            onMouseEnter={e => { if (!busy) { e.currentTarget.style.background = BG; e.currentTarget.style.borderColor = '#CBD5E1'; } }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = BORDER; }}
+            onMouseEnter={e => { if (!busy && !itemDisabled) { e.currentTarget.style.background = BG; e.currentTarget.style.borderColor = '#CBD5E1'; } }}
+            onMouseLeave={e => { if (!itemDisabled) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = BORDER; } }}
           >
             <Icon />
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: T1 }}>{label}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: itemDisabled ? T3 : T1 }}>{label}</div>
               <div style={{ fontSize: 12, color: T3, marginTop: 1 }}>{desc}</div>
             </div>
           </button>

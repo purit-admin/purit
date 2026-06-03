@@ -1200,7 +1200,7 @@ export default function PurityFilter() {
           desc={`선택한 ${checkedIds.size}건을 모두 반려 처리합니까? 패널에게 반려 알림이 발송됩니다.`}
           confirmLabel="✕ 일괄 반려"
           errorMsg={statusError}
-          onConfirm={async () => { setStatusError(''); await bulkReject(); setConfirmBulkReject(false); }}
+          onConfirm={async () => { setStatusError(''); const ok = await bulkReject(); if (ok) setConfirmBulkReject(false); }}
           onCancel={() => { setStatusError(''); setConfirmBulkReject(false); }}
           danger
         />
