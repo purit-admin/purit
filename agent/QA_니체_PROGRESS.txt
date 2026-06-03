@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-03 (BUG-ADM-2·BUG-NEW-10·BUG-DASH-1·BUG-ACT-1·BUG-SU-2 수정 완료 → DONE.txt 이동)
+최종 업데이트: 2026-06-03 (완성도-F 수정 완료 → DONE.txt 이동)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -48,7 +48,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
            또는 단일 RPC로 크레딧 예약 + 상태 변경 원자적 처리. (D-101 참조)
 
 ================================================================
-## 🟡 P2 Major (5건)
+## 🟡 P2 Major (2건)
 ================================================================
 
 [완성도-C] 경력 미설정 패널에게 careerLevels 제한 미션 전부 노출
@@ -66,43 +66,17 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 - ✨ 기대: Edge Function으로 실제 인증번호 발송 + 서버사이드 코드 검증 + 5분 유효시간.
            임시 조치: 번호 형식 정규식 검증(01X-XXXX-XXXX) 추가.
 
-[BUG-NEW-1] InviteAccept.jsx — 로그인/가입 후 초대 자동 수락 코드 없음
-- 📍 위치: src/pages/InviteAccept.jsx (lines 71-80)
-- 🤦 현재: localStorage('purit_pending_invite')에 토큰 저장만 함.
-           Login.jsx·Signup.jsx에서 이 값을 읽어 초대 수락 완료하는 코드 없음.
-- ✨ 기대: Login/Signup 성공 후 purit_pending_invite 값 읽어 accept_team_invite 자동 호출.
-
-[BUG-NEW-2] InviteAccept.jsx — 이메일 일치 검증 누락
-- 📍 위치: src/pages/InviteAccept.jsx, handleAccept() (lines 51-69)
-- 🤦 현재: authUser.email !== inviteInfo.email 비교 로직 없음.
-           초대받은 이메일과 다른 계정으로 로그인해도 초대 수락 가능.
-- ✨ 기대: handleAccept() 진입 시 이메일 일치 검증 추가.
-
-
-[BUG-AUTH-2] AuthContext.jsx — LinkedIn OAuth source 저장 누락
-- 📍 위치: src/context/AuthContext.jsx, signInWithLinkedIn() 함수
-- 🤦 현재: purit_oauth_source localStorage 저장 누락 (D-94 패턴 미적용).
-           LinkedIn 로그인 시 로그인/가입 출처 구분 불가 → 로그인 페이지에서 신규 계정 생성 가능.
-- ✨ 기대: localStorage.setItem('purit_oauth_source', source) 추가.
-
 
 
 
 ================================================================
-## 🟢 P3 Minor (2건)
+## 🟢 P3 Minor (1건)
 ================================================================
 
 [완성도-E] AI 리포트 Mock/실제 UI 구분 없음
 - 📍 위치: src/pages/company/AIReport.jsx generateReport(), supabase/functions/generate-ai-report/index.ts
 - 🤦 현재: ANTHROPIC_API_KEY 미설정 시 로컬 계산 Mock 리포트가 AI 리포트와 동일한 UI로 표시.
 - ✨ 기대: Edge Function Mock 폴백 시 isMock:true 반환 → 리포트 상단 "ℹ️ 로컬 분석 기반" 뱃지.
-
-[완성도-F] 랜딩 푸터 이용약관·개인정보처리방침 alert stub
-- 📍 위치: src/pages/Landing.jsx 푸터 섹션 (line 523 근처)
-- 🤦 현재: 모든 푸터 링크가 `onClick={() => alert('준비 중입니다.')}` stub.
-           서비스 런칭 시 법적 의무 사항(정보통신망법·개인정보보호법).
-- ✨ 기대: /terms, /privacy 라우트 + 실제 약관 텍스트. 또는 모달 오버레이.
-- 🔍 수평전개: Signup.jsx 회원가입 약관 동의 링크 동일 stub 여부 확인 필요.
 
 
 ================================================================
@@ -155,6 +129,15 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 [OAuth-F] ?signup=google 하드코딩 — 현재 Google 단독 OAuth. LinkedIn 추후 활성화 시 변경 필요  ⏭
 
+[BUG-AUTH-2] AuthContext.jsx LinkedIn OAuth source 저장 누락 — OAuth-E와 동일 사유. LinkedIn 미활성화 상태.
+             LinkedIn 기능 구현 시 함께 처리  ⏭
+
+[BUG-NEW-2] InviteAccept.jsx 이메일 일치 검증 누락 — 팀 초대 이메일 발송 자체가 미구현.
+            팀 초대 시스템(완성도-B) 구축 시 함께 처리  ⏭
+
+[BUG-NEW-1] InviteAccept.jsx 로그인/가입 후 초대 자동 수락 코드 없음 — 팀 초대 이메일 발송 자체가 미구현.
+            팀 초대 시스템(완성도-B) 구축 시 함께 처리  ⏭
+
 -- 비활성 페이지 조사 스킵 --
 [ICPPulse/BrandTracking] 사이드바 비노출 페이지 (PRD 명시: 파일 유지만, 기능 미활성)  ⏭
 
@@ -162,14 +145,14 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 10건
+미완료 합계: 6건
   🔴 P1  3건
-  🟡 P2  5건
-  🟢 P3  2건
+  🟡 P2  2건
+  🟢 P3  1건
   ⚪ P4  0건
 
-스킵/보류: 20건
+스킵/보류: 24건
 
-완료 항목: QA_DONE.txt 참조 (총 179건)
+완료 항목: QA_DONE.txt 참조 (총 180건)
 
 ================================================================

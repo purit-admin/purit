@@ -276,6 +276,9 @@
 [BUG-ACT-1] panel/ActiveMission.jsx — handleStart() draftId 없을 때 feedbacks INSERT 시도 → DB 에러 문구 노출. INSERT 코드 제거 + 안내 메시지 표시로 교체  ✅
 [BUG-SU-2]  Signup.jsx — LinkedIn 버튼이 이메일 폼으로 전환만 수행. disabled: true + 회색 비활성 스타일 + "준비 중입니다." desc 적용  ✅
 
+-- 완성도 수정 1건 (2026-06-03) --
+[완성도-F] Landing.jsx — 푸터 법적 고지 3개(이용약관·개인정보처리방침·운영 정책) alert() stub → 앱 내 모달 오버레이 교체. 서비스 링크 4개는 alert 유지  ✅
+
 -- 1단계 즉시 수정 4건 (2026-06-03) --
 [BUG-NEW-8] admin/PurityFilter.jsx — 일괄 반려 ConfirmModal onConfirm에서 bulkReject() 반환값 미확인으로 에러 시에도 모달 무조건 닫힘. `const ok = await bulkReject(); if (ok) setConfirmBulkReject(false);` 패턴 적용  ✅
 [BUG-ADM-1] admin/BugReports.jsx — handleSaveMemo() DB 업데이트 error 미캡처. `const { error } = await supabase...` + `if (!error)` 조건부 state 갱신 추가  ✅

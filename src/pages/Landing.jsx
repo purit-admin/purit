@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, X } from 'lucide-react';
 import ExpertPanelCloud from '../components/ui/ExpertPanelCloud';
@@ -40,8 +40,15 @@ const W = { maxWidth: 1100, margin: '0 auto', padding: '0 32px' };
 /* ════════════════════════════════════════
    MAIN
 ════════════════════════════════════════ */
+const LEGAL_DOCS = {
+  '이용약관': '이용약관 내용은 현재 작성 중입니다. 서비스 정식 출시 전까지 업데이트될 예정입니다.',
+  '개인정보처리방침': '개인정보처리방침 내용은 현재 작성 중입니다. 서비스 정식 출시 전까지 업데이트될 예정입니다.',
+  '운영 정책': '운영 정책 내용은 현재 작성 중입니다. 서비스 정식 출시 전까지 업데이트될 예정입니다.',
+};
+
 export default function Landing() {
   const navigate = useNavigate();
+  const [legalModal, setLegalModal] = useState(null);
 
   const r1 = useFadeIn(0);
   const r2 = useFadeIn(0);
@@ -520,7 +527,7 @@ export default function Landing() {
                       style={{ fontSize: 14, color: TEXT2, marginBottom: 12, cursor: 'pointer', transition: 'color 0.15s' }}
                       onMouseEnter={e => e.currentTarget.style.color = TEXT}
                       onMouseLeave={e => e.currentTarget.style.color = TEXT2}
-                      onClick={() => alert('준비 중입니다.')}
+                      onClick={() => LEGAL_DOCS[link] ? setLegalModal(link) : alert('준비 중입니다.')}
                     >{link}</div>
                   ))}
                 </div>
@@ -533,6 +540,24 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {legalModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}
+          onClick={() => setLegalModal(null)}
+        >
+          <div
+            style={{ background: '#fff', borderRadius: 16, padding: '36px 40px', maxWidth: 520, width: '100%', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: TEXT }}>{legalModal}</div>
+              <X size={20} style={{ cursor: 'pointer', color: TEXT3 }} onClick={() => setLegalModal(null)} />
+            </div>
+            <p style={{ fontSize: 14, color: TEXT2, lineHeight: 1.8 }}>{LEGAL_DOCS[legalModal]}</p>
+          </div>
+        </div>
+      )}
 
     </div>
   );
