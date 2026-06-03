@@ -1,17 +1,38 @@
 ================================================================
 QA_PROGRESS.txt — 전수 버그 조사 현황 (니체 QA 에이전트)
 작성일: 2026-05-31
-최종 업데이트: 2026-06-03 (1~9번 파일 재조사 — 신규 버그 4건 추가, 총 32건)
+최종 업데이트: 2026-06-03 (전체 48개 파일 조사 완료 — 구조적 버그 4건 포함 총 38건 확정)
 조사 방식: Read-only (코드 수정 없음), 파일별 전수 검토
 ================================================================
 
 ================================================================
-## 1. 발견된 버그 전체 목록 (32건)
+## 1. 발견된 버그 전체 목록 (38건)
 ================================================================
 
 ────────────────────────────────────────
-### P1 Critical (2건) — 기능 전체 동작 불가
+### P1 Critical (4건) — 기능 전체 동작 불가 / 데이터 미저장
 ────────────────────────────────────────
+
+BUG-STRUCT-1 [P1] PanelRegister.jsx — 공개 라우트 노출된 완전한 가짜 폼 (TODO 스텁)
+  파일: src/pages/panel/PanelRegister.jsx (line 137-140)
+  원인: handleSubmit()이 `// TODO: Supabase Storage 업로드 + panel_applications INSERT` 주석만 있고
+        `await new Promise(r => setTimeout(r, 1200))` 가짜 딜레이 + setSubmitted(true)만 실행
+        DB 저장·Storage 업로드 코드가 한 줄도 없음
+        src/App.jsx line 78: /panel/register가 인증 없는 공개 라우트로 등록됨
+  영향: 사용자가 "가입 신청하기"를 누르면 성공 화면이 뜨지만 아무 데이터도 저장되지 않음
+        공개 URL이라 누구나 접근 가능
+
+BUG-STRUCT-2 [P1] 팀원 초대 시스템 — 수락 후 포털 접근 구조적 불가 (4단계 붕괴)
+  파일: supabase/migrations/001_all_tables.sql (line 56-65), 067_team_invite_token.sql
+        src/pages/InviteAccept.jsx, src/pages/company/Settings.jsx
+  원인: team_members 테이블에 user_id 컬럼이 없음
+        accept_team_invite RPC가 status='active'로만 업데이트하고 auth.uid()를 저장 불가
+  붕괴 4단계:
+    1. 수락 후 team_members.user_id 저장 불가 (컬럼 없음)
+    2. navigate('/company') → companies.select('*').eq('user_id', user.id) = null → 전체 포털 동작 불가
+    3. 팀원의 auth.user_metadata.role이 'company'가 아니면 RoleRoute가 접근 자체를 차단
+    4. editor/viewer 권한 체크 코드가 프론트엔드에 단 한 줄도 없음 (권한 분기 미구현)
+  영향: 팀원 초대 기능 전체가 구조적으로 동작 불가
 
 BUG-NEW-3 [P1] Settings.jsx — 팀 초대 기능 전체 동작 불가
   파일: src/pages/company/Settings.jsx
@@ -29,8 +50,28 @@ BUG-NEW-4 [P1 Security] 067_team_invite_token.sql — auth.uid() 소유권 검�
   영향: 초대 토큰이 노출되면 다른 사람이 해당 팀에 합류 가능 (보안 취약점)
 
 ────────────────────────────────────────
-### P2 (18건) — 주요 기능 오작동
+### P2 (21건) — 주요 기능 오작동
 ────────────────────────────────────────
+
+BUG-STRUCT-3 [P2] missions 활성화 + 크레딧 예약 순서 오류 — DB 트리거 조기 발화 (4파일 공통)
+  파일: src/pages/company/NewMission.jsx (line 688-700)
+        src/pages/company/PreferenceTest.jsx (line 414-438)
+        src/pages/company/PricingTest.jsx, src/pages/company/ColdEmailTest.jsx (동일 패턴)
+  원인: 순서가 missions INSERT/UPDATE(status='active') → reserve_mission_credits() 순서로 처리됨
+        status='active' UPDATE 순간 on_mission_created / on_mission_activated 트리거가 발화
+        → 어드민에게 "새 의뢰" 알림 발송 완료
+        이후 크레딧 부족으로 reserve 실패 → missions rollback(draft/DELETE)
+        두 작업이 같은 트랜잭션이 아니라 원자성 없음
+  영향: 어드민은 활성화 알림을 받았으나 미션이 다시 draft/삭제 상태 — 어드민 혼란
+        크레딧 예약 실패~rollback 사이 race window에서 패널이 수락하면 filled_count 불일치 가능
+
+BUG-STRUCT-4 [P2] draft→active 전환 race window — 패널 수락 후 rollback 시 filled_count 불일치
+  파일: src/pages/company/NewMission.jsx (line 688-699)
+  원인: missions.update(status='active') 성공 → reserve_mission_credits() 실패 → missions.update(status='draft') 롤백
+        rollback 전 짧은 순간 status='active'인 미션이 노출됨
+        이 사이 패널이 accept_mission_slot(filled_count +1) 수락하면
+        missions가 draft로 돌아가도 filled_count는 +1 상태로 남아 불일치 발생
+  영향: 크레딧 부족 rollback 이후 미션의 filled_count > 0 상태로 남아 오염 가능
 
 BUG-NEW-1 [P2] InviteAccept.jsx — 로그인/가입 후 초대 자동 수락 코드 없음
   파일: src/pages/InviteAccept.jsx
@@ -52,20 +93,21 @@ BUG-NEW-5 [P2] Sidebar.jsx — dismissed 항목이 [수정 필요] 뱃지 카운
   원인: .eq('dismissed', false) 필터 누락 (D-72 패턴 위반)
   영향: 패널이 [수정 필요] 항목을 삭제(dismiss)해도 사이드바 뱃지 숫자가 줄지 않음
 
-BUG-NEW-6 [P2] admin/Missions.jsx — complete_mission_and_refund 성공 시 모달 닫힘 보장 안 됨
+BUG-NEW-6 [P2 재검증] admin/Missions.jsx — complete_mission_and_refund 모달 처리
   파일: src/pages/admin/Missions.jsx
-  위치: updateStatus() completed 경로, onConfirm 핸들러
-  원인: complete_mission_and_refund RPC 성공 시 `return true` 누락
-        → confirmComplete ConfirmModal이 성공/실패와 무관하게 항상 즉시 닫힘 (D-65 위반)
-  영향: RPC 실패 시에도 모달이 닫혀 에러 인지 불가
+  위치: updateStatus() completed 경로, onConfirm 핸들러 (line 597)
+  재검증: ⚠️ 코드 직접 확인 결과 `const ok = await updateStatus(...); if (ok) setConfirmComplete(null)` 패턴 적용
+          updateStatus()는 completed 성공 시 return true에 도달하는 구조 확인됨
+          → D-65 패턴 준수 확인 — 오진단 가능성 높음
+  권장 조치: 상위 검토 후 오판 확정 시 보류·스킵(⏭) 처리
 
-BUG-NEW-8 [P2] PurityFilter.jsx — 일괄 반려 ConfirmModal D-69+D-88 동시 위반
+BUG-NEW-8 [P2 재검증] PurityFilter.jsx — 일괄 반려 D-65 부분 미준수
   파일: src/pages/admin/PurityFilter.jsx
-  위치: confirmBulkReject ConfirmModal onConfirm 핸들러
-  원인: onConfirm={() => { bulkReject(); setConfirmBulkReject(false); }}
-        await 없이 모달 즉시 닫힘 (D-69 위반)
-        일괄 처리에 ConfirmModal UX 게이트 있으나 await 미적용 (D-88 부분 위반)
-  영향: 반려 중 에러 발생 시 모달이 이미 닫혀 에러 표시 불가
+  위치: confirmBulkReject ConfirmModal onConfirm 핸들러 (line 1203)
+  재검증: ⚠️ D-69 오진단 — 실제 코드: `async () => { setStatusError(''); await bulkReject(); setConfirmBulkReject(false); }` async/await 사용 중
+  실제 이슈: bulkReject() 반환값(slotFail 시 undefined) 미확인으로 에러 발생 시에도 모달이 무조건 닫힘
+             올바른 패턴: `const ok = await bulkReject(); if (ok) setConfirmBulkReject(false);`
+  영향: slotFail 발생 시 에러 배너는 모달 외부에 표시되어 사용자 인지 어려움
 
 BUG-NEW-10 [P2] NewMission.jsx — buildDescription()에서 페르소나 4개 필드 누락
   파일: src/pages/company/NewMission.jsx
@@ -172,8 +214,6 @@ BUG-DASH-1 [P3] admin/Dashboard.jsx — "검토 대기 피드백" 카운트에 �
 BUG-ADM-1 [P3] admin/BugReports.jsx — handleSaveMemo() error 미캡처 + 항상 낙관적 갱신
   파일: src/pages/admin/BugReports.jsx
   위치: handleSaveMemo() (lines 131-138)
-  파일: src/pages/admin/BugReports.jsx
-  위치: handleSaveMemo() 함수 (lines 131-138)
   원인: `await supabase.from('bug_reports').update({ admin_memo: memo }).eq('id', selected.id)` 반환값의
         error를 구조분해하지 않음 + error 분기 없이 `setSelected` / `setReports` 항상 실행
         → DB 실패 시에도 로컬 state가 갱신되어 저장된 것처럼 보임 (D-79 위반)
@@ -237,8 +277,16 @@ BUG-PM-1 [P3 잠정] PanelManagement.jsx — 이전 패널의 actionMsg 잔류 �
         (parent 컴포넌트 전체 확인 완료되지 않아 잠정)
   영향: BUG-NEW-7(CompanyManagement)과 동일 패턴
 
+BUG-NC-1 [P3] NotificationCenter.jsx — markAll()/markOne() DB update error 미캡처
+  파일: src/components/ui/NotificationCenter.jsx
+  위치: markAll() (line 85-93), markOne() (line 95-100)
+  원인: `await supabase.from('notifications').update({ read: true })...` 에서
+        { error } 구조분해 없이 state를 무조건 갱신 (D-79 위반)
+        markAll()에는 supabase.auth.getUser() try-catch도 없음
+  영향: DB update 실패 시 화면에서는 읽음으로 표시되나 새로고침 시 읽지않음 상태로 복원됨
+
 ────────────────────────────────────────
-### P4 (1건) — Dead Code / 경고
+### P4 (2건) — Dead Code / 경고
 ────────────────────────────────────────
 
 BUG-OAUTH-1 [P4] OAuthCallback.jsx — dead code 잔류
@@ -247,106 +295,95 @@ BUG-OAUTH-1 [P4] OAuthCallback.jsx — dead code 잔류
   원인: D-95로 CREDS 스텝 제거 후 남은 dead code
   영향: 기능 영향 없음. 코드 정리 필요
 
+BUG-APP-1 [P4] App.jsx — /panel/register 미문서화 공개 라우트
+  파일: src/App.jsx
+  위치: line 78 `<Route path="/panel/register" element={<PanelRegister />} />`
+  원인: /panel/register 라우트가 공개(인증 불필요) 라우트로 등록되어 있으나
+        2_Architecture.txt 라우트 목록에 없음 (PRD에도 없음)
+        PanelRegister 컴포넌트를 import하나 페이지 출처 불명
+  영향: 레거시 dead route 또는 미문서화 페이지 — 실 서비스 노출 가능성 확인 필요
+
 ================================================================
 ## 2. 우선순위별 요약
 ================================================================
 
-P1 Critical (2건): BUG-NEW-3, BUG-NEW-4
-P2 중요 버그 (18건): BUG-NEW-1, 2, 5, 6, 8, 10, BUG-AUTH-1, 2, BUG-SU-1
-                     BUG-PRE-1~3, BUG-PRI-1~3, BUG-CEL-1~3, BUG-VD-1
-P3 마이너 (11건): BUG-NEW-7, 9, 11(잠정), BUG-VD-2, BUG-SU-2, BUG-PM-1(잠정), BUG-OAUTH-1
-                  BUG-DASH-1, BUG-ADM-1, BUG-ADM-2, BUG-ACT-1(잠정)
-합계: 32건
+P1 Critical (4건): BUG-STRUCT-1, BUG-STRUCT-2, BUG-NEW-3, BUG-NEW-4
+P2 중요 버그 (21건): BUG-STRUCT-3, BUG-STRUCT-4,
+                     BUG-NEW-1, 2, 5, 6(재검증 잠정), 8(재검증), 10,
+                     BUG-AUTH-1, 2, BUG-SU-1,
+                     BUG-PRE-1, 2, 3, BUG-PRI-1, 2, 3, BUG-CEL-1, 2, 3, BUG-VD-1
+P3 마이너 (11건): BUG-DASH-1, BUG-ADM-1, BUG-ADM-2, BUG-ACT-1(잠정),
+                  BUG-NEW-7, 9, 11(잠정), BUG-VD-2, BUG-SU-2, BUG-PM-1(잠정), BUG-NC-1
+P4 경고 (2건): BUG-OAUTH-1, BUG-APP-1
+합계: 38건 (4+21+11+2)
 
 ================================================================
-## 3. 조사 완료 파일 (31개)
+## 3. 조사 완료 파일 (48개 — 전체 완료)
 ================================================================
 
+[1차 조사 완료 31개]
 ✅ src/pages/company/Dashboard.jsx         — 확정 버그 없음
 ✅ src/pages/company/Results.jsx           — 확정 버그 없음
-✅ src/pages/company/NewMission.jsx        — BUG-NEW-10, 11(잠정)
-✅ src/pages/company/PreferenceTest.jsx    — BUG-PRE-1~3
-✅ src/pages/company/PricingTest.jsx       — BUG-PRI-1~3
-✅ src/pages/company/ColdEmailTest.jsx     — BUG-CEL-1~3
-✅ src/pages/company/Settings.jsx          — BUG-NEW-3 (P1 Critical)
-✅ src/pages/company/AIReport.jsx          — 확정 버그 없음 (Edge Function try-catch+state ✅)
-✅ src/pages/company/Diagnosis.jsx         — 확정 버그 없음 (D-89 두 인자 패턴 ✅, hasData 전경로 ✅)
-✅ src/pages/company/Pricing.jsx           — 확정 버그 없음 (RPC 에러 처리 ✅)
+✅ src/pages/company/NewMission.jsx        — BUG-NEW-10, 11(잠정), BUG-STRUCT-3 관련
+✅ src/pages/company/PreferenceTest.jsx    — BUG-PRE-1~3, BUG-STRUCT-3 관련
+✅ src/pages/company/PricingTest.jsx       — BUG-PRI-1~3, BUG-STRUCT-3 관련
+✅ src/pages/company/ColdEmailTest.jsx     — BUG-CEL-1~3, BUG-STRUCT-3 관련
+✅ src/pages/company/Settings.jsx          — BUG-NEW-3 (P1), BUG-STRUCT-2 관련
+✅ src/pages/company/AIReport.jsx          — 확정 버그 없음
+✅ src/pages/company/Diagnosis.jsx         — 확정 버그 없음 (D-89 ✅, hasData 전경로 ✅)
+✅ src/pages/company/Pricing.jsx           — 확정 버그 없음
 ✅ src/pages/company/Account.jsx           — 확정 버그 없음 (isDirty ✅, D-10 ✅)
 ✅ src/pages/panel/Dashboard.jsx           — BUG-NEW-9
 ✅ src/pages/panel/History.jsx             — 확정 버그 없음
 ✅ src/pages/panel/Profile.jsx             — 확정 버그 없음
-✅ src/pages/panel/Missions.jsx            — 확정 버그 없음 (dismissed 필터 ✅, D-72 ✅, D-69 ✅, RPC 에러처리 ✅)
-✅ src/pages/panel/ActiveMission.jsx       — BUG-ACT-1(잠정) / D-29 ✅, D-59 ✅, D-30 ✅, D-76 ✅, D-4/C-4 ✅
+✅ src/pages/panel/Missions.jsx            — 확정 버그 없음 (dismissed ✅, D-72 ✅)
+✅ src/pages/panel/ActiveMission.jsx       — BUG-ACT-1(잠정)
 ✅ src/pages/panel/VerifyDocs.jsx          — BUG-VD-1, 2
-✅ src/pages/InviteAccept.jsx              — BUG-NEW-1, 2
+✅ src/pages/InviteAccept.jsx              — BUG-NEW-1, 2, BUG-STRUCT-2 관련
 ✅ src/pages/Login.jsx                     — 확정 버그 없음
 ✅ src/pages/Signup.jsx                    — BUG-SU-1, 2
 ✅ src/pages/OAuthCallback.jsx             — BUG-OAUTH-1(P4)
 ✅ src/pages/ShareResult.jsx               — 확정 버그 없음
-✅ src/pages/admin/Dashboard.jsx           — BUG-DASH-1 (pendingFeedbacks 공식 오류 — 반려 피드백 포함)
-✅ src/pages/admin/Revenue.jsx             — 확정 버그 없음 (D-68 ✅, D-65+D-69 ✅)
-✅ src/pages/admin/BugReports.jsx          — BUG-ADM-1 (handleSaveMemo error 미캡처+항상낙관적갱신), BUG-ADM-2 (handleSendReply 에러state 없음)
+✅ src/pages/admin/Dashboard.jsx           — BUG-DASH-1
+✅ src/pages/admin/Revenue.jsx             — 확정 버그 없음
+✅ src/pages/admin/BugReports.jsx          — BUG-ADM-1, BUG-ADM-2
 ✅ src/pages/admin/CompanyManagement.jsx   — BUG-NEW-7
-✅ src/pages/admin/Missions.jsx            — BUG-NEW-6
-✅ src/pages/admin/PurityFilter.jsx        — BUG-NEW-8
-✅ src/pages/admin/PanelManagement.jsx     — BUG-PM-1(잠정, 거의 완료)
+✅ src/pages/admin/Missions.jsx            — BUG-NEW-6(재검증 잠정)
+✅ src/pages/admin/PurityFilter.jsx        — BUG-NEW-8(재검증: D-65 부분 미준수)
+✅ src/pages/admin/PanelManagement.jsx     — BUG-PM-1(잠정)
 ✅ src/context/AuthContext.jsx             — BUG-AUTH-1, 2
 ✅ supabase/migrations/067_team_invite_token.sql — BUG-NEW-4 (P1 Security)
 
+[2차 조사 완료 10개]
+✅ src/pages/admin/Account.jsx             — 확정 버그 없음 (D-10 ✅, try-catch ✅)
+✅ src/pages/Landing.jsx                   — 확정 버그 없음 (완성도-F 기존 등록)
+✅ src/components/ui/index.jsx             — 확정 버그 없음 (D-65 ✅, D-19 ✅)
+✅ src/components/ui/ImageAnnotator.jsx    — 확정 버그 없음 (D-45 ✅, D-19 ✅)
+✅ src/components/ui/PanelTargetStep.jsx   — 확정 버그 없음 (forwardRef ✅, D-34 ✅)
+✅ src/components/ui/BugReportModal.jsx    — 확정 버그 없음 (graceful fallback ✅)
+✅ src/components/ui/NotificationCenter.jsx — BUG-NC-1 [P3]
+✅ src/lib/notify.js                       — 확정 버그 없음 (prefKey ✅, targetRole ✅)
+✅ src/lib/honorLevels.js                  — 확정 버그 없음 (getPanelReward ✅)
+✅ src/App.jsx                             — BUG-APP-1 [P4], BUG-STRUCT-1·2 관련
+
+[3차 조사 완료 7개 — 구조적 흐름 + 잔여 파일]
+✅ src/pages/panel/PanelRegister.jsx       — BUG-STRUCT-1 [P1] (TODO 스텁 가짜 폼 발견)
+✅ src/pages/company/BugReports.jsx        — 확정 버그 없음 (admin_reply 컬럼 ✅, try-catch ✅)
+✅ src/pages/panel/BugReports.jsx          — 확정 버그 없음 (company와 동일 구조 ✅)
+✅ src/pages/company/QuestionTemplates.jsx — 확정 버그 없음 (try-catch ✅, D-33 companyId 가드 ✅)
+✅ src/pages/company/TimelineTracker.jsx   — 확정 버그 없음 (purity_passed=true ✅, try-catch ✅)
+✅ src/pages/company/ICPResearch.jsx       — 사이드바 비노출 페이지 (PRD: 유지만, 기능 점검 생략)
+⏭ src/pages/company/ICPPulse.jsx          — 사이드바 비노출 페이지 (PRD: 유지만, 조사 스킵)
+⏭ src/pages/company/BrandTracking.jsx     — 사이드바 비노출 페이지 (PRD: 유지만, 조사 스킵)
+✅ supabase/migrations/001_all_tables.sql  — BUG-NEW-3·STRUCT-2 재확인 (team_members user_id 컬럼 없음 확정)
+✅ supabase/migrations/018_credits_numeric.sql — BUG-STRUCT-3·4 재확인 (reserve 순서 확정)
+
 ================================================================
-## 4. 조사 미완료 파일 (우선순위 순)
+## 4. 조사 미완료 파일
 ================================================================
 
-1.  src/pages/admin/Account.jsx
-    확인 포인트:
-    - isDirty 탭 전환 경고 로직 (company/Account와 동일 패턴)
-    - 비밀번호 변경 재검증 패턴 (D-10)
-
-2.  src/pages/Landing.jsx
-    확인 포인트:
-    - CSS className 연결 여부 (D-39)
-    - StepAnimations/ExpertPanelCloud 에러 처리
-
-3.  src/components/ui/index.jsx
-    확인 포인트:
-    - ConfirmModal errorMsg prop 구현 (D-65)
-    - createPortal 사용 여부 (D-19)
-
-4.  src/components/ui/ImageAnnotator.jsx
-    확인 포인트:
-    - imgError state + onError 핸들러 (D-45)
-    - readonly 모드 분기
-
-5.  src/components/ui/PanelTargetStep.jsx
-    확인 포인트:
-    - forwardRef + useImperativeHandle 패턴
-    - 업그레이드 팝업 createPortal (D-19)
-
-6.  src/components/ui/BugReportModal.jsx
-    확인 포인트:
-    - Storage 업로드 실패 graceful fallback
-    - createPortal (D-19)
-
-7.  src/components/ui/NotificationCenter.jsx
-    확인 포인트:
-    - Realtime 채널명 Date.now() 접미사 (D-96)
-    - delete { error } 캡처 (D-79)
-    - 포털별 .or() 필터
-
-8.  src/lib/notify.js
-    확인 포인트:
-    - prefKey 조회 로직
-    - targetRole 파라미터 처리
-
-9.  src/lib/honorLevels.js
-    확인 포인트:
-    - getPanelReward 계산 로직 정확성
-
-10. src/App.jsx
-    확인 포인트:
-    - 라우트 목록이 2_Architecture.txt와 일치하는지
-    - RoleRoute 정의 및 리다이렉트 로직
+없음 — 활성 사용 파일 전체 조사 완료 (2026-06-03)
+※ 스킵 항목: ICPPulse.jsx·BrandTracking.jsx (PRD 명시 비노출 페이지 — 기능 미활성)
 
 ================================================================
 ## 5. 조사 규칙 (변경 불가)
