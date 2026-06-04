@@ -103,7 +103,9 @@ purit/
 │   │                  Sidebar loadCount도 동일 .or() 필터로 포털별 카운트 분리 ★
 │   │                BugReportModal.jsx (버그/불편 신고 모달 — ReactDOM.createPortal, 전체 포털 공통) ★ 신규
 │   │                  props: onClose, pageUrl(현재 pathname)
-│   │                  5가지 유형 칩 + 제목 + 상세 + 스크린샷 업로드(bug-screenshots 버킷, 5MB)
+│   │                  6가지 유형 칩: 버그/오류·UX불편·데이터이상·기능제안·이의신청(⚖️)·기타 ★ 이의신청 추가
+│   │                  REPORT_TYPES 6개 배열 — key:'appeal', label:'⚖️ 이의 신청' 포함
+│   │                  제목 + 상세 + 스크린샷 업로드(bug-screenshots 버킷, 5MB)
 │   │                  supabase.storage('bug-screenshots').upload → screenshot_url, bug_reports INSERT
 │   │                  업로드 실패 시 screenshot_url=null graceful fallback
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
@@ -259,18 +261,18 @@ purit/
 │   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
-│   │   ※ pages/company/Diagnosis.jsx: 전환 가이드 탭 추가 + 시계열 추적 삭제 (2026-06-08) ★
-│   │                  tabs: ['overview','benchmark','keywords','guide'] — '시계열 추적' 탭 삭제, '전환 가이드' 탭 신규
+│   │   ※ pages/company/Diagnosis.jsx: 전환 가이드 라디오 단일 선택 + 독립 상태 분리 (2026-06-09) ★
+│   │                  tabs: ['overview','benchmark','keywords','guide']
 │   │                  useNavigate 추가 — 전환 가이드 탭 Next Action CTA 버튼 이동에 사용
-│   │                  전환 가이드 탭 (activeTab==='guide') — 인라인 IIFE 구현:
+│   │                  전환 가이드 탭 IIFE: ★ 개편
 │   │                    GUIDE_WEIGHTS: { value_score:0.30, trust_score:0.25, clarity_score:0.20, relevance_score:0.15, differentiation_score:0.10 }
 │   │                    GUIDE_LEVELS: 5단계 (최적화≥90 / 우수≥75 / 양호≥60 / 성장가능≥40 / 개선필요<40)
 │   │                    NEXT_ACTIONS: 취약 차원 → 추천 테스트 경로 1:1 매핑 5개
-│   │                    guideFbs: period + missions 기준 rawFeedbacks 재필터 → scores와 동일 기간 기준으로 코멘트 추출 (D-111)
+│   │                    guideFbs = guideFeedbacks(독립 state) + period 조건 (rawFeedbacks 미사용)
 │   │                    비교 모드(isComparing=true) 시 안내 카드 즉시 반환 (stale scores 방지)
 │   │                    취약 차원 코멘트: calcPurityScoreLocal 정렬 후 상위 3개, dimScore 뱃지 표시
 │   │                  period state: 'all'|'3m'|'1m' (기본 'all') — 의뢰 칩 행 아래 pill 버튼
-│   │                  rawFeedbacks state: 전체 미필터 피드백 보존 (period 변경 시 재계산 원본)
+│   │                  rawFeedbacks state: 전체 미필터 피드백 보존 (가이드 탭 미사용, 다른 탭 period 변경 시 재계산 원본)
 │   │                  필터 기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
 │   │                  cutoff 공식: period!=='all' → new Date(Date.now() - (period==='3m' ? 90 : 30) * 86400000)
 │   │                  loadFeedbacks(ids, msList) — 반드시 두 인자 필요 (D-89 참조)
