@@ -18,6 +18,14 @@ const BADGE_CATALOG = [
   { key: '마이크로스코프', name: '마이크로스코프', tier: 'hidden', hidden: true,  desc: '...조건이 숨겨져 있습니다.' },
   { key: '퀵_타겟팅',    name: '퀵 타겟팅',   tier: 'hidden', hidden: true,  desc: '...조건이 숨겨져 있습니다.' },
   { key: '블랙_스완',    name: '블랙 스완',   tier: 'hidden', hidden: true,  desc: '...조건이 숨겨져 있습니다.' },
+  // ── v3 추가 뱃지 ──────────────────────────────────────────────────────────
+  { key: '첫_발사',     name: '첫 발사',     tier: 'rookie', hidden: false, desc: '첫 번째 피드백을 제출했습니다.' },
+  { key: '삼연타',      name: '삼연타',      tier: 'rookie', hidden: false, desc: '30일 이내 Purit Filter를 3회 이상 통과했습니다.' },
+  { key: '댓글_장인',   name: '댓글 장인',   tier: 'elite',  hidden: false, desc: '300자 이상 상세한 피드백으로 Purit Filter를 10회 이상 통과했습니다.' },
+  { key: '스피드런',    name: '스피드런',    tier: 'elite',  hidden: false, desc: '7일 이내 Purit Filter를 5회 이상 통과했습니다.' },
+  { key: '듀얼_코어',   name: '듀얼 코어',   tier: 'elite',  hidden: false, desc: '메인 의뢰와 서브 의뢰 각각 5건 이상 Purit Filter를 통과했습니다.' },
+  { key: '센추리',      name: '센추리',      tier: 'master', hidden: false, desc: 'Purit Filter를 누적 100회 이상 통과했습니다.' },
+  { key: '인사이트_코어', name: '인사이트 코어', tier: 'master', hidden: false, desc: "기업에게 '도움 됨' 평가를 누적 50회 이상 받았습니다." },
 ];
 
 const TIER_STYLES = {

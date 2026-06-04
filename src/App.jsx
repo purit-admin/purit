@@ -26,7 +26,6 @@ import AccountSettings from './pages/company/Settings';
 import CompanyAccount from './pages/company/Account';
 import CompanyBugReports from './pages/company/BugReports';
 import AdminAccount from './pages/admin/Account';
-import TimelineTracker from './pages/company/TimelineTracker';
 import ShareResult from './pages/ShareResult';
 
 // Panel pages
@@ -82,7 +81,6 @@ function AppRoutes() {
       <Route path="/company/new" element={<RoleRoute role="company"><CL><NewMission /></CL></RoleRoute>} />
       <Route path="/company/results" element={<RoleRoute role="company"><CL><Results /></CL></RoleRoute>} />
       <Route path="/company/diagnosis" element={<RoleRoute role="company"><CL><Diagnosis /></CL></RoleRoute>} />
-      <Route path="/company/timeline" element={<RoleRoute role="company"><CL><TimelineTracker /></CL></RoleRoute>} />
       <Route path="/company/preference" element={<RoleRoute role="company"><CL><PreferenceTest /></CL></RoleRoute>} />
       <Route path="/company/pricing-test" element={<RoleRoute role="company"><CL><PricingTest /></CL></RoleRoute>} />
       <Route path="/company/email-test" element={<RoleRoute role="company"><CL><ColdEmailTest /></CL></RoleRoute>} />

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
-import TimelineTracker from './TimelineTracker';
 
 const DIM_LABEL_MAP = {
   clarity_score: '명확성',
@@ -57,6 +57,30 @@ const COMPARE_A = 'var(--accent)';
 const COMPARE_B = '#c66507';
 const COMPARE_C = '#159143';
 
+// 전환 가이드 상수
+const GUIDE_WEIGHTS = { value_score: 0.30, trust_score: 0.25, clarity_score: 0.20, relevance_score: 0.15, differentiation_score: 0.10 };
+const GUIDE_LEVELS = [
+  { min: 90, label: '최적화',    color: '#159143' },
+  { min: 75, label: '우수',      color: '#10367D' },
+  { min: 60, label: '양호',      color: '#c66507' },
+  { min: 40, label: '성장 가능', color: '#f59e0b' },
+  { min: 0,  label: '개선 필요', color: '#ca2121' },
+];
+const GUIDE_DESCS = {
+  '최적화':    '5개 지표 모두 벤치마크를 상회합니다. 최적의 전환 소재에 가깝습니다.',
+  '우수':      '대부분의 지표가 양호합니다. 취약 차원 하나를 보완하면 큰 도약이 가능합니다.',
+  '양호':      '핵심 지표는 안정적이지만 전환율을 더 끌어올릴 여지가 있습니다.',
+  '성장 가능': '취약한 차원이 전환율을 낮추고 있습니다. 집중 개선이 필요합니다.',
+  '개선 필요': '여러 차원에서 즉각적인 개선이 필요합니다. 우선순위부터 잡아보세요.',
+};
+const NEXT_ACTIONS = {
+  clarity_score:         { text: '소재 A/B 테스트로 메시지 명확성을 높여보세요', path: '/company/preference', cta: '소재 비교 등록 →' },
+  relevance_score:       { text: '소재 A/B 테스트로 타겟 공감도를 검증해보세요', path: '/company/preference', cta: '소재 비교 등록 →' },
+  value_score:           { text: '가격 검증 테스트로 가치 전달력을 점검해보세요', path: '/company/pricing-test', cta: '가격 검증 등록 →' },
+  differentiation_score: { text: '소재 A/B 테스트로 차별화 메시지를 발굴해보세요', path: '/company/preference', cta: '소재 비교 등록 →' },
+  trust_score:           { text: '신뢰 요소를 집중 검증하는 LP 의뢰를 진행해보세요', path: '/company/new', cta: '의뢰 등록 →' },
+};
+
 const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
 const KO_STOP = new Set(['이','가','은','는','을','를','의','에','서','와','과','으로','로','에서','까지','부터','도','만','이다','있다','하다','되다','이고','그','그리고','또','하지만','그러나','하여','해서','것','수','더','또한','등','및','위해','대해','관해','있는','없는','하는','되는','많이','어서','입니다','습니다','합니다','했습니다','됩니다','같은','같이','때문에','통해','위한','않은','않고','않아','않습니다','없어','있어','있고','없고','없어서','이런','이렇게','저렇게','그렇게','좋은','좋아','나쁜','너무','매우','정말','조금','좀','잘','못','안','더욱','가장','좋습니다','입니다','있습니다','없습니다','하겠습니다','됩니다','됩니다만','입니다만']);
@@ -90,6 +114,7 @@ function MissionChip({ label, active, color, onClick, title }) {
 }
 
 export default function Diagnosis() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [scores, setScores] = useState({});
   const [distributions, setDistributions] = useState({});
@@ -399,7 +424,7 @@ export default function Diagnosis() {
           )}
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-            {[['overview', '차원별 점수'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['timeline', '시계열 추적']].map(([v, l]) => (
+            {[['overview', '차원별 점수'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['guide', '전환 가이드']].map(([v, l]) => (
               <button key={v} onClick={() => setActiveTab(v)} style={{
                 padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
                 background: activeTab === v ? 'var(--bg)' : 'transparent',
@@ -589,7 +614,126 @@ export default function Diagnosis() {
             );
           })()}
 
-          {activeTab === 'timeline' && <TimelineTracker inline />}
+          {activeTab === 'guide' && (() => {
+            // 전환 잠재력 점수 (0-100)
+            const cpScore = Math.max(0, Math.min(100, Math.round(
+              DIMENSIONS.reduce((sum, d) => sum + ((scores[d.key] || 0) - 1) / 4 * 100 * (GUIDE_WEIGHTS[d.key] || 0), 0)
+            )));
+            const level = GUIDE_LEVELS.find(l => cpScore >= l.min) || GUIDE_LEVELS[GUIDE_LEVELS.length - 1];
+
+            // 취약 차원 (compare mode 무관하게 현재 단일 scores 기준)
+            const guideWorst = DIMENSIONS.reduce((w, d) => (scores[d.key] || 0) < (scores[w.key] || 0) ? d : w);
+
+            // 취약 차원 코멘트: purity 높은 순
+            const sortedFbs = [...rawFeedbacks].sort((a, b) => calcPurityScoreLocal(b) - calcPurityScoreLocal(a));
+            const dimComments = sortedFbs
+              .map(f => ({ comment: extractDimComment(f, guideWorst.key), purity: calcPurityScoreLocal(f), dimScore: f[guideWorst.key] }))
+              .filter(x => x.comment);
+            const topComments = dimComments.slice(0, 3);
+
+            const action = NEXT_ACTIONS[guideWorst.key];
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {/* 전환 잠재력 점수 카드 */}
+                <Card style={{ padding: '28px 32px' }}>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20 }}>CONVERSION POTENTIAL</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 40 }}>
+                    <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, justifyContent: 'center' }}>
+                        <span style={{ fontSize: 72, fontWeight: 900, fontFamily: 'var(--font-sans)', lineHeight: 1, color: level.color }}>{cpScore}</span>
+                        <span style={{ fontSize: 20, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>/100</span>
+                      </div>
+                      <div style={{ marginTop: 10 }}>
+                        <span style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: level.color + '18', color: level.color, fontSize: 13, fontWeight: 700 }}>{level.label}</span>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden', marginBottom: 14 }}>
+                        <div style={{ width: `${cpScore}%`, height: '100%', background: level.color, borderRadius: 4, transition: 'width 1s ease' }} />
+                      </div>
+                      <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75, margin: '0 0 20px' }}>{GUIDE_DESCS[level.label]}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        {DIMENSIONS.map(d => {
+                          const s = scores[d.key] || 0;
+                          const isWorst = d.key === guideWorst.key;
+                          return (
+                            <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 11, width: 52, fontWeight: isWorst ? 700 : 400, color: isWorst ? d.color : 'var(--text-3)', flexShrink: 0 }}>{d.label}</span>
+                              <div style={{ flex: 1, height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                                <div style={{ width: `${(s / 5) * 100}%`, height: '100%', background: isWorst ? d.color : 'var(--bg-3)', borderRadius: 3, transition: 'width 0.8s ease' }} />
+                              </div>
+                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, width: 26, textAlign: 'right', fontWeight: isWorst ? 700 : 400, color: isWorst ? d.color : 'var(--text-3)', flexShrink: 0 }}>{s.toFixed(1)}</span>
+                              <span style={{ fontSize: 10, color: 'var(--text-3)', width: 30, textAlign: 'right', flexShrink: 0 }}>×{GUIDE_WEIGHTS[d.key]}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* 취약 차원 인사이트 */}
+                <Card style={{ padding: '24px 28px', borderLeft: `4px solid ${guideWorst.color}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 15, fontWeight: 700 }}>⚡ 지금 집중할 한 가지</span>
+                    <span style={{ padding: '3px 12px', borderRadius: 12, background: guideWorst.color + '18', color: guideWorst.color, fontSize: 12, fontWeight: 700 }}>
+                      {guideWorst.label} {(scores[guideWorst.key] || 0).toFixed(1)}점
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 20 }}>{guideWorst.desc}</p>
+
+                  {dimComments.length === 0 ? (
+                    <div style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>
+                      이 차원에 해당하는 코멘트가 아직 없습니다.
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12, fontFamily: 'var(--font-sans)' }}>
+                        패널 {dimComments.length}건 코멘트 중 신뢰도 높은 순
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {topComments.map((item, i) => (
+                          <div key={i} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${guideWorst.color}` }}>
+                            <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.75, margin: '0 0 8px', fontWeight: 500 }}>
+                              "{item.comment.slice(0, 220)}{item.comment.length > 220 ? '…' : ''}"
+                            </p>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                              {item.dimScore != null && (
+                                <span style={{ fontSize: 10, fontFamily: 'var(--font-sans)', padding: '2px 7px', borderRadius: 4, background: guideWorst.color + '12', color: guideWorst.color, fontWeight: 700 }}>
+                                  {guideWorst.label} {item.dimScore.toFixed(1)}점
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {dimComments.length > 3 && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', textAlign: 'right' }}>
+                          외 {dimComments.length - 3}건 더 있음
+                        </div>
+                      )}
+                    </>
+                  )}
+                </Card>
+
+                {/* 다음 추천 액션 */}
+                {action && (
+                  <Card style={{ padding: '22px 28px', background: 'linear-gradient(135deg, var(--accent-dim2), var(--bg))' }}>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>NEXT ACTION</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <span style={{ fontSize: 20, color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}>→</span>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', lineHeight: 1.65, margin: 0 }}>{action.text}</p>
+                      </div>
+                      <Btn size="sm" onClick={() => navigate(action.path)} style={{ flexShrink: 0 }}>{action.cta}</Btn>
+                    </div>
+                  </Card>
+                )}
+              </div>
+            );
+          })()}
 
           {activeTab === 'benchmark' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

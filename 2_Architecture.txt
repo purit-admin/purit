@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-08 (어드민 MissionCard·MissionDetail 경력 표시 추가 + CAREER_LABEL clevel 키 통일)
+최종 업데이트: 2026-06-08 (뱃지 시스템 v3 — ROOKIE 5개·ELITE 6개·MASTER 5개·HIDDEN 3개, 총 19개로 확장 + migration 077)
 ================================================================
 
 ## 기술 스택
@@ -443,7 +443,7 @@ purit/
 │   │                017(recalc_mission_consumed: 초기 버전 — 018로 대체됨)
 │   │                018(credits_numeric: 크레딧 컬럼 INTEGER→NUMERIC(10,2), CEIL 제거, recalc_mission_consumed·reserve_mission_credits·complete_mission_and_refund 재정의)
 │   │                020(honor_points_security: add_panel_honor_points·apply_honor_decay·rate_panel_feedback_helpfulness RPC에 호출자 검증 추가 — 본인 or admin만 허용)
-│   │                021(badge_system_v2: panels.selected_badge 컬럼 추가, check_and_award_badges RPC — 12개 계층형 뱃지 자동 달성)
+│   │                021(badge_system_v2: panels.selected_badge 컬럼 추가, check_and_award_badges RPC — 12개 계층형 뱃지 자동 달성) ※ 077로 RPC 재정의됨(19개)
 │   │                023(bug_report_reply: bug_reports 테이블 admin_memo 컬럼 추가)
 │   │                024(admin_company_management: admin_add_credits RPC — 어드민 전용 크레딧 직접 지급)
 │   │                025(admin_change_plan: admin_change_plan RPC — 어드민 전용 플랜+크레딧 동시 변경, grant_plan_credits의 owner 제한 우회)
@@ -526,6 +526,11 @@ purit/
 │                    show_comments=false → feedbacks 배열 미포함 / show_annotations=false → annotations 미포함
 │                    서브 미션(preference/pricing/email): sub_responses JSONB 집계 반환
 │                  ※ 067_enhanced_sharing.sql에서 번호 중복으로 076으로 이동 (067은 team_invite_token 유지)
+│                077(badge_system_v3: check_and_award_badges RPC 재정의 — 뱃지 12개→19개 확장)
+│                  신규 ROOKIE 2개: 첫_발사(첫 제출), 삼연타(30일 내 3회 통과)
+│                  신규 ELITE 3개: 댓글_장인(300자+ 10회), 스피드런(7일 내 5회), 듀얼_코어(메인+서브 각 5건)
+│                  신규 MASTER 2개: 센추리(누적 100회), 인사이트_코어(도움됨 누적 50회)
+│                  기존 021 로직 100% 유지, 신규 조건 k13~k19 블록으로 추가
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)

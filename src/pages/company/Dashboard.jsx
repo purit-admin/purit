@@ -580,7 +580,7 @@ export default function CompanyDashboard() {
         <div style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow, display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>전환 지수 달성률</div>
-            <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>5개 축 종합 퍼포먼스</div>
+            <div style={{ fontSize: 12, color: C.text3, marginTop: 4 }}>5대 지표 종합 퍼포먼스</div>
           </div>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ResponsiveContainer width="100%" height={160}>
