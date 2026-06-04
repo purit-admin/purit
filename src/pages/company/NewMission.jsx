@@ -192,6 +192,12 @@ const DEFAULT_PLACEHOLDERS = {
   briefText: '이 LP의 핵심 타겟과 검증받고 싶은 포인트를 적어주세요.',
 };
 
+const AGE_MIN = 10, AGE_MAX = 70;
+const INCOME_OPTIONS = [
+  '100만원 이하', '100~200만원', '200~300만원', '300~400만원',
+  '400~500만원', '500~700만원', '700~1,000만원', '1,000만원 이상', '1억 이상',
+];
+
 const PAGE_SIZE = 5;
 const WINDOW = 5;
 
@@ -241,7 +247,7 @@ export default function NewMission() {
   const [missionUuid] = useState(() => editMissionId || crypto.randomUUID());
   const [form, setForm] = useState({
     product: '', lpUrl: '',
-    personaAge: '', personaIncome: '', personaRole: '', personaContext: '',
+    personaAgeMin: 20, personaAgeMax: 40, personaIncome: '', personaRole: '', personaContext: '',
     industry: '',
     panels: 10, briefText: '', focusAreas: [],
     imageUrls: [],
@@ -391,7 +397,7 @@ export default function NewMission() {
         focusAreas:     parsed.focusAreas || ms.assets || [],
         imageUrls:      ms.image_urls || [],
         industry:       parsed.industry || '',
-        personaAge:     parsed.personaAge || '',
+        ...(() => { const m = (parsed.personaAge || '').match(/(\d+)[~\-](\d+)/); return { personaAgeMin: m ? +m[1] : 20, personaAgeMax: m ? +m[2] : 40 }; })(),
         personaIncome:  parsed.personaIncome || '',
         personaRole:    parsed.personaRole || '',
         personaContext: parsed.personaContext || '',
@@ -406,7 +412,7 @@ export default function NewMission() {
   const FOCUS = ['첫인상 / 가독성', 'CTA 전환율', '가격 및 가치 전달', '신뢰 요소', '모바일 최적화', '핵심 메시지 명확성', '비주얼 완성도', '타겟 일치도'];
 
   const stepValid = (() => {
-    if (step === 0) return !!form.industry && !!form.product.trim() && !!form.personaAge.trim() && !!form.personaIncome.trim() && !!form.personaRole.trim();
+    if (step === 0) return !!form.industry && !!form.product.trim() && !!form.personaIncome && !!form.personaRole.trim();
     if (step === 1) return form.imageUrls.length > 0 && form.focusAreas.length > 0 && !!form.briefText.trim();
     return true;
   })();
@@ -529,7 +535,7 @@ export default function NewMission() {
   const shouldBlockNav = view === 'form'
     && (!effectiveEditMode || isDraftMode)
     && Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0
-      || form.industry || form.personaAge || form.personaIncome || form.personaRole || form.personaContext);
+      || form.industry || form.personaIncome || form.personaRole || form.personaContext);
 
 
   useEffect(() => {
@@ -565,7 +571,7 @@ export default function NewMission() {
         focusAreas:     parsed.focusAreas || ms.assets || [],
         imageUrls:      ms.image_urls || [],
         industry:       parsed.industry || '',
-        personaAge:     parsed.personaAge || '',
+        ...(() => { const m = (parsed.personaAge || '').match(/(\d+)[~\-](\d+)/); return { personaAgeMin: m ? +m[1] : 20, personaAgeMax: m ? +m[2] : 40 }; })(),
         personaIncome:  parsed.personaIncome || '',
         personaRole:    parsed.personaRole || '',
         personaContext: parsed.personaContext || '',
@@ -613,8 +619,9 @@ export default function NewMission() {
     if (effectiveEditMode && !isDraftMode) return;
     setSavingDraft(true);
     try {
+      const personaAgeStr = `${form.personaAgeMin}~${form.personaAgeMax}세`;
       const persona = [
-        form.personaAge && `연령: ${form.personaAge}`,
+        `연령: ${personaAgeStr}`,
         form.personaIncome && `소득: ${form.personaIncome}`,
         form.personaRole && `직군: ${form.personaRole}`,
         form.industry && `산업군: ${form.industry}`,
@@ -623,7 +630,7 @@ export default function NewMission() {
       const desc = JSON.stringify({
         briefText: form.briefText, careerLevels, selectedQuestions: allLPSelected,
         industry: form.industry, product: form.product,
-        personaAge: form.personaAge, personaIncome: form.personaIncome,
+        personaAge: personaAgeStr, personaIncome: form.personaIncome,
         personaRole: form.personaRole, personaContext: form.personaContext,
         focusAreas: form.focusAreas, panels: form.panels, step,
       });
@@ -653,7 +660,7 @@ export default function NewMission() {
     if (form.product)                base.product           = form.product;
     if (form.lpUrl)                  base.lpUrl             = form.lpUrl;
     if (form.focusAreas?.length > 0) base.focusAreas        = form.focusAreas;
-    if (form.personaAge)             base.personaAge        = form.personaAge;
+    base.personaAge = `${form.personaAgeMin}~${form.personaAgeMax}세`;
     if (form.personaIncome)          base.personaIncome     = form.personaIncome;
     if (form.personaRole)            base.personaRole       = form.personaRole;
     if (form.personaContext)         base.personaContext    = form.personaContext;
@@ -672,7 +679,7 @@ export default function NewMission() {
       const company = { id: companyId };
 
       const persona = [
-        form.personaAge && `연령: ${form.personaAge}`,
+        `연령: ${form.personaAgeMin}~${form.personaAgeMax}세`,
         form.personaIncome && `소득: ${form.personaIncome}`,
         form.personaRole && `직군: ${form.personaRole}`,
         form.industry && `산업군: ${form.industry}`,
@@ -1063,16 +1070,64 @@ export default function NewMission() {
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: 'var(--text-2)' }}>타겟 페르소나</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                      <label style={lbl}>
-                        <span style={lblTxt}>연령대</span>
-                        <input value={form.personaAge} onChange={e => set('personaAge', e.target.value)} placeholder={ph.personaAge} />
-                      </label>
-                      <label style={lbl}>
-                        <span style={lblTxt}>월 소득 수준</span>
-                        <input value={form.personaIncome} onChange={e => set('personaIncome', e.target.value)} placeholder={ph.personaIncome} />
-                      </label>
+                    {/* 연령대 듀얼 슬라이더 */}
+                    <div style={lbl}>
+                      <span style={lblTxt}>연령대</span>
+                      <div style={{ marginTop: 8, padding: '14px 16px 10px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 6, marginBottom: 14 }}>
+                          <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{form.personaAgeMin}세</span>
+                          <span style={{ fontSize: 13, color: 'var(--text-3)' }}>~</span>
+                          <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{form.personaAgeMax}세</span>
+                        </div>
+                        <div style={{ position: 'relative', height: 22, userSelect: 'none' }}>
+                          {/* 배경 트랙 */}
+                          <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: '100%', height: 4, background: 'var(--border)', borderRadius: 2 }} />
+                          {/* 채워진 트랙 */}
+                          <div style={{
+                            position: 'absolute', top: '50%', transform: 'translateY(-50%)', height: 4, background: 'var(--accent)', borderRadius: 2,
+                            left: `${(form.personaAgeMin - AGE_MIN) / (AGE_MAX - AGE_MIN) * 100}%`,
+                            width: `${(form.personaAgeMax - form.personaAgeMin) / (AGE_MAX - AGE_MIN) * 100}%`,
+                          }} />
+                          {/* 최솟값 썸 (시각) */}
+                          <div style={{
+                            position: 'absolute', top: '50%', transform: 'translate(-50%, -50%)',
+                            left: `${(form.personaAgeMin - AGE_MIN) / (AGE_MAX - AGE_MIN) * 100}%`,
+                            width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                            border: '2.5px solid var(--accent)', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', pointerEvents: 'none', zIndex: 1,
+                          }} />
+                          {/* 최댓값 썸 (시각) */}
+                          <div style={{
+                            position: 'absolute', top: '50%', transform: 'translate(-50%, -50%)',
+                            left: `${(form.personaAgeMax - AGE_MIN) / (AGE_MAX - AGE_MIN) * 100}%`,
+                            width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                            border: '2.5px solid var(--accent)', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', pointerEvents: 'none', zIndex: 1,
+                          }} />
+                          {/* 최솟값 input (투명, 인터랙션) */}
+                          <input type="range" min={AGE_MIN} max={AGE_MAX} step={5} value={form.personaAgeMin}
+                            onChange={e => set('personaAgeMin', Math.min(+e.target.value, form.personaAgeMax - 5))}
+                            style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0, cursor: 'pointer',
+                              zIndex: form.personaAgeMin >= form.personaAgeMax - 5 ? 5 : 3, margin: 0 }} />
+                          {/* 최댓값 input (투명, 인터랙션) */}
+                          <input type="range" min={AGE_MIN} max={AGE_MAX} step={5} value={form.personaAgeMax}
+                            onChange={e => set('personaAgeMax', Math.max(+e.target.value, form.personaAgeMin + 5))}
+                            style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0, cursor: 'pointer',
+                              zIndex: form.personaAgeMax <= form.personaAgeMin + 5 ? 5 : 4, margin: 0 }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-3)' }}>
+                          <span>10세</span><span>40세</span><span>70세</span>
+                        </div>
+                      </div>
                     </div>
+                    {/* 월 소득 수준 드롭다운 */}
+                    <label style={lbl}>
+                      <span style={lblTxt}>월 소득 수준</span>
+                      <select value={form.personaIncome} onChange={e => set('personaIncome', e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)',
+                          background: 'var(--surface-2)', fontSize: 14, color: form.personaIncome ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer' }}>
+                        <option value="" disabled>선택하세요</option>
+                        {INCOME_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </label>
                     <label style={lbl}>
                       <span style={lblTxt}>직군/역할</span>
                       <input value={form.personaRole} onChange={e => set('personaRole', e.target.value)} placeholder={ph.personaRole} />
@@ -1607,7 +1662,7 @@ export default function NewMission() {
                 {[
                   ['제품/서비스', form.product || '—'],
                   ['LP URL', form.lpUrl || '—'],
-                  ['타겟 페르소나', `${form.personaAge}, ${form.personaRole}` || '—'],
+                  ['타겟 페르소나', `${form.personaAgeMin}~${form.personaAgeMax}세, ${form.personaIncome || '—'}, ${form.personaRole || '—'}`],
                   ['패널 수', `${form.panels}명`],
                   ['커리어 레벨', careerLevels.map(k => CAREER_LEVELS.find(c => c.key === k)?.label).filter(Boolean).join(', ') || '—'],
                   ['예상 크레딧', `${calcCredits(form.panels, careerLevels, 'main')} 크레딧`],

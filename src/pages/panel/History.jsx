@@ -4,15 +4,8 @@ import { Card, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';
 
-function getImprovementTip(text) {
-  const t = (text || '').toLowerCase();
-  if (!text || text.trim().length < 5) return '각 항목에 30자 이상의 구체적인 이유를 작성해 보세요.';
-  if (t.includes('짧') || t.includes('길이') || t.includes('글자') || t.includes('단어') || t.includes('너무 적')) return '각 항목에 30자 이상의 구체적인 이유를 작성해 보세요.';
-  if (t.includes('ai') || t.includes('인공지능') || t.includes('chatgpt') || t.includes('gpt') || t.includes('ai로') || t.includes('ai가') || t.includes('ai 생성') || t.includes('복사')) return '실제 경험과 개인 의견을 바탕으로 자신의 언어로 작성해 주세요.';
-  if (t.includes('구체') || t.includes('근거') || t.includes('예시') || t.includes('이유가 없')) return '개선이 필요한 이유나 구체적인 예시를 포함해 주세요.';
-  if (t.includes('성의') || t.includes('대충') || t.includes('불성실') || t.includes('형식적')) return '더 성의 있는 피드백을 작성할수록 심사 통과에 유리합니다.';
-  return '각 항목에 구체적인 의견과 개선 방향을 포함해 주세요.';
-}
+const REJECTION_GUIDE = 'Purit Filter 검수 시스템에 의해 반려되었습니다.\n주요 반려 기준: 내용 길이 부족 / AI 생성 의심 / 구체성 부족\n해당 사유를 참고하여 재작성해 주세요.';
+
 
 const fmtAmt = (n) => {
   if (!n) return '₩0';
@@ -259,7 +252,7 @@ export default function History() {
                         onClick={() => setOpenReasonId(isReasonOpen ? null : f.id)}
                         style={{ fontSize: 12, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'underline' }}
                       >
-                        탈락 사유 보기
+                        {isReasonOpen ? '탈락 사유 닫기 ▲' : '탈락 사유 보기 ▼'}
                       </button>
                       <button
                         onClick={() => { setDeleteError(''); setDeleteTarget(f.id); }}
@@ -274,12 +267,11 @@ export default function History() {
                 {isRejected && isReasonOpen && (
                   <div style={{ borderTop: '1px solid var(--border)', padding: '12px 20px', background: 'rgba(239,68,68,0.04)' }}>
                     <div style={{ fontSize: 12, color: 'var(--red, #ef4444)', fontWeight: 600, marginBottom: 8 }}>반려 사유 · Purit Filter 기준 미달</div>
-                    {f.suggestions
-                      ? <div style={{ padding: '8px 12px', background: 'var(--surface)', borderRadius: 6, fontSize: 12, color: 'var(--text-2)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', lineHeight: 1.7 }}>{f.suggestions}</div>
-                      : <div style={{ fontSize: 12, color: 'var(--text-3)' }}>상세 사유가 기재되지 않았습니다.</div>
-                    }
-                    <div style={{ marginTop: 8, fontSize: 12, color: '#059669', background: 'rgba(5,150,105,0.07)', borderRadius: 6, padding: '8px 12px', borderLeft: '3px solid #059669', lineHeight: 1.6 }}>
-                      💡 {getImprovementTip(f.suggestions)}
+                    {f.suggestions && (
+                      <div style={{ padding: '8px 12px', background: 'var(--surface)', borderRadius: 6, fontSize: 12, color: 'var(--text-2)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)', lineHeight: 1.7, marginBottom: 8 }}>{f.suggestions}</div>
+                    )}
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg-2)', borderRadius: 6, padding: '8px 12px', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                      {REJECTION_GUIDE}
                     </div>
                   </div>
                 )}

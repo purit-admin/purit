@@ -597,7 +597,10 @@ purit/
 │   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
 │   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
 │   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
-│   │                  [수정 필요] 탭 탈락 사유: feedbackMap[m.id]?.suggestions 실제 반려 사유 표시 (없으면 기본 안내문 폴백) ★
+│   │                  [수정 필요] 탭 탈락 사유: REJECTION_GUIDE 고정 상수 + suggestions 조건부 표시 ★ 개편 (2026-06-09)
+│   │                    - suggestions 있으면: 원문 회색 박스(pre-wrap) → 하단 REJECTION_GUIDE(bg-2 박스)
+│   │                    - suggestions 없으면: REJECTION_GUIDE 단독 표시
+│   │                    - getImprovementTip() 키워드 분석 함수 제거 (History.jsx도 동일 패턴)
 │   │                  [수정 필요] 탭 "재작성 →": resubmitTarget state 설정 → 확인 모달(RESUBMIT 포털) 경유 후 navigate ★
 │   │                    resubmitTarget: { missionId, feedbackId, rejectionDeadline, missionTitle }
 │   │                    모달: 미션 제목 + rejection_deadline 남은 시간(isExpiring=1h미만 → red) + 경고 3개
