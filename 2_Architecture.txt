@@ -265,6 +265,11 @@ purit/
 │   │                  tabs: ['overview','benchmark','keywords','guide']
 │   │                  useNavigate 추가 — 전환 가이드 탭 Next Action CTA 버튼 이동에 사용
 │   │                  전환 가이드 탭 IIFE: ★ 개편
+│   │                    handleTabChange: selectedIds/compareMode/compareData 불변, autoId=selectedIds.size===1?현재:missions[0]
+│   │                    handleGuideChipClick: 라디오 단일 선택, selectedIds 미변경
+│   │                    loadGuideFeedbacks(id): guideFeedbacks + guideLoading 독립 state로 단일 의뢰 로드
+│   │                    guideFbs = guideFeedbacks + period 조건, guideScores = guideFbs 기반 단독 계산
+│   │                    합산(다중 의뢰 평균) 보기 삭제, isComparing 안내 카드 삭제
 │   │                    GUIDE_WEIGHTS: { value_score:0.30, trust_score:0.25, clarity_score:0.20, relevance_score:0.15, differentiation_score:0.10 }
 │   │                    GUIDE_LEVELS: 5단계 (최적화≥90 / 우수≥75 / 양호≥60 / 성장가능≥40 / 개선필요<40)
 │   │                    NEXT_ACTIONS: 취약 차원 → 추천 테스트 경로 1:1 매핑 5개

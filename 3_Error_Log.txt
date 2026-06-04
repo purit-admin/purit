@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-08 (D-111 추가 — rawFeedbacks 전기간 vs scores 기간 필터 불일치 패턴)
+최종 업데이트: 2026-06-09 (D-112 추가 — 탭 전환 핸들러가 다른 탭의 전역 상태를 덮어쓰는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1578,3 +1578,19 @@ D-111. rawFeedbacks(전기간)와 scores(기간 필터 적용)가 같은 컴포�
              반드시 "이 컴포넌트에서 scores가 어떤 데이터 기준으로 계산됐는가"를 먼저 파악하고
              동일 기준의 feedbacks 배열을 구성한 뒤 사용할 것
              조사 방법: 탭 구현 전 loadFeedbacks()·period useEffect를 읽어 scores 계산에 사용된 배열 추적
+
+D-112. 탭 전환 핸들러가 다른 탭의 전역 상태를 덮어써 복귀 시 이전 상태 소실되는 패턴 단독 처리 적용
+     -> 증상: Diagnosis.jsx에서 비교 모드(A+B 의뢰)를 활성화한 채 전환 가이드 탭을 클릭하면
+             비교 모드가 해제되고 단일 선택으로 바뀜. 돌아오면 비교 설정 소멸.
+     -> 원인: handleTabChange(guide) 내부에서 setSelectedIds/setCompareMode/setCompareData를
+             호출해 다른 탭이 공유하는 전역 state를 덮어씀.
+             탭 전환은 자신만의 데이터를 독립적으로 로드하는 행위여야 하는데,
+             공유 state를 부수 효과로 변경하면 다른 탭 상태를 파괴함.
+     -> 해결: 특정 탭이 독자적 데이터 뷰가 필요하면 전용 state + 전용 로드 함수를 분리.
+             탭 전환 핸들러는 자신만의 state만 초기화/로드하고 공유 state를 건드리지 말 것.
+             Diagnosis.jsx: guideSelectedId + guideFeedbacks + guideLoading 독립 state,
+             loadGuideFeedbacks(id) 독립 함수 추가 -> handleTabChange/handleGuideChipClick에서
+             setSelectedIds/setCompareMode/setCompareData 완전 제거.
+     -> 원칙: N개 탭이 공유 state를 기반으로 렌더되는 컴포넌트에서,
+             특정 탭만 단일 선택 모드가 필요할 때는 반드시 별도 state 분리.
+             공유 state를 탭 전환 시 직접 변경하면 전체 탭의 UX가 예측 불가능해짐.
