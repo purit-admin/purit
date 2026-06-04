@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
+import { compressImage } from '../../lib/imageUtils';
 
 const PAGE_SIZE = 5;
 const WINDOW = 5;
@@ -76,6 +77,7 @@ export default function PricingTest() {
   const [pricingDesc, setPricingDesc] = useState('');
   const [pricingImage, setPricingImage] = useState(null);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [uploadImgError, setUploadImgError] = useState('');
   // Step 1
   const [productDescription, setProductDescription] = useState('');
   const [industry,            setIndustry]            = useState('');
@@ -360,11 +362,17 @@ export default function PricingTest() {
 
   async function handleImageUpload(file) {
     if (!file || !companyId) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadImgError('이미지 파일이 20MB를 초과합니다.');
+      return;
+    }
+    setUploadImgError('');
     setUploadingImg(true);
     try {
-      const ext = file.name.split('.').pop().toLowerCase();
+      const compressed = await compressImage(file);
+      const ext = compressed.type === 'image/png' ? 'png' : 'jpg';
       const path = `${companyId}/${missionUuid}/pricing.${ext}`;
-      const { error } = await supabase.storage.from('mission-assets').upload(path, file, { upsert: true });
+      const { error } = await supabase.storage.from('mission-assets').upload(path, compressed, { upsert: true });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('mission-assets').getPublicUrl(path);
       setPricingImage(publicUrl);
@@ -568,6 +576,9 @@ export default function PricingTest() {
                       <Btn variant="secondary" size="sm" disabled={uploadingImg} onClick={() => fileInputRef.current?.click()}>
                         {uploadingImg ? '업로드 중...' : '이미지 선택'}
                       </Btn>
+                    )}
+                    {uploadImgError && (
+                      <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>{uploadImgError}</div>
                     )}
                   </div>
                 </div>
@@ -901,6 +912,7 @@ export default function PricingTest() {
                 creditBalance={creditBalance}
                 companyId={companyId}
                 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
+                onSaveDraft={saveDraft}
               />
             )}
 

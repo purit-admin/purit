@@ -26,6 +26,12 @@ function getFinalWeight(careerLevels) {
   return 1.8;
 }
 
+function getMinWeight(careerLevels) {
+  const active = CAREER_LEVELS.filter(c => careerLevels.includes(c.key));
+  if (active.length === 0) return 1.0;
+  return Math.min(...active.map(c => c.multiplier));
+}
+
 export function calcCredits(panelCount, careerLevels, missionType = 'sub') {
   const finalWeight  = getFinalWeight(careerLevels);
   const missionFactor = missionType === 'main' ? 1.5 : 1.0;
@@ -56,16 +62,29 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   creditBalance = null,
   companyId = null,
   onCreditBalanceUpdate = null,
+  onSaveDraft = null,
 }, ref) {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState(null);
 
-  const isStarter = !plan || plan === 'starter';
-  const isPro     = plan === 'pro';
-  const credits   = calcCredits(panelCount, careerLevels, missionType);
-  const isShort   = creditBalance != null && credits > creditBalance;
+  async function handleGoToPlans() {
+    setShowUpgrade(false);
+    setShowCreditModal(false);
+    if (onSaveDraft) {
+      try { await onSaveDraft(); } catch { /* 저장 실패해도 이동 허용 */ }
+    }
+    navigate('/company/plans');
+  }
+
+  const isStarter  = !plan || plan === 'starter';
+  const isPro      = plan === 'pro';
+  const credits    = calcCredits(panelCount, careerLevels, missionType);
+  const missionFactor = missionType === 'main' ? 1.5 : 1.0;
+  const minCredits = Math.round(panelCount * getMinWeight(careerLevels) * missionFactor * 100) / 100;
+  const isRange    = fmtCr(minCredits) !== fmtCr(credits);
+  const isShort    = creditBalance != null && credits > creditBalance;
 
   useImperativeHandle(ref, () => ({ openCreditModal }));
 
@@ -222,12 +241,24 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            최대 예상 소모
+            {isRange ? '예상 소모 범위' : '최대 예상 소모'}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 32, color: isShort ? '#ef4444' : 'var(--accent)' }}>
-              {fmtCr(credits)}
-            </span>
+            {isRange ? (
+              <>
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 22, color: 'var(--text-2)' }}>
+                  {fmtCr(minCredits)}
+                </span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 18, color: 'var(--text-3)', margin: '0 4px' }}>~</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 28, color: isShort ? '#ef4444' : 'var(--accent)' }}>
+                  {fmtCr(credits)}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 32, color: isShort ? '#ef4444' : 'var(--accent)' }}>
+                {fmtCr(credits)}
+              </span>
+            )}
             <span style={{ fontSize: 14, color: 'var(--text-2)', marginLeft: 6 }}>크레딧</span>
           </div>
         </div>
@@ -251,8 +282,20 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
           </div>
         )}
 
-        <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.6 }}>
-          실제 매칭된 패널의 직급 비율에 따라 소모량은 줄어들 수 있으며, 사용되지 않은 차액 크레딧은 테스트 완료 후 즉시 환불(Refund)됩니다.
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          padding: '10px 14px', borderRadius: 'var(--radius)',
+          background: 'rgba(22,163,74,0.07)',
+          border: '1px solid rgba(22,163,74,0.25)',
+          marginTop: 4,
+        }}>
+          <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.5 }}>↩</span>
+          <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.65, margin: 0 }}>
+            의뢰 등록 시 최대 예상 소모량이 먼저 차감되며,<br />
+            <strong style={{ color: '#15803d', fontWeight: 700 }}>
+              테스트 완료 후 실제 매칭된 직급 비율에 따라 차액 크레딧은 즉시 환불(Refund)됩니다.
+            </strong>
+          </p>
         </div>
       </div>
 
@@ -286,7 +329,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <Btn variant="secondary" size="sm" onClick={() => setShowUpgrade(false)}>나중에</Btn>
-              <Btn size="sm" onClick={() => { setShowUpgrade(false); navigate('/company/plans'); }}>
+              <Btn size="sm" onClick={() => { handleGoToPlans(); }}>
                 Pro 플랜 전환하기 →
               </Btn>
             </div>
@@ -368,7 +411,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
                       <Btn
                         size="sm"
                         style={{ width: '100%', justifyContent: 'center' }}
-                        onClick={() => { setShowCreditModal(false); navigate('/company/plans'); }}
+                        onClick={() => { handleGoToPlans(); }}
                       >
                         Pro 플랜 전환하기 →
                       </Btn>
@@ -438,7 +481,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
                     <Btn
                       size="sm"
                       style={{ flex: 2, justifyContent: 'center' }}
-                      onClick={() => { setShowCreditModal(false); navigate('/company/plans'); }}
+                      onClick={() => { handleGoToPlans(); }}
                     >
                       플랜 페이지에서 충전하기 →
                     </Btn>

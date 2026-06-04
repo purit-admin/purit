@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
+import { compressImage } from '../../lib/imageUtils';
 
 const PAGE_SIZE = 5;
 const WINDOW = 5;
@@ -83,6 +84,7 @@ export default function PreferenceTest() {
   const [variantBImage, setVariantBImage] = useState(null);
   const [uploadingA, setUploadingA] = useState(false);
   const [uploadingB, setUploadingB] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   // Step 2
   const [productDescription, setProductDescription] = useState('');
   const [industry,            setIndustry]            = useState('');
@@ -380,14 +382,20 @@ export default function PreferenceTest() {
 
   async function handleImageUpload(variant, file) {
     if (!file || !companyId) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadError('이미지 파일이 20MB를 초과합니다.');
+      return;
+    }
+    setUploadError('');
     const loadingSetter = variant === 'A' ? setUploadingA : setUploadingB;
     const imageSetter = variant === 'A' ? setVariantAImage : setVariantBImage;
     const fileName = variant === 'A' ? 'va' : 'vb';
     loadingSetter(true);
     try {
-      const ext = file.name.split('.').pop().toLowerCase();
+      const compressed = await compressImage(file);
+      const ext = compressed.type === 'image/png' ? 'png' : 'jpg';
       const path = `${companyId}/${missionUuid}/${fileName}.${ext}`;
-      const { error } = await supabase.storage.from('mission-assets').upload(path, file, { upsert: true });
+      const { error } = await supabase.storage.from('mission-assets').upload(path, compressed, { upsert: true });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('mission-assets').getPublicUrl(path);
       imageSetter(publicUrl);
@@ -626,6 +634,9 @@ export default function PreferenceTest() {
                       </div>
                     ))}
                   </div>
+                  {uploadError && (
+                    <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>{uploadError}</div>
+                  )}
                 </div>
 
                 <div style={{ height: 1, background: 'var(--border)' }} />
@@ -957,6 +968,7 @@ export default function PreferenceTest() {
                 creditBalance={creditBalance}
                 companyId={companyId}
                 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
+                onSaveDraft={saveDraft}
               />
             )}
 

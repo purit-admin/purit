@@ -853,6 +853,7 @@ export default function ColdEmailTest() {
                 creditBalance={creditBalance}
                 companyId={companyId}
                 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
+                onSaveDraft={saveDraft}
               />
             )}
 

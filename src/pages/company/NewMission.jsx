@@ -7,10 +7,11 @@ import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
+import { compressImage } from '../../lib/imageUtils';
 
 const STEPS = ['서비스/타겟 설정', '소재 업로드', '질문 설정', '패널 설정', '검토 & 제출'];
 const MAX_IMAGES = 3;
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 const INDUSTRIES = [
   '뷰티/코스메틱', '헬스/피트니스', '식품/음료', '패션/의류',
@@ -495,7 +496,7 @@ export default function NewMission() {
 
     for (const file of toUpload) {
       if (file.size > MAX_FILE_SIZE) {
-        setUploadError(`${file.name}이 5MB를 초과합니다.`);
+        setUploadError(`${file.name}이 20MB를 초과합니다.`);
         e.target.value = '';
         return;
       }
@@ -509,9 +510,10 @@ export default function NewMission() {
 
       const urls = [];
       for (const file of toUpload) {
-        const ext = file.name.split('.').pop().toLowerCase();
+        const compressed = await compressImage(file);
+        const ext = compressed.type === 'image/png' ? 'png' : 'jpg';
         const path = `${company.id}/${missionUuid}/${crypto.randomUUID()}.${ext}`;
-        const { error } = await supabase.storage.from('mission-assets').upload(path, file, { upsert: false });
+        const { error } = await supabase.storage.from('mission-assets').upload(path, compressed, { upsert: false });
         if (error) throw error;
         const { data: { publicUrl } } = supabase.storage.from('mission-assets').getPublicUrl(path);
         urls.push(publicUrl);
@@ -1238,7 +1240,7 @@ export default function NewMission() {
 
                 {/* 이미지 업로드 */}
                 <label style={lbl}>
-                  <span style={lblTxt}>검증 이미지 업로드 (선택 · 최대 {MAX_IMAGES}장 · 5MB 이하)</span>
+                  <span style={lblTxt}>검증 이미지 업로드 (선택 · 최대 {MAX_IMAGES}장 · 20MB 이하)</span>
                   <div style={{
                     border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
                     padding: '20px', textAlign: 'center',
@@ -1652,6 +1654,7 @@ export default function NewMission() {
                 creditBalance={creditBalance}
                 companyId={companyId}
                 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
+                onSaveDraft={saveDraft}
               />
             )}
 

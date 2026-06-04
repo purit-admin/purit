@@ -332,10 +332,11 @@ export default function PricingPage() {
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>자주 묻는 질문</div>
         {[
           ['크레딧이란 무엇인가요?', '크레딧은 패널 피드백 1건 단위로 차감되는 통화입니다. 패널 직급에 따라 가중치가 다르게 적용되며(주니어 1×, 미들 1.5×, 시니어 2×, C레벨 3×), 실제 매칭된 직급 비율에 따라 소모량이 달라집니다. 월간 크레딧은 다음 달로 이월되지 않습니다.'],
+          ['의뢰 종류마다 크레딧 소모량이 다른가요?', '네, 의뢰 종류에 따라 배수가 다르게 적용됩니다. 마케팅 소재 종합 진단(메인 의뢰)은 1.5배, 소재 비교·가격 검증·이메일 검증(서브 의뢰)은 1.0배입니다. 예를 들어 주니어 패널 10명 기준으로 메인 의뢰는 15크레딧, 서브 의뢰는 10크레딧이 최대 소모됩니다.'],
           ['추가 크레딧 가격이 어떻게 되나요?', 'Starter 플랜은 추가 충전 시 1크레딧당 25,000원(정가)이 적용됩니다. Pro 플랜은 14% 할인된 1크레딧당 21,600원에 충전할 수 있습니다.'],
           ['결과는 얼마 만에 나오나요?', '패널 매칭 후 평균 24~48시간 내에 피드백이 취합됩니다. Enterprise는 전담 CSM이 일정을 조율합니다.'],
         ].map(([q, a], i) => (
-          <div key={i} style={{ padding: '14px 0', borderBottom: i < 2 ? '1px solid var(--border)' : 'none' }}>
+          <div key={i} style={{ padding: '14px 0', borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{q}</div>
             <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{a}</div>
           </div>

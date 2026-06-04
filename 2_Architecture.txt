@@ -33,6 +33,12 @@ purit/
 │   │                  2순위: team_members.user_id = userId + status='active' → { company, teamRole: 'editor'|'viewer' } (팀원)
 │   │                  미매칭: { company: null, teamRole: null }
 │   │                canEdit = teamRole === null || teamRole === 'editor' 패턴으로 권한 분기
+│   │              imageUtils.js (compressImage 유틸리티 — canvas API 기반 이미지 자동 압축) ★ 신규
+│   │                compressImage(file, maxWidth=1920, quality=0.88): Promise<File>
+│   │                  PNG → PNG(투명도 보존) / 그 외 → JPEG 변환
+│   │                  img.onerror 시 원본 파일 폴백 / canvas.toBlob null 시 원본 폴백
+│   │                  사용: NewMission(메인 의뢰 이미지) / PreferenceTest(소재 A/B) / PricingTest(가격 페이지 이미지)
+│   │                  이미지 업로드 제한: 20MB (구 5MB) — 기업 포털 의뢰 등록 이미지 공통
 │   │              notify.js (sendNotification 중앙 헬퍼 — prefKey + targetRole 파라미터 포함) | templates.js (QUESTION_TEMPLATES: preference/pricing/email 9종 + lp 12종(4섹션), TYPE_LABEL, TYPE_COLOR)
 │   │              notify.js sendNotification(userId, { type, icon, title, body, actionUrl, targetRole, prefKey }): notifications INSERT
 │   │                targetRole: 'admin'|'company'|'panel'|null — 포털별 알림 분리 (030 마이그레이션)
