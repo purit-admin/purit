@@ -8,6 +8,7 @@ const TYPE_META = {
   ux:      { label: '😕 UX 불편',    bg: '#FFFBEB', color: '#D97706' },
   data:    { label: '📊 데이터 이상', bg: '#EFF6FF', color: '#2563EB' },
   feature: { label: '💡 기능 제안',   bg: '#F0FDF4', color: '#059669' },
+  appeal:  { label: '⚖️ 이의 신청',  bg: '#F5F3FF', color: '#7C3AED' },
   other:   { label: '기타',           bg: '#F8FAFC', color: '#64748B' },
 };
 

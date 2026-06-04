@@ -130,6 +130,9 @@ export default function Diagnosis() {
   const [showGuide, setShowGuide] = useState(false);
   const [rawFeedbacks, setRawFeedbacks] = useState([]);
   const [period, setPeriod] = useState('all');
+  const [guideSelectedId, setGuideSelectedId] = useState(null);
+  const [guideFeedbacks, setGuideFeedbacks] = useState([]);
+  const [guideLoading, setGuideLoading] = useState(false);
   // allBenchmarkFbs 제거 — 벤치마크는 DIMENSIONS 정적 상수 사용
 
   useEffect(() => { load(); }, []);
@@ -275,6 +278,45 @@ export default function Diagnosis() {
     });
   }
 
+  async function loadGuideFeedbacks(id) {
+    setGuideLoading(true);
+    try {
+      const { data } = await supabase
+        .from('feedbacks')
+        .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses,created_at,mission_id')
+        .eq('mission_id', id)
+        .eq('purity_passed', true);
+      setGuideFeedbacks(data || []);
+    } catch (err) {
+      console.error('[loadGuideFeedbacks]', err);
+      setGuideFeedbacks([]);
+    } finally {
+      setGuideLoading(false);
+    }
+  }
+
+  function handleTabChange(tab) {
+    setActiveTab(tab);
+    if (tab === 'guide' && missions.length > 0) {
+      // selectedIds / compareMode / compareData를 건드리지 않음 — 다른 탭 상태 보존
+      const autoId = selectedIds.size === 1 ? [...selectedIds][0] : missions[0]?.id;
+      if (autoId && autoId !== guideSelectedId) {
+        setGuideSelectedId(autoId);
+        loadGuideFeedbacks(autoId);
+      } else if (autoId && guideFeedbacks.length === 0) {
+        setGuideSelectedId(autoId);
+        loadGuideFeedbacks(autoId);
+      }
+    }
+  }
+
+  function handleGuideChipClick(id) {
+    if (id === guideSelectedId) return;
+    setGuideSelectedId(id);
+    loadGuideFeedbacks(id);
+    // selectedIds / compareMode / compareData를 건드리지 않음
+  }
+
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontSize: 13 }}>데이터 로딩 중…</div>
   );
@@ -295,12 +337,6 @@ export default function Diagnosis() {
     (activeScores[d.key] || 0) < (activeScores[worst.key] || 0) ? d : worst
   );
 
-  const selLabel = selectedIds.size === 0
-    ? `전체 ${missions.length}개 평균`
-    : selectedIds.size === 1
-      ? (missions.find(m => selectedIds.has(m.id))?.title?.slice(0, 20) || '1개 선택')
-      : `${selectedIds.size}개 선택${isComparing ? ' · 비교 중' : ''}`;
-
   return (
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1060, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
@@ -313,31 +349,45 @@ export default function Diagnosis() {
           <div style={{ marginTop: 20, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
             <span style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', flexShrink: 0, paddingTop: 5 }}>의뢰</span>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-                <MissionChip
-                  label={`전체 (${missions.length})`}
-                  active={selectedIds.size === 0}
-                  onClick={() => { setCompareMode(false); setCompareData(null); setSelectedIds(new Set()); }}
-                />
-                {missions.map(m => (
-                  <MissionChip
-                    key={m.id}
-                    label={m.title || '무제'}
-                    active={selectedIds.has(m.id)}
-                    onClick={() => toggleMission(m.id)}
-                    title={m.title}
-                  />
-                ))}
-                {selectedIds.size >= 2 && selectedIds.size <= 3 && (
-                  <button
-                    onClick={() => setCompareMode(v => !v)}
-                    style={{
-                      flexShrink: 0, marginLeft: 4, padding: '4px 14px', borderRadius: 20, fontSize: 12,
-                      fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-                      background: compareMode ? COMPARE_B : 'var(--bg-2)',
-                      color: compareMode ? '#fff' : 'var(--text-2)',
-                      border: `1px solid ${compareMode ? COMPARE_B : 'var(--border)'}`,
-                    }}
-                  >⇄ 비교 모드</button>
+                {activeTab === 'guide' ? (
+                  missions.map(m => (
+                    <MissionChip
+                      key={m.id}
+                      label={m.title || '무제'}
+                      active={guideSelectedId === m.id}
+                      onClick={() => handleGuideChipClick(m.id)}
+                      title={m.title}
+                    />
+                  ))
+                ) : (
+                  <>
+                    <MissionChip
+                      label={`전체 (${missions.length})`}
+                      active={selectedIds.size === 0}
+                      onClick={() => { setCompareMode(false); setCompareData(null); setSelectedIds(new Set()); }}
+                    />
+                    {missions.map(m => (
+                      <MissionChip
+                        key={m.id}
+                        label={m.title || '무제'}
+                        active={selectedIds.has(m.id)}
+                        onClick={() => toggleMission(m.id)}
+                        title={m.title}
+                      />
+                    ))}
+                    {selectedIds.size >= 2 && selectedIds.size <= 3 && (
+                      <button
+                        onClick={() => setCompareMode(v => !v)}
+                        style={{
+                          flexShrink: 0, marginLeft: 4, padding: '4px 14px', borderRadius: 20, fontSize: 12,
+                          fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                          background: compareMode ? COMPARE_B : 'var(--bg-2)',
+                          color: compareMode ? '#fff' : 'var(--text-2)',
+                          border: `1px solid ${compareMode ? COMPARE_B : 'var(--border)'}`,
+                        }}
+                      >⇄ 비교 모드</button>
+                    )}
+                  </>
                 )}
             </div>
           </div>
@@ -418,14 +468,14 @@ export default function Diagnosis() {
                   가장 취약한 차원: <span style={{ color: worstDim.color }}>{worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)})</span>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 14 }}>{worstDim.desc}</p>
-                {selectedIds.size === 1 && <Btn size="sm" variant="outline" onClick={() => setShowGuide(true)}>개선 가이드 보기 →</Btn>}
+                {selectedIds.size === 1 && activeTab !== 'guide' && <Btn size="sm" variant="outline" onClick={() => setShowGuide(true)}>개선 가이드 보기 →</Btn>}
               </div>
             </Card>
           )}
 
           <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
             {[['overview', '차원별 점수'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['guide', '전환 가이드']].map(([v, l]) => (
-              <button key={v} onClick={() => setActiveTab(v)} style={{
+              <button key={v} onClick={() => handleTabChange(v)} style={{
                 padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
                 background: activeTab === v ? 'var(--bg)' : 'transparent',
                 color: activeTab === v ? 'var(--text)' : 'var(--text-3)',
@@ -615,30 +665,46 @@ export default function Diagnosis() {
           })()}
 
           {activeTab === 'guide' && (() => {
-            // [가이드-B] 비교 모드 중 가이드 비활성
-            if (isComparing) return (
-              <Card style={{ padding: '48px', textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>⇄</div>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>비교 모드 중에는 전환 가이드를 사용할 수 없습니다</div>
-                <div style={{ color: 'var(--text-2)', fontSize: 13 }}>단일 의뢰 또는 전체 선택으로 돌아가 주세요.</div>
+            if (!guideSelectedId || missions.length === 0) return (
+              <Card style={{ padding: '60px', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>분석할 의뢰를 선택해 주세요</div>
+                <div style={{ color: 'var(--text-2)', fontSize: 13 }}>위 의뢰 칩에서 하나를 선택하면 전환 가이드가 표시됩니다.</div>
               </Card>
             );
 
-            // [가이드-A] 기간 필터 적용 — scores와 코멘트를 동일 기간 기준으로 맞춤
+            if (guideLoading) return (
+              <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>데이터 로딩 중…</div>
+            );
+
+            // guideFeedbacks는 독립 로드 — rawFeedbacks/selectedIds 무관
             const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
             const periodMissionIds = cutoff ? new Set(missions.filter(m => new Date(m.created_at) >= cutoff).map(m => m.id)) : null;
-            const guideFbs = periodMissionIds ? rawFeedbacks.filter(f => periodMissionIds.has(f.mission_id)) : rawFeedbacks;
+            const guideFbs = (periodMissionIds && !periodMissionIds.has(guideSelectedId))
+              ? []
+              : guideFeedbacks;
 
-            // 전환 잠재력 점수 (0-100)
+            if (guideFbs.length === 0) return (
+              <Card style={{ padding: '60px', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>선택한 의뢰에 피드백이 없습니다</div>
+                <div style={{ color: 'var(--text-2)', fontSize: 13 }}>다른 의뢰를 선택하거나 기간 필터를 조정해 보세요.</div>
+              </Card>
+            );
+
+            // 선택 의뢰 단독 점수 계산
+            const guideScores = {};
+            DIMENSIONS.forEach(d => {
+              const vals = guideFbs.map(f => f[d.key]).filter(Boolean);
+              guideScores[d.key] = vals.length ? avg(vals) : 0;
+            });
+
             const cpScore = Math.max(0, Math.min(100, Math.round(
-              DIMENSIONS.reduce((sum, d) => sum + ((scores[d.key] || 0) - 1) / 4 * 100 * (GUIDE_WEIGHTS[d.key] || 0), 0)
+              DIMENSIONS.reduce((sum, d) => sum + ((guideScores[d.key] || 0) - 1) / 4 * 100 * (GUIDE_WEIGHTS[d.key] || 0), 0)
             )));
             const level = GUIDE_LEVELS.find(l => cpScore >= l.min) || GUIDE_LEVELS[GUIDE_LEVELS.length - 1];
+            const guideWorst = DIMENSIONS.reduce((w, d) => (guideScores[d.key] || 0) < (guideScores[w.key] || 0) ? d : w);
 
-            // 취약 차원 (비교 모드 무관 — 현재 단일 scores 기준)
-            const guideWorst = DIMENSIONS.reduce((w, d) => (scores[d.key] || 0) < (scores[w.key] || 0) ? d : w);
-
-            // [가이드-A] guideFbs 사용, [가이드-C] purity 필드 제거 (렌더 미사용으로 이중 계산 방지)
             const sortedFbs = [...guideFbs].sort((a, b) => calcPurityScoreLocal(b) - calcPurityScoreLocal(a));
             const dimComments = sortedFbs
               .map(f => ({ comment: extractDimComment(f, guideWorst.key), dimScore: f[guideWorst.key] }))
@@ -670,7 +736,7 @@ export default function Diagnosis() {
                       <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75, margin: '0 0 20px' }}>{GUIDE_DESCS[level.label]}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                         {DIMENSIONS.map(d => {
-                          const s = scores[d.key] || 0;
+                          const s = guideScores[d.key] || 0;
                           const isWorst = d.key === guideWorst.key;
                           return (
                             <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -693,7 +759,7 @@ export default function Diagnosis() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 15, fontWeight: 700 }}>⚡ 지금 집중할 한 가지</span>
                     <span style={{ padding: '3px 12px', borderRadius: 12, background: guideWorst.color + '18', color: guideWorst.color, fontSize: 12, fontWeight: 700 }}>
-                      {guideWorst.label} {(scores[guideWorst.key] || 0).toFixed(1)}점
+                      {guideWorst.label} {(guideScores[guideWorst.key] || 0).toFixed(1)}점
                     </span>
                   </div>
                   <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 20 }}>{guideWorst.desc}</p>

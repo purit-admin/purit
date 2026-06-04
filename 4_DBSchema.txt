@@ -60,6 +60,8 @@
   ※ 021_badge_system_v2.sql 에서 selected_badge 컬럼 추가
   ※ 042_notif_prefs.sql 에서 notif_prefs 컬럼 추가
   ※ 062_panel_verification_docs.sql 에서 health_insurance_url / linkedin_url / portfolio_url 컬럼 추가
+  ※ 078_panel_temp_suspension.sql 에서 suspend_until 컬럼 추가
+  suspend_until          TIMESTAMPTZ DEFAULT NULL              ← 078 추가 (기간제 정지 만료 시각; NULL=영구 정지 또는 비정지)
   ※ 신규 패널 status: handle_new_user 트리거(이메일)·create_oauth_user_profile RPC(OAuth) 모두 'pending'으로 생성
   ※ RLS UPDATE 정책 2개:
      - 본인 UPDATE: user_id = auth.uid() (패널 본인 프로필 수정)
@@ -489,6 +491,14 @@
     → 기업 도움됨 평가(is_helpful=true) 후 Results.jsx에서 fire-and-forget 호출
     → 본인(auth.uid() = panels.user_id) 또는 어드민만 호출 가능
     → 파일: supabase/migrations/021_badge_system_v2.sql
+
+  lift_expired_panel_suspensions() RETURNS INTEGER
+    → status='suspended' AND suspend_until IS NOT NULL AND suspend_until <= NOW() 패널 일괄 처리
+    → FOR LOOP: UPDATE(status='active', suspend_until=NULL) + notifications INSERT(패널 알림)
+    → 처리된 패널 수 반환 (v_count 카운터)
+    → GRANT EXECUTE TO service_role (pg_cron 전용)
+    → pg_cron '0 * * * *' 매시간 자동 실행 (SQL Editor 수동 스케줄 등록 필요)
+    → 파일: supabase/migrations/078_panel_temp_suspension.sql
 
   apply_honor_decay(p_panel_id UUID) RETURNS jsonb
     → 30일 비활동 후 매주 -200 HP 지연 적용 (honor_decay_applied_at 커서로 이중 적용 방지)

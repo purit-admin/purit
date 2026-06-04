@@ -16,8 +16,19 @@ const TYPE_META = {
   ux:      { label: '😕 UX 불편',    bg: '#FFFBEB', color: '#D97706' },
   data:    { label: '📊 데이터 이상', bg: '#EFF6FF', color: '#2563EB' },
   feature: { label: '💡 기능 제안',   bg: '#F0FDF4', color: '#059669' },
+  appeal:  { label: '⚖️ 이의 신청',  bg: '#F5F3FF', color: '#7C3AED' },
   other:   { label: '기타',           bg: '#F8FAFC', color: '#64748B' },
 };
+
+const TYPE_FILTER_OPTIONS = [
+  { key: 'all',     label: '전체' },
+  { key: 'bug',     label: '🐛 버그' },
+  { key: 'ux',      label: '😕 UX 불편' },
+  { key: 'data',    label: '📊 데이터' },
+  { key: 'feature', label: '💡 기능제안' },
+  { key: 'appeal',  label: '⚖️ 이의신청' },
+  { key: 'other',   label: '기타' },
+];
 
 const ROLE_LABEL = { company: '기업', panel: '패널', admin: '어드민' };
 const STATUS_OPTS = [
@@ -37,8 +48,10 @@ function fmtDate(iso) {
 
 export default function BugReports() {
   const [tab, setTab] = useState('pending');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [reports, setReports] = useState([]);
   const [counts, setCounts] = useState({ pending: 0, in_progress: 0, resolved: 0, dismissed: 0 });
+  const [typeCounts, setTypeCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [memo, setMemo] = useState('');
@@ -51,17 +64,23 @@ export default function BugReports() {
   const [total, setTotal] = useState(0);
 
   useEffect(() => { loadAll(); }, []);
-  useEffect(() => { loadTab(); }, [tab, page]);
+  useEffect(() => { loadTab(); }, [tab, page, typeFilter]);
 
   async function loadAll() {
     try {
       const { data } = await supabase
         .from('bug_reports')
-        .select('status');
+        .select('status, type');
       if (data) {
         const c = { pending: 0, in_progress: 0, resolved: 0, dismissed: 0 };
-        data.forEach(r => { if (c[r.status] !== undefined) c[r.status]++; });
+        const tc = {};
+        data.forEach(r => {
+          if (c[r.status] !== undefined) c[r.status]++;
+          if (!tc[r.status]) tc[r.status] = {};
+          tc[r.status][r.type] = (tc[r.status][r.type] || 0) + 1;
+        });
         setCounts(c);
+        setTypeCounts(tc);
       }
     } catch (err) {
       console.error('[BugReports loadAll]', err);
@@ -73,10 +92,12 @@ export default function BugReports() {
     try {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, count, error } = await supabase
+      let q = supabase
         .from('bug_reports')
         .select('*', { count: 'exact' })
-        .eq('status', tab)
+        .eq('status', tab);
+      if (typeFilter !== 'all') q = q.eq('type', typeFilter);
+      const { data, count, error } = await q
         .order('created_at', { ascending: false })
         .range(from, to);
       if (!error) {
@@ -91,6 +112,15 @@ export default function BugReports() {
 
   function handleTabChange(key) {
     setTab(key);
+    setTypeFilter('all');
+    setPage(1);
+    setSelected(null);
+    setMemo('');
+    setAdminReply('');
+  }
+
+  function handleTypeFilterChange(key) {
+    setTypeFilter(key);
     setPage(1);
     setSelected(null);
     setMemo('');
@@ -119,14 +149,9 @@ export default function BugReports() {
     setSelected(null);
     setMemo('');
     setAdminReply('');
-    setCounts(prev => {
-      const next = { ...prev };
-      next[selected.status] = Math.max(0, next[selected.status] - 1);
-      next[newStatus] = (next[newStatus] || 0) + 1;
-      return next;
-    });
     setTotal(t => Math.max(0, t - 1));
     setSaving(false);
+    loadAll();
   }
 
   async function handleSaveMemo() {
@@ -188,8 +213,8 @@ export default function BugReports() {
         </p>
       </div>
 
-      {/* 탭 + 배지 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+      {/* 상태 탭 */}
+      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', paddingBottom: 0, marginBottom: 0 }}>
         {TABS.map(t => (
           <button
             key={t.key}
@@ -217,6 +242,45 @@ export default function BugReports() {
             )}
           </button>
         ))}
+      </div>
+
+      {/* 유형 서브탭 */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '12px 0 16px', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+        {TYPE_FILTER_OPTIONS.map(opt => {
+          const cnt = opt.key === 'all'
+            ? (counts[tab] || 0)
+            : (typeCounts[tab]?.[opt.key] || 0);
+          const isActive = typeFilter === opt.key;
+          const tm = TYPE_META[opt.key];
+          return (
+            <button
+              key={opt.key}
+              onClick={() => handleTypeFilterChange(opt.key)}
+              style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: isActive ? 700 : 500,
+                cursor: 'pointer', border: '1.5px solid',
+                borderColor: isActive ? (tm?.color || 'var(--accent)') : 'var(--border)',
+                background: isActive ? (tm?.bg || 'var(--accent-dim)') : 'transparent',
+                color: isActive ? (tm?.color || 'var(--accent)') : 'var(--text-2)',
+                display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.12s',
+              }}
+            >
+              {opt.label}
+              {cnt > 0 && (
+                <span style={{
+                  minWidth: 16, height: 16, borderRadius: 8,
+                  background: isActive ? (tm?.color || 'var(--accent)') : 'var(--bg-3)',
+                  color: isActive ? '#fff' : 'var(--text-3)',
+                  fontSize: 10, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 4px',
+                }}>
+                  {cnt}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* 본문 — 좌우 2열 */}

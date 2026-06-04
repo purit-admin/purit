@@ -234,33 +234,40 @@
                   소재비교·가격검증·이메일검증 코멘트 항목
    - ※ panels 조인 없음 (RLS 차단 원칙 D-28 준수)
 
-4. 5대 지표 진단 (/company/diagnosis) — Diagnosis.jsx  ★ 전환 가이드 탭 추가 + 시계열 추적 삭제 (2026-06-08)
+4. 5대 지표 진단 (/company/diagnosis) — Diagnosis.jsx  ★ 전환 가이드 라디오 단일 선택 + 독립 상태 분리 (2026-06-09)
    - clarity / relevance / value / differentiation / trust 축 레이더/바 차트
    - 기간 필터: 전체 / 최근 3개월 / 최근 1개월 (의뢰 칩 행 아래 pill 버튼, 기본: 전체)
      · 기준: missions.created_at (의뢰 등록일)
      · rawFeedbacks(전체)를 보존 후 period 변경 시 클라이언트에서 mission_id Set 교집합으로 재계산
      · 피드백 0건 시 hasData=false → "아직 피드백 데이터가 없습니다" 빈 상태 카드 표시
    - "개선 가이드 보기 →" 버튼: 가장 취약한 차원 감지 → 맞춤 개선 팁 5개 모달 표시
-   - 탭 4개: 차원별 점수 / 업계 벤치마크 / 키워드 분석 / 전환 가이드 ★ 신규
+     · 전환 가이드 탭 활성 시 버튼 숨김 (activeTab !== 'guide' 조건) — 중복 방지 ★
+   - 탭 4개: 차원별 점수 / 업계 벤치마크 / 키워드 분석 / 전환 가이드
    - 탭 '키워드 분석': feedbacks 텍스트에서 한국어 불용어 제거 후 단어 빈도 분석 → 태그 클라우드 + 상위 10개 빈도 바
-   - 탭 '전환 가이드' ★ 신규: 완료 의뢰 피드백 기반 전환 잠재력 점수 + 취약 차원 인사이트 + 다음 추천 액션
-     · 카드 1 — 전환 잠재력 점수(0-100):
+   - 탭 '전환 가이드' ★ 개편: 라디오 단일 선택 + 독립 상태 분리
+     · 의뢰 칩 행: 전환 가이드 탭에서는 단일 선택 라디오 방식 (다른 탭은 기존 멀티 선택 유지) ★
+       - "전체" 칩·"⇄ 비교 모드" 버튼 숨김, 의뢰 칩만 표시
+       - 한 칩 클릭 시 기존 선택 자동 해제 + 클릭 칩만 켜짐
+     · 탭 진입 시 자동 선택 규칙: ★
+       - 단일 선택 상태 → 그 의뢰 유지 / 다중·비교 모드·전체 상태 → missions[0] 자동 선택
+       - selectedIds / compareMode / compareData 전역 상태 불변 — 다른 탭 복귀 시 상태 보존 ★
+     · guideFeedbacks 독립 state: rawFeedbacks와 완전 분리, loadGuideFeedbacks(id)로 단일 의뢰 DB 직접 조회 ★
+     · 합산(다중 선택 평균) 보기 기능 삭제 ★
+     · 카드 1 — 전환 잠재력 점수(0-100): guideScores(선택 의뢰 단독) 기반
        가중 합산 공식: (score-1)/4×100 × 가중치 합산
        가중치: 가치(30%) · 신뢰(25%) · 명확성(20%) · 관련성(15%) · 차별화(10%)
        레벨 5단계: 최적화(≥90) / 우수(≥75) / 양호(≥60) / 성장 가능(≥40) / 개선 필요(<40)
        5개 차원 미니 바: 취약 차원 해당 색상 강조
-     · 카드 2 — 취약 차원 인사이트:
-       현재 scores 기준 가장 낮은 차원 자동 선정
+     · 카드 2 — 취약 차원 인사이트: guideScores 기준 가장 낮은 차원 자동 선정
        해당 차원 코멘트를 Purity Score 높은 순으로 최대 3개 표시 (신뢰도 높은 패널 순)
-       기간 필터와 동일 기간 기준 feedbacks 사용 (rawFeedbacks 전기간 미사용 — D-111 준수)
+       기간 필터: guideFeedbacks에 period 조건 적용 (선택 의뢰가 기간 밖이면 빈 상태 표시)
      · 카드 3 — Next Action: 취약 차원 → 구체적 다음 테스트 타입 1:1 매핑 + 바로 등록 버튼
        명확성/관련성/차별화 낮음 → 소재 A/B 비교 테스트 (/company/preference)
        가치 낮음 → 가격 검증 테스트 (/company/pricing-test)
        신뢰 낮음 → LP 의뢰 등록 (/company/new)
-     · 비교 모드 활성 시: "비교 모드 중 사용 불가" 안내 카드 표시 (stale scores 방지)
-   - 의뢰 비교 모드: 미션 선택 칩 2~3개 선택 시 "⇄ 비교 모드" 버튼 활성화
+   - 의뢰 비교 모드: 미션 선택 칩 2~3개 선택 시 "⇄ 비교 모드" 버튼 활성화 (전환 가이드 탭 외 탭에서만)
      · 비교 모드: 차원별 점수 / 업계 벤치마크 / 키워드 탭 → 선택 의뢰 수만큼 나란히 렌더
-     · 전환 가이드 탭은 비교 모드 미지원 (stale scores 문제 — 안내 카드 표시)
+     · 전환 가이드 탭 진입 시 비교 모드 상태는 보존됨 (다시 돌아오면 비교 모드 그대로) ★
      · 색상 구분: COMPARE_A 네이비(--accent) / COMPARE_B 오렌지(#c66507) / COMPARE_C 그린(#159143)
      · Verdict: 단독 우세 / 공동 우세(부분 동점) / 전원 동점(— 동점) 3단계 처리
      · loadCompare([idA, idB, idC]): Promise.all 병렬 조회, idC 선택 파라미터
@@ -401,11 +408,19 @@
 9.  ICP 리서치 (/company/icp) — ICPResearch.jsx  ★ 사이드바 메뉴 비노출 (페이지 파일 유지)
 10. ICP Pulse (/company/icp-pulse) — ICPPulse.jsx  ★ 사이드바 메뉴 비노출 (페이지 파일 유지)
 11. 브랜드 트래킹 (/company/brand) — BrandTracking.jsx  ★ 사이드바 메뉴 비노출 (페이지 파일 유지)
-12. AI 리포트 (/company/report) — AIReport.jsx
+12. AI 리포트 (/company/report) — AIReport.jsx  ★ 월간 한도 추가 (2026-06-09)
     - 피드백 데이터 기반 자동 리포트 (로컬 계산 폴백 + Anthropic AI 강화)
     - "AI 리포트 생성" 버튼 → generate-ai-report Edge Function 호출 → ai_reports 테이블 저장
     - 기존 AI 리포트 있으면 로드 시 자동 표시 (재생성 버튼으로 갱신 가능)
     - ANTHROPIC_API_KEY 미설정 시 로컬 계산 기반 Mock 응답으로 폴백 (서비스 중단 없음)
+    - 월간 생성 한도: 기본 월 10회 (MONTHLY_LIMIT = 10) ★ 신규
+      · 페이지 로드 시 ai_reports.company_id + 이번 달 created_at 기준 카운트
+      · 잔여 횟수 표시 없음 — 10회 초과 클릭 시에만 한도 모달 표시
+      · 한도 모달: "🔋 추가 10회 충전 (크레딧 1개 차감)" 옵션 + "다음 달까지 기다리기" 옵션
+        - 충전 버튼: 결제 연동 전 "결제 기능이 곧 출시됩니다" 안내 (stub)
+        - 다음 달 자동 초기화 날짜 표시 (getNextResetDate() — 다음 달 1일)
+      · 결제 연동 후크 포인트: companies.ai_report_extra_quota INT 컬럼 추가 시 한도 확장 가능
+      · generatingRef.current 동기 가드 — 빠른 더블클릭 이중 호출 방지 ★
 
 ### [계정]
 13. 내 계정 (/company/account) — Account.jsx  ★ 신규
@@ -773,8 +788,15 @@
      · 기본 정보 Card: 이름 + ⚠️/⭐ + 레벨 뱃지, Trust 게이지, 메타 그리드(완료미션/가입일/최근활동/상태)
      · 활동 통계 Card: 기간 내 제출/통과/반려 카드 + PURITY PASS RATE 바 + 위험/우수 안내 메시지
      · 제출 내역 Card: 전체 이력 5개씩 페이지네이션 (missionPage state, ChevronLeft/Right), 행 클릭 → /admin/purity 딥링크 이동 + 해당 피드백 자동 선택·초록 하이라이트 3초
-     · 관리 액션 Card: 상태 정지(→suspended) / 활성화(→active) 버튼
-       심사 거절·활동 정지: ConfirmModal(danger) 경유 — 즉시 실행 없음 ★
+     · 관리 액션 Card: 기간제 정지 / 영구 정지 / 정지 해제 버튼
+       - pending 패널: 심사 승인(→active) / 심사 거절(→suspended) 버튼
+       - active 패널: 기간제 정지 2×2 그리드(1일·3일·7일·30일) + 영구 정지 버튼 — ConfirmModal(danger) 경유
+         · 기간제 정지: panels.suspend_until = now+N일 설정, pg_cron(매시간)이 만료 시 자동 active 전환 + 패널 알림
+         · 영구 정지: suspend_until NULL, 어드민 수동 해제 전까지 유지
+       - suspended 패널: "정지 해제" 버튼(→active, suspend_until=NULL)
+       - 임시 정지 중 패널: 기본 정보 Card 하단에 황색 "정지 해제 예정 N월 N일 HH:MM" 배너 표시
+       - 계정 상태 셀: active='✅ 활성' / pending='⏳ 심사중' / suspended+suspend_until='🕐 임시 정지' / suspended+null='🚫 영구 정지'
+       모든 정지 액션: ConfirmModal(danger) 경유 — 즉시 실행 없음 ★
    - PAGE_SIZE: 10
    - 서브 컴포넌트: FilterGroup(탭형 버튼 그룹), PanelDetail(우측 상세 패널)
 3. 기업 관리 (/admin/companies) — CompanyManagement.jsx  ★ 신규 (2026-05-12)
@@ -938,10 +960,14 @@
    - 청구서 탭: invoices 테이블 — 상태 변경 ConfirmModal async/await + errorMsg prop 적용 (D-65·D-69 준수) ★
    - 수익 탭: 기업별 크레딧 사용 현황 집계 (기존 유지)
 6. 버그 리포트 (/admin/reports) — BugReports.jsx  ★ 신규
-   - 탭 4개: 미처리 / 처리 중 / 해결됨 / 기각 (색상 카운트 뱃지 포함)
-   - 좌측 목록: 유형 뱃지(버그/UX/데이터/기능제안/기타) + 역할 뱃지 + 제목 + 날짜 + 메모 미리보기
+   - 상태 탭 4개: 미처리 / 처리 중 / 해결됨 / 기각 (색상 카운트 뱃지 포함)
+   - 유형 서브탭 ★ 신규: 상태 탭 하단에 유형 pill 버튼 7개 (전체 / 버그 / UX불편 / 데이터 / 기능제안 / 이의신청 / 기타)
+     · typeFilter state: 유형 선택 시 DB 쿼리에 .eq('type', typeFilter) 적용
+     · typeCounts: loadAll() 에서 status×type 2차원 집계 → 각 pill 버튼 건수 실시간 표시
+     · 상태 탭 전환 시 typeFilter 자동 'all' 리셋
+   - 좌측 목록: 유형 뱃지(버그/UX/데이터/기능제안/이의신청/기타) + 역할 뱃지 + 제목 + 날짜 + 메모 미리보기
    - 우측 상세: 유형·제목·작성자역할·페이지URL·날짜 메타 + 전체 설명 + 스크린샷("원본 보기" 링크) + 어드민 메모 textarea + 상태 변경 버튼
-   - handleStatusChange(): 상태 UPDATE + 메모 저장 → 현재 탭 목록에서 즉시 제거, counts 갱신
+   - handleStatusChange(): 상태 UPDATE + 메모 저장 → 현재 탭 목록에서 즉시 제거, loadAll() 재호출로 counts·typeCounts 갱신
    - 페이지네이션: PAGE_SIZE=10, 이전/다음 버튼
 7. 내 계정 (/admin/account) — Account.jsx  ★ 신규
    - 탭 관리자 정보: 이름 → supabase.auth.updateUser({ data: { name } }) / 이메일 읽기전용
@@ -975,7 +1001,8 @@
 ### 버그/불편 신고 시스템 ★ 신규
 - 사이드바 하단(로그아웃 버튼 위)에 "버그/불편 신고" 버튼 — 전체 포털(기업/패널/어드민) 공통
 - BugReportModal (ReactDOM.createPortal): pageUrl(현재 pathname) prop
-  · 유형 5종: 🐛 버그/오류 / 😕 UX 불편 / 📊 데이터 이상 / 💡 기능 제안 / 기타
+  · 유형 6종: 🐛 버그/오류 / 😕 UX 불편 / 📊 데이터 이상 / 💡 기능 제안 / ⚖️ 이의 신청 / 기타 ★ 이의 신청 추가
+  · ⚖️ 이의 신청: 계정 정지 등 어드민 조치에 이의를 제기할 때 사용
   · 제목 input + 상세 내용 textarea + 스크린샷 업로드(PNG/JPG, 5MB, bug-screenshots 버킷)
   · 스크린샷 업로드 실패 시 screenshot_url=null으로 graceful fallback — 신고 자체는 정상 제출
   · 제출 성공 → "리포트가 제출되었습니다!" 완료 화면 2.2초 후 자동 닫힘
@@ -1067,5 +1094,7 @@
     · 수락 취소됨 알림 — draft 만료 시 자동 삭제 (expire_panel_drafts RPC, migration 037) → 패널
     · 심사 승인 (PanelManagement.jsx pending→active) → 패널
     · 심사 거절 (PanelManagement.jsx pending→suspended) → 패널 ★ 신규
-    · 활동 정지 (PanelManagement.jsx active→suspended) → 패널 ★ 신규
-    · 계정 재활성화 (PanelManagement.jsx suspended→active) → 패널 ★ 신규
+    · 기간제 정지 (PanelManagement.jsx active→suspended+suspend_until) → 패널 "N일 임시 정지되었습니다" ★ 신규
+    · 영구 정지 (PanelManagement.jsx active→suspended, suspend_until=NULL) → 패널 "계정이 영구 정지되었습니다" ★ 신규
+    · 정지 자동 해제 (pg_cron lift_expired_panel_suspensions, 매시간) → 패널 "임시 정지가 해제되었습니다" ★ 신규
+    · 정지 수동 해제 (PanelManagement.jsx suspended→active) → 패널 "계정 정지가 해제되었습니다" ★ 신규

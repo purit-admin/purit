@@ -10,6 +10,7 @@ const REPORT_TYPES = [
   { key: 'ux',      label: '😕 UX 불편' },
   { key: 'data',    label: '📊 데이터 이상' },
   { key: 'feature', label: '💡 기능 제안' },
+  { key: 'appeal',  label: '⚖️ 이의 신청' },
   { key: 'other',   label: '기타' },
 ];
 

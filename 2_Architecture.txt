@@ -512,8 +512,9 @@ purit/
 │                    actionUrl: /company
 │                  notify_owner_team_member_joined(p_company_id, p_member_role, p_member_name): 팀원 초대 수락 시 기업 오너 알림
 │                    actionUrl: /company/settings
-│                  ※ 심사 거절(pending→suspended) / 활동 정지(active→suspended) / 재활성화(suspended→active) 알림:
+│                  ※ 심사 거절(pending→suspended) / 기간제 정지 / 영구 정지(active→suspended) / 정지 해제(suspended→active) 알림:
 │                    client-side sendNotification (PanelManagement.jsx updatePanel) — RPC 불필요
+│                  ※ pg_cron 자동 해제(lift_expired_panel_suspensions): notifications INSERT 직접 수행 (migration 078)
 │                074(fix_companies_rls_owner_admin: companies RLS 긴급 수정 — 두 가지 복합 버그 수정)
 │                  [1] 오너/어드민 정책 추가: company_owner_select(user_id=auth.uid()) / company_owner_update / admin_all_companies(app_metadata)
 │                  [2] companies↔team_members RLS 순환 참조 제거:
@@ -537,6 +538,12 @@ purit/
 │                  신규 ELITE 3개: 댓글_장인(300자+ 10회), 스피드런(7일 내 5회), 듀얼_코어(메인+서브 각 5건)
 │                  신규 MASTER 2개: 센추리(누적 100회), 인사이트_코어(도움됨 누적 50회)
 │                  기존 021 로직 100% 유지, 신규 조건 k13~k19 블록으로 추가
+│                078(panel_temp_suspension: 기간제 임시 정지 시스템)
+│                  panels.suspend_until TIMESTAMPTZ DEFAULT NULL 컬럼 추가
+│                  lift_expired_panel_suspensions() SECURITY DEFINER RPC: 매시간 pg_cron 호출
+│                    FOR LOOP로 만료 패널 순회 → UPDATE(active, suspend_until=NULL) + notifications INSERT
+│                    GRANT EXECUTE TO service_role
+│                  pg_cron 스케줄: SQL Editor 수동 실행 필요 (파일 내 주석 참조)
 │   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
 │   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
 │   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)
@@ -559,7 +566,19 @@ purit/
 │   │                  건강보험 자격득실 확인서: createSignedUrl(panel.health_insurance_url, 600) — 클릭 시 signed URL 생성 후 새 탭
 │   │                  LinkedIn URL: 외부 링크 직접 연결
 │   │                  포트폴리오: http로 시작하면 외부 링크, 아니면 createSignedUrl (Storage path)
-│   │                  관리 액션 Card에 pending 패널 심사 승인(→active) / 심사 거절(→suspended) 버튼 포함
+│   │                  관리 액션 Card ★ 기간제 정지 시스템 (2026-06-08):
+│   │                    - pending: 심사 승인(→active) / 심사 거절(→suspended)
+│   │                    - active: 기간제 정지 2×2 그리드(1일·3일·7일·30일) + 영구 정지 버튼
+│   │                      makeSuspendAction(days): { status:'suspended', suspend_until: now+N일 ISO, label, desc } 반환
+│   │                    - suspended: 정지 해제(→active, suspend_until=null)
+│   │                  PanelDetail 기본 정보 Card:
+│   │                    - suspendUntil = panel.suspend_until ? new Date() : null
+│   │                    - isTempSuspend = status==='suspended' && suspendUntil != null
+│   │                    - 계정 상태 셀: isTempSuspend→'🕐 임시 정지' / else→'🚫 영구 정지'
+│   │                    - isTempSuspend 시 황색 배너: "정지 해제 예정 N월 N일 HH:MM"
+│   │                  onConfirm: confirmAction.suspend_until → fields에 포함 / status==='active' → suspend_until=null 세트
+│   │                  updatePanel 알림 분기: isPendingRejection / isTimed(suspend_until 유무) / 영구 정지 3방향 분기
+│   │                  panels SELECT 쿼리: suspend_until 컬럼 포함 (load() line 91)
 │   │                  loadPanelDetail: { data, error } 모두 캡처 — error 발생 시 console.error(message·details·hint) ★
 │   │   ※ pages/Signup.jsx: CREDS 스텝(검증 서류 첨부 UI) 제거 ★ (2026-05-28)
 │   │                  STEP = { CHOOSE, EMAIL } — CREDS 스텝 완전 제거 (구 STEP.CREDS 없음)

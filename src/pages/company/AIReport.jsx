@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -39,6 +39,7 @@ export default function AIReport() {
   const [monthlyUsage, setMonthlyUsage] = useState(0);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [chargeMsg, setChargeMsg] = useState('');
+  const generatingRef = useRef(false);
 
   useEffect(() => { load(); }, []);
 
@@ -157,6 +158,8 @@ export default function AIReport() {
       setShowLimitModal(true);
       return;
     }
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     generateReport();
   }
 
@@ -190,6 +193,7 @@ export default function AIReport() {
       setGenerateError(e?.message ?? 'AI 리포트 생성 중 오류가 발생했습니다.');
     } finally {
       setGenerating(false);
+      generatingRef.current = false;
     }
   }
 

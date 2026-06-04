@@ -326,3 +326,10 @@
 [가이드-A] company/Diagnosis.jsx — 전환 가이드 탭 기간 필터 불일치: scores는 period-filtered 기준이나 코멘트 추출에 rawFeedbacks(전기간) 사용. guideFbs 변수 추가로 동일 기간 적용  ✅
 [가이드-B] company/Diagnosis.jsx — 비교 모드 활성 시 scores가 stale 상태로 가이드 탭 렌더. isComparing 조건 분기 추가 → "비교 모드 중 사용 불가" 안내 카드로 대체  ✅
 [가이드-C] company/Diagnosis.jsx — dimComments.map()에서 purity 필드를 계산하나 렌더에 미사용(신뢰도 라벨 삭제 후 dead 필드). purity 필드 제거  ✅
+
+-- 기간제 정지 시스템 무결성 검증 (2026-06-08) --
+[정지-A] admin/PanelManagement.jsx — panels SELECT 쿼리에 suspend_until 컬럼 누락 → panel.suspend_until 항상 undefined, 임시/영구 구분·해제 예정일 배너 전혀 미표시. load() line 91 select 문자열에 suspend_until 추가  ✅
+[정지-B] supabase/migrations/078_panel_temp_suspension.sql — pg_cron 자동 해제 시 패널 알림 미발송. FOR LOOP 방식으로 재작성, 해제 패널별 notifications INSERT 추가  ✅
+
+-- 이의 신청 유형·어드민 유형 서브탭 무결성 검증 (2026-06-08) --
+[신규-A] company/BugReports.jsx, panel/BugReports.jsx — appeal 유형 TYPE_META 미등록(수평 전개 누락). 두 파일 모두 appeal 항목 추가  ✅

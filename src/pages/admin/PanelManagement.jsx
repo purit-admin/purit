@@ -88,7 +88,7 @@ export default function AdminPanels() {
     try {
       const { data, error } = await supabase
         .from('panels')
-        .select('id, user_id, name, email, industry, experience, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, created_at')
+        .select('id, user_id, name, email, industry, experience, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, created_at')
         .order('created_at', { ascending: false });
       if (!error) setPanels(data || []);
       setLoading(false);
@@ -175,16 +175,29 @@ export default function AdminPanels() {
           targetRole: 'panel',
         }).catch(err => console.warn('[updatePanel] 승인 알림 실패:', err));
       }
-      // 계정 정지 (심사 거절: pending→suspended / 활동 정지: active→suspended)
+      // 계정 정지 (심사 거절: pending→suspended / 임시 정지 / 영구 정지)
       if (fields.status === 'suspended') {
         const isPendingRejection = targetPanel.status === 'pending';
+        const isTimed = !!fields.suspend_until;
+        let title, body;
+        if (isPendingRejection) {
+          title = '심사에서 탈락하였습니다';
+          body  = '아쉽게도 이번 심사에서 탈락하였습니다. 문의사항이 있으시면 고객센터에 연락해 주세요.';
+        } else if (isTimed) {
+          const until = new Date(fields.suspend_until);
+          const daysLeft = Math.round((until.getTime() - Date.now()) / 86400000);
+          const untilStr = until.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+          title = `${daysLeft}일 임시 정지되었습니다`;
+          body  = `계정이 ${daysLeft}일간 임시 정지되었습니다. ${untilStr}에 자동으로 해제됩니다.`;
+        } else {
+          title = '계정이 영구 정지되었습니다';
+          body  = '계정 이용이 영구 정지되었습니다. 사유가 있으시면 고객센터에 문의해 주세요.';
+        }
         sendNotification(targetPanel.user_id, {
           type: 'warning',
           icon: isPendingRejection ? '❌' : '🚫',
-          title: isPendingRejection ? '심사에서 탈락하였습니다' : '계정이 정지되었습니다',
-          body: isPendingRejection
-            ? '아쉽게도 이번 심사에서 탈락하였습니다. 문의사항이 있으시면 고객센터에 연락해 주세요.'
-            : '계정 이용이 정지되었습니다. 사유가 있으시면 고객센터에 문의해 주세요.',
+          title,
+          body,
           actionUrl: '/panel',
           targetRole: 'panel',
         }).catch(err => console.warn('[updatePanel] 정지 알림 실패:', err));
@@ -555,6 +568,19 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
   const cm = HONOR_COLOR_META[hl.colorTier];
   const [confirmAction, setConfirmAction] = useState(null);
   const [updateError, setUpdateError]     = useState('');
+  const suspendUntil = panel.suspend_until ? new Date(panel.suspend_until) : null;
+  const isTempSuspend = status === 'suspended' && suspendUntil != null;
+
+  function makeSuspendAction(days) {
+    const until = new Date(Date.now() + days * 86400000);
+    const untilStr = until.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    return {
+      status: 'suspended',
+      suspend_until: until.toISOString(),
+      label: `${days}일 정지`,
+      desc: `이 패널을 ${days}일간 임시 정지합니까?\n${untilStr}에 자동으로 해제됩니다.`,
+    };
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -597,7 +623,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             { label: '전체 완료 미션', value: `${panel.total_missions || 0}건` },
             { label: '가입일',        value: new Date(panel.created_at).toLocaleDateString('ko-KR') },
             { label: '최근 활동',     value: relativeTime(s.lastAt) },
-            { label: '계정 상태',     value: status === 'active' ? '✅ 활성' : status === 'pending' ? '⏳ 심사중' : '🚫 정지' },
+            { label: '계정 상태',     value: status === 'active' ? '✅ 활성' : status === 'pending' ? '⏳ 심사중' : isTempSuspend ? '🕐 임시 정지' : '🚫 영구 정지' },
           ].map(({ label, value }) => (
             <div key={label} style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{label}</div>
@@ -605,6 +631,18 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             </div>
           ))}
         </div>
+
+        {/* 임시 정지 해제 예정일 */}
+        {isTempSuspend && (
+          <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#92400E', fontWeight: 600 }}>정지 해제 예정</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#92400E' }}>
+              {suspendUntil.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}
+              {' '}
+              {suspendUntil.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        )}
       </Card>
 
       {/* 기간 활동 통계 */}
@@ -847,15 +885,29 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             </>
           )}
           {status === 'active' && (
-            <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center' }}
-              onClick={() => setConfirmAction({ status: 'suspended', label: '활동 정지', desc: '이 패널의 활동을 정지합니까?\n정지 시 진행 중인 미션에서도 배제됩니다.' })}>
-              활동 정지
-            </Btn>
+            <>
+              {/* 기간제 정지 */}
+              <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, marginBottom: 4 }}>기간제 정지</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {[1, 3, 7, 30].map(days => (
+                  <Btn key={days} size="sm" variant="secondary" disabled={acting}
+                    style={{ justifyContent: 'center', fontSize: 12 }}
+                    onClick={() => setConfirmAction(makeSuspendAction(days))}>
+                    {days}일 정지
+                  </Btn>
+                ))}
+              </div>
+              {/* 영구 정지 */}
+              <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center', marginTop: 2 }}
+                onClick={() => setConfirmAction({ status: 'suspended', label: '영구 정지', desc: '이 패널을 영구 정지합니까?\n수동으로 해제하기 전까지 계정 이용이 불가합니다.' })}>
+                영구 정지
+              </Btn>
+            </>
           )}
           {status === 'suspended' && (
             <Btn size="sm" disabled={acting} style={{ justifyContent: 'center' }}
-              onClick={() => setConfirmAction({ status: 'active', label: '활동 재개', desc: '이 패널의 활동을 재개합니까?\n활성 패널로 전환되어 미션에 다시 참여할 수 있습니다.' })}>
-              활동 재개
+              onClick={() => setConfirmAction({ status: 'active', label: '정지 해제', desc: '이 패널의 정지를 해제합니까?\n활성 패널로 전환되어 미션에 다시 참여할 수 있습니다.' })}>
+              정지 해제
             </Btn>
           )}
         </div>
@@ -867,7 +919,15 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           desc={confirmAction.desc}
           confirmLabel={confirmAction.label}
           errorMsg={updateError}
-          onConfirm={async () => { setUpdateError(''); const ok = await onUpdate(panel.id, { status: confirmAction.status }); if (ok) setConfirmAction(null); else setUpdateError('처리 중 오류가 발생했습니다. 다시 시도해 주세요.'); }}
+          onConfirm={async () => {
+            setUpdateError('');
+            const fields = { status: confirmAction.status };
+            if (confirmAction.suspend_until) fields.suspend_until = confirmAction.suspend_until;
+            if (confirmAction.status === 'active') fields.suspend_until = null;
+            const ok = await onUpdate(panel.id, fields);
+            if (ok) setConfirmAction(null);
+            else setUpdateError('처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
+          }}
           onCancel={() => { setUpdateError(''); setConfirmAction(null); }}
           danger
         />
