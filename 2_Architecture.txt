@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-06 (migration 번호 중복 정리 — 067_enhanced_sharing → 076)
+최종 업데이트: 2026-06-07 (Landing.jsx 로그인 상태 분기 + ImageAnnotator 툴팁 위치 자동 전환)
 ================================================================
 
 ## 기술 스택
@@ -88,6 +88,8 @@ purit/
 │   │                ImageAnnotator.jsx (퍼센트 좌표 드래그 어노테이션, readonly 모드 지원, activeDimension prop으로 차원 고정)
 │   │                  seqPool prop(글로벌 번호 계산용 전체 어노테이션 배열, 미전달 시 annotations 사용), highlightedId prop(해당 id만 표시·나머지 숨김)
 │   │                  어노테이션 뱃지: 한국어 접두사 없이 숫자만 표시 (색상으로 차원 구분)
+│   │                  툴팁 위치 자동 전환 ★: showBelow = ann.y_pct < 25 → top:'calc(100%+6px)' / 그 외 → bottom:'calc(100%+6px)'
+│   │                    이미지 상단부 어노테이션 클릭 시 툴팁이 위로 뜨며 잘리는 현상 방지
 │   │                NotificationCenter.jsx (역할별 알림, action_url 클릭 시 navigate)
 │   │                  쿼리: .or('target_role.eq.${role},target_role.is.null') — 포털별 알림 분리 ★
 │   │                  어드민 탭 3개 ★ 개편: 'missions'|'feedback'|'bugs' (기본 탭: 'missions')
@@ -350,6 +352,9 @@ purit/
 │   │                  onFeedbackClick prop: navigate('/admin/purity', { state: { feedbackId } })
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, OAuthCallback.jsx (/oauth/callback 공개) ★
+│   ※ Landing.jsx: useAuth() user·role 로드 → DASH_PATH({ company:'/company', panel:'/panel', admin:'/admin' }) 매핑 ★ 신규
+│              네비 우측 버튼: 비로그인 → "로그인"+"무료로 시작하기" / 로그인 → "대시보드" 단일 버튼
+│              히어로·하단CTA 버튼: 비로그인 → navigate('/signup?role=company') / 로그인 → navigate(dashPath)
 │   ※ ShareResult.jsx (/share/:token 공개) ★ 어노테이션 뷰어 개편 (2026-06-06)
 │              state: activeImg(0) / activeDim('all') / highlightedId(null)
 │              ANN_DIMS: ImageAnnotator와 동일한 차원 키·색상 (clarity=#34C759 / relevance=#f59e0b / value=#6366f1 / differentiation=#ef4444 / trust=#94a3b8)

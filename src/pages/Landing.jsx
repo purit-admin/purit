@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, X } from 'lucide-react';
 import ExpertPanelCloud from '../components/ui/ExpertPanelCloud';
 import { Step1Animation, Step2Animation, Step3Animation } from '../components/landing/StepAnimations';
+import { useAuth } from '../context/AuthContext';
 
 /* ─── 색상 토큰 (Claude 팔레트) ───────── */
 const BG      = '#F8FAFC';
@@ -46,9 +47,13 @@ const LEGAL_DOCS = {
   '운영 정책': '운영 정책 내용은 현재 작성 중입니다. 서비스 정식 출시 전까지 업데이트될 예정입니다.',
 };
 
+const DASH_PATH = { company: '/company', panel: '/panel', admin: '/admin' };
+
 export default function Landing() {
   const navigate = useNavigate();
   const [legalModal, setLegalModal] = useState(null);
+  const { user, role } = useAuth();
+  const dashPath = DASH_PATH[role] ?? '/company';
 
   const r1 = useFadeIn(0);
   const r2 = useFadeIn(0);
@@ -81,25 +86,39 @@ export default function Landing() {
           }}>Purit</span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => navigate('/login')} style={{
-              padding: '9px 18px', borderRadius: 8,
-              background: 'none', color: TEXT2,
-              fontSize: 14, fontWeight: 500, border: 'none',
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = TEXT}
-            onMouseLeave={e => e.currentTarget.style.color = TEXT2}
-            >로그인</button>
+            {user ? (
+              <button onClick={() => navigate(dashPath)} style={{
+                padding: '10px 20px', borderRadius: 8,
+                background: PRIMARY, color: BG,
+                fontSize: 14, fontWeight: 600, border: 'none',
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >대시보드</button>
+            ) : (
+              <>
+                <button onClick={() => navigate('/login')} style={{
+                  padding: '9px 18px', borderRadius: 8,
+                  background: 'none', color: TEXT2,
+                  fontSize: 14, fontWeight: 500, border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = TEXT}
+                onMouseLeave={e => e.currentTarget.style.color = TEXT2}
+                >로그인</button>
 
-            <button onClick={() => navigate('/signup?role=company')} style={{
-              padding: '10px 20px', borderRadius: 8,
-              background: PRIMARY, color: BG,
-              fontSize: 14, fontWeight: 600, border: 'none',
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            >무료로 시작하기</button>
+                <button onClick={() => navigate('/signup?role=company')} style={{
+                  padding: '10px 20px', borderRadius: 8,
+                  background: PRIMARY, color: BG,
+                  fontSize: 14, fontWeight: 600, border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >무료로 시작하기</button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -138,7 +157,7 @@ export default function Landing() {
           </p>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
-            <button onClick={() => navigate('/signup?role=company')} style={{
+            <button onClick={() => navigate(user ? dashPath : '/signup?role=company')} style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '16px 32px', borderRadius: 12,
               background: PRIMARY, color: BG,
@@ -149,7 +168,7 @@ export default function Landing() {
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
             >
-              무료로 시작해보세요 <ArrowRight size={17} />
+              {user ? '대시보드로 이동' : '무료로 시작해보세요'} <ArrowRight size={17} />
             </button>
           </div>
 
@@ -486,7 +505,7 @@ export default function Landing() {
             48시간 안에 전환을 막고 있는 원인을 확인하세요.
           </p>
           <button
-            onClick={() => navigate('/signup?role=company')}
+            onClick={() => navigate(user ? dashPath : '/signup?role=company')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
               padding: '18px 40px', borderRadius: 12,
@@ -498,7 +517,7 @@ export default function Landing() {
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
           >
-            무료로 시작하기 <ArrowRight size={20} />
+            {user ? '대시보드로 이동' : '무료로 시작하기'} <ArrowRight size={20} />
           </button>
         </div>
       </section>

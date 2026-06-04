@@ -139,6 +139,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
           const seqNum = getDimSeq(seqPool || annotations, ann);
           const isSelected = selectedAnn === ann.id;
           const isHidden = highlightedId !== null && highlightedId !== undefined && ann.id !== highlightedId;
+          const showBelow = ann.y_pct < 25;
           return (
             <div
               key={ann.id}
@@ -173,7 +174,8 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
                 <div
                   onClick={e => e.stopPropagation()}
                   style={{
-                    position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
+                    position: 'absolute',
+                    ...(showBelow ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }), left: 0,
                     background: 'var(--bg)', border: '1px solid var(--border)',
                     borderRadius: 'var(--radius)', padding: '8px 12px',
                     minWidth: 160, maxWidth: 240, zIndex: 20,
