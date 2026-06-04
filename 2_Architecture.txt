@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-09 (연령대 슬라이더 + 월소득 드롭다운 교체)
+최종 업데이트: 2026-06-10 (PanelTargetStep UX 개선 + 폼 내비게이션 버그 수정)
 ================================================================
 
 ## 기술 스택
@@ -117,6 +117,19 @@ purit/
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
 │   │                  ★ forwardRef + useImperativeHandle 적용 — 부모 폼에서 ref={panelStepRef}로 openCreditModal() 호출 가능
 │   │                  크레딧 부족 시 "다음" 버튼에서 panelStepRef.current?.openCreditModal() 트리거 → 업그레이드 모달 표시
+│   │                  ★ onSaveDraft prop (optional): 업그레이드/충전 버튼 → /company/plans 이동 전 임시저장 확인 모달 표시
+│   │                    - handleGoToPlans(): showUpgrade/showCreditModal 닫음 → onSaveDraft 있으면 showSaveDraftModal=true / 없으면 navigate
+│   │                    - 확인 모달 3버튼: "임시저장 후 이동 →"(isSaving 표시) / "저장 없이 이동" / "계속 작성하기"
+│   │                    - 4개 등록 폼(NewMission/PreferenceTest/PricingTest/ColdEmailTest): onSaveDraft={saveDraft} 전달
+│   │                  ★ 크레딧 예상 소모 범위 표시: getMinWeight(careerLevels) 추가
+│   │                    - isRange = fmtCr(minCredits) !== fmtCr(credits) → 복수 직급 선택 시 "예상 소모 범위: N ~ M 크레딧" 표시
+│   │                    - 단일 직급: "최대 예상 소모: N 크레딧" (기존 동일)
+│   │                    - isShort 체크는 항상 max credits 기준 (크레딧 예약은 최댓값)
+│   │                  ★ 스타터 플랜 Pro 직급 자동 필터 useEffect: deps [plan, careerLevels]
+│   │                    - plan==='starter' + careerLevels에 proOnly 직급 있을 때 자동 제거 → ['junior'] 폴백
+│   │                    - 무한루프 없음: 필터 후 재실행 시 hasProLevels=false → return early
+│   │                  ★ 환불 안내 배너(초록 강조 박스): 의뢰 등록 시 최댓값 선차감 → 차액 환불 흐름 명시
+│   │                    exports: default PanelTargetStep, calcCredits, calcMinCredits(미export), calcPanelPayout, CAREER_LEVELS, MAIN_BASE_PAYOUT, SUB_BASE_PAYOUT
 │   │                ExpertPanelCloud.jsx (Landing.jsx 섹션 6.5 전용 — 전문가 경력 플로팅 애니메이션) ★ 신규
 │   ├── landing/
 │   │                StepAnimations.jsx (Landing.jsx 작동방식 섹션 6 전용 — Step1/2/3 루핑 CSS 애니메이션)
@@ -184,14 +197,23 @@ purit/
 │   │                  pendingNavPath state: 사이드바 이탈 시 목적지 경로 임시 저장
 │   │                  useEffect: shouldBlockNav 변화 시 navigationGuard.register({ onAttempt: (path)=>{ setPendingNavPath(path); setShowDraftModal(true); } }) / unregister()
 │   │                  finishLeave(): navigationGuard.unregister() → navigate(pendingNavPath) or setView('list') → setPendingNavPath(null)
+│   │                    ★ dest === location.pathname 시 navigate 생략 → setView('list') 폴백 (현재 페이지 사이드바 클릭 시 리스트로 전환)
 │   │                  draftId state: draft 이어쓰기 시 대상 mission id 추적
 │   │                  DraftSaveModal: ReactDOM.createPortal(document.body) 인라인 3버튼 모달 (D-19 패턴)
 │   │                  window.beforeunload: shouldBlockNav 조건 시 e.preventDefault() + e.returnValue=''
 │   │                  deleteTarget state + handleDeleteMission(): missions DELETE + 로컬 필터 제거
 │   │                  terminateTarget state + handleTerminate(): missions UPDATE(status='cancelled') + 로컬 상태 반영 (4개 폼 공통)
+│   │                  ★ resetForm() 공통 패턴 (4개 폼): "새 테스트/새 의뢰 등록" 버튼 클릭 시 호출
+│   │                    - 초기화 대상: missionUuid(새 UUID), step/createStep, 모든 입력 필드, careerLevels(['junior']), panelSize(10)
+│   │                      selectedQuestions, localCustomQs, expandedTmpl, newQText/Type/Options/ScaleMin/Max, draftId
+│   │                    - NewMission 추가: focusCustomMode/Input, isDraftMode, currentEditId
+│   │                    - 초기화 제외: view(별도 setView 호출), missions/companyId/companyPlan/creditBalance/teamRole(DB 로드값)
+│   │                    - NewMission.jsx: missionUuid에 setter 추가 (기존 구조 변경 없이 확장)
 │   │                  메인·서브 의뢰 모두: 목록 뷰 draft/active 이어하기·수정 버튼은 navigate 불사용
 │   │                    openDraftOrActiveForEdit(missionId) 헬퍼로 직접 DB 로드 후 필드 복원 + setView('form'/'create') 호출
 │   │                    (같은 경로 navigate는 컴포넌트 리마운트 미실행으로 useEffect 미재실행 — D-43 참조)
+│   │                  ★ 리스트 뷰에서 완료 카드 클릭 → navigate('/company/results?id=...', { replace: true })
+│   │                    (history 오염 방지: 동일 폼 페이지 내 완료 카드 결과 이동이 history에 쌓이지 않도록)
 │   │                  NewMission.jsx: currentEditId state + effectiveEditMode(isEditMode||!!currentEditId) + effectiveEditId(currentEditId||editMissionId)
 │   │                    → saveDraft/handleSubmit 모두 effectiveEditMode/effectiveEditId 사용
 │   │                    → Dashboard(외부 경로)에서 진입 시 기존 isEditMode/editMissionId 경로 유지

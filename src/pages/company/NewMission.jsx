@@ -245,7 +245,7 @@ export default function NewMission() {
   const submittingRef = useRef(false);
   const [view, setView]         = useState(isEditMode ? 'form' : 'list');
   const [step, setStep]         = useState(0);
-  const [missionUuid] = useState(() => editMissionId || crypto.randomUUID());
+  const [missionUuid, setMissionUuid] = useState(() => editMissionId || crypto.randomUUID());
   const [form, setForm] = useState({
     product: '', lpUrl: '',
     personaAgeMin: 20, personaAgeMax: 40, personaIncome: '', personaRole: '', personaContext: '',
@@ -379,6 +379,18 @@ export default function NewMission() {
       }
     }
   }, []);
+
+  function resetForm() {
+    setMissionUuid(crypto.randomUUID());
+    setStep(0);
+    setForm({ product: '', lpUrl: '', personaAgeMin: 20, personaAgeMax: 40, personaIncome: '', personaRole: '', personaContext: '', industry: '', panels: 10, briefText: '', focusAreas: [], imageUrls: [], estimatedMinutes: 5 });
+    setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
+    setFocusCustomMode(false); setFocusCustomInput('');
+    setCareerLevels(['junior']);
+    setSelectedQuestions([]); setLocalCustomQs([]); setExpandedTmpl({});
+    setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
+    setIsDraftMode(false); setCurrentEditId(null);
+  }
 
   // 편집 모드: 기존 미션 데이터 pre-fill
   useEffect(() => {
@@ -804,7 +816,7 @@ export default function NewMission() {
 
           {/* 버튼 + 탭 */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-            <Btn size="sm" onClick={() => setView('form')}>+ 새 의뢰 등록하기</Btn>
+            <Btn size="sm" onClick={() => { resetForm(); setView('form'); }}>+ 새 의뢰 등록하기</Btn>
           </div>
           <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
             {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
@@ -862,7 +874,7 @@ export default function NewMission() {
                           setActiveToast('피드백 검토 완료 후 피드백 결과에서 확인할 수 있습니다.');
                           activeToastTimerRef.current = setTimeout(() => setActiveToast(null), 2500);
                         } else {
-                          navigate(`/company/results?id=${m.id}`);
+                          navigate(`/company/results?id=${m.id}`, { replace: true });
                         }
                       }}>
                       <div className="mc-row">
@@ -1837,7 +1849,7 @@ export default function NewMission() {
               setShowDraftModal(false);
               const dest = pendingNavPath;
               setPendingNavPath(null);
-              if (dest) navigate(dest);
+              if (dest && dest !== location.pathname) navigate(dest);
               else if (effectiveEditMode) navigate('/company');
               else setView('list');
             }} disabled={savingDraft}>
@@ -1848,7 +1860,7 @@ export default function NewMission() {
               setShowDraftModal(false);
               const dest = pendingNavPath;
               setPendingNavPath(null);
-              if (dest) navigate(dest);
+              if (dest && dest !== location.pathname) navigate(dest);
               else if (effectiveEditMode) navigate('/company');
               else setView('list');
             }}>저장 없이 나가기</Btn>

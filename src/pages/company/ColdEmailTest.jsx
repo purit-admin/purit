@@ -148,6 +148,17 @@ export default function ColdEmailTest() {
     }
   }, []);
 
+  function resetForm() {
+    setMissionUuid(crypto.randomUUID());
+    setCreateStep(0);
+    setMissionTitle(''); setEmailText(''); setProductDescription('');
+    setIndustry(''); setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
+    setPanelSize(10); setCareerLevels(['junior']);
+    setSelectedQuestions([]); setLocalCustomQs([]); setExpandedTmpl({});
+    setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
+    setDraftId(null);
+  }
+
   async function load() {
     setLoading(true);
     try {
@@ -947,12 +958,12 @@ export default function ColdEmailTest() {
             <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 이메일 테스트가 없습니다</div>
             <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>발송 전 패널 검증으로 개봉률과 답장율을 높여보세요.</div>
-            <Btn onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
+            <Btn onClick={() => { resetForm(); setView('create'); }}>+ 새 테스트</Btn>
           </Card>
         ) : (
           <div style={{ display: 'grid', gap: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-              <Btn size="sm" onClick={() => { setView('create'); setCreateStep(0); }}>+ 새 테스트</Btn>
+              <Btn size="sm" onClick={() => { resetForm(); setView('create'); }}>+ 새 테스트</Btn>
             </div>
             <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
               {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
@@ -992,7 +1003,7 @@ export default function ColdEmailTest() {
                       setActiveToast('피드백 검토 완료 후 피드백 결과에서 확인할 수 있습니다.');
                       activeToastTimerRef.current = setTimeout(() => setActiveToast(null), 2500);
                     } else {
-                      navigate(`/company/results?id=${m.id}`);
+                      navigate(`/company/results?id=${m.id}`, { replace: true });
                     }
                   }}>
                   <div className="mc-row">
@@ -1149,7 +1160,7 @@ export default function ColdEmailTest() {
               setShowDraftModal(false);
               const dest = pendingNavPath;
               setPendingNavPath(null);
-              if (dest) navigate(dest); else setView('list');
+              if (dest && dest !== location.pathname) navigate(dest); else setView('list');
             }} disabled={savingDraft}>
               {savingDraft ? '저장 중...' : '임시 저장 후 나가기'}
             </Btn>
@@ -1158,7 +1169,7 @@ export default function ColdEmailTest() {
               setShowDraftModal(false);
               const dest = pendingNavPath;
               setPendingNavPath(null);
-              if (dest) navigate(dest); else setView('list');
+              if (dest && dest !== location.pathname) navigate(dest); else setView('list');
             }}>저장 없이 나가기</Btn>
             <Btn variant="ghost" onClick={() => { setShowDraftModal(false); setPendingNavPath(null); }}>계속 작성하기</Btn>
           </div>

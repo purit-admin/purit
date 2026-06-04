@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-09 (D-112 추가 — 탭 전환 핸들러가 다른 탭의 전역 상태를 덮어쓰는 패턴)
+최종 업데이트: 2026-06-10 (D-113 추가 — 같은 URL 내 뷰 전환이 browser history entry를 생성하지 않는 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1477,6 +1477,22 @@ D-104. useEffect 내 복수 가드 조건에서 나중에 추가된 케이스가
              "가드 A가 먼저 실행되어 가드 B가 도달 불가" 패턴은 컴파일 에러가 없어 자동 감지가 안 됨
              점검 방법: useEffect 내 early return을 전수 나열 → 각 return이 차단하는 케이스 목록 작성 →
              의도치 않게 차단되는 케이스(pendingInvite → 초대 흐름, resetToken → 비밀번호 리셋 등) 없는지 대조
+
+D-113. 같은 URL 내 뷰 전환(list→form)이 browser history entry를 생성하지 않아 back 버튼이 예상치 못한 페이지로 이동하는 패턴 ✅ 해결
+     → 증상: 폼 list view에서 완료 카드 클릭 → /company/results 방문 → back으로 list 복귀 →
+             draft 클릭(openDraftOrActiveForEdit, navigate 없음) → 폼 작성 중 back → /company/results 이동
+             또는: 사이드바에서 현재 폼 페이지와 동일한 메뉴 클릭 → 임시저장 모달 → 나가기 클릭해도 화면 미전환
+     → 원인 1 (history 오염): list view 내 완료 카드 navigate('/company/results')가 history에 push됨
+             → 이후 list→form 전환은 navigate 없음 → history 불변 → back이 /company/results로 이동
+     → 원인 2 (동일 경로 navigate no-op): pendingNavPath === location.pathname 시 navigate(dest)가 D-43으로 무시됨
+             → 폼이 닫히지 않고 화면 그대로
+     → 해결 1: navigate('/company/results', { replace: true }) — list view 완료 카드 클릭 시 replace 사용
+               → history push 대신 replace → 이후 back 버튼에서 /company/results 건너뜀
+     → 해결 2: if (dest && dest !== location.pathname) navigate(dest); else setView('list')
+               → 동일 경로면 navigate 생략하고 setView('list')로 직접 전환
+     → 원칙: SPA에서 동일 URL 내 뷰 전환(list↔form)은 history entry를 생성하지 않음
+             "leaf 목적지(결과 페이지 등)"로 이동 시 replace:true 사용해 history 오염 방지
+             navigationGuard finishLeave에서 dest === location.pathname 체크 필수
 
 D-105. 단일 페이지 마운트 쿼리가 "모든 사용자 동시 접속" 규모에서 DB 부하 폭발하는 패턴 ✅ 해결
      → 증상: 패널 100명이 동시에 Missions.jsx 진입 시 각각 전체 missions 테이블을 풀 로드 → DB 100개 쿼리 동시 발생

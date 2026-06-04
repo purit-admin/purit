@@ -1,4 +1,4 @@
-import { useState, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn } from './index';
@@ -68,13 +68,29 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState(null);
+  const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  async function handleGoToPlans() {
+  function handleGoToPlans() {
     setShowUpgrade(false);
     setShowCreditModal(false);
     if (onSaveDraft) {
-      try { await onSaveDraft(); } catch { /* 저장 실패해도 이동 허용 */ }
+      setShowSaveDraftModal(true);
+    } else {
+      navigate('/company/plans');
     }
+  }
+
+  async function handleSaveAndGo() {
+    setIsSaving(true);
+    try { await onSaveDraft(); } catch { /* 저장 실패해도 이동 허용 */ }
+    setIsSaving(false);
+    setShowSaveDraftModal(false);
+    navigate('/company/plans');
+  }
+
+  function handleGoWithoutSave() {
+    setShowSaveDraftModal(false);
     navigate('/company/plans');
   }
 
@@ -87,6 +103,15 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   const isShort    = creditBalance != null && credits > creditBalance;
 
   useImperativeHandle(ref, () => ({ openCreditModal }));
+
+  // 스타터 플랜에서 Pro 전용 직급(시니어·C레벨)이 이미 선택된 채로 복원됐을 때 자동 제거
+  useEffect(() => {
+    if (plan !== 'starter') return;
+    const hasProLevels = careerLevels.some(k => CAREER_LEVELS.find(c => c.key === k)?.proOnly);
+    if (!hasProLevels) return;
+    const allowed = careerLevels.filter(k => !CAREER_LEVELS.find(c => c.key === k)?.proOnly);
+    onCareerLevels(allowed.length > 0 ? allowed : ['junior']);
+  }, [plan, careerLevels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unitPrice = isStarter ? 25000 : 21600;
 
@@ -298,6 +323,61 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
           </p>
         </div>
       </div>
+
+      {/* ── 임시저장 확인 모달 ── */}
+      {showSaveDraftModal && ReactDOM.createPortal(
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div style={{
+            background: 'var(--surface)', borderRadius: 'var(--radius)',
+            padding: '32px 28px', maxWidth: 400, width: '90%',
+            border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>💾</div>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 8 }}>
+              작성 중인 내용이 있습니다
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.8 }}>
+              플랜 페이지로 이동하기 전에<br />
+              작성 중인 의뢰를 임시저장할까요?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Btn
+                onClick={handleSaveAndGo}
+                disabled={isSaving}
+                style={{ justifyContent: 'center' }}
+              >
+                {isSaving ? '저장 중…' : '임시저장 후 이동 →'}
+              </Btn>
+              <Btn
+                variant="secondary"
+                onClick={handleGoWithoutSave}
+                disabled={isSaving}
+                style={{ justifyContent: 'center' }}
+              >
+                저장 없이 이동
+              </Btn>
+              <button
+                onClick={() => setShowSaveDraftModal(false)}
+                disabled={isSaving}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 13, color: 'var(--text-3)', padding: '6px 0',
+                }}
+              >
+                계속 작성하기
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── 업그레이드 팝업 (슬라이더/직급 트리거) ── */}
       {showUpgrade && ReactDOM.createPortal(
