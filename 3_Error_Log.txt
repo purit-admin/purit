@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-06 (D-109 추가 — RLS 활성화 시 순환 참조 + 오너 정책 누락 패턴)
+최종 업데이트: 2026-06-08 (D-110 추가 — 복사 선언 상수 키 불일치로 조회 실패 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1544,3 +1544,18 @@ D-109. 새 테이블에 RLS를 활성화할 때 기존 정책이 없으면 오�
      → 원칙 3: GRANT EXECUTE 누락 주의 — SECURITY DEFINER RPC 생성 후 반드시 GRANT 구문 포함할 것
              비로그인 사용자가 호출해야 하면 `TO anon`, 로그인 사용자는 `TO authenticated`
              누락 시 클라이언트에서 호출 시 권한 오류 (migration 075 패턴)
+
+D-110. 동일 상수를 여러 파일에 각자 복사 선언할 때 원본 파일의 키 이름과 불일치하면 조회 실패로 표시 오류 발생하는 패턴 ✅ 해결
+     → 증상: 서브 의뢰(소재비교·가격검증·이메일검증) Step 3 검토 화면의 "직급" 행에서
+             C레벨 선택 시 빈 값(`-`) 또는 `'주니어 · '`(뒤에 불필요한 구분자) 표시됨
+     → 원인: ColdEmailTest/PreferenceTest/PricingTest 3개 파일이 각자 CAREER_LABEL 상수를 복사 선언하면서
+             키를 `'c-level'`(하이픈 있음)으로 작성했으나, 실제 careerLevels 배열에 저장되는 키는
+             PanelTargetStep.jsx의 CAREER_LEVELS 배열 기준 `'clevel'`(하이픈 없음)
+             → `CAREER_LABEL['clevel']` === undefined → `[undefined].join(' · ')` === `''` → `'' || '-'` → `-`
+     → 해결: 3개 파일의 CAREER_LABEL 키를 `'c-level'` → `'clevel'`로 수정
+     → 원칙: 공용 상수(CAREER_LEVELS, CAREER_LABEL 등)를 여러 파일에 복사 선언할 때
+             반드시 원본 파일(PanelTargetStep.jsx)의 key 값을 직접 참조해 작성할 것
+             "비슷하게 쓰면 되겠지" 추정으로 키 이름을 변형하면 조회가 조용히 실패하고
+             잘못된 값이 화면에 표시됨 — 특히 하이픈·카멜케이스 변형이 자주 일어나는 패턴
+             장기 해결책: 공용 상수는 PanelTargetStep.jsx에서 export해 import하는 방식으로 단일화
+             (현재 CAREER_LEVELS, calcCredits, calcPanelPayout은 이미 export 중 — CAREER_LABEL도 추가 가능)

@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-07 (Landing.jsx 로그인 상태 분기 + ImageAnnotator 툴팁 위치 자동 전환)
+최종 업데이트: 2026-06-08 (어드민 MissionCard·MissionDetail 경력 표시 추가 + CAREER_LABEL clevel 키 통일)
 ================================================================
 
 ## 기술 스택
@@ -314,10 +314,13 @@ purit/
 │   │                    drafts: status='draft' + submission_deadline > now() — 만료 draft 자동 제외
 │   │                    작성중 탭 행: 패널명 / fmtTimeLeft(submission_deadline) 남은 시간(1h미만=amber) / 작성중 뱃지 (클릭 비활성)
 │   │                    미션 정보 카드 슬롯: allFbs.length + drafts.length / panel_count (작성중 N명 부가 표시)
+│   │                    미션 정보 카드 경력: description JSON 파싱 → detailCareerLevels 배열 → CAREER_LABEL 뱃지 (슬롯 아래 표시) ★
 │   │                    전체 탭 정렬: [...approved, ...rejected, ...pending] 순 (draft 미포함)
 │   │                    탭 전환 시 detailPage 자동 1 리셋 (handleTab 헬퍼)
 │   │                    DETAIL_PAGE_SIZE=5, getFeedbackStatus(f): purity_passed→green / rejected→red / else→gold
 │   │                    피드백 행 클릭: navigate('/admin/purity', { state: { feedbackId } })
+│   │                  MissionCard: description JSON 파싱 → careerLevels 배열 → CAREER_LABEL 뱃지 슬롯 카운트 하단 표시 ★
+│   │                    CAREER_LABEL = { junior:'주니어', middle:'미들', senior:'시니어', clevel:'C레벨' } (clevel — 하이픈 없음, PanelTargetStep 키와 동일)
 │   │                  MissionCard: isSelected/onSelect props + Card onClick + e.stopPropagation() on inner Btns
 │   │                    onCancelMission(id) / onCompleteMission(m) / onReactivateMission({id,label,desc}) / onEarlyComplete(m) props
 │   │                    → 각각 setConfirmCancel / setConfirmComplete / setConfirmReactivate / setConfirmEarlyComplete 연결

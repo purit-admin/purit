@@ -44,7 +44,7 @@ function Pagination({ page, total, onPage }) {
 
 const STEPS = ['이메일 입력', '질문 설정', '패널 설정', '검토'];
 
-const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', 'c-level': 'C레벨' };
+const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', clevel: 'C레벨' };
 
 const INDUSTRIES = [
   '뷰티/코스메틱', '헬스/피트니스', '식품/음료', '패션/의류',

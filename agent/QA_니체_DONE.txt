@@ -5,7 +5,7 @@
   재조사 금지. 이력 확인 전용.
   새 완료 항목은 PROGRESS.txt에서 해당 행을 삭제하고 이 파일 하단에만 추가할 것.
 
-총 완료: 194건 (2026-06-05 기준)
+총 완료: 197건 (2026-06-08 기준)
 
 ================================================================
 
@@ -317,3 +317,7 @@
 [Scale-K] company/Dashboard.jsx — Pagination 전체 번호 렌더 → WINDOW=5 슬라이딩 윈도우  ✅
 [Scale-K-수평-1] company/Results.jsx — Pagination 전체 번호 렌더 → 슬라이딩 윈도우  ✅
 [Scale-K-수평-2] NotificationCenter.jsx — Pagination 전체 번호 렌더 → 슬라이딩 윈도우  ✅
+[신규-어드민-슬롯-A] admin/Missions.jsx — MissionCard·MissionDetail에 경력(careerLevels) 뱃지 표시 추가  ✅
+[신규-어드민-슬롯-A-수평-1] ColdEmailTest.jsx — CAREER_LABEL 'c-level' → 'clevel' 키 오타 수정  ✅
+[신규-어드민-슬롯-A-수평-2] PreferenceTest.jsx — CAREER_LABEL 'c-level' → 'clevel' 키 오타 수정  ✅
+[신규-어드민-슬롯-A-수평-3] PricingTest.jsx — CAREER_LABEL 'c-level' → 'clevel' 키 오타 수정  ✅

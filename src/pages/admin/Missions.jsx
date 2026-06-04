@@ -64,6 +64,12 @@ function MissionDetail({ mission, onFeedbackClick }) {
   const [fbFilter, setFbFilter] = useState('all');
   const [detailPage, setDetailPage] = useState(1);
   const [detailFbs, setDetailFbs] = useState(mission.feedbacks || []);
+
+  let detailCareerLevels = [];
+  try {
+    const p = JSON.parse(mission.description || '{}');
+    detailCareerLevels = Array.isArray(p.careerLevels) ? p.careerLevels : [];
+  } catch {}
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
@@ -119,6 +125,15 @@ function MissionDetail({ mission, onFeedbackClick }) {
           패널 슬롯: {allFbs.length + drafts.length}/{mission.panel_count}건
           {drafts.length > 0 && <span style={{ marginLeft: 6, color: 'var(--text-3)' }}>(작성중 {drafts.length}명)</span>}
         </div>
+        {detailCareerLevels.length > 0 && (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+            {detailCareerLevels.map(key => (
+              <span key={key} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--bg-3)', color: 'var(--text-2)', fontWeight: 500 }}>
+                {CAREER_LABEL[key] ?? key}
+              </span>
+            ))}
+          </div>
+        )}
       </Card>
       <Card style={{ padding: '14px 16px' }}>
         {detailLoading && <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>피드백 로딩 중...</div>}
@@ -178,7 +193,15 @@ function MissionDetail({ mission, onFeedbackClick }) {
   );
 }
 
+const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', clevel: 'C레벨' };
+
 function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, onEarlyComplete, isHighlighted, isSelected, onSelect }) {
+  let careerLevels = [];
+  try {
+    const parsed = JSON.parse(m.description || '{}');
+    careerLevels = Array.isArray(parsed.careerLevels) ? parsed.careerLevels : [];
+  } catch {}
+
   const allFbs    = (m.feedbacks || []).filter(f => f.status !== 'draft');
   const approved  = allFbs.filter(f => f.purity_passed);
   const reviewing = allFbs.filter(f => !f.purity_passed && f.status !== 'rejected');
@@ -218,6 +241,16 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-3)' }}>패널 슬롯</span>
           </div>
+          {/* 경력 정보 */}
+          {careerLevels.length > 0 && (
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {careerLevels.map(key => (
+                <span key={key} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--bg-3)', color: 'var(--text-2)', fontWeight: 500 }}>
+                  {CAREER_LABEL[key] ?? key}
+                </span>
+              ))}
+            </div>
+          )}
           {/* 버튼 + 안내 문구 */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
