@@ -321,3 +321,8 @@
 [신규-어드민-슬롯-A-수평-1] ColdEmailTest.jsx — CAREER_LABEL 'c-level' → 'clevel' 키 오타 수정  ✅
 [신규-어드민-슬롯-A-수평-2] PreferenceTest.jsx — CAREER_LABEL 'c-level' → 'clevel' 키 오타 수정  ✅
 [신규-어드민-슬롯-A-수평-3] PricingTest.jsx — CAREER_LABEL 'c-level' → 'clevel' 키 오타 수정  ✅
+
+-- 전환 가이드 탭 신규 개발 무결성 검증 (2026-06-08) --
+[가이드-A] company/Diagnosis.jsx — 전환 가이드 탭 기간 필터 불일치: scores는 period-filtered 기준이나 코멘트 추출에 rawFeedbacks(전기간) 사용. guideFbs 변수 추가로 동일 기간 적용  ✅
+[가이드-B] company/Diagnosis.jsx — 비교 모드 활성 시 scores가 stale 상태로 가이드 탭 렌더. isComparing 조건 분기 추가 → "비교 모드 중 사용 불가" 안내 카드로 대체  ✅
+[가이드-C] company/Diagnosis.jsx — dimComments.map()에서 purity 필드를 계산하나 렌더에 미사용(신뢰도 라벨 삭제 후 dead 필드). purity 필드 제거  ✅

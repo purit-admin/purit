@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-08 (뱃지 시스템 v3 — ROOKIE 5개·ELITE 6개·MASTER 5개·HIDDEN 3개, 총 19개로 확장 + migration 077)
+최종 업데이트: 2026-06-08 (시계열 추적 삭제 + 전환 가이드 탭 추가 + CAREER_LABEL clevel 키 통일)
 ================================================================
 
 ## 기술 스택
@@ -259,18 +259,24 @@ purit/
 │   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 │   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
-│   │   ※ pages/company/Diagnosis.jsx: 기간 필터 추가 (2026-05-21) ★
+│   │   ※ pages/company/Diagnosis.jsx: 전환 가이드 탭 추가 + 시계열 추적 삭제 (2026-06-08) ★
+│   │                  tabs: ['overview','benchmark','keywords','guide'] — '시계열 추적' 탭 삭제, '전환 가이드' 탭 신규
+│   │                  useNavigate 추가 — 전환 가이드 탭 Next Action CTA 버튼 이동에 사용
+│   │                  전환 가이드 탭 (activeTab==='guide') — 인라인 IIFE 구현:
+│   │                    GUIDE_WEIGHTS: { value_score:0.30, trust_score:0.25, clarity_score:0.20, relevance_score:0.15, differentiation_score:0.10 }
+│   │                    GUIDE_LEVELS: 5단계 (최적화≥90 / 우수≥75 / 양호≥60 / 성장가능≥40 / 개선필요<40)
+│   │                    NEXT_ACTIONS: 취약 차원 → 추천 테스트 경로 1:1 매핑 5개
+│   │                    guideFbs: period + missions 기준 rawFeedbacks 재필터 → scores와 동일 기간 기준으로 코멘트 추출 (D-111)
+│   │                    비교 모드(isComparing=true) 시 안내 카드 즉시 반환 (stale scores 방지)
+│   │                    취약 차원 코멘트: calcPurityScoreLocal 정렬 후 상위 3개, dimScore 뱃지 표시
 │   │                  period state: 'all'|'3m'|'1m' (기본 'all') — 의뢰 칩 행 아래 pill 버튼
 │   │                  rawFeedbacks state: 전체 미필터 피드백 보존 (period 변경 시 재계산 원본)
 │   │                  필터 기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
 │   │                  cutoff 공식: period!=='all' → new Date(Date.now() - (period==='3m' ? 90 : 30) * 86400000)
-│   │                  loadFeedbacks(ids, msList) — 반드시 두 인자 필요:
-│   │                    ids: 선택된 미션 ID 배열 / msList: missions state (period cutoff 적용 대상)
-│   │                    msList 없이 호출 시 period!=='all'에서 TypeError (undefined.filter) — D-89 참조
+│   │                  loadFeedbacks(ids, msList) — 반드시 두 인자 필요 (D-89 참조)
 │   │                    periodFiltered: cutoff!=null → rawFeedbacks 중 msList.filter(created_at>=cutoff) ID Set 교집합
-│   │                    setHasData(periodFiltered.length > 0) — periodFiltered 기준 (unfiltered myFeedbacks 아님)
+│   │                    setHasData(periodFiltered.length > 0) — periodFiltered 기준
 │   │                  period useEffect: rawFeedbacks 재필터 → setScores/setDistributions/setBenchmarks/setKeywords/setHasData 순 갱신
-│   │                    의존 배열: [period] — missions는 rawFeedbacks에 이미 반영되어 있으므로 제외
 │   │                  selectedIds/compareMode useEffect: loadFeedbacks(ids, missions) — missions state 두 번째 인자 필수
 │   │                  hasData gate: period 변경으로 0건이 되면 hasData=false → 빈 상태 카드 표시 (0점 차트 미렌더)
 │   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
@@ -616,7 +622,6 @@ purit/
   /company/new               → NewMission.jsx
   /company/results           → Results.jsx
   /company/diagnosis         → Diagnosis.jsx
-  /company/timeline          → TimelineTracker.jsx     ★ 신규
   /company/preference        → PreferenceTest.jsx
   /company/pricing-test      → PricingTest.jsx
   /company/email-test        → ColdEmailTest.jsx
@@ -739,7 +744,7 @@ purit/
   .form-two-col         — 2열 폼 그리드 (640px↓: 1열) — NewMission 페르소나, PreferenceTest A/B, Results 소재
   .score-card-row       — 동적 점수 카드 행 (640px↓: 2열) — ScoreCardRow 컴포넌트
   .score-five-col       — 5차원 평균 점수 (768px↓: 3열, 480px↓: 2열) — Results.jsx 종합탭
-  .table-scroll         — 테이블 가로 스크롤 래퍼 — admin/Dashboard, PanelManagement, Revenue, TimelineTracker
+  .table-scroll         — 테이블 가로 스크롤 래퍼 — admin/Dashboard, PanelManagement, Revenue
   .confirm-modal-inner  — ConfirmModal 내부 박스 (480px↓: 88vw, padding 축소)
   ※ 패턴: className 부여 + 인라인 스타일 유지(데스크탑) + CSS !important 오버라이드(모바일) — D-38 준수
 

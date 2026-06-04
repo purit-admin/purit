@@ -615,19 +615,33 @@ export default function Diagnosis() {
           })()}
 
           {activeTab === 'guide' && (() => {
+            // [가이드-B] 비교 모드 중 가이드 비활성
+            if (isComparing) return (
+              <Card style={{ padding: '48px', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>⇄</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>비교 모드 중에는 전환 가이드를 사용할 수 없습니다</div>
+                <div style={{ color: 'var(--text-2)', fontSize: 13 }}>단일 의뢰 또는 전체 선택으로 돌아가 주세요.</div>
+              </Card>
+            );
+
+            // [가이드-A] 기간 필터 적용 — scores와 코멘트를 동일 기간 기준으로 맞춤
+            const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
+            const periodMissionIds = cutoff ? new Set(missions.filter(m => new Date(m.created_at) >= cutoff).map(m => m.id)) : null;
+            const guideFbs = periodMissionIds ? rawFeedbacks.filter(f => periodMissionIds.has(f.mission_id)) : rawFeedbacks;
+
             // 전환 잠재력 점수 (0-100)
             const cpScore = Math.max(0, Math.min(100, Math.round(
               DIMENSIONS.reduce((sum, d) => sum + ((scores[d.key] || 0) - 1) / 4 * 100 * (GUIDE_WEIGHTS[d.key] || 0), 0)
             )));
             const level = GUIDE_LEVELS.find(l => cpScore >= l.min) || GUIDE_LEVELS[GUIDE_LEVELS.length - 1];
 
-            // 취약 차원 (compare mode 무관하게 현재 단일 scores 기준)
+            // 취약 차원 (비교 모드 무관 — 현재 단일 scores 기준)
             const guideWorst = DIMENSIONS.reduce((w, d) => (scores[d.key] || 0) < (scores[w.key] || 0) ? d : w);
 
-            // 취약 차원 코멘트: purity 높은 순
-            const sortedFbs = [...rawFeedbacks].sort((a, b) => calcPurityScoreLocal(b) - calcPurityScoreLocal(a));
+            // [가이드-A] guideFbs 사용, [가이드-C] purity 필드 제거 (렌더 미사용으로 이중 계산 방지)
+            const sortedFbs = [...guideFbs].sort((a, b) => calcPurityScoreLocal(b) - calcPurityScoreLocal(a));
             const dimComments = sortedFbs
-              .map(f => ({ comment: extractDimComment(f, guideWorst.key), purity: calcPurityScoreLocal(f), dimScore: f[guideWorst.key] }))
+              .map(f => ({ comment: extractDimComment(f, guideWorst.key), dimScore: f[guideWorst.key] }))
               .filter(x => x.comment);
             const topComments = dimComments.slice(0, 3);
 

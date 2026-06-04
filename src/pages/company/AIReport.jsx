@@ -1,7 +1,10 @@
 ﻿import { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Card, Badge, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
+
+const MONTHLY_LIMIT = 10;
 
 const DIMS = [
   { key: 'clarity_score',         label: '헤드라인·명확성' },
@@ -33,6 +36,9 @@ export default function AIReport() {
   const [aiGenerated, setAiGenerated] = useState(false);
   const [latestMissionId, setLatestMissionId] = useState(null);
   const [generateError, setGenerateError] = useState(null);
+  const [monthlyUsage, setMonthlyUsage] = useState(0);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [chargeMsg, setChargeMsg] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -52,6 +58,16 @@ export default function AIReport() {
       if (!missionIds.length) { setLoading(false); return; }
 
       if (latestMission?.id) setLatestMissionId(latestMission.id);
+
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const { count: usageCount } = await supabase
+        .from('ai_reports')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', co.id)
+        .gte('created_at', monthStart.toISOString());
+      setMonthlyUsage(usageCount ?? 0);
 
       const { data: feedbacks } = await supabase.from('feedbacks')
         .select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,strengths,weaknesses,created_at')
@@ -136,6 +152,14 @@ export default function AIReport() {
     }
   }
 
+  function handleGenerateClick() {
+    if (monthlyUsage >= MONTHLY_LIMIT) {
+      setShowLimitModal(true);
+      return;
+    }
+    generateReport();
+  }
+
   async function generateReport() {
     if (!latestMissionId) return;
     setGenerating(true);
@@ -160,12 +184,19 @@ export default function AIReport() {
           riskFlags: r.risk_flags ?? prev.riskFlags,
         }));
         setAiGenerated(true);
+        setMonthlyUsage(prev => prev + 1);
       }
     } catch (e) {
       setGenerateError(e?.message ?? 'AI 리포트 생성 중 오류가 발생했습니다.');
     } finally {
       setGenerating(false);
     }
+  }
+
+  function getNextResetDate() {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return `${next.getFullYear()}년 ${next.getMonth() + 1}월 1일`;
   }
 
   if (loading) return (
@@ -183,7 +214,65 @@ export default function AIReport() {
     </div>
   );
 
+  const limitModal = showLimitModal && ReactDOM.createPortal(
+    <div
+      onClick={() => { setShowLimitModal(false); setChargeMsg(''); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: '#fff', borderRadius: 16, padding: '32px 28px', width: 400, maxWidth: '90vw', boxShadow: '0 24px 64px rgba(0,0,0,0.18)' }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 22 }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🤖</div>
+          <div style={{ fontWeight: 800, fontSize: 17, color: 'var(--text)', marginBottom: 8 }}>
+            이번 달 AI 리포트 한도 초과
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
+            월 {MONTHLY_LIMIT}회 무료 생성 한도를 모두 사용했습니다.<br />
+            {getNextResetDate()}에 자동으로 초기화됩니다.
+          </div>
+        </div>
+
+        <div style={{ border: '1.5px solid var(--border)', borderRadius: 12, padding: '16px 18px', marginBottom: 20, background: 'var(--bg-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{ fontSize: 20 }}>🔋</span>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>추가 10회 충전</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6, paddingLeft: 30 }}>
+            크레딧 1개 차감 &middot; 당월 말 소멸
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Btn
+            variant="primary"
+            style={{ width: '100%', justifyContent: 'center' }}
+            onClick={() => setChargeMsg('결제 기능이 곧 출시됩니다. 조금만 기다려 주세요!')}
+          >
+            충전하기
+          </Btn>
+          <Btn
+            variant="ghost"
+            style={{ width: '100%', justifyContent: 'center' }}
+            onClick={() => { setShowLimitModal(false); setChargeMsg(''); }}
+          >
+            다음 달까지 기다리기
+          </Btn>
+        </div>
+
+        {chargeMsg && (
+          <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: 'var(--accent-dim)', fontSize: 12, color: 'var(--accent)', textAlign: 'center', lineHeight: 1.5 }}>
+            {chargeMsg}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+
   return (
+    <>
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 880, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>
@@ -205,7 +294,7 @@ export default function AIReport() {
               <Btn
                 variant="primary"
                 size="sm"
-                onClick={generateReport}
+                onClick={handleGenerateClick}
                 disabled={generating}
               >
                 {generating ? '분석 중…' : aiGenerated ? 'AI 리포트 재생성' : 'AI 리포트 생성'}
@@ -288,5 +377,7 @@ export default function AIReport() {
         </div>
       )}
     </div>
+    {limitModal}
+    </>
   );
 }
