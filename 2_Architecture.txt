@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-08 (시계열 추적 삭제 + 전환 가이드 탭 추가 + CAREER_LABEL clevel 키 통일)
+최종 업데이트: 2026-06-09 (연령대 슬라이더 + 월소득 드롭다운 교체)
 ================================================================
 
 ## 기술 스택
@@ -144,9 +144,24 @@ purit/
 │   │                Step 0: 산업군 선택(▼ 드롭다운) → 서비스명 → LP URL 순 배치 ★ 순서 변경 (2026-05-09), 페르소나 필드 아래, 부제 "검증할 서비스와 서비스 타겟에 대해 설정합니다."
 │   │                INDUSTRY_PLACEHOLDERS 상수 (모듈 레벨): 20개 산업군 → { product, personaAge, personaIncome, personaRole, personaContext, briefText } 매핑
 │   │                  DEFAULT_PLACEHOLDERS: 산업군 미선택 시 중립 안내 문구 / ph = INDUSTRY_PLACEHOLDERS[form.industry] || DEFAULT_PLACEHOLDERS
-│   │                  적용 범위: Step 0 서비스명·연령대·월소득·직군·타겟상세 + Step 1 브리핑 placeholder 동적 교체
+│   │                  적용 범위: Step 0 서비스명·직군·타겟상세 + Step 1 브리핑 placeholder 동적 교체
+│   │                  ※ personaAge·personaIncome: 슬라이더·드롭다운 방식으로 교체되어 ph.personaAge/ph.personaIncome 미사용 (상수에 값 유지 무해)
 │   │                  산업군 드롭다운: INDUSTRIES 칩 grid + "✏️ 직접 쓰기" 토글 → 텍스트 입력 + 확인 버튼 (Enter 키 지원)
 │   │                  buildDescription(): industry 포함 → description JSON / persona 문자열에도 "산업군: XXX" 포함
+│   │                연령대 슬라이더 (Step 0) ★ 변경:
+│   │                  AGE_MIN=10, AGE_MAX=70 모듈 레벨 상수
+│   │                  form state: personaAgeMin(기본 20, Number) / personaAgeMax(기본 40, Number)
+│   │                  두 개의 투명 <input type="range"> 레이어 + 시각 트랙·썸 오버레이 패턴
+│   │                  min 핸들 zIndex: personaAgeMin >= personaAgeMax-5 ? 5 : 3 (겹침 시 min 우선)
+│   │                  max 핸들 zIndex: personaAgeMax <= personaAgeMin+5 ? 5 : 4
+│   │                  저장: personaAge = `${personaAgeMin}~${personaAgeMax}세` 문자열로 description JSON 저장
+│   │                  복원: (parsed.personaAge||'').match(/(\d+)[~\-](\d+)/) → min/max 추출, 실패 시 기본값 20/40
+│   │                  shouldBlockNav: personaAgeMin/Max 제외 (항상 숫자값이라 dirty 판별 불가)
+│   │                  validation: personaAge 조건 제거 (슬라이더는 항상 유효값 보유)
+│   │                월 소득 수준 드롭다운 (Step 0) ★ 변경:
+│   │                  INCOME_OPTIONS 모듈 레벨 상수 (9개): 100만원 이하 / 100~200만원 / … / 1억 이상
+│   │                  form state: personaIncome(기본 '', 미선택 시 validation 차단)
+│   │                  validation Step 0: !!form.personaIncome (필수 선택)
 │   │                폼 상단 배너: 🔒 NDA(accent-dim) + ✨ 매칭(rgba(16,185,129,0.07)) 2개 항상 표시
 │   │                Step 2: "내 커스텀 질문" 아코디언 (customLPQs DB 데이터) + QUESTION_TEMPLATES.lp 아코디언
 │   │                        "질문 만들기" 인라인 Card: textarea + 타입(옵션형/점수형/서술형) + "추가"(localCustomQs) + "템플릿에 저장 →"(DB INSERT, ConfirmModal)
@@ -156,7 +171,8 @@ purit/
 │   │                  saveDraft(): description JSON에 모든 필드(step 포함) 저장 → missions INSERT/UPDATE(status='draft')
 │   │                  draft→active 제출: reserve_mission_credits 먼저 호출 → 성공 시에만 UPDATE(status='active') (D-101 수정 완료)
 │   │                  신규 INSERT 경로: INSERT(status='draft') → reserve_mission_credits → UPDATE(status='active') 순 (트리거 조기 발화 방지)
-│   │                  editMode 복원: description JSON 전체 파싱 → 개별 필드 set (personaAge/Income/Role/Context/industry/step 포함)
+│   │                  editMode 복원: description JSON 전체 파싱 → 개별 필드 set (personaAgeMin/Max·personaIncome/Role/Context/industry/step 포함)
+│   │                    personaAge 복원: IIFE 정규식 파싱 → personaAgeMin/personaAgeMax, 실패 시 기본값 20/40
 │   │   ※ 임시저장 공통 패턴 (4개 등록 폼 — NewMission/PreferenceTest/PricingTest/ColdEmailTest):
 │   │                  navigationGuard (src/lib/navigationGuard.js) 싱글톤 import
 │   │                  pendingNavPath state: 사이드바 이탈 시 목적지 경로 임시 저장
