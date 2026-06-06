@@ -332,7 +332,8 @@ export default function PurityFilter() {
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline, ...noteUpdate } : f));
 
     if (fb?.mission_id) {
-      supabase.rpc('decrement_mission_filled_count', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[decrement_slot]', e.message); });
+      const { error: decrErr } = await supabase.rpc('decrement_mission_filled_count', { p_mission_id: fb.mission_id });
+      if (decrErr) setStatusError('반려 처리됨. 단, 슬롯 차감 실패: ' + decrErr.message + ' — 미션 슬롯 카운트를 수동으로 확인해 주세요.');
       supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
     }
     if (fb?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 }).then(({ error: e }) => { if (e) console.warn('[honor_penalty]', e.message); });
@@ -350,16 +351,18 @@ export default function PurityFilter() {
     setActing(true); setResetError('');
     const fb = feedbacks.find(f => f.id === id);
     const isRejectReversal = fb?.status === 'rejected';
+
+    // 반려 취소 시: slot 복원을 먼저 — 실패하면 feedbacks 변경 없이 종료 (원자성 보장)
+    if (isRejectReversal && fb?.mission_id) {
+      const { error: slotErr } = await supabase.rpc('restore_mission_slot', { p_mission_id: fb.mission_id });
+      if (slotErr) { setResetError('슬롯 복원 실패: ' + slotErr.message + '\n재시도하거나 수동으로 슬롯을 보정해 주세요.'); setActing(false); return; }
+    }
+
     const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted', rejection_penalty_applied: false }).eq('id', id);
     if (error) { setResetError('취소 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted', rejection_penalty_applied: false } : f));
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
-    // 반려 취소 시 decrement된 슬롯을 복원 — 실패 시 모달 에러 표시
-    if (isRejectReversal && fb?.mission_id) {
-      const { error: slotErr } = await supabase.rpc('restore_mission_slot', { p_mission_id: fb.mission_id });
-      if (slotErr) { setResetError('슬롯 복원 실패: ' + slotErr.message + '\n재시도하거나 수동으로 슬롯을 보정해 주세요.'); setActing(false); return; }
-    }
 
     setConfirmResetId(null);
     setSelected(null);

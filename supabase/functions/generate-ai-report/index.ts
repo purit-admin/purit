@@ -264,7 +264,7 @@ ${comments || '(코멘트 없음)'}
 
     if (insertErr) throw insertErr;
 
-    return new Response(JSON.stringify({ success: true, report: inserted }), {
+    return new Response(JSON.stringify({ success: true, report: inserted, isMock: !anthropicKey }), {
       status: 200,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });

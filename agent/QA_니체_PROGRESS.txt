@@ -17,28 +17,9 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ================================================================
 
 ================================================================
-## 🟡 P2 Major (3건)
+## 🟡 P2 Major (2건)
 ================================================================
 
-[Admin-A] PurityFilter.jsx — 반려 취소(reset) 시 feedbacks DB 변경 후 slot 복원 실패 → 미션 슬롯 카운트 영구 불일치
-- 🚨 중요도: P2 — 어드민이 에러 모달을 "취소"로 닫으면 feedbacks.status는 'submitted'인데 missions.filled_count는 감소된 채 방치됨. 미션이 실제보다 빈 슬롯이 1개 더 있는 것으로 보여 패널이 초과 수락 가능.
-- 📍 위치: src/pages/admin/PurityFilter.jsx (lines 349-367, reset 함수)
-- 🕵️‍♂️ 재현: 반려된 피드백을 "반려 취소" → 확인 클릭 → Supabase `restore_mission_slot` RPC 호출 실패 → 에러 모달 표시 → "돌아가기"로 모달 닫기
-- 🤦‍♂️ 현재:
-    ```js
-    // 1. DB UPDATE 먼저 실행 (성공)
-    await supabase.from('feedbacks').update({status:'submitted'...})
-    // 2. 로컬 state도 즉시 업데이트
-    setFeedbacks(fbs => fbs.map(...status:'submitted'...))
-    // 3. slot 복원 RPC (실패 가능)
-    const { error: slotErr } = await supabase.rpc('restore_mission_slot', ...)
-    if (slotErr) { setResetError('슬롯 복원 실패...'); setActing(false); return; }
-    // → setConfirmResetId(null) 미호출, 모달 유지 (D-65 준수)
-    // → 그러나 feedbacks는 이미 'submitted'로 변경 완료된 상태
-    // → 어드민이 "돌아가기" 클릭 시: DB는 불일치(feedback=submitted, filled_count 낮음)
-    ```
-- ✨ 기대: 순서를 역전 — restore_mission_slot 먼저 실행, 성공 시에만 feedbacks UPDATE 실행. 또는 두 작업을 단일 RPC로 묶어 원자적 처리.
-- 🔍 수평 전개: reject() 함수(line 321~347)도 decrement_mission_filled_count가 fire-and-forget이라 실패 시 슬롯 과잉 문제 가능. 단 reject()는 decrement가 부가 처리라 심각도 낮음.
 
 [완성도-C] 경력 미설정 패널에게 careerLevels 제한 미션 전부 노출
 - 📍 위치: src/pages/panel/Missions.jsx (line 406-416)
@@ -59,13 +40,8 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 ================================================================
-## 🟢 P3 Minor (1건)
+## 🟢 P3 Minor (0건)
 ================================================================
-
-[완성도-E] AI 리포트 Mock/실제 UI 구분 없음
-- 📍 위치: src/pages/company/AIReport.jsx generateReport(), supabase/functions/generate-ai-report/index.ts
-- 🤦 현재: ANTHROPIC_API_KEY 미설정 시 로컬 계산 Mock 리포트가 AI 리포트와 동일한 UI로 표시.
-- ✨ 기대: Edge Function Mock 폴백 시 isMock:true 반환 → 리포트 상단 "ℹ️ 로컬 분석 기반" 뱃지.
 
 
 ================================================================
@@ -137,14 +113,14 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 4건
+미완료 합계: 2건
   🔴 P1  0건
-  🟡 P2  3건
-  🟢 P3  1건
+  🟡 P2  2건
+  🟢 P3  0건
   ⚪ P4  0건
 
 스킵/보류: 22건
 
-완료 항목: QA_DONE.txt 참조 (총 207건)
+완료 항목: QA_DONE.txt 참조 (총 210건)
 
 ================================================================

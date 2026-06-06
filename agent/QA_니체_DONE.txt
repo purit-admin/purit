@@ -341,6 +341,11 @@
 [기업-버그보고-A] company/BugReports.jsx + panel/BugReports.jsx — 페이지(page state) 전환 시 selected(선택 항목 변수) 미초기화. useEffect에 setSelected(null) 추가 (두 파일 동시 적용)  ✅
 [신규-BugA] admin/BugReports.jsx — 수평전개: 동일 패턴 발견. 페이지 ‹/› 버튼 onClick에 setSelected(null) 추가 (tab/typeFilter는 이미 처리 중이었으므로 버튼 onClick에만 적용)  ✅
 
+-- 2026-06-10 3차 수정 완료 --
+[완성도-E] company/AIReport.jsx + generate-ai-report/index.ts — Mock 폴백 시 AI 분석 완료와 동일 UI 표시 버그. Edge Function 응답에 isMock:!anthropicKey 필드 추가 + AIReport.jsx에 isMock state 추가 → 헤더 "ℹ️ 로컬 분석 기반" 뱃지 / DB 로드 시 tldr.startsWith('[Mock]') 감지 패턴 적용  ✅
+[Admin-A] admin/PurityFilter.jsx — reset() 함수에서 feedbacks.update() 먼저 실행 후 restore_mission_slot 실패 시 슬롯 카운트 영구 불일치. restore_mission_slot을 먼저 실행, 성공 시에만 feedbacks.update() 실행하도록 순서 역전  ✅
+[Admin-A-수평] admin/PurityFilter.jsx — reject() 함수의 decrement_mission_filled_count가 fire-and-forget으로 실패 시 슬롯 미감소를 어드민이 인지 불가. await + 실패 시 statusError 경고 표시로 변경  ✅
+
 -- 2026-06-10 2차 수정 완료 --
 [신규-BugB] admin/PanelManagement.jsx + admin/CompanyManagement.jsx — 페이지 ‹/› 버튼에 setSelected(null) 추가 (수평전개: [기업-버그보고-A])  ✅
 [Pnl-Dash-A] panel/Dashboard.jsx — weeklyCount 필터 기준 updated_at → created_at 변경 + hFbs 쿼리에 created_at 컬럼 추가 (무결성 검증에서 쿼리 누락 발견·즉시 수정)  ✅
