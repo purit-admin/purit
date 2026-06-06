@@ -282,7 +282,10 @@ export default function AccountSettings() {
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
                   <div>
                     <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 12 }}>{r.invoice_date}</span>
-                    <span>{r.plan} 플랜</span>
+                    {r.payment_type === 'credits'
+                      ? <span>크레딧 <strong>{r.credits_amount}cr</strong> 충전</span>
+                      : <span>{r.plan} 플랜</span>
+                    }
                   </div>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700 }}>₩{Number(r.amount).toLocaleString()}</span>

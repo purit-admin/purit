@@ -491,16 +491,27 @@
       · 낙관적 UI + 에러 시 롤백 / 키 미설정=수신, false=차단
     ※ 기업 프로필 탭 제거 → Account.jsx로 이전
 
-15. 플랜 & 가격 (/company/plans) — Pricing.jsx  ★ 크레딧 연동 (2026-05-04)
+15. 플랜 & 가격 (/company/plans) — Pricing.jsx  ★ 결제 시스템 구현 (2026-06-12)
     - companies.plan Supabase 로드 → 현재 플랜 카드에 "현재 플랜" 배지 + 테두리 강조
-    - CTA 버튼 클릭 → grant_plan_credits RPC 호출 (plan + credit_balance 원자적 업데이트)
-      · Starter 선택 시 credit_balance = 50, Pro = 165, Enterprise = 400 으로 SET
-    - 현재 사용 중 플랜 버튼 "사용 중" 표시·비활성화
-    - 성공/실패 메시지 상단 표시
-    - Enterprise "영업팀 문의" 버튼: 문의 모달 표시
-      · 이메일 연락처(enterprise@purit.io) + 자유 문의 textarea
-      · 제출 시 notifications 테이블에 접수 기록 INSERT
-      · 완료 후 2.5초 뒤 모달 자동 닫힘
+    - ★ 결제 3가지 Flow (PaymentModal 공용 컴포넌트 경유):
+      Flow 1 플랜 구매: CTA 버튼 클릭 → PaymentModal(type='plan') → mock 결제 완료
+        → grant_plan_credits RPC(p_amount_krw 포함) → invoices INSERT(payment_type='plan')
+        → companies.plan + credit_balance 갱신, 플랜 카드 즉시 반영
+      Flow 2 추가 크레딧 충전: 번들 선택(10/30/50/100 cr) → PaymentModal(type='credits')
+        → purchase_credits RPC → invoices INSERT(payment_type='credits')
+        → credit_balance += 충전량, Pricing.jsx 잔여 크레딧 즉시 반영
+      Flow 3 의뢰 등록 중 인라인 충전: PanelTargetStep isShort → 충전하기 →
+        번들 선택 → PaymentModal → purchase_credits → onCreditBalanceUpdate → 폼 계속 진행
+        (페이지 이탈 없음 — 기존 /company/plans navigate 대체)
+    - Enterprise "영업팀 문의" 버튼: 기존 유지 (문의 모달 → notifications INSERT)
+    - 결제 수단: 카드(mock 즉시 완료) / 가상계좌(PG 연동 후 지원, 현재 비활성)
+    - Mock 배너: "🧪 테스트 모드 · 실제 결제 없이 즉시 처리됩니다" (amber)
+    - PG 연동 포인트: PaymentModal.jsx handlePay() 함수 내 TODO 블록 1곳만 교체
+    - 추가 크레딧 충전 섹션: 번들 4개(10/30/50/100 cr) + 플랜별 단가
+      · Starter: 1cr=25,000원 / Pro: 1cr=21,600원(14% 할인) + 잔여 크레딧 표시
+    - invoices 표시:
+      · Settings.jsx 결제 내역: payment_type='plan'→"Starter 플랜", 'credits'→"크레딧 Ncr 충전"
+      · Revenue.jsx 청구 탭: 'plan'→회색 플랜 뱃지, 'credits'→파란 뱃지 "크레딧 Ncr"
     - 크레딧 기반 구독 모델 (B2B):
       · Starter: 월 82만(무약정) / 68만(연간), 월 50크레딧, 패널 10~15명, 주니어·미들급(1~7년차)
         - 추가 크레딧 구매 가능 (1크레딧 = 25,000원 정가)
@@ -509,13 +520,10 @@
       · Enterprise: 월 450만~(연간 전용·협의), 월 400+크레딧, 패널 무제한 커스텀
         - 특정 회사·산업군 핀셋 필터링, 전담 CSM 배정
     - 플랜 카드 UI: 월 크레딧 수 + 회당 패널 규모 스펙 그리드 + 타겟팅 권한 배지 표시
-    - 연간/월간 결제 토글: 연간 선택 시 절감률 동적 표시 — Math.round((월가-연가)/월가×100)% (Starter 17%, Pro 17%)
-    - Enterprise 크레딧 표시: '400+' (월 크레딧 카드), 가격은 연간 계약 전용·협의
+    - 연간/월간 결제 토글: 연간 선택 시 절감률 동적 표시 — Math.round((월가-연가)/월가×100)%
     - "가장 인기" 뱃지: 배경 var(--accent)(네이비), 글자색 #fff (흰색)
-    - FAQ 크레딧 설명: 직급 가중치(주니어 1×~C레벨 3×) 포함하여 실제 소모량이 달라짐을 명시
-    - FAQ 의뢰 종류 배수 설명 ★ 신규: 메인 의뢰 1.5× / 서브 의뢰 1.0× 명시 + 주니어 10명 기준 예시(메인 15cr / 서브 10cr)
-      "의뢰 종류마다 크레딧 소모량이 다른가요?" 항목으로 기존 크레딧 FAQ 항목 바로 뒤에 배치
-    - 추가 옵션 섹션: 추가 크레딧 충전(Pro/Starter 단가 비교), ICP Pulse 분기 구독
+    - FAQ 크레딧 설명: 직급 가중치(주니어 1×~C레벨 3×) + 의뢰 종류 배수(메인 1.5×/서브 1.0×) 명시
+    - 추가 옵션 섹션: 추가 크레딧 충전(인터랙티브 번들 UI), ICP Pulse 분기 구독
 
 16. 버그/건의 현황 (/company/bug-reports) — BugReports.jsx  ★ 신규
     - 기업 포털에서 자신이 제출한 버그/불편 신고 내역 조회 페이지

@@ -248,7 +248,12 @@ export default function RevenueManagement() {
                     {invoices.map((inv, i) => (
                       <tr key={inv.id} style={{ borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none' }}>
                         <td style={{ padding: '12px 18px', fontWeight: 600, fontSize: 13 }}>{inv.company_name}</td>
-                        <td style={{ padding: '12px 18px' }}><Badge type="gray">{inv.plan}</Badge></td>
+                        <td style={{ padding: '12px 18px' }}>
+                          {inv.payment_type === 'credits'
+                            ? <Badge type="blue">크레딧 {inv.credits_amount}cr</Badge>
+                            : <Badge type="gray">{inv.plan} 플랜</Badge>
+                          }
+                        </td>
                         <td style={{ padding: '12px 18px' }}>
                           <div style={{ lineHeight: 1 }}>
                             <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 2 }}>KRW</div>

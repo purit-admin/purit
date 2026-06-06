@@ -1494,6 +1494,21 @@ D-114. 필터·계산 로직에서 참조하는 필드를 변경할 때 DB 쿼�
              3) select('*')가 아닌 명시적 컬럼 리스트를 쓰는 파일일수록 이 체크가 필수
              진단: 필터 결과가 예상보다 0건이거나 항상 같은 값이면 "select 누락" 먼저 의심할 것
 
+D-115. 테이블에 새 컬럼을 추가할 때 기존 표시 코드를 함께 갱신하지 않으면 새 컬럼의 의미와 다른 정보가 표시되는 패턴 ✅ 해결
+     → 증상: invoices 테이블에 payment_type='credits' 컬럼 추가 후
+             Settings.jsx 결제 내역이 크레딧 충전 기록을 "starter 플랜 ₩750,000"으로 표시
+             Revenue.jsx 청구 탭도 플랜 뱃지만 보여 크레딧 충전과 플랜 구매 구분 불가
+     → 원인: 새 컬럼을 DB와 RPC에 추가하고 INSERT 코드는 작성했으나,
+             기존 목록 표시 코드(Settings.jsx, Revenue.jsx)는 old 컬럼(plan)만 읽는 상태 그대로 유지됨
+             코드가 크래시하지 않고 UI도 정상처럼 보이므로 즉시 발견 어려움
+     → 해결: 새 컬럼(payment_type, credits_amount)을 조건 분기에 활용
+             `r.payment_type === 'credits' ? "크레딧 Ncr 충전" : "${r.plan} 플랜"`
+     → 원칙: 테이블에 새 컬럼을 추가해 기존 행의 의미를 세분화할 때 (예: type 컬럼으로 A/B 구분),
+             해당 테이블을 읽어 화면에 표시하는 모든 코드를 Grep으로 전수 확인 후 동시에 업데이트할 것
+             "데이터가 바뀌지 않고 의미만 달라지는" 신규 컬럼은 표시 코드 미갱신으로 인한
+             잘못된 레이블이 UI에 그대로 남아 사용자 신뢰를 훼손하는 경향이 있음
+             조사 방법: 마이그레이션에서 추가한 테이블명을 Grep → 해당 테이블 데이터를 렌더하는 파일 전수 확인
+
 D-113. 같은 URL 내 뷰 전환(list→form)이 browser history entry를 생성하지 않아 back 버튼이 예상치 못한 페이지로 이동하는 패턴 ✅ 해결
      → 증상: 폼 list view에서 완료 카드 클릭 → /company/results 방문 → back으로 list 복귀 →
              draft 클릭(openDraftOrActiveForEdit, navigate 없음) → 폼 작성 중 back → /company/results 이동
