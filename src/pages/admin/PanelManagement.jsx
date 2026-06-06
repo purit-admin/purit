@@ -501,14 +501,14 @@ export default function AdminPanels() {
           {/* 페이지네이션 */}
           {totalPages > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              <button onClick={() => { setPage(p => Math.max(1, p - 1)); setSelected(null); }} disabled={page === 1}
                 style={{ padding: '5px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, display: 'flex', alignItems: 'center' }}>
                 <ChevronLeft size={14} />
               </button>
               <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 60, textAlign: 'center' }}>
                 {page} / {totalPages}
               </span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              <button onClick={() => { setPage(p => Math.min(totalPages, p + 1)); setSelected(null); }} disabled={page === totalPages}
                 style={{ padding: '5px 9px', borderRadius: 6, background: 'var(--bg-2)', border: '1px solid var(--border)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, display: 'flex', alignItems: 'center' }}>
                 <ChevronRight size={14} />
               </button>

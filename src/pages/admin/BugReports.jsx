@@ -182,7 +182,7 @@ export default function BugReports() {
         r.id === selected.id ? { ...r, admin_reply: adminReply.trim(), replied_at: now } : r
       ));
       setSelected(s => ({ ...s, admin_reply: adminReply.trim(), replied_at: now }));
-      const actionUrl = selected.role === 'company' ? '/company/notifications' : '/panel/notifications';
+      const actionUrl = selected.role === 'company' ? '/company/notifications' : selected.role === 'admin' ? '/admin/notifications' : '/panel/notifications';
       sendNotification(selected.user_id, {
         type: 'info', icon: '💬',
         title: '버그/건의 답변이 도착했습니다',
@@ -362,7 +362,7 @@ export default function BugReports() {
               {totalPages > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12 }}>
                   <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    onClick={() => { setPage(p => Math.max(1, p - 1)); setSelected(null); }}
                     disabled={page === 1}
                     style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, display: 'flex', alignItems: 'center' }}
                   >
@@ -370,7 +370,7 @@ export default function BugReports() {
                   </button>
                   <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{page} / {totalPages}</span>
                   <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => { setPage(p => Math.min(totalPages, p + 1)); setSelected(null); }}
                     disabled={page === totalPages}
                     style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, display: 'flex', alignItems: 'center' }}
                   >

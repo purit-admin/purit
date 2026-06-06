@@ -505,7 +505,7 @@ export default function PurityFilter() {
     }
 
     setCheckedIds(new Set()); setBulkActing(false);
-    if (slotFailCount === 0) return true;
+    return true;
   };
 
   const toggleCheck = (id) => {

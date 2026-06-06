@@ -79,7 +79,7 @@ export default function PanelDashboard() {
           .order('created_at', { ascending: false }),
         supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p?.id),
         supabase.from('feedbacks')
-          .select('status, purity_passed, payout_amount, updated_at, missions(type)')
+          .select('status, purity_passed, payout_amount, updated_at, created_at, missions(type)')
           .eq('panel_id', p?.id)
           .neq('status', 'draft'),
       ]);
@@ -170,8 +170,8 @@ export default function PanelDashboard() {
   const trustScore  = panel?.trust_score || 0;
   const streakCount = panel?.streak_count || 0;
   const weeklyCount = histFeedbacks.filter(f => {
-    if (!f.updated_at) return false;
-    return new Date(f.updated_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    if (!f.created_at) return false;
+    return new Date(f.created_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   }).length;
 
   // 명예 레벨 파생 값

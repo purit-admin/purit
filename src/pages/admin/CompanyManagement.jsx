@@ -426,7 +426,7 @@ export default function CompanyManagement() {
     try {
       setLoading(true);
       const [coRes, msRes] = await Promise.all([
-        supabase.from('companies').select('*').order('created_at', { ascending: false }),
+        supabase.from('companies').select('id, name, plan, credit_balance, user_id, created_at, industry, website').order('created_at', { ascending: false }),
         supabase.from('missions')
           .select('id, company_id, status, credits_reserved, type, title, created_at')
           .neq('status', 'draft')
@@ -658,7 +658,7 @@ export default function CompanyManagement() {
           {totalPages > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 16 }}>
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => { setPage(p => Math.max(1, p - 1)); setSelected(null); }}
                 disabled={page === 1}
                 style={{ background: 'none', border: 'none', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.3 : 1, padding: 4 }}
               >
@@ -666,7 +666,7 @@ export default function CompanyManagement() {
               </button>
               <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>{page} / {totalPages}</span>
               <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => { setPage(p => Math.min(totalPages, p + 1)); setSelected(null); }}
                 disabled={page === totalPages}
                 style={{ background: 'none', border: 'none', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.3 : 1, padding: 4 }}
               >

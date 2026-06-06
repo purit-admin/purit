@@ -26,6 +26,7 @@ export default function AccountSettings() {
   const [inviteSuccess, setInviteSuccess] = useState('');
   const [removeError, setRemoveError] = useState('');
   const [confirmRemoveMemberId, setConfirmRemoveMemberId] = useState(null);
+  const [roleChangeError, setRoleChangeError] = useState('');
 
   const [notifPrefs, setNotifPrefs] = useState({});
 
@@ -124,8 +125,9 @@ export default function AccountSettings() {
     setMembers(m => m.map(x => x.id === id ? { ...x, role: newRole } : x));
     const { error } = await supabase.from('team_members').update({ role: newRole }).eq('id', id);
     if (error) {
-      setMembers(prevMembers); // 실패 시 롤백
-      console.error('[changeRole]', error.message);
+      setMembers(prevMembers);
+      setRoleChangeError('역할 변경 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      setTimeout(() => setRoleChangeError(''), 3000);
     }
   }
 
@@ -250,6 +252,11 @@ export default function AccountSettings() {
                 </div>
               ))}
             </Card>
+          )}
+          {roleChangeError && (
+            <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 500 }}>
+              {roleChangeError}
+            </div>
           )}
         </div>
       )}

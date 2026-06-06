@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-10 (D-113 추가 — 같은 URL 내 뷰 전환이 browser history entry를 생성하지 않는 패턴)
+최종 업데이트: 2026-06-10 (D-114 추가 — 필터 조건 변경 시 쿼리 select 컬럼 동시 업데이트 필수 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1477,6 +1477,22 @@ D-104. useEffect 내 복수 가드 조건에서 나중에 추가된 케이스가
              "가드 A가 먼저 실행되어 가드 B가 도달 불가" 패턴은 컴파일 에러가 없어 자동 감지가 안 됨
              점검 방법: useEffect 내 early return을 전수 나열 → 각 return이 차단하는 케이스 목록 작성 →
              의도치 않게 차단되는 케이스(pendingInvite → 초대 흐름, resetToken → 비밀번호 리셋 등) 없는지 대조
+
+D-114. 필터·계산 로직에서 참조하는 필드를 변경할 때 DB 쿼리 select에 해당 컬럼을 추가하지 않으면 항상 undefined를 반환해 로직이 무효화되는 패턴 ✅ 해결
+     → 증상: panel/Dashboard.jsx weeklyCount 필터를 `updated_at` → `created_at`으로 변경했으나
+             histFeedbacks 쿼리 select에 `created_at`이 없어 f.created_at = undefined
+             `if (!f.created_at) return false` 조건이 모든 항목을 제외 → weeklyCount 항상 0
+     → 원인: 필터 조건 코드(weeklyCount 계산)와 DB 쿼리 select 컬럼 목록이 별도 코드 위치에 있어
+             필터 변경 시 쿼리 수정을 누락하기 쉬움. 특히 select에 명시적 컬럼 목록을 쓰는 파일에서 자주 발생.
+             select('*') 사용 시에는 모든 컬럼이 반환되므로 이 문제가 발생하지 않으나, 아키텍처 원칙상 select('*')는 금지.
+     → 해결: 필터 조건 참조 필드(`created_at`)를 쿼리 select에 추가
+             `select('status, purity_passed, payout_amount, updated_at, created_at, missions(type)')`
+     → 원칙: 필터·계산 로직에서 참조하는 모든 필드는 반드시 쿼리 select에 명시되어야 함.
+             필터 조건 변경 시 체크리스트:
+             1) 변경된 필터에서 참조하는 필드 목록 추출
+             2) 해당 데이터를 가져오는 쿼리 select에 모두 포함됐는지 확인
+             3) select('*')가 아닌 명시적 컬럼 리스트를 쓰는 파일일수록 이 체크가 필수
+             진단: 필터 결과가 예상보다 0건이거나 항상 같은 값이면 "select 누락" 먼저 의심할 것
 
 D-113. 같은 URL 내 뷰 전환(list→form)이 browser history entry를 생성하지 않아 back 버튼이 예상치 못한 페이지로 이동하는 패턴 ✅ 해결
      → 증상: 폼 list view에서 완료 카드 클릭 → /company/results 방문 → back으로 list 복귀 →
