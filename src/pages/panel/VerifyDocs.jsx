@@ -63,6 +63,7 @@ export default function VerifyDocs() {
   const navigate = useNavigate();
 
   const [certFile,      setCertFile]      = useState(null);
+  const [expYears,      setExpYears]      = useState('');
   const [linkedinUrl,   setLinkedinUrl]   = useState('');
   const [portfolioFile, setPortfolioFile] = useState(null);
   const [portfolioText, setPortfolioText] = useState('');
@@ -93,6 +94,11 @@ export default function VerifyDocs() {
     setError('');
     if (!certFile) {
       setError('건강보험 자격득실 확인서를 첨부해 주세요.'); return;
+    }
+    // 연차 입력 검증 (자격득실 확인서 기준 본인 계산값)
+    const yearsNum = parseInt(expYears, 10);
+    if (expYears === '' || Number.isNaN(yearsNum) || yearsNum < 2 || yearsNum > 50) {
+      setError('본인 연차를 2 이상 50 이하의 숫자로 입력해 주세요.'); return;
     }
     // 경력 인증: LinkedIn / 포트폴리오 링크 / 포트폴리오 파일 중 최소 1개 필수
     if (!linkedinUrl.trim() && !portfolioText.trim() && !portfolioFile) {
@@ -145,6 +151,7 @@ export default function VerifyDocs() {
         p_linkedin_url:         linkedinUrl.trim() || null,
         p_portfolio_url:        portfolioText.trim() || null,  // 포트폴리오 링크
         p_portfolio_file_url:   portfolioFileUrl || null,      // 포트폴리오 파일 경로
+        p_experience_years:     yearsNum,                      // 자격득실 확인서 기준 본인 연차
       });
 
       if (rpcErr) { setError('저장 중 오류가 발생했습니다. 다시 시도해 주세요.'); return; }
@@ -180,6 +187,47 @@ export default function VerifyDocs() {
           accept=".pdf,.jpg,.jpeg,.png"
           label="자격득실 확인서 업로드"
         />
+
+        {/* 본인 연차 입력 — 자격득실 확인서 기준 자가 계산 */}
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>
+            본인 연차 (자격득실 확인서 기준) <span style={{ color: '#E53E3E', fontSize: 13 }}>*</span>
+          </div>
+          <div style={{ fontSize: 12, color: T3, marginBottom: 8 }}>
+            확인서의 직장가입자 취득·상실 이력으로 총 근무 기간을 확인한 뒤, 아래 방식으로 본인 연차를 계산해 입력해 주세요. 어드민 확인 후 확정됩니다.
+          </div>
+          <div style={{
+            background: 'rgba(16,54,125,0.04)', border: `1px solid ${BORDER}`,
+            borderRadius: 9, padding: '11px 13px', marginBottom: 10,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: ACCENT, marginBottom: 5 }}>
+              계산법 = 근무 연 수 + 1
+            </div>
+            <div style={{ fontSize: 12.5, color: T2, lineHeight: 1.7 }}>
+              · 예) <strong>4년 2개월</strong> 근무 → <strong>5년차</strong>로 입력<br />
+              · 예) <strong>1년 8개월</strong> 근무 → <strong>2년차</strong>로 입력<br />
+              · 개월 수는 버리고, 만으로 채운 근무 연 수에 1을 더합니다.
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="number"
+              min={2}
+              max={50}
+              placeholder="예: 5"
+              value={expYears}
+              onChange={e => setExpYears(e.target.value)}
+              style={{
+                width: 120, padding: '11px 13px', borderRadius: 9,
+                border: `1px solid ${BORDER}`, fontSize: 14,
+                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
+              onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
+            />
+            <span style={{ fontSize: 14, color: T2 }}>년차</span>
+          </div>
+        </div>
       </Card>
 
       {/* 경력 인증 */}

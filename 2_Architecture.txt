@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-11 (ICP·Pulse·브랜드 기능 폐기 — 페이지 3개·라우트 3개·미사용 data.js 삭제)
+최종 업데이트: 2026-06-12 (패널 경력 어드민 확정·잠금 시스템 — migration 081 + 어드민 심사대기 신규 뱃지)
 ================================================================
 
 ## 기술 스택
@@ -63,7 +63,10 @@ purit/
 │   │   │                이유: React StrictMode 이중 실행 시 supabase.channel(fixedName)이 캐시된 이미 구독된 인스턴스를 반환,
 │   │   │                      .on() 호출 시 "cannot add postgres_changes callbacks after subscribe()" 에러 발생
 │   │   │                      Date.now() 접미사로 각 마운트마다 유니크한 채널명 보장 → 에러 방지
-│   │   │                적용 파일 (5개 채널): NotificationCenter.jsx / company/Dashboard.jsx / Sidebar.jsx(2개) / panel/Missions.jsx
+│   │   │                적용 파일 (6개 채널): NotificationCenter.jsx / company/Dashboard.jsx / Sidebar.jsx(3개) / panel/Missions.jsx
+│   │   │                  ★ Sidebar 3번째 채널 sidebar-pending-panels-${userId}: 어드민 '패널 관리' 메뉴 신규 심사대기 뱃지 (panels 테이블 구독, 081)
+│   │   │                  ★ 어드민 패널 관리 뱃지 로직: badgeCount 매핑에 item.path==='/admin/panels' → pendingPanelCount 추가
+│   │   │                    localStorage(purit_admin_panels_seen_${userId}) 마지막 방문 시각 이후 created_at인 pending 수 / 방문 시 0 초기화
 │   │   │              ★ 클릭 토글 사이드바 패턴:
 │   │   │                - 우상단 ‹/› 버튼 클릭 → 220px 펼침 ↔ 60px 접힘 토글
 │   │   │                - state: collapsed(bool, 기본 false=펼침)
@@ -296,6 +299,18 @@ purit/
 │                    p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card' 파라미터 추가
 │                    p_amount_krw > 0 이면 invoices INSERT, 0이면 생략 (admin_change_plan 호환)
 │                    GRANT EXECUTE TO authenticated
+│                081(panel_experience_confirmation: 패널 경력(연차) 어드민 확정·잠금 시스템) ★ 신규 (2026-06-12)
+│                  panels 컬럼 3개 추가: experience_years INTEGER / experience_confirmed_at TIMESTAMPTZ / is_executive BOOLEAN
+│                    기존 패널 백필: experience 텍스트에서 연차 숫자 파싱 + C레벨 키워드 매칭(is_executive)
+│                  ★ 핵심: experience(TEXT)는 파생 필드 유지 — 확정/조정/자동증가 시 (is_executive ? '임원' : 'N년')로 동기화
+│                    → getExperienceMultiplier/CareerKey·보상·미션필터·기업타겟팅 등 다운스트림 코드 일절 불변
+│                  save_panel_verification_docs 5→6 param 재정의 (DROP 후 CREATE, p_experience_years 추가)
+│                    experience_confirmed_at IS NULL(미확정)일 때만 자가입력 반영 → 어드민 확정값 보호 / GRANT authenticated
+│                  RPC admin_confirm_panel_experience(p_panel_id UUID, p_years INT, p_is_executive BOOLEAN DEFAULT FALSE)
+│                    어드민(app_metadata role) 검증 → experience_years·is_executive·experience_confirmed_at=NOW()·experience 동기화
+│                    최초 확정 / 수동 상·하향 / C레벨 지정 모두 이 RPC (확정 시점이 자동 +1 앵커 리셋) / GRANT authenticated
+│                  RPC auto_increment_panel_experience() — pg_cron 일 1회, 확정 후 경과 만년 수만큼 +N (AGE 기반 다년 보정) / GRANT service_role
+│                    pg_cron 스케줄: SQL Editor 수동 실행 필요 (파일 내 주석)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

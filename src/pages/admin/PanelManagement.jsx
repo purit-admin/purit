@@ -69,7 +69,7 @@ export default function AdminPanels() {
   const [levelFilter, setLevelFilter]   = useState('all');
   const [periodFilter, setPeriodFilter] = useState('all');
   const [riskFilter, setRiskFilter]     = useState('all');
-  const [sortBy, setSortBy]             = useState('recent');
+  const [sortBy, setSortBy]             = useState('joined_desc');
 
   useEffect(() => { load(); }, []);
   useEffect(() => { loadStats(periodFilter); }, [periodFilter]);
@@ -88,7 +88,7 @@ export default function AdminPanels() {
     try {
       const { data, error } = await supabase
         .from('panels')
-        .select('id, user_id, name, email, industry, experience, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
+        .select('id, user_id, name, email, industry, experience, experience_years, experience_confirmed_at, is_executive, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
         .order('created_at', { ascending: false });
       if (!error) setPanels(data || []);
       setLoading(false);
@@ -182,7 +182,7 @@ export default function AdminPanels() {
         let title, body;
         if (isPendingRejection) {
           title = '심사에서 탈락하였습니다';
-          body  = '아쉽게도 이번 심사에서 탈락하였습니다. 문의사항이 있으시면 고객센터에 연락해 주세요.';
+          body  = '아쉽게도 이번 심사에서 탈락하였습니다. 문의사항이 있으시면 버그/불편 신고에서 문의해 주세요.';
         } else if (isTimed) {
           const until = new Date(fields.suspend_until);
           const daysLeft = Math.round((until.getTime() - Date.now()) / 86400000);
@@ -191,7 +191,7 @@ export default function AdminPanels() {
           body  = `계정이 ${daysLeft}일간 임시 정지되었습니다. ${untilStr}에 자동으로 해제됩니다.`;
         } else {
           title = '계정이 영구 정지되었습니다';
-          body  = '계정 이용이 영구 정지되었습니다. 사유가 있으시면 고객센터에 문의해 주세요.';
+          body  = '계정 이용이 영구 정지되었습니다. 사유가 있으시면 버그/불편 신고에서 문의해 주세요.';
         }
         sendNotification(targetPanel.user_id, {
           type: 'warning',
@@ -219,6 +219,23 @@ export default function AdminPanels() {
     return true;
   }
 
+  async function confirmExperience(id, years, isExec) {
+    const { data, error } = await supabase.rpc('admin_confirm_panel_experience', {
+      p_panel_id: id,
+      p_years: years,
+      p_is_executive: isExec,
+    });
+    if (error || data === false) {
+      console.warn('[confirmExperience]', error?.message || '권한 또는 입력 오류');
+      return false;
+    }
+    const experience = isExec ? '임원' : `${years}년`;
+    setPanels(ps => ps.map(p => p.id === id
+      ? { ...p, experience_years: years, is_executive: isExec, experience, experience_confirmed_at: new Date().toISOString() }
+      : p));
+    return true;
+  }
+
   // 필터 + 정렬
   const filtered = panels
     .filter(p => {
@@ -243,6 +260,7 @@ export default function AdminPanels() {
     .sort((a, b) => {
       const sa = feedbackStats[a.id] || { total: 0, passRate: 0, lastAt: null };
       const sb = feedbackStats[b.id] || { total: 0, passRate: 0, lastAt: null };
+      if (sortBy === 'joined_desc')  return (b.created_at || '') > (a.created_at || '') ? 1 : -1;
       if (sortBy === 'recent')       return (sb.lastAt || '') > (sa.lastAt || '') ? 1 : -1;
       if (sortBy === 'most')         return sb.total - sa.total;
       if (sortBy === 'least')        return sa.total - sb.total;
@@ -257,6 +275,7 @@ export default function AdminPanels() {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const panel = selected ? panels.find(p => p.id === selected) : null;
 
+  const pendingCount = panels.filter(p => (p.status || 'active') === 'pending').length;
   const activeCount  = panels.filter(p => (p.status || 'active') === 'active').length;
   const dangerCount  = panels.filter(p => getFlag(p, feedbackStats) === 'danger').length;
   const starCount    = panels.filter(p => getFlag(p, feedbackStats) === 'star').length;
@@ -317,6 +336,7 @@ export default function AdminPanels() {
           options={[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['suspended', '정지']]}
           value={statusFilter}
           onChange={v => { setStatusFilter(v); setPage(1); }}
+          badges={{ pending: pendingCount }}
         />
 
         {/* 기간 */}
@@ -372,6 +392,7 @@ export default function AdminPanels() {
             cursor: 'pointer', outline: 'none',
           }}
         >
+          <option value="joined_desc">최근 가입순</option>
           <option value="recent">최근 활동순</option>
           <option value="most">제출 많은 순</option>
           <option value="least">제출 적은 순</option>
@@ -518,6 +539,7 @@ export default function AdminPanels() {
 
         {/* 우측 상세 패널 */}
         {panel && <PanelDetail
+          key={panel.id}
           panel={panel}
           stats={feedbackStats[panel.id] || { total: 0, passed: 0, rejected: 0, passRate: 0, lastAt: null }}
           periodLabel={PERIOD_LABEL[periodFilter]}
@@ -525,6 +547,7 @@ export default function AdminPanels() {
           detailLoading={detailLoading}
           acting={acting}
           onUpdate={updatePanel}
+          onConfirmExperience={confirmExperience}
           flag={getFlag(panel, feedbackStats)}
           feedbackPage={feedbackDetailPage}
           onFeedbackPage={setFeedbackDetailPage}
@@ -539,24 +562,37 @@ export default function AdminPanels() {
 
 /* ─── 서브 컴포넌트 ─── */
 
-function FilterGroup({ options, value, onChange }) {
+function FilterGroup({ options, value, onChange, badges = {} }) {
   return (
     <div style={{ display: 'flex', gap: 2, background: 'var(--bg-2)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
-      {options.map(([v, l]) => (
-        <button key={v} onClick={() => onChange(v)} style={{
-          padding: '5px 11px', borderRadius: 5, fontSize: 12, fontWeight: 500,
-          background: value === v ? '#fff' : 'transparent',
-          color: value === v ? 'var(--text)' : 'var(--text-3)',
-          border: 'none', cursor: 'pointer',
-          boxShadow: value === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-          transition: 'all 0.12s',
-        }}>{l}</button>
-      ))}
+      {options.map(([v, l]) => {
+        const badge = badges[v] || 0;
+        return (
+          <button key={v} onClick={() => onChange(v)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '5px 11px', borderRadius: 5, fontSize: 12, fontWeight: 500,
+            background: value === v ? '#fff' : 'transparent',
+            color: value === v ? 'var(--text)' : 'var(--text-3)',
+            border: 'none', cursor: 'pointer',
+            boxShadow: value === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all 0.12s',
+          }}>
+            {l}
+            {badge > 0 && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8,
+                background: 'var(--red)', color: '#fff', fontSize: 10, fontWeight: 700,
+              }}>{badge}</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, flag,
+function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, onConfirmExperience, flag,
                        feedbackPage, onFeedbackPage, onFeedbackClick, actionMsg, onClearActionMsg }) {
   const totalDetailPages = Math.max(1, Math.ceil(feedbacks.length / DETAIL_PAGE_SIZE));
   const pagedFeedbacks = feedbacks.slice(
@@ -568,6 +604,10 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
   const cm = HONOR_COLOR_META[hl.colorTier];
   const [confirmAction, setConfirmAction] = useState(null);
   const [updateError, setUpdateError]     = useState('');
+  const [expYearsInput, setExpYearsInput] = useState(panel.experience_years != null ? String(panel.experience_years) : '');
+  const [isExecInput, setIsExecInput]     = useState(!!panel.is_executive);
+  const [expSaving, setExpSaving]         = useState(false);
+  const [expMsg, setExpMsg]               = useState('');
   const suspendUntil = panel.suspend_until ? new Date(panel.suspend_until) : null;
   const isTempSuspend = status === 'suspended' && suspendUntil != null;
 
@@ -877,6 +917,74 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             )}
           </>
         )}
+      </Card>
+
+      {/* 경력 확정 */}
+      <Card style={{ padding: '16px 18px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+          경력 확정
+        </div>
+
+        {/* 현재 적용 경력 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>현재 적용 경력</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+              {panel.is_executive ? 'C레벨 / 임원진' : (panel.experience_years != null ? `${panel.experience_years}년차` : (panel.experience || '미입력'))}
+            </div>
+          </div>
+          {panel.experience_confirmed_at ? (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>✓ 확정됨</div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(panel.experience_confirmed_at).toLocaleDateString('ko-KR')}</div>
+            </div>
+          ) : (
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706' }}>미확정</span>
+          )}
+        </div>
+
+        {/* 연차 입력 + C레벨 토글 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <input
+            type="number" min={0} max={50}
+            value={expYearsInput}
+            onChange={e => setExpYearsInput(e.target.value)}
+            disabled={isExecInput}
+            placeholder="연차"
+            style={{ width: 90, padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', background: isExecInput ? 'var(--bg-2)' : '#fff', outline: 'none' }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>년차</span>
+          <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={isExecInput} onChange={e => setIsExecInput(e.target.checked)} />
+            C레벨 / 임원
+          </label>
+        </div>
+
+        {expMsg && (
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: expMsg.includes('실패') ? 'var(--red)' : '#059669' }}>
+            {expMsg}
+          </div>
+        )}
+
+        <Btn size="sm" disabled={expSaving} style={{ justifyContent: 'center', width: '100%' }}
+          onClick={async () => {
+            setExpMsg('');
+            const parsed = parseInt(expYearsInput, 10);
+            if (!isExecInput && (Number.isNaN(parsed) || parsed < 0 || parsed > 50)) {
+              setExpMsg('연차를 0~50 사이 숫자로 입력하세요.');
+              return;
+            }
+            const finalYears = Number.isNaN(parsed) ? (panel.experience_years ?? 0) : Math.max(0, Math.min(50, parsed));
+            setExpSaving(true);
+            const ok = await onConfirmExperience(panel.id, finalYears, isExecInput);
+            setExpSaving(false);
+            setExpMsg(ok ? '경력이 확정되었습니다.' : '확정 실패: 권한 또는 입력을 확인하세요.');
+          }}>
+          {expSaving ? '확정 중...' : (panel.experience_confirmed_at ? '경력 재확정 / 조정' : '경력 확정')}
+        </Btn>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.5 }}>
+          확정 시점 기준 매년 자동으로 +1 증가합니다. 필요 시 위 값을 직접 올리거나 내려 재확정할 수 있습니다.
+        </div>
       </Card>
 
       {/* 관리 액션 */}

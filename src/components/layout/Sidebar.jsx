@@ -116,6 +116,7 @@ export default function Layout({ role, children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
+  const [pendingPanelCount, setPendingPanelCount] = useState(0);
   const [panelId, setPanelId] = useState(null);
   const [panelStatus, setPanelStatus] = useState(null);
   const [panelStatusLoaded, setPanelStatusLoaded] = useState(false);
@@ -197,6 +198,45 @@ export default function Layout({ role, children }) {
 
     return () => { if (sub) supabase.removeChannel(sub); };
   }, [panelId]);
+
+  // 어드민: 새로 가입한(아직 안 본) 심사대기 패널 수 뱃지
+  useEffect(() => {
+    if (!user?.id || role !== 'admin') return;
+    let sub;
+    const seenKey = `purit_admin_panels_seen_${user.id}`;
+
+    async function loadPending() {
+      // 패널 관리 페이지를 보고 있는 동안은 '본 것'으로 간주 → 뱃지 0
+      if (window.location.pathname === '/admin/panels') { setPendingPanelCount(0); return; }
+      let q = supabase
+        .from('panels')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      const seenAt = localStorage.getItem(seenKey);
+      if (seenAt) q = q.gt('created_at', seenAt);
+      const { count } = await q;
+      setPendingPanelCount(count || 0);
+    }
+
+    loadPending();
+    sub = supabase
+      .channel(`sidebar-pending-panels-${user.id}-${Date.now()}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'panels',
+      }, loadPending)
+      .subscribe();
+
+    return () => { if (sub) supabase.removeChannel(sub); };
+  }, [user?.id, role]);
+
+  // 패널 관리 페이지 방문 시 현재까지의 심사대기 패널을 '본 것'으로 표시 → 뱃지 초기화
+  useEffect(() => {
+    if (!user?.id || role !== 'admin') return;
+    if (location.pathname === '/admin/panels') {
+      localStorage.setItem(`purit_admin_panels_seen_${user.id}`, new Date().toISOString());
+      setPendingPanelCount(0);
+    }
+  }, [location.pathname, role, user?.id]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -374,7 +414,8 @@ export default function Layout({ role, children }) {
                 const active = isActive(item.path);
                 const Icon = item.icon;
                 const badgeCount = item.path === `/${role}/notifications` ? unreadCount
-                  : item.path === '/panel/missions' ? rejectedCount : 0;
+                  : item.path === '/panel/missions' ? rejectedCount
+                  : item.path === '/admin/panels' ? pendingPanelCount : 0;
                 return (
                   <button key={item.path} onClick={() => handleNav(item.path)}
                     title={!isExpanded ? item.label : undefined}
