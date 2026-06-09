@@ -1,0 +1,287 @@
+================================================================
+1_PRD_company.txt — Purity MVP 기업(Company) 포털 상세 정의
+최종 업데이트: 2026-06-10 (PanelTargetStep UX 개선 + 폼 내비게이션 버그 수정)
+※ 워딩 규칙: 기업 포털 UI = "의뢰" / 코드·DB·패널·어드민 = "미션/mission"
+================================================================
+
+인증 후 /company 하위 라우트 접근 가능.
+
+================================================================
+## [개요] 대시보드 (/company) — Dashboard.jsx
+================================================================
+
+- NDA 배너 최상단: "Purit의 피드백 패널(참가자)는 기업의 정보를 발설할 수 없습니다."
+  클릭 시 localStorage(purit_nda_banner_dismissed) → 24시간 비노출
+- Stats 카드 5개: 잔여 크레딧(현재 플랜) / 전체 의뢰 / 진행 중 / 완료 / 수집 피드백
+  · 잔여 크레딧: company.credit_balance, 서브타이틀 플랜명(STARTER/PRO 등)
+  · credit_balance = 0 → 기본색 / > 0 → accent 색
+- 차트 섹션: 가로 3열 그리드 (equal-height stretch)
+  · 1열 — 5차원 레이더 차트: feedbacks 실데이터 vs 플랫폼 벤치마크
+  · 2열 — KPI 달성률 게이지: 5축 평균 반원형 RadialBarChart + 5축 미니 바
+  · 3열 — 패널별 긍/부정 반응 분포 ★ 개편
+    - 메인 의뢰: feedbacks 5개 score 컬럼 평균 ≥3.5 → 긍정 비율 수평 바
+      computeSentiment(missions, fbs): 전체 메인 의뢰 (슬라이스 없음)
+    - 서브 의뢰: 타입별 응답 테이블 점수 평균 ≥3.5 → 긍정 비율 수평 바
+      computeSubSentiment(missions, prefResps, priceResps, emailResps)
+    - 각 4개씩 캐러셀 (‹ › 화살표, 5개 이상 시만 표시)
+    - 상태 변수: mainSentPage / subSentPage
+- 전체 의뢰 현황:
+  · 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 (기본: "진행" missionFilter='active')
+  · 메인 의뢰(LP검증) / 서브 의뢰(소재비교·가격검증·이메일검증) 섹션 분리
+  · CompanyMissionCard 뱃지: LP검증 미표시, 서브 의뢰만 타입 뱃지
+  · 상태 뱃지: active+filled=0 → "매칭 대기"(gray) / active+filled≥1 → "진행 중"(green) / completed → "완료"(blue) / cancelled → "취소"(red)
+  · 카드 클릭:
+    - active 또는 (cancelled && company_notified_at IS NULL) → 좌하단 토스트 "피드백은 의뢰 완료 후 확인할 수 있습니다." (2.5초)
+    - completed 또는 (cancelled && company_notified_at IS NOT NULL) → navigate('/company/results?id=<missionId>')
+  · active+filled=0: "수정" 버튼 → DRAFT_ROUTE 맵으로 폼 경로 navigate
+  · active+filled≥1: "의뢰 조기 종료" 버튼 → ConfirmModal(danger) → status='cancelled' UPDATE
+    경고: "조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 계속 확인 가능합니다."
+    버튼: "조기 종료 (크레딧 환불 불가)"
+  · draft 카드: dashed amber 테두리 / "이어 작성하기 →" / "삭제" 버튼
+  · completed 카드: "삭제" 버튼 → ConfirmModal → missions DELETE
+- 차트 기간 필터 (우측 상단): 전체 / 최근 3개월 / 최근 1개월 (기본: 전체)
+  · Stats 카드 5개: 항상 전체 기간 (필터 미적용)
+  · 레이더·게이지·긍부정 차트: 기간 필터 적용 (chartFeedbacks 등 파생 배열)
+  · 기간 전환 시 mainSentPage·subSentPage 자동 리셋
+  · 추가 DB 쿼리 없음 — 마운트 시 전체 로드 후 created_at 기준 클라이언트 필터링
+- 차트 데이터 소스: status='completed' 미션의 feedbacks(purity_passed=true) 만
+  · active 의뢰·검토 중 피드백 제외
+- Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
+- 팀원 접속 시 상단 배너: "A사 팀원으로 접속 중 · 편집자/뷰어"
+
+================================================================
+## [검증 도구] 의뢰 등록/수정 (/company/new) — NewMission.jsx
+================================================================
+
+- 목록 뷰 (list): /company/new 진입 시 '마케팅 소재 종합 진단' 소개 페이지 먼저 표시
+  · 기존 의뢰 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 (기본: 진행)
+  · 목록 카드: mc-row/mc-right 레이아웃 (Dashboard CompanyMissionCard와 동일 구조)
+  · 임시 저장 카드 클릭 → form 뷰 진입 + 기존 데이터 복원
+- 편집 모드(location.state.editMode=true): list 뷰 건너뛰고 form 뷰 바로 진입
+  · description JSON 파싱으로 전체 필드 복원
+  · isDraftMode: ms.status==='draft'일 때 true → 제출 시 status='active'+크레딧예약
+- 임시 저장 (draft):
+  · shouldBlockNav: product || lpUrl || briefText || imageUrls.length > 0
+  · 사이드바 메뉴 클릭 시 navigationGuard 인터셉트
+  · 모달 3버튼: "임시 저장 후 나가기" / "저장 없이 나가기" / "계속 작성하기"
+  · window.beforeunload: 탭 닫기/새로고침 시 기본 확인 다이얼로그
+- 폼 상단 배너 2개: 🔒 NDA 배너 + ✨ 매칭 배너 (모든 단계 상시)
+- Step 0 서비스 정보 & 타겟 페르소나:
+  · 산업군 선택(▼ 드롭다운, 20개 칩 + ✏️ 직접 쓰기) → 서비스명 → LP URL (선택)
+  · INDUSTRY_PLACEHOLDERS: 20개 산업군 → placeholder 자동 교체
+  · 연령대: 듀얼 핸들 슬라이더 (10~70세, step 5)
+    state: personaAgeMin(기본 20) / personaAgeMax(기본 40)
+    저장: `${min}~${max}세` / 복원: /(\d+)[~\-](\d+)/ 정규식
+  · 월 소득 수준: 드롭다운 9개 옵션 (필수)
+  · 직군/역할, 타겟 상세: 자유 입력 (선택)
+- Step 1 소재 업로드:
+  · 이미지 업로드(최대 3장, 20MB, 자동 압축) + FOCUS 선택 + 브리핑
+  · 자동 압축: 최대 1920px, 품질 88%, PNG 유지, 나머지 JPEG
+  · 업로드 경로: {company_id}/{missionUuid}/{uuid}.{ext}
+  · FOCUS 항목: 첫인상/가독성, CTA 전환율, 가격 및 가치 전달, 신뢰 요소, 모바일 최적화, 핵심 메시지 명확성, 비주얼 완성도, 타겟 일치도
+- Step 2 질문 설정:
+  · "내 커스텀 질문" 아코디언 (customLPQs, DB category='랜딩페이지')
+  · QUESTION_TEMPLATES.lp 3개 템플릿 아코디언
+  · 최대 5개 / 서술형 최대 2개 / "N/5 선택됨" 배지
+  · "질문 만들기" 인라인 섹션: textarea + 타입 버튼 + "추가"(localCustomQs) + "템플릿에 저장 →"(DB INSERT)
+  · location.state.templateId+templateName: 해당 템플릿 사전 선택 + Step 2 직행
+- Step 3 패널 설정 (PanelTargetStep 컴포넌트):
+  · 패널 인원수 슬라이더 (10~30명, 기본 10명)
+    - 스타터: 15명 초과 snap-back + 업그레이드 팝업
+  · 경력/직급 다중 선택: 주니어(1.0×) / 미들(1.5×) / 시니어(2.0×, PRO) / C레벨(3.0×, PRO)
+    - 스타터가 시니어·C레벨 클릭 → 업그레이드 팝업만
+    - PRO 뱃지: 금빛 shimmer 애니메이션
+  · 실시간 크레딧 계산기: 1~2직급=최고배수 / 3~4직급=혼합상한 1.8
+    - 단일: "최대 예상 소모: N 크레딧" / 복수: "예상 소모 범위: N ~ M 크레딧"
+    - 환불 안내 배너(초록): 최대 예상 소모량 선차감 → 차액 즉시 환불
+  · 업그레이드 → /company/plans 이동 시 임시저장 확인 모달 (onSaveDraft prop)
+- Step 4 검토:
+  · ⚡ "의뢰 등록 후 패널이 매칭되어 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다."
+  · 🔒 수정 잠금 안내 + "조기 종료 시 사용된 크레딧은 환불되지 않습니다."
+  · 패널 수·커리어 레벨·예상 크레딧 행 포함
+- 제출: missions INSERT(status='active'), reward_amount = calcPanelPayout(careerLevels, 'main')
+
+================================================================
+## 피드백 결과 (/company/results) — Results.jsx
+================================================================
+
+- 피드백 공개 정책:
+  · active 의뢰 목록 제외
+  · cancelled: company_notified_at IS NOT NULL인 경우만 표시
+  · 쿼리: .or('status.eq.completed,and(status.eq.cancelled,company_notified_at.not.is.null)')
+  · purity_passed=true 피드백만 표시
+- 레이아웃: 좌측 230px 패널(미션 선택) + 우측 콘텐츠 2열
+- 좌측 패널 기간 필터: 전체 / 최근 3개월 / 최근 1개월 (기본: 전체)
+  · 기준: missions.created_at / period 전환 시 mainPage/subPage/selected 리셋
+- 좌측 패널: 탭 3개(전체/완료/취소) + 메인/서브 섹션 분리, 타입 뱃지 + 피드백 수
+  · 취소 의뢰: "조기 종료" 뱃지
+  · 빈 상태: 의뢰 0건 → "완료된 의뢰가 없습니다." / 탭 0건 → "해당 의뢰가 없습니다."
+- 우측: mission.type 및 image_urls 유무에 따라 3가지 분기
+  A. 이미지 미션 (image_urls 존재 && !isSubMission):
+     · 6개 탭: [명확성][관련성][가치][차별화][신뢰][종합]
+     · 차원 탭(DimTabView): ImageAnnotator(readonly) + 코멘트 목록 5개씩 페이지네이션
+       - 어노테이션 번호: 숫자만 (색상으로 차원 구분), 글로벌 번호(seqPool)
+       - 코멘트 클릭 → 해당 어노테이션만 강조, 해당 이미지로 전환
+     · 종합 탭: 5차원 평균 점수 카드 + RadarChart + 패널 총평 목록 + 도움됨 버튼
+       - LP 추가 질문 있으면 CustomQuestionsSection
+  B. 서브 미션 (preference/pricing/email):
+     · preference: 소재 A/B 카드 → A/B 선택 비율 바 + message_clarity/purchase_intent
+     · pricing: 가격 구성 카드 → would_buy 비율 바 + price_fairness/value_perception
+     · email: 이메일 원문 카드 → would_reply 비율 바 + 4개 점수 카드
+     · 공통: CustomQuestionsSection → 패널 코멘트(도움됨 버튼)
+  C. 텍스트 미션 (image_urls 없음): 패널 목록 + 상세 + CustomQuestionsSection + 도움됨
+- 도움 됨/안 됨 평가 버튼 (총평 섹션만):
+  · 낙관적 UI / 토글 / rate_panel_feedback_helpfulness RPC
+  · helpRatings 맵 / ratingInFlight Set으로 동시 클릭 방지
+- 공유 링크: share_token 생성/복사/해제
+  · show_comments / show_annotations 체크박스: share_permissions JSONB DB 저장
+- 패널 직군/경력 뱃지: get_panel_public_profiles RPC(SECURITY DEFINER) 경유
+  (이름·전화번호 비공개 — D-28 준수)
+- 내부 목록 페이지네이션 (PAGE_SIZE=5): 차원 탭/종합 탭/텍스트/CommentList
+
+================================================================
+## 5대 지표 진단 (/company/diagnosis) — Diagnosis.jsx
+================================================================
+
+- clarity / relevance / value / differentiation / trust 축 레이더/바 차트
+- 기간 필터: 전체 / 최근 3개월 / 최근 1개월 (기본: 전체)
+  · rawFeedbacks 보존 → period 변경 시 mission_id Set 교집합으로 재계산
+  · 피드백 0건 → hasData=false → "아직 피드백 데이터가 없습니다" 빈 상태
+- 탭 4개: 차원별 점수 / 업계 벤치마크 / 키워드 분석 / 전환 가이드
+- 탭 '전환 가이드' 단일 선택 + 독립 상태:
+  · 의뢰 칩: 라디오 단일 선택 ("전체"·"비교 모드" 숨김)
+  · 탭 진입 시: 단일 선택 → 유지 / 다중·비교·전체 → missions[0] 자동 선택
+  · selectedIds / compareMode / compareData 전역 불변 (다른 탭 복귀 시 보존)
+  · guideFeedbacks 독립 state: loadGuideFeedbacks(id)로 단일 의뢰 직접 조회
+  · 카드 1 전환 잠재력 점수: 가중 합산(가치30%·신뢰25%·명확성20%·관련성15%·차별화10%)
+    레벨 5단계: 최적화(≥90) / 우수(≥75) / 양호(≥60) / 성장가능(≥40) / 개선필요(<40)
+  · 카드 2 취약 차원 인사이트: guideScores 기준 최저 차원 코멘트 최대 3개
+  · 카드 3 Next Action: 취약 차원 → 테스트 타입 1:1 매핑 + 바로 등록 버튼
+- 의뢰 비교 모드: 2~3개 선택 → "⇄ 비교 모드" 버튼 (전환 가이드 탭 외)
+  · 색상: COMPARE_A 네이비 / COMPARE_B 오렌지 / COMPARE_C 그린
+- "개선 가이드 보기 →" 버튼: activeTab !== 'guide'일 때만 표시
+
+================================================================
+## 소재 A/B 비교 (/company/preference) — PreferenceTest.jsx
+================================================================
+
+- 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 (기본: 진행)
+- STEPS = ['소재 입력', '질문 설정', '패널 설정', '검토']
+- Step 0: 의뢰명(선택) + 소재유형 + 소재A/B + 이미지 + 제품설명 + 산업군
+  · 업로드 경로: {companyId}/{missionUuid}/va.{ext} / vb.{ext}
+- Step 1: QUESTION_TEMPLATES.preference, 최대 5개 / 서술형 최대 2개
+- Step 2: PanelTargetStep (missionType='sub')
+- Step 3 검토: 의뢰명·소재유형·A/B·제품설명·산업군·질문수·패널수·직급·크레딧 요약
+- 등록 시: missions INSERT(type='preference') + preference_tests INSERT
+- reward_amount = calcPanelPayout(careerLevels, 'sub')
+- 결과: A/B 선택 비율 + message_clarity / purchase_intent + CustomQuestionsSection
+
+================================================================
+## 가격 페이지 테스트 (/company/pricing-test) — PricingTest.jsx
+================================================================
+
+- 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 (기본: 진행)
+- STEPS = ['가격 페이지', '질문 설정', '패널 설정', '검토']
+- Step 0: 의뢰명(선택, 미입력 시 '가격 페이지 검증') + 가격내용 + 이미지(1장, 선택) + 제품설명 + 산업군
+  · 업로드 경로: {companyId}/{missionUuid}/pricing.{ext}
+- Step 1: category='가격'
+- Step 2: PanelTargetStep
+- Step 3 검토: 의뢰명·가격내용·제품설명·산업군·질문수·패널수·직급·크레딧
+- 등록 시: missions INSERT(type='pricing') + pricing_tests INSERT
+- reward_amount = calcPanelPayout(careerLevels, 'sub')
+- 결과: 구매 의향 비율 + price_fairness / value_perception + CustomQuestionsSection
+
+================================================================
+## 이메일 검증 (/company/email-test) — ColdEmailTest.jsx
+================================================================
+
+- 목록 탭 5개: 전체 / 진행 / 완료 / 임시 저장 / 취소 (기본: 진행)
+- STEPS = ['이메일 입력', '질문 설정', '패널 설정', '검토']
+- Step 0: 의뢰명(선택, 미입력 시 '이메일 검증') + 이메일 원문 + 제품설명 + 산업군
+- Step 1: category='이메일'
+- Step 2: PanelTargetStep
+- Step 3 검토: 의뢰명·이메일원문·제품설명·산업군·질문수·패널수·직급·크레딧
+- 등록 시: missions INSERT(type='email') + cold_email_tests INSERT
+- reward_amount = calcPanelPayout(careerLevels, 'sub')
+- 결과: 답장 의향 + open_intent / hook_score / clarity_score / curiosity_score + CustomQuestionsSection
+
+================================================================
+## 질문 템플릿 관리 (/company/templates) — QuestionTemplates.jsx
+================================================================
+
+- 탭 5개: 마케팅 소재 종합 진단 | 소재 비교 A/B | 가격 페이지 | 이메일 검증 | ➕ 커스텀 질문
+  · lp/preference/pricing/email 탭: 이모지 없음 / 커스텀 탭만 ➕
+- 템플릿 탭: 카드 클릭 비활성 / "미리보기" 버튼 → 우측 사이드패널
+  · DB 없으면 QUESTION_TEMPLATES.lp 로컬 폴백 (D-31)
+  · sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링
+  · 우측 미리보기 패널: "이 템플릿으로 의뢰 등록 →" 버튼 → navigate(path, {state:{templateId, templateName}})
+- "질문 만들기" 탭:
+  · 카테고리 4개 / 질문 빌더 Card / "질문 추가 →" → DB INSERT
+  · category='랜딩페이지'로 저장 → NewMission Step 2 "내 커스텀 질문"에 표시
+- 전체 기본 템플릿 24종:
+  · LP 4섹션 12종(랜딩페이지진단/광고소재진단/제품상세페이지진단/영상숏폼광고진단)
+  · 소재비교 3종 / 가격페이지 3종 / 이메일검증 3종
+
+================================================================
+## [인텔리전스] AI 리포트 (/company/report) — AIReport.jsx
+================================================================
+
+- 피드백 데이터 기반 자동 리포트 (로컬 계산 폴백 + Anthropic AI 강화)
+- "AI 리포트 생성" → generate-ai-report Edge Function → ai_reports 테이블 저장
+- ANTHROPIC_API_KEY 미설정 시 로컬 Mock 응답 폴백
+- 월간 생성 한도: 기본 월 10회 (MONTHLY_LIMIT = 10)
+  · 10회 초과 클릭 시만 한도 모달 (잔여 횟수 미표시)
+  · 한도 모달: "🔋 추가 10회 충전 (크레딧 1개 차감)" (결제 연동 전 stub) / "다음 달까지 기다리기"
+- generatingRef.current 동기 가드로 이중 호출 방지
+
+================================================================
+## [계정] 내 계정 (/company/account) — Account.jsx
+================================================================
+
+- 탭 1 기업 프로필: 기업명·업종·웹사이트 UPDATE / 이메일 읽기전용
+  · 탭 전환 시 isDirty 검사 → 미저장 경고 배너
+- 탭 2 비밀번호 변경: signInWithPassword 검증 → updateUser({ password })
+
+================================================================
+## 팀 & 설정 (/company/settings) — Settings.jsx
+================================================================
+
+- 탭 팀 관리:
+  · 초대 권한: 편집자(editor, 의뢰등록·수정·결과열람) / 뷰어(viewer, 결과열람만)
+  · 역할 변경: 활성 팀원 editor/viewer 드롭다운 → 즉시 DB UPDATE
+  · 오너 전용: 초대폼·역할변경·제거 버튼
+  · 초대 이메일: invite_token(UUID) + invite_expires_at(7일) → send-invite-email Edge Function
+  · 수락 흐름 (/invite?token=xxx):
+    - peek_team_invite RPC로 초대 정보 표시
+    - accept_team_invite RPC(이메일 일치 검증 + user_id 저장)
+    - 비로그인 → localStorage('purit_pending_invite') 보존 → 로그인 후 /invite 자동 복귀
+  · 팀원 제거: ConfirmModal → status='inactive' UPDATE
+  · resolveCompany 헬퍼: 1순위 오너 / 2순위 팀원
+  · canEdit = teamRole === null || teamRole === 'editor'
+  · 뷰어: 결과 열람만 (의뢰 등록·수정·삭제 버튼 숨김)
+- 탭 플랜 & 결제: companies.plan 표시 / "플랜 변경" → /company/plans
+- 탭 알림 설정: notif_prefs JSONB DB 저장
+  · missionComplete / missionStatusChange / earlyComplete
+
+================================================================
+## 플랜 & 가격 (/company/plans) — Pricing.jsx
+================================================================
+
+- companies.plan → 현재 플랜 "현재 플랜" 배지 표시
+- CTA 버튼 → grant_plan_credits RPC (plan + credit_balance 원자적 UPDATE)
+  · Starter: 50cr / Pro: 165cr / Enterprise: 400cr SET
+- 연간/월간 토글: 절감률 동적 표시 (Starter 17%, Pro 17%)
+- 플랜 구조:
+  · Starter: 월 50cr, 패널 10~15명, 주니어·미들급
+  · Pro:     월 165cr, 패널 10~30명, 시니어·C레벨
+  · Enterprise: 월 400+cr, 패널 무제한, 핀셋 필터링, 전담 CSM
+- 크레딧 계산: 주니어1.0×·미들1.5×·시니어2.0×·C레벨3.0× × 의뢰배수(메인1.5×/서브1.0×)
+- Enterprise "영업팀 문의": notifications 테이블 INSERT → 2.5초 후 모달 닫힘
+
+================================================================
+## 버그/건의 현황 (/company/bug-reports) — BugReports.jsx
+================================================================
+
+- 자신이 제출한 버그/불편 신고 조회
+- 좌측 목록: 유형 뱃지 + 제목 + 날짜 + 메모 미리보기
+- 우측 상세: 메타 + 전체 설명 + 스크린샷 + 어드민 처리 상태

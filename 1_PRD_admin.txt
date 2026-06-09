@@ -1,0 +1,205 @@
+================================================================
+1_PRD_admin.txt — Purity MVP 어드민(Admin) 포털 상세 정의
+최종 업데이트: 2026-06-10
+================================================================
+
+인증 후 /admin 하위 라우트 접근 가능.
+Admin 계정(purit.admin@gmail.com)은 3개 포털 모두 사용 가능
+ - panels + companies 레코드 수동 생성 완료 (SQL 003_admin_records.sql)
+ - 사이드바 상단 포털 전환 버튼(어드민/기업/패널) 표시
+
+================================================================
+## 플랫폼 대시보드 (/admin) — Dashboard.jsx
+================================================================
+
+- 통계 카드 4개: 전체 미션 / 검토 대기 피드백 / 전체 패널 / 활성 기업
+  · 검토 대기: feedbacks.status='submitted' && !purity_passed (draft 제외 — D-68)
+- 수치 집계 기반 현황 요약 표시
+
+================================================================
+## 패널 관리 (/admin/panels) — PanelManagement.jsx
+================================================================
+
+- 통계 카드 4개: 전체 / 활성 / ⚠️ 위험(>0 빨강) / ⭐ 우수(>0 초록)
+- 위험/우수 기준 (getFlag):
+  · ⚠️: trust_score < 40 OR (기간 내 제출 ≥3 AND 반려율 > 50%)
+  · ⭐: trust_score ≥ 80 AND 기간 내 제출 ≥3 AND 통과율 ≥ 80%
+- 필터 바: 패널명 검색 / 상태(활성/심사대기/정지) / 기간(전체/오늘/1주일/1개월) / 분류(위험/우수) / 레벨(Lv.1-3/4-6/7-9/10) / 정렬
+- 테이블: ⚠️/⭐, 이름, 직군/경력, Trust, 레벨, 기간 제출, 통과율, 최근활동, 상태
+- 테이블 행 클릭 → 우측 PanelDetail 패널 토글
+
+PanelDetail (우측 360px):
+- 기본 정보 Card: 이름 + 레벨 뱃지, Trust 게이지, 완료미션/가입일/최근활동/상태
+  · isTempSuspend 시 황색 배너: "정지 해제 예정 N월 N일 HH:MM"
+  · 계정 상태: active=✅ / pending=⏳ / suspended+suspend_until=🕐 임시 정지 / suspended+null=🚫 영구 정지
+- 활동 통계 Card: 기간 내 제출/통과/반려 + PURITY PASS RATE 바
+- 검증 서류 Card: health_insurance_url(createSignedUrl) / LinkedIn URL / 포트폴리오(signed URL or 외부링크)
+- 제출 내역 Card: 전체 이력 5개씩 페이지네이션, 행 클릭 → /admin/purity 딥링크
+- 관리 액션 Card:
+  · pending: 심사 승인(→active) / 심사 거절(→suspended)
+  · active: 기간제 정지 2×2 그리드(1일·3일·7일·30일) + 영구 정지 → ConfirmModal(danger)
+    - 기간제: panels.suspend_until = now+N일, pg_cron 매시간 만료 자동 해제
+  · suspended: "정지 해제" (→active, suspend_until=null)
+  · 모든 정지 액션 후 sendNotification 패널 알림:
+    - 심사 거절 / 기간제 정지 / 영구 정지 / 정지 해제 → 각각 알림 발송
+- PAGE_SIZE: 10
+
+================================================================
+## 기업 관리 (/admin/companies) — CompanyManagement.jsx
+================================================================
+
+- 통계 카드 4개: 전체 / Pro+(>0 초록) / 크레딧 위험(<10, >0 빨강) / 활성 의뢰 기업
+- 필터 바: 기업명 검색 / 플랜(Starter/Pro/Enterprise) / 크레딧(충분≥20/주의10~19/위험<10) / 정렬
+- 테이블: ⚠️/⭐, 기업명, 플랜 뱃지, 크레딧 잔액, 예약 크레딧, 의뢰 현황, 가입일
+- 행 클릭 → 우측 CompanyDetail 패널
+
+CompanyDetail (우측 360px):
+- Card 1 기본 정보: 기업명 + 플랜 뱃지, 업종·웹사이트·가입일
+- Card 2 크레딧 현황: 잔여 크레딧 + 예약 크레딧 + 월 지급량 + 게이지 바
+- Card 3 의뢰 현황 (4칸 그리드): 전체/진행/완료/취소
+- Card 4 의뢰 내역: 5개씩 페이지네이션, 행 클릭 → /admin/missions 딥링크
+- Card 5 관리 액션:
+  · 플랜 변경: select + "플랜 변경" → ConfirmModal(danger) → admin_change_plan RPC
+    모달 경고: "플랜을 [X]로 변경하면 크레딧이 Ncr으로 재설정됩니다."
+  · 크레딧 추가 지급: input number + "지급" → admin_add_credits RPC
+  · actionMsg: 성공=green / 실패=red 인라인
+- PAGE_SIZE: 10
+
+================================================================
+## 미션 관리 (/admin/missions) — Missions.jsx
+================================================================
+
+- 의뢰명 검색: 260px 입력창 + ✕ 초기화
+- 탭 4개: 전체 / 진행 / 완료 / 취소 (기본: 진행)
+- 메인/서브 섹션 분리, 5개씩 페이지네이션
+- 딥링크: location.state.missionId 또는 ?missionId= → 자동 탭 전환 + 하이라이트 3초
+- draft 미션 제외 (.neq('status', 'draft'))
+- 유형 뱃지: 소재 비교 / 가격 검증 / 이메일 검증 (LP 검증 뱃지 미표시)
+
+MissionCard:
+- 상단: 뱃지·제목·기업명 + 슬롯 카운트 "N/N 패널 슬롯" + 버튼 그룹
+- 하단: 등록일(좌) + 크레딧 현황(우)
+  · 크레딧: "예상 N / 사용 N (환불 N cr)"
+  · ↺ 재계산: recalc_mission_consumed RPC
+- 카드 클릭 → 인라인 MissionDetail 펼침 (재클릭 닫힘)
+
+MissionDetail (인라인):
+- 미션 정보 Card: 슬롯(allFbs+drafts/panel_count), 작성중 N명, careerLevels 뱃지
+- 피드백 목록 Card: 탭 5개 — 전체/작성중/검토중/승인/반려
+  · 전체 탭 정렬: 승인 → 반려 → 검토중 (draft 미포함)
+  · 작성중: status='draft' + submission_deadline 미만료만
+  · 탭별 5개 페이지네이션
+  · 피드백 행 클릭 → /admin/purity 딥링크
+
+완료 처리 블락 조건:
+```
+completeBlocked = allFbs.length === 0 || reviewing.length > 0
+```
+- allFbs: status !== 'draft'
+- reviewing: purity_passed=false && status!=='rejected' (검토 중)
+- 피드백 0건 → 버튼 미표시 (진행 탭만)
+- 승인 0건 → 버튼 비활성 + "승인된 피드백이 없습니다"
+- 검토 중 존재 → 비활성 + "검토 중 N건 먼저 처리 필요"
+- 작성 중 존재 → 비활성 + "작성 중 N건 완료 대기"
+
+완료 처리: ConfirmModal → complete_mission_and_refund RPC + 기업 완료 알림
+
+조기 종료 완료 처리 (취소 탭):
+- 조건: allFbs.length > 0 && pendingFbs.length === 0 && !m.company_notified_at
+- ConfirmModal → missions.company_notified_at = now() UPDATE + 기업 알림 발송
+- 완료 후: "기업 공개됨" 초록 Badge
+
+완료 탭 '재진행': reactivate_mission_and_reclaim RPC (환불 크레딧 회수)
+취소 탭 '재개': updateStatus('active') (크레딧 처리 없음)
+취소 탭 '영구 삭제': ConfirmModal → missions DELETE
+
+================================================================
+## Purity Filter (/admin/purity) — PurityFilter.jsx
+================================================================
+
+- 피드백 목록 정렬: 오래된 순 (ascending)
+- 의뢰명 검색: 200px 입력창 + ✕ 초기화
+- 상태 탭: 검토 대기 / 승인됨 / 반려됨
+- 미션 타입 필터: 전체 / 메인 / 서브 (건수 실시간 표시)
+- 딥링크: location.state.feedbackId → 자동 탭 전환 + 하이라이트 3초
+- 서브 미션 점수 사전 로드(subResponseMap): preference/pricing/email 응답 테이블 일괄 조회
+
+점수 공식:
+- calcPurityScore (LP 메인): base20 + 길이(max20) + 섹션균형(max10) + 구체성키워드(×4,max25) + 실행가능성(×5,max25) + AI패널티(×-12,min-30)
+- calcSubPurityScore (서브): base15 + 코멘트길이(max45) + 구체성키워드(×4,max20) + 지표충실도(max20)
+- 65점 기준: 승인권장(≥65 초록) / 검토(45~64 네이비) / 반려권장(<45 빨강)
+
+검토 대기 탭 65점 서브필터: 전체 / 65점 이상 / 65점 미만
+
+일괄 처리 (검토 대기 탭):
+- 체크박스 + "전체 선택" + 일괄 처리 바 (N개 선택됨 + 일괄 승인/반려/선택 해제)
+- ConfirmModal로 사용자 승인 게이트 (D-88)
+- 일괄 처리 후 recalc_mission_consumed RPC (미션별 그룹)
+
+개별 승인:
+- payout_amount 스냅샷: getPanelReward(panel.honor_points, panel.experience) → feedbacks.payout_amount
+- rejection_penalty_applied=true 이었으면 +5 HP RPC (재승인 HP 복원)
+- 알림: 패널 + 기업 양쪽 sendNotification
+
+개별 반려:
+- rejection_penalty_applied=true 저장
+- rejection_deadline 설정 (메인 4h / 서브 2h from now)
+- 반려 알림: 패널 actionUrl='/panel/history'
+- decrement_mission_filled_count RPC (슬롯 반환)
+
+승인 취소/반려 취소:
+- ConfirmModal(danger) → reset(id)
+- 반려 취소(isRejectReversal): restore_mission_slot RPC await → 실패 시 ConfirmModal errorMsg (D-65)
+- confirmResetId + resetError state 패턴
+
+피드백 상세 (좌측 선택 시 우측 표시):
+- LP 미션: parseLPDesc → 미션 정보 카드(hasAnyInfo 조건) + ImageAnnotator + custom_answers
+- 서브 미션: parseSubDesc 하위 호환 파싱
+  · preference: variantA/B + 이미지 + customQuestions
+  · pricing: 이미지 + content + customQuestions
+  · email: content + customQuestions
+- 점수 카드 컨테이너: CSS grid repeat(N, 1fr) (preference/pricing=3열, email/LP=5열)
+
+================================================================
+## 수익 & 정산 (/admin/revenue) — Revenue.jsx
+================================================================
+
+- 데이터 소스: feedbacks WHERE purity_passed=true (draft 아님) + missions(title, type, status) + panels(name, honor_points, experience)
+- 정산 탭: 패널별 행 (패널명 / 미션 타입 / 미션 제목 / 금액 / 지급 상태)
+  · missions.status='completed' → "지급완료"(green) / 그 외 → "지급대기"(gold)
+- 청구서 탭: invoices 테이블 (D-65·D-69 패턴 준수)
+- 수익 탭: 기업별 크레딧 사용 현황 집계
+
+================================================================
+## 버그 리포트 (/admin/reports) — BugReports.jsx
+================================================================
+
+- 상태 탭 4개: 미처리 / 처리 중 / 해결됨 / 기각 (색상 카운트 뱃지)
+- 유형 서브탭: 전체 / 버그 / UX불편 / 데이터 / 기능제안 / 이의신청 / 기타 (건수 pill)
+  · 상태 탭 전환 시 typeFilter 자동 'all' 리셋
+- 좌측 목록: 유형 뱃지 + 역할 뱃지 + 제목 + 날짜 + 메모 미리보기
+- 우측 상세: 메타 + 전체 설명 + 스크린샷 + 어드민 메모 textarea + 상태 변경 버튼
+- handleStatusChange(): UPDATE + 메모 저장 → 현재 탭 목록에서 즉시 제거 + loadAll() 재호출
+- 페이지네이션: PAGE_SIZE=10
+
+================================================================
+## 내 계정 (/admin/account) — Account.jsx
+================================================================
+
+- 탭 관리자 정보: 이름 → supabase.auth.updateUser({ data: { name } }) / 이메일 읽기전용
+- 탭 비밀번호: signInWithPassword 검증 → updateUser({ password })
+
+================================================================
+## 알림 발송 이벤트 (어드민 수신)
+================================================================
+
+[의뢰 탭]
+- 새 의뢰 등록 (DB 트리거 on_mission_created) — draft INSERT 제외
+- draft → active 전환 (DB 트리거 on_mission_activated)
+- 슬롯 완료 (DB 트리거 on_mission_slots_full)
+- 버그/불편 신고 접수 (DB 트리거 on_bug_report_insert)
+- 기업 조기 종료 (notify_early_termination RPC, actionUrl: /admin/missions?missionId=xxx)
+
+[피드백 탭]
+- 새 피드백 제출 (notify_admin_on_feedback_submitted RPC, p_is_resubmit=false)
+- 반려 피드백 재제출 (동일 RPC, p_is_resubmit=true)
