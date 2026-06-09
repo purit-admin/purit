@@ -34,7 +34,7 @@ export default function CompanyBugReports() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => { load(); }, [page]);
+  useEffect(() => { setSelected(null); load(); }, [page]);
 
   async function load() {
     setLoading(true);

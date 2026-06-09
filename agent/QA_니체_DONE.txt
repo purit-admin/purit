@@ -5,7 +5,7 @@
   재조사 금지. 이력 확인 전용.
   새 완료 항목은 PROGRESS.txt에서 해당 행을 삭제하고 이 파일 하단에만 추가할 것.
 
-총 완료: 197건 (2026-06-08 기준)
+총 완료: 207건 (2026-06-10 기준)
 
 ================================================================
 
@@ -333,3 +333,22 @@
 
 -- 이의 신청 유형·어드민 유형 서브탭 무결성 검증 (2026-06-08) --
 [신규-A] company/BugReports.jsx, panel/BugReports.jsx — appeal 유형 TYPE_META 미등록(수평 전개 누락). 두 파일 모두 appeal 항목 추가  ✅
+
+-- 2026-06-10 수정 완료 --
+[기업-문서-A] 4_DBSchema.txt — missions.dismissed 컬럼 미기재. 실제 코드 확인 결과 line 94에 이미 기재됨 → 오진단 확인 후 DONE 이동  ✅
+[Admin-B] PurityFilter.jsx — bulkReject() slotFailCount>0 시 return true 누락으로 확인 모달(확인 창) 영구 열림. slotFailCount 조건 제거 → 항상 return true로 통일  ✅
+[Admin-C] admin/BugReports.jsx — handleSendReply() actionUrl에 admin role 분기 누락. role==='admin'→'/admin/notifications' 삼항 조건 추가  ✅
+[기업-버그보고-A] company/BugReports.jsx + panel/BugReports.jsx — 페이지(page state) 전환 시 selected(선택 항목 변수) 미초기화. useEffect에 setSelected(null) 추가 (두 파일 동시 적용)  ✅
+[신규-BugA] admin/BugReports.jsx — 수평전개: 동일 패턴 발견. 페이지 ‹/› 버튼 onClick에 setSelected(null) 추가 (tab/typeFilter는 이미 처리 중이었으므로 버튼 onClick에만 적용)  ✅
+
+-- 2026-06-10 3차 수정 완료 --
+[완성도-E] company/AIReport.jsx + generate-ai-report/index.ts — Mock 폴백 시 AI 분석 완료와 동일 UI 표시 버그. Edge Function 응답에 isMock:!anthropicKey 필드 추가 + AIReport.jsx에 isMock state 추가 → 헤더 "ℹ️ 로컬 분석 기반" 뱃지 / DB 로드 시 tldr.startsWith('[Mock]') 감지 패턴 적용  ✅
+[Admin-A] admin/PurityFilter.jsx — reset() 함수에서 feedbacks.update() 먼저 실행 후 restore_mission_slot 실패 시 슬롯 카운트 영구 불일치. restore_mission_slot을 먼저 실행, 성공 시에만 feedbacks.update() 실행하도록 순서 역전  ✅
+[Admin-A-수평] admin/PurityFilter.jsx — reject() 함수의 decrement_mission_filled_count가 fire-and-forget으로 실패 시 슬롯 미감소를 어드민이 인지 불가. await + 실패 시 statusError 경고 표시로 변경  ✅
+
+-- 2026-06-10 2차 수정 완료 --
+[신규-BugB] admin/PanelManagement.jsx + admin/CompanyManagement.jsx — 페이지 ‹/› 버튼에 setSelected(null) 추가 (수평전개: [기업-버그보고-A])  ✅
+[Pnl-Dash-A] panel/Dashboard.jsx — weeklyCount 필터 기준 updated_at → created_at 변경 + hFbs 쿼리에 created_at 컬럼 추가 (무결성 검증에서 쿼리 누락 발견·즉시 수정)  ✅
+[기업-설정-A] company/Settings.jsx — handleChangeRole() 실패 시 roleChangeError state 추가 + 3초 자동 소멸 에러 배너 렌더 추가  ✅
+[Admin-D] admin/Dashboard.jsx + admin/CompanyManagement.jsx — select('*') → 렌더에 사용하는 컬럼만 명시적 select로 교체  ✅
+[Pnl-Active-A] panel/ActiveMission.jsx — handleCancelAccept() 에러 경로에서 setCancelModal(false)(모달 닫기 코드)가 먼저 실행되어 오류 메시지 무음 처리. setCancelModal(false) 제거 → 모달 유지 + cancelError 표시  ✅

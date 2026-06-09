@@ -36,6 +36,7 @@ export default function AIReport() {
   const [aiGenerated, setAiGenerated] = useState(false);
   const [latestMissionId, setLatestMissionId] = useState(null);
   const [generateError, setGenerateError] = useState(null);
+  const [isMock, setIsMock] = useState(false);
   const [monthlyUsage, setMonthlyUsage] = useState(0);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [chargeMsg, setChargeMsg] = useState('');
@@ -128,10 +129,11 @@ export default function AIReport() {
 
         if (aiRow) {
           const aiVerdict = getVerdict(aiRow.overall_score ?? overallAvg);
+          const rowIsMock = aiRow.tldr?.startsWith('[Mock]') ?? false;
           setReport({
             ...baseReport,
             panelCount: aiRow.panel_count ?? feedbacks.length,
-            generatedAt: new Date(aiRow.created_at).toLocaleString('ko-KR') + ' (AI 분석)',
+            generatedAt: new Date(aiRow.created_at).toLocaleString('ko-KR') + (rowIsMock ? '' : ' (AI 분석)'),
             overallVerdict: aiVerdict.text,
             verdictColor: aiVerdict.color,
             tldr: aiRow.tldr ?? baseReport.tldr,
@@ -140,6 +142,7 @@ export default function AIReport() {
             riskFlags: aiRow.risk_flags ?? baseReport.riskFlags,
           });
           setAiGenerated(true);
+          setIsMock(rowIsMock);
           setLoading(false);
           return;
         }
@@ -174,11 +177,12 @@ export default function AIReport() {
       if (error) throw error;
       if (data?.report) {
         const r = data.report;
+        const genIsMock = data.isMock ?? false;
         const aiVerdict = getVerdict(r.overall_score ?? 0);
         setReport(prev => ({
           ...prev,
           panelCount: r.panel_count ?? prev.panelCount,
-          generatedAt: new Date(r.created_at).toLocaleString('ko-KR') + ' (AI 분석)',
+          generatedAt: new Date(r.created_at).toLocaleString('ko-KR') + (genIsMock ? '' : ' (AI 분석)'),
           overallVerdict: aiVerdict.text,
           verdictColor: aiVerdict.color,
           tldr: r.tldr ?? prev.tldr,
@@ -187,6 +191,7 @@ export default function AIReport() {
           riskFlags: r.risk_flags ?? prev.riskFlags,
         }));
         setAiGenerated(true);
+        setIsMock(genIsMock);
         setMonthlyUsage(prev => prev + 1);
       }
     } catch (e) {
@@ -280,7 +285,10 @@ export default function AIReport() {
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 880, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>
-          AI INSIGHT REPORT{aiGenerated && <span style={{ marginLeft: 8, color: 'var(--green)' }}>✦ AI 분석 완료</span>}
+          AI INSIGHT REPORT{aiGenerated && (isMock
+            ? <span style={{ marginLeft: 8, color: 'var(--text-3)', fontWeight: 500 }}>ℹ️ 로컬 분석 기반</span>
+            : <span style={{ marginLeft: 8, color: 'var(--green)' }}>✦ AI 분석 완료</span>
+          )}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>

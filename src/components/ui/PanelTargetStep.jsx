@@ -2,6 +2,7 @@ import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn } from './index';
+import PaymentModal from './PaymentModal';
 
 export const CAREER_LEVELS = [
   { key: 'junior', label: '주니어',       sub: '1–3년차',    multiplier: 1.0, proOnly: false },
@@ -67,6 +68,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState(null);
   const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -324,6 +326,23 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
         </div>
       </div>
 
+      {/* ── 크레딧 결제 모달 ── */}
+      {showPayment && companyId && selectedBundle && ReactDOM.createPortal(
+        <PaymentModal
+          type="credits"
+          credits={selectedBundle}
+          amountKrw={selectedBundle * unitPrice}
+          companyId={companyId}
+          onSuccess={(newBalance) => {
+            setShowPayment(false);
+            setShowCreditModal(false);
+            if (onCreditBalanceUpdate) onCreditBalanceUpdate(newBalance);
+          }}
+          onClose={() => setShowPayment(false)}
+        />,
+        document.body
+      )}
+
       {/* ── 임시저장 확인 모달 ── */}
       {showSaveDraftModal && ReactDOM.createPortal(
         <div
@@ -561,9 +580,10 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
                     <Btn
                       size="sm"
                       style={{ flex: 2, justifyContent: 'center' }}
-                      onClick={() => { handleGoToPlans(); }}
+                      disabled={!selectedBundle || !companyId}
+                      onClick={() => { setShowCreditModal(false); setShowPayment(true); }}
                     >
-                      플랜 페이지에서 충전하기 →
+                      {selectedBundle ? `₩${(selectedBundle * unitPrice).toLocaleString()} 결제하기` : '수량을 선택하세요'}
                     </Btn>
                   </div>
                 </div>

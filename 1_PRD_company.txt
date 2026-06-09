@@ -268,8 +268,17 @@
 ================================================================
 
 - companies.plan → 현재 플랜 "현재 플랜" 배지 표시
-- CTA 버튼 → grant_plan_credits RPC (plan + credit_balance 원자적 UPDATE)
-  · Starter: 50cr / Pro: 165cr / Enterprise: 400cr SET
+- ★ 결제 3가지 Flow (PaymentModal 공용 컴포넌트 경유, 2026-06-12):
+  · Flow 1 플랜 구매: CTA → PaymentModal(type='plan') → mock 결제 → grant_plan_credits RPC(p_amount_krw)
+    → invoices INSERT(payment_type='plan') → companies.plan + credit_balance 갱신
+  · Flow 2 추가 크레딧 충전: 번들(10/30/50/100cr) → PaymentModal(type='credits') → purchase_credits RPC
+    → invoices INSERT(payment_type='credits') → credit_balance += 충전량 즉시 반영
+  · Flow 3 의뢰 등록 중 인라인 충전: PanelTargetStep isShort → 충전하기 → 번들 → PaymentModal
+    → purchase_credits → onCreditBalanceUpdate → 폼 계속 진행 (페이지 이탈 없음)
+- 결제 수단: 카드(mock 즉시 완료) / 가상계좌(PG 연동 후 지원, 비활성)
+- Mock 배너: "🧪 테스트 모드 · 실제 결제 없이 즉시 처리됩니다" / PG 연동 포인트: PaymentModal.jsx handlePay() TODO 1곳
+- 추가 크레딧 충전 섹션: 번들 4개 + 단가 (Starter 1cr=25,000원 / Pro 1cr=21,600원 14%할인) + 잔여 크레딧 표시
+- invoices 표시: Settings.jsx 결제 내역 / Revenue.jsx 청구 탭 — payment_type='plan'→플랜 뱃지, 'credits'→파란 "크레딧 Ncr" 뱃지
 - 연간/월간 토글: 절감률 동적 표시 (Starter 17%, Pro 17%)
 - 플랜 구조:
   · Starter: 월 50cr, 패널 10~15명, 주니어·미들급

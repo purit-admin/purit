@@ -486,7 +486,7 @@ export default function ActiveMission() {
     setCancelConfirming(true);
     const { error } = await supabase.rpc('cancel_panel_feedback', { p_mission_id: mission.id });
     setCancelConfirming(false);
-    if (error) { setCancelModal(false); setCancelError('취소 중 오류: ' + error.message); return; }
+    if (error) { setCancelError('취소 중 오류: ' + error.message); return; }
     navigate('/panel/missions');
   };
 

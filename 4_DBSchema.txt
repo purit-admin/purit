@@ -190,15 +190,19 @@
 
 ---
 
-### [invoices] — 기업 청구서
-  id            UUID  PK
-  company_id    UUID  FK → companies.id  (NULLABLE)
-  company_name  TEXT
-  plan          TEXT
-  amount        NUMERIC
-  status        TEXT  ('pending'|'paid')
-  invoice_date  DATE
-  created_at    TIMESTAMPTZ
+### [invoices] — 기업 청구서  ★ 컬럼 추가 (migration 079)
+  id             UUID  PK
+  company_id     UUID  FK → companies.id  (NULLABLE)
+  company_name   TEXT
+  plan           TEXT
+  amount         NUMERIC
+  status         TEXT  ('pending'|'paid')
+  invoice_date   DATE
+  created_at     TIMESTAMPTZ
+  payment_type   TEXT  DEFAULT 'plan'  CHECK('plan'|'credits')          ★ 신규
+  credits_amount NUMERIC(10,2) DEFAULT 0                                 ★ 신규
+  payment_method TEXT  DEFAULT 'card'  CHECK('card'|'virtual_account'|'manual')  ★ 신규
+  RLS: 기업 오너(본인 회사 ALL) / 팀원(소속 회사 SELECT) / 어드민(ALL)  ★ 신규
 
 ---
 
@@ -436,9 +440,19 @@
     → 기업 Results.jsx handleRate()에서 호출
     → 파일: supabase/migrations/015_honor_level_system.sql
 
-  grant_plan_credits(p_company_id UUID, p_plan TEXT) RETURNS void
+  grant_plan_credits(p_company_id UUID, p_plan TEXT, p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card') RETURNS void
     → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(50/165/400)으로 갱신
-    → Pricing.jsx 플랜 선택 시 호출 (기업 본인만 호출 가능 — user_id = auth.uid() 조건)
+    → p_amount_krw > 0 이면 invoices INSERT(payment_type='plan') / 0이면 미기록
+    → PaymentModal(type='plan') 경유 시 호출 (기업 본인만 — user_id = auth.uid() 조건)
+    → 구 2-param 시그니처 하위 호환 유지 (DEFAULT 값으로 기존 호출 정상 작동)
+    → ★ 파일: supabase/migrations/079_payment_system.sql (재정의)
+
+  purchase_credits(p_company_id UUID, p_credits NUMERIC, p_amount_krw NUMERIC, p_method TEXT DEFAULT 'card') RETURNS jsonb
+    → credit_balance += p_credits + invoices INSERT(payment_type='credits')
+    → 소유권: companies.user_id = auth.uid() 검증 / p_credits <= 0 → invalid_amount 예외
+    → 반환: { success: true, new_balance: NUMERIC }
+    → PaymentModal(type='credits') 경유 시 호출 (기업 본인만)
+    → ★ 파일: supabase/migrations/079_payment_system.sql (신규)
     → 파일: supabase/migrations/016_credit_system.sql
 
   admin_add_credits(p_company_id UUID, p_amount NUMERIC) RETURNS NUMERIC

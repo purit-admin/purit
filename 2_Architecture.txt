@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-10 (PanelTargetStep UX 개선 + 폼 내비게이션 버그 수정)
+최종 업데이트: 2026-06-11 (AI 리포트 Mock 뱃지 + PurityFilter 슬롯 버그 수정)
 ================================================================
 
 ## 기술 스택
@@ -112,15 +112,32 @@ purit/
 │   │                  6가지 유형 칩: 버그/오류·UX불편·데이터이상·기능제안·이의신청(⚖️)·기타 ★ 이의신청 추가
 │   │                  REPORT_TYPES 6개 배열 — key:'appeal', label:'⚖️ 이의 신청' 포함
 │   │                  제목 + 상세 + 스크린샷 업로드(bug-screenshots 버킷, 5MB)
+│   │                PaymentModal.jsx (결제 모달 — ReactDOM.createPortal, 기업 포털 공통) ★ 신규 (2026-06-12)
+│   │                  props: type('plan'|'credits'), plan, credits, amountKrw, companyId, onSuccess(newBalance), onClose
+│   │                  결제 수단 탭: 카드(즉시 처리) / 가상계좌(PG 연동 후 지원, 현재 비활성)
+│   │                  Mock 배너: "🧪 테스트 모드 · 실제 결제 없이 즉시 처리됩니다" (amber)
+│   │                  handlePay(): type='plan'→grant_plan_credits RPC / type='credits'→purchase_credits RPC
+│   │                    → setDone(true) → setTimeout 1.8s → onSuccess(new_balance)
+│   │                  PG 연동 포인트: handlePay() 내 TODO 블록 1곳 (토스페이먼츠 SDK 삽입 위치)
+│   │                  에러 시: setError(msg) + setIsProcessing(false) → 모달 유지
+│   │                  done=true 시: 닫기 버튼 숨김 + 배경 클릭 닫기 차단 (1.8초 자동 닫힘만 허용)
+│   │                  사용처 3곳: Pricing.jsx(Flow1 플랜구매·Flow2 크레딧충전) / PanelTargetStep.jsx(Flow3 인라인충전)
 │   │                  supabase.storage('bug-screenshots').upload → screenshot_url, bug_reports INSERT
 │   │                  업로드 실패 시 screenshot_url=null graceful fallback
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
 │   │                  ★ forwardRef + useImperativeHandle 적용 — 부모 폼에서 ref={panelStepRef}로 openCreditModal() 호출 가능
 │   │                  크레딧 부족 시 "다음" 버튼에서 panelStepRef.current?.openCreditModal() 트리거 → 업그레이드 모달 표시
-│   │                  ★ onSaveDraft prop (optional): 업그레이드/충전 버튼 → /company/plans 이동 전 임시저장 확인 모달 표시
+│   │                  ★ onSaveDraft prop (optional): "Pro 플랜 전환하기" → /company/plans 이동 전 임시저장 확인 모달 표시
 │   │                    - handleGoToPlans(): showUpgrade/showCreditModal 닫음 → onSaveDraft 있으면 showSaveDraftModal=true / 없으면 navigate
 │   │                    - 확인 모달 3버튼: "임시저장 후 이동 →"(isSaving 표시) / "저장 없이 이동" / "계속 작성하기"
 │   │                    - 4개 등록 폼(NewMission/PreferenceTest/PricingTest/ColdEmailTest): onSaveDraft={saveDraft} 전달
+│   │                  ★ 인라인 크레딧 결제 (2026-06-12): "플랜 페이지에서 충전하기" → PaymentModal 직접 표시로 대체
+│   │                    - showPayment state 추가
+│   │                    - 크레딧 모달 내 [결제하기] 버튼: setShowCreditModal(false) + setShowPayment(true) 동시 호출
+│   │                      (크레딧 모달 배경 오버레이 제거 후 PaymentModal 단독 표시 — 이중 적층 방지)
+│   │                    - PaymentModal onSuccess(newBalance): setShowPayment(false) + setShowCreditModal(false) + onCreditBalanceUpdate(newBalance)
+│   │                    - onCreditBalanceUpdate prop: 결제 성공 후 부모 폼 creditBalance state 즉시 갱신 → isShort 재계산 → 경고 소멸
+│   │                    - 4개 등록 폼 모두 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)} 이미 전달 중 (변경 불필요)
 │   │                  ★ 크레딧 예상 소모 범위 표시: getMinWeight(careerLevels) 추가
 │   │                    - isRange = fmtCr(minCredits) !== fmtCr(credits) → 복수 직급 선택 시 "예상 소모 범위: N ~ M 크레딧" 표시
 │   │                    - 단일 직급: "최대 예상 소모: N 크레딧" (기존 동일)
@@ -267,6 +284,19 @@ purit/
 │                  panels.portfolio_file_url TEXT 컬럼 추가 (portfolio_url=링크 / portfolio_file_url=파일)
 │                  save_panel_verification_docs RPC 4→5 param 재정의 (DROP 후 CREATE, p_portfolio_file_url 추가)
 │                  GRANT EXECUTE TO authenticated / VerifyDocs 다중 인증 동시 제출 대응
+│                079(payment_system: 결제 시스템 골격 — Mock → 토스페이먼츠 PG 연동 대비) ★ 신규 (2026-06-12)
+│                  invoices 테이블 컬럼 3개 추가:
+│                    payment_type TEXT DEFAULT 'plan' CHECK ('plan'|'credits')
+│                    credits_amount NUMERIC(10,2) DEFAULT 0
+│                    payment_method TEXT DEFAULT 'card' CHECK ('card'|'virtual_account'|'manual')
+│                  invoices RLS 활성화: owner(본인 회사)/team(소속 회사 SELECT)/admin(전체) 3중 정책
+│                  RPC purchase_credits(p_company_id UUID, p_credits NUMERIC, p_amount_krw NUMERIC, p_method TEXT DEFAULT 'card')
+│                    RETURNS jsonb — 소유권 검증 + credit_balance += p_credits + invoices INSERT
+│                    GRANT EXECUTE TO authenticated
+│                  RPC grant_plan_credits 재정의: 시그니처 확장 (하위 호환 — 기존 2-param 호출 유지)
+│                    p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card' 파라미터 추가
+│                    p_amount_krw > 0 이면 invoices INSERT, 0이면 생략 (admin_change_plan 호환)
+│                    GRANT EXECUTE TO authenticated
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

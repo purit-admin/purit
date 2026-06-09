@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn } from '../../components/ui';
+import PaymentModal from '../../components/ui/PaymentModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 
@@ -82,22 +83,20 @@ const PLANS = [
   },
 ];
 
-const ADD_ONS = [
-  { name: '추가 크레딧 충전 (Pro)', desc: 'Pro 플랜 한정 — 소진 후 자유롭게 추가 충전 가능', price: '1크레딧 = 21,600원' },
-  { name: '추가 크레딧 충전 (Starter)', desc: 'Starter 플랜은 소진 시 할증 요금 적용', price: '1크레딧 = 25,000원' },
-  { name: 'ICP Pulse 분기 구독', desc: '분기마다 ICP 고통점·트리거·채널 변화 자동 수집 (30명 패널)', price: '월 89만 원' },
-];
 
 export default function PricingPage() {
   const [billing, setBilling] = useState('annual');
   const [company, setCompany] = useState(null);
   const [teamRole, setTeamRole] = useState(null);
-  const [changing, setChanging] = useState('');
+  const [changing] = useState('');
   const [msg, setMsg] = useState('');
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
   const [contactMsg, setContactMsg] = useState('');
   const [contactSending, setContactSending] = useState(false);
   const [contactDone, setContactDone] = useState(false);
+  const [paymentTarget, setPaymentTarget] = useState(null); // { type, plan?, credits?, amountKrw }
+  const [creditBalance, setCreditBalance] = useState(null);
+  const [addonBundle, setAddonBundle] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -105,7 +104,7 @@ export default function PricingPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         const { company: co, teamRole: tr } = await resolveCompany(user.id);
-        if (co) setCompany(co);
+        if (co) { setCompany(co); setCreditBalance(co.credit_balance ?? 0); }
         setTeamRole(tr);
       } catch (err) {
         console.error('[Pricing load]', err);
@@ -114,28 +113,29 @@ export default function PricingPage() {
     load();
   }, []);
 
-  async function handleSelectPlan(planId) {
-    if (teamRole !== null) {
-      setMsg('플랜 변경은 계정 오너만 가능합니다.');
-      return;
-    }
-    if (planId === 'enterprise') {
-      setShowEnterpriseModal(true);
-      return;
-    }
+  function handleSelectPlan(planId) {
+    if (teamRole !== null) { setMsg('플랜 변경은 계정 오너만 가능합니다.'); return; }
+    if (planId === 'enterprise') { setShowEnterpriseModal(true); return; }
     if (!company) return;
-    setChanging(planId);
-    setMsg('');
-    const { error } = await supabase.rpc('grant_plan_credits', { p_company_id: company.id, p_plan: planId });
-    if (!error) {
+    const planObj = PLANS.find(p => p.id === planId);
+    const price = billing === 'annual' ? planObj.price.annual : planObj.price.monthly;
+    setPaymentTarget({ type: 'plan', plan: planId, amountKrw: price * 10000 });
+  }
+
+  function handlePaymentSuccess(newBalance) {
+    if (paymentTarget?.type === 'plan') {
       const planCredits = { starter: 50, pro: 165, enterprise: 400 };
-      setCompany(c => ({ ...c, plan: planId, credit_balance: planCredits[planId] ?? 0 }));
+      const credits = planCredits[paymentTarget.plan] ?? 0;
+      setCompany(c => ({ ...c, plan: paymentTarget.plan, credit_balance: credits }));
+      setCreditBalance(credits);
       setMsg('플랜이 변경됐습니다. 크레딧이 지급됐습니다.');
     } else {
-      setMsg('변경 실패: ' + error.message);
+      if (newBalance != null) setCreditBalance(newBalance);
+      setMsg(`크레딧이 충전됐습니다. 잔여 ${newBalance}cr`);
     }
-    setChanging('');
-    setTimeout(() => setMsg(''), 3000);
+    setAddonBundle(null);
+    setPaymentTarget(null);
+    setTimeout(() => setMsg(''), 3500);
   }
 
   async function handleContactSubmit() {
@@ -276,15 +276,75 @@ export default function PricingPage() {
       {/* Add-ons */}
       <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)' }}>추가 옵션</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {ADD_ONS.map(a => (
-          <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '16px 20px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, marginBottom: 3 }}>{a.name}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{a.desc}</div>
+
+        {/* 추가 크레딧 충전 — 번들 선택 UI */}
+        {(() => {
+          const unitPrice = currentPlan === 'pro' ? 21600 : 25000;
+          const discountLabel = currentPlan === 'pro' ? '14% 할인 적용' : null;
+          const BUNDLES = [10, 30, 50, 100];
+          return (
+            <div style={{ padding: '20px 20px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 3 }}>추가 크레딧 충전</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
+                    1크레딧 = {unitPrice.toLocaleString()}원
+                    {discountLabel && <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 600 }}>{discountLabel}</span>}
+                  </div>
+                </div>
+                {creditBalance != null && (
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                    잔여 <strong style={{ color: 'var(--text)' }}>{creditBalance}cr</strong>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+                {BUNDLES.map(amount => {
+                  const isSelected = addonBundle === amount;
+                  return (
+                    <button
+                      key={amount}
+                      onClick={() => setAddonBundle(isSelected ? null : amount)}
+                      style={{
+                        padding: '10px 0', borderRadius: 8, cursor: 'pointer',
+                        border: isSelected ? '2px solid var(--accent)' : '1.5px solid var(--border)',
+                        background: isSelected ? 'var(--accent-dim2)' : '#fff',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, fontSize: 15, color: isSelected ? 'var(--accent)' : 'var(--text)' }}>
+                        {amount}cr
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                        {((amount * unitPrice) / 10000).toLocaleString('ko-KR')}만원
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <Btn
+                style={{ width: '100%', justifyContent: 'center' }}
+                disabled={!addonBundle || teamRole !== null || !company}
+                onClick={() => setPaymentTarget({
+                  type: 'credits',
+                  credits: addonBundle,
+                  amountKrw: addonBundle * unitPrice,
+                })}
+              >
+                {addonBundle ? `${addonBundle}cr 충전하기 (₩${(addonBundle * unitPrice).toLocaleString()})` : '크레딧 수량을 선택하세요'}
+              </Btn>
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--text)', fontSize: 14, flexShrink: 0 }}>{a.price}</div>
+          );
+        })()}
+
+        {/* ICP Pulse */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '16px 20px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, marginBottom: 3 }}>ICP Pulse 분기 구독</div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>분기마다 ICP 고통점·트리거·채널 변화 자동 수집 (30명 패널)</div>
           </div>
-        ))}
+          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--text)', fontSize: 14, flexShrink: 0 }}>월 89만 원</div>
+        </div>
       </div>
 
       {/* Enterprise 문의 모달 */}
@@ -325,6 +385,19 @@ export default function PricingPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* 결제 모달 */}
+      {paymentTarget && company && (
+        <PaymentModal
+          type={paymentTarget.type}
+          plan={paymentTarget.plan}
+          credits={paymentTarget.credits}
+          amountKrw={paymentTarget.amountKrw}
+          companyId={company.id}
+          onSuccess={handlePaymentSuccess}
+          onClose={() => setPaymentTarget(null)}
+        />
       )}
 
       {/* FAQ */}

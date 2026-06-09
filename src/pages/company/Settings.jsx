@@ -26,6 +26,7 @@ export default function AccountSettings() {
   const [inviteSuccess, setInviteSuccess] = useState('');
   const [removeError, setRemoveError] = useState('');
   const [confirmRemoveMemberId, setConfirmRemoveMemberId] = useState(null);
+  const [roleChangeError, setRoleChangeError] = useState('');
 
   const [notifPrefs, setNotifPrefs] = useState({});
 
@@ -124,8 +125,9 @@ export default function AccountSettings() {
     setMembers(m => m.map(x => x.id === id ? { ...x, role: newRole } : x));
     const { error } = await supabase.from('team_members').update({ role: newRole }).eq('id', id);
     if (error) {
-      setMembers(prevMembers); // 실패 시 롤백
-      console.error('[changeRole]', error.message);
+      setMembers(prevMembers);
+      setRoleChangeError('역할 변경 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      setTimeout(() => setRoleChangeError(''), 3000);
     }
   }
 
@@ -251,6 +253,11 @@ export default function AccountSettings() {
               ))}
             </Card>
           )}
+          {roleChangeError && (
+            <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', color: 'var(--red,#ef4444)', fontSize: 13, fontWeight: 500 }}>
+              {roleChangeError}
+            </div>
+          )}
         </div>
       )}
 
@@ -275,7 +282,10 @@ export default function AccountSettings() {
                 <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
                   <div>
                     <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 12 }}>{r.invoice_date}</span>
-                    <span>{r.plan} 플랜</span>
+                    {r.payment_type === 'credits'
+                      ? <span>크레딧 <strong>{r.credits_amount}cr</strong> 충전</span>
+                      : <span>{r.plan} 플랜</span>
+                    }
                   </div>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700 }}>₩{Number(r.amount).toLocaleString()}</span>
