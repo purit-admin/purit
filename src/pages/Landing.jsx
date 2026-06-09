@@ -267,10 +267,6 @@ export default function Landing() {
                 icon: '⚡', tag: 'AI 리포트', title: '읽자마자 바로 실행 가능하다',
                 points: ['우선순위별 개선 액션 자동 생성', '추측 없이 데이터로만'],
               },
-              {
-                icon: '🎯', tag: 'ICP 리서치', title: '타겟의 언어로 메시지를 맞춘다',
-                points: ['고객의 고통점·구매 트리거 파악', '광고 집행 전 메시지 정렬'],
-              },
             ].map((f, i) => (
               <div key={i} style={{
                 background: BG, borderRadius: 16, padding: '28px 28px',

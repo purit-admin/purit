@@ -15,11 +15,8 @@ import Results from './pages/company/Results';
 import Diagnosis from './pages/company/Diagnosis';
 import PreferenceTest from './pages/company/PreferenceTest';
 import AIReport from './pages/company/AIReport';
-import BrandTracking from './pages/company/BrandTracking';
-import ICPResearch from './pages/company/ICPResearch';
 import PricingTest from './pages/company/PricingTest';
 import ColdEmailTest from './pages/company/ColdEmailTest';
-import ICPPulse from './pages/company/ICPPulse';
 import QuestionTemplates from './pages/company/QuestionTemplates';
 import PricingPage from './pages/company/Pricing';
 import AccountSettings from './pages/company/Settings';
@@ -85,9 +82,6 @@ function AppRoutes() {
       <Route path="/company/pricing-test" element={<RoleRoute role="company"><CL><PricingTest /></CL></RoleRoute>} />
       <Route path="/company/email-test" element={<RoleRoute role="company"><CL><ColdEmailTest /></CL></RoleRoute>} />
       <Route path="/company/templates" element={<RoleRoute role="company"><CL><QuestionTemplates /></CL></RoleRoute>} />
-      <Route path="/company/icp" element={<RoleRoute role="company"><CL><ICPResearch /></CL></RoleRoute>} />
-      <Route path="/company/icp-pulse" element={<RoleRoute role="company"><CL><ICPPulse /></CL></RoleRoute>} />
-      <Route path="/company/brand" element={<RoleRoute role="company"><CL><BrandTracking /></CL></RoleRoute>} />
       <Route path="/company/report" element={<RoleRoute role="company"><CL><AIReport /></CL></RoleRoute>} />
       <Route path="/company/account" element={<RoleRoute role="company"><CL><CompanyAccount /></CL></RoleRoute>} />
       <Route path="/company/settings" element={<RoleRoute role="company"><CL><AccountSettings /></CL></RoleRoute>} />

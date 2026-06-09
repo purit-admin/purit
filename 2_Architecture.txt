@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-11 (AI 리포트 Mock 뱃지 + PurityFilter 슬롯 버그 수정)
+최종 업데이트: 2026-06-11 (ICP·Pulse·브랜드 기능 폐기 — 페이지 3개·라우트 3개·미사용 data.js 삭제)
 ================================================================
 
 ## 기술 스택
@@ -26,8 +26,8 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js | templates.js | honorLevels.js | navigationGuard.js | resolveCompany.js ★ 신규
-│   │              resolveCompany.js — 오너/팀원 공통 회사 조회 헬퍼 (기업 포털 17개 페이지 공통 사용) ★ 신규
+│   ├── lib/       supabase.js | notify.js | templates.js | honorLevels.js | navigationGuard.js | resolveCompany.js ★ 신규
+│   │              resolveCompany.js — 오너/팀원 공통 회사 조회 헬퍼 (기업 포털 14개 페이지 공통 사용) ★ 신규
 │   │                export async function resolveCompany(userId): { company, teamRole }
 │   │                  1순위: companies.user_id = userId → { company, teamRole: null } (오너)
 │   │                  2순위: team_members.user_id = userId + status='active' → { company, teamRole: 'editor'|'viewer' } (팀원)
@@ -76,7 +76,6 @@ purit/
 │   │   │                - 아이콘 정렬: justifyContent 고정(flex-start) + paddingLeft 전환으로 centering 효과
 │   │   │                  (paddingLeft: isExpanded ? 12 : 16 — 16 = (48-16)/2, 접힘 시 아이콘 중앙 정렬)
 │   │   │                - 어드민 포털 스위처: 두 레이아웃(세로버튼/가로pill) cross-fade (maxHeight+opacity 역전)
-│   │   │              ★ 리서치 그룹(ICP·Pulse·브랜드) 사이드바에서 제거 — 라우트·페이지 파일은 유지
 │   │   │              handleNav(path) 헬퍼: navigationGuard.intercept(path) → false면 navigate, true면 guard가 모달 트리거
 │   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   │              showBugReport state + "버그/불편 신고" 버튼(로그아웃 버튼 위, 전 포털 공통) + BugReportModal 렌더
@@ -164,7 +163,7 @@ purit/
 │   │                       모바일 ≤640px: font-size:12px, height:240px
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, OAuthCallback.jsx (/oauth/callback 공개) ★
-│       ├── company/  (17개 — 라우트 목록 참조)
+│       ├── company/  (14개 — 라우트 목록 참조)
 │       ├── panel/    (5개 — 라우트 목록 참조)
 │       └── admin/    (7개 — 라우트 목록 참조)
 │   ※ 페이지·컴포넌트별 state/헬퍼/패턴 구현 상세는 5_CodeMap.txt로 분리됨
@@ -315,7 +314,7 @@ purit/
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (41개)
+## 라우트 전체 목록 (38개)
 ================================================================
 
 [공개]
@@ -336,9 +335,6 @@ purit/
   /company/pricing-test      → PricingTest.jsx
   /company/email-test        → ColdEmailTest.jsx
   /company/templates         → QuestionTemplates.jsx
-  /company/icp               → ICPResearch.jsx
-  /company/icp-pulse         → ICPPulse.jsx
-  /company/brand             → BrandTracking.jsx
   /company/report            → AIReport.jsx
   /company/account           → Account.jsx          ★ 신규
   /company/settings          → Settings.jsx

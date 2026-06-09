@@ -336,15 +336,6 @@ export default function PricingPage() {
             </div>
           );
         })()}
-
-        {/* ICP Pulse */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '16px 20px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, marginBottom: 3 }}>ICP Pulse 분기 구독</div>
-            <div style={{ fontSize: 13, color: 'var(--text-3)' }}>분기마다 ICP 고통점·트리거·채널 변화 자동 수집 (30명 패널)</div>
-          </div>
-          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--text)', fontSize: 14, flexShrink: 0 }}>월 89만 원</div>
-        </div>
       </div>
 
       {/* Enterprise 문의 모달 */}
