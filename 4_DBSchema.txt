@@ -53,7 +53,8 @@
   notif_prefs            JSONB       NOT NULL DEFAULT '{}' ← 042 추가 (알림 수신 설정: 키 미설정=수신, false=차단)
   health_insurance_url   TEXT        DEFAULT NULL           ← 062 추가 (건강보험 자격득실 확인서 Storage path)
   linkedin_url           TEXT        DEFAULT NULL           ← 062 추가 (LinkedIn 프로필 URL)
-  portfolio_url          TEXT        DEFAULT NULL           ← 062 추가 (포트폴리오/이력서 — Storage path 또는 외부 URL)
+  portfolio_url          TEXT        DEFAULT NULL           ← 062 추가 / 080부터 포트폴리오 링크 전용 (레거시는 파일 path 잔존 가능)
+  portfolio_file_url     TEXT        DEFAULT NULL           ← 080 추가 (포트폴리오/이력서 파일 Storage path — 링크와 분리)
   ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
   ※ 012_panel_phone_public_profiles.sql 에서 phone / phone_verified 컬럼 추가
   ※ 015_honor_level_system.sql 에서 honor_points / honor_decay_applied_at 컬럼 추가
@@ -61,6 +62,7 @@
   ※ 042_notif_prefs.sql 에서 notif_prefs 컬럼 추가
   ※ 062_panel_verification_docs.sql 에서 health_insurance_url / linkedin_url / portfolio_url 컬럼 추가
   ※ 078_panel_temp_suspension.sql 에서 suspend_until 컬럼 추가
+  ※ 080_portfolio_file_url.sql 에서 portfolio_file_url 컬럼 추가 (포트폴리오 링크/파일 분리)
   suspend_until          TIMESTAMPTZ DEFAULT NULL              ← 078 추가 (기간제 정지 만료 시각; NULL=영구 정지 또는 비정지)
   ※ 신규 패널 status: handle_new_user 트리거(이메일)·create_oauth_user_profile RPC(OAuth) 모두 'pending'으로 생성
   ※ RLS UPDATE 정책 2개:
@@ -622,13 +624,15 @@
              + 064_fix_oauth_panel_status_pending.sql (status='active'→'pending' 수정)
              + 072_create_oauth_user_profile_invite.sql (p_invite_token 파라미터 추가, 기존 2-param DROP 후 3-param 재생성) ★ 현재 최신
 
-  save_panel_verification_docs(p_user_id UUID, p_health_insurance_url TEXT DEFAULT NULL, p_linkedin_url TEXT DEFAULT NULL, p_portfolio_url TEXT DEFAULT NULL) RETURNS BOOLEAN
-    → SECURITY DEFINER — 패널 가입 직후 검증 자료(건강보험·LinkedIn·포트폴리오) panels 테이블 저장
+  save_panel_verification_docs(p_user_id UUID, p_health_insurance_url TEXT DEFAULT NULL, p_linkedin_url TEXT DEFAULT NULL, p_portfolio_url TEXT DEFAULT NULL, p_portfolio_file_url TEXT DEFAULT NULL) RETURNS BOOLEAN
+    → SECURITY DEFINER — 패널 검증 자료(건강보험·LinkedIn·포트폴리오 링크/파일) panels 테이블 저장
     → 이유: 이메일 미확인 상태 or RLS 설정으로 직접 UPDATE 차단될 수 있음 (D-95 패턴)
     → auth.uid() IS NULL 또는 auth.uid() != p_user_id 이면 RETURN FALSE (보안 체크)
-    → COALESCE(p_xxx, health_insurance_url) 패턴 — NULL 인자는 기존 DB 값 유지, 덮어쓰지 않음
-    → Signup.jsx handleSubmit에서 Storage 업로드 직후, signOut() 직전 호출 (D-95 타이밍 원칙)
-    → 파일: supabase/migrations/065_save_panel_verification_docs.sql
+    → COALESCE(p_xxx, 컬럼) 패턴 — NULL 인자는 기존 DB 값 유지, 덮어쓰지 않음
+    → p_portfolio_url=포트폴리오 링크 / p_portfolio_file_url=포트폴리오 파일 path (080부터 분리)
+    → VerifyDocs.jsx handleSubmit에서 Storage 업로드 직후 호출 (이미지 파일은 compressImage 압축 후 업로드)
+    → 파일: 065_save_panel_verification_docs.sql (최초 4-param)
+             + 080_portfolio_file_url.sql (p_portfolio_file_url 추가, 기존 4-param DROP 후 5-param 재생성) ★ 현재 최신
 
   accept_team_invite(p_token UUID) RETURNS JSONB
     → SECURITY DEFINER — 비로그인 상태에서도 토큰으로 호출 가능 (RLS 우회)

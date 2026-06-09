@@ -88,7 +88,7 @@ export default function AdminPanels() {
     try {
       const { data, error } = await supabase
         .from('panels')
-        .select('id, user_id, name, email, industry, experience, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, created_at')
+        .select('id, user_id, name, email, industry, experience, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
         .order('created_at', { ascending: false });
       if (!error) setPanels(data || []);
       setLoading(false);
@@ -784,7 +784,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           검증 서류
         </div>
 
-        {!panel.health_insurance_url && !panel.linkedin_url && !panel.portfolio_url ? (
+        {!panel.health_insurance_url && !panel.linkedin_url && !panel.portfolio_url && !panel.portfolio_file_url ? (
           <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '8px 0' }}>
             제출된 서류 없음
           </div>
@@ -825,8 +825,8 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             )}
 
             {panel.portfolio_url && (
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서</div>
+              <div style={{ marginBottom: panel.portfolio_file_url ? 10 : 0 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서 링크</div>
                 {panel.portfolio_url.startsWith('http') ? (
                   <a
                     href={panel.portfolio_url}
@@ -837,6 +837,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
                     🔗 포트폴리오 열기 →
                   </a>
                 ) : (
+                  /* 레거시 호환: 구 데이터는 portfolio_url에 파일 경로가 들어있을 수 있음 */
                   <a
                     href="#"
                     onClick={async (e) => {
@@ -852,6 +853,26 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
                     📄 파일 열기 →
                   </a>
                 )}
+              </div>
+            )}
+
+            {panel.portfolio_file_url && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서 파일</div>
+                <a
+                  href="#"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    const { data, error } = await supabase.storage
+                      .from('panel-verification-docs')
+                      .createSignedUrl(panel.portfolio_file_url, 600);
+                    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                    else alert('서류를 불러오는 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+                  }}
+                  style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  📄 파일 열기 →
+                </a>
               </div>
             )}
           </>

@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
 import { Card, Btn } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { compressImage } from '../../lib/imageUtils';
+
+// 이미지 파일만 canvas 압축 가능 — PDF/DOC/DOCX는 그대로 업로드
+const isImageFile = (f) => f.type.startsWith('image/') || /\.(jpe?g|png)$/i.test(f.name);
 
 const ACCENT = '#10367D';
 const BORDER = '#E2E8F0';
@@ -59,18 +63,17 @@ export default function VerifyDocs() {
   const navigate = useNavigate();
 
   const [certFile,      setCertFile]      = useState(null);
-  const [careerChoice,  setCareerChoice]  = useState(null);
   const [linkedinUrl,   setLinkedinUrl]   = useState('');
   const [portfolioFile, setPortfolioFile] = useState(null);
   const [portfolioText, setPortfolioText] = useState('');
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState('');
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
   const handleCertFile = (f) => {
     if (f && f.size > MAX_FILE_SIZE) {
-      setError('파일 크기가 5MB를 초과합니다. 5MB 이하의 파일을 선택해 주세요.');
+      setError('파일 크기가 20MB를 초과합니다. 20MB 이하의 파일을 선택해 주세요.');
       return;
     }
     if (f) setError('');
@@ -79,7 +82,7 @@ export default function VerifyDocs() {
 
   const handlePortfolioFile = (f) => {
     if (f && f.size > MAX_FILE_SIZE) {
-      setError('포트폴리오 파일 크기가 5MB를 초과합니다. 5MB 이하의 파일을 선택해 주세요.');
+      setError('포트폴리오 파일 크기가 20MB를 초과합니다. 20MB 이하의 파일을 선택해 주세요.');
       return;
     }
     if (f) setError('');
@@ -91,18 +94,15 @@ export default function VerifyDocs() {
     if (!certFile) {
       setError('건강보험 자격득실 확인서를 첨부해 주세요.'); return;
     }
-    if (!careerChoice) {
-      setError('LinkedIn 프로필 또는 포트폴리오/이력서 중 하나를 선택해 주세요.'); return;
+    // 경력 인증: LinkedIn / 포트폴리오 링크 / 포트폴리오 파일 중 최소 1개 필수
+    if (!linkedinUrl.trim() && !portfolioText.trim() && !portfolioFile) {
+      setError('경력 인증을 위해 LinkedIn 프로필, 포트폴리오 링크, 포트폴리오 파일 중 하나 이상을 제출해 주세요.'); return;
     }
-    if (careerChoice === 'linkedin') {
-      if (!linkedinUrl.trim()) { setError('LinkedIn 프로필 URL을 입력해 주세요.'); return; }
-      if (!LINKEDIN_RE.test(linkedinUrl.trim())) { setError('올바른 LinkedIn URL을 입력해 주세요. (예: https://linkedin.com/in/홍길동)'); return; }
+    if (linkedinUrl.trim() && !LINKEDIN_RE.test(linkedinUrl.trim())) {
+      setError('올바른 LinkedIn URL을 입력해 주세요. (예: https://linkedin.com/in/홍길동)'); return;
     }
-    if (careerChoice === 'portfolio' && !portfolioText.trim() && !portfolioFile) {
-      setError('포트폴리오/이력서 URL을 입력하거나 파일을 첨부해 주세요.'); return;
-    }
-    if (careerChoice === 'portfolio' && portfolioText.trim() && !URL_RE.test(portfolioText.trim())) {
-      setError('올바른 URL 형식을 입력해 주세요. (예: https://...)'); return;
+    if (portfolioText.trim() && !URL_RE.test(portfolioText.trim())) {
+      setError('올바른 포트폴리오 URL 형식을 입력해 주세요. (예: https://...)'); return;
     }
 
     setSubmitting(true);
@@ -112,10 +112,11 @@ export default function VerifyDocs() {
       let portfolioFileUrl   = null;
 
       if (certFile) {
+        const certUp = isImageFile(certFile) ? await compressImage(certFile) : certFile;
         const ext  = certFile.name.split('.').pop();
         const path = `${user.id}/health_insurance.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from('panel-verification-docs').upload(path, certFile, { upsert: true });
+          .from('panel-verification-docs').upload(path, certUp, { upsert: true });
         if (!uploadErr) {
           healthInsuranceUrl = path;
         } else {
@@ -125,10 +126,11 @@ export default function VerifyDocs() {
       }
 
       if (portfolioFile) {
+        const portUp = isImageFile(portfolioFile) ? await compressImage(portfolioFile) : portfolioFile;
         const ext  = portfolioFile.name.split('.').pop();
         const path = `${user.id}/portfolio.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from('panel-verification-docs').upload(path, portfolioFile, { upsert: true });
+          .from('panel-verification-docs').upload(path, portUp, { upsert: true });
         if (!uploadErr) {
           portfolioFileUrl = path;
         } else {
@@ -140,8 +142,9 @@ export default function VerifyDocs() {
       const { error: rpcErr } = await supabase.rpc('save_panel_verification_docs', {
         p_user_id:              user.id,
         p_health_insurance_url: healthInsuranceUrl || null,
-        p_linkedin_url:         careerChoice === 'linkedin' ? (linkedinUrl.trim() || null) : null,
-        p_portfolio_url:        portfolioFileUrl || (careerChoice === 'portfolio' ? portfolioText.trim() || null : null),
+        p_linkedin_url:         linkedinUrl.trim() || null,
+        p_portfolio_url:        portfolioText.trim() || null,  // 포트폴리오 링크
+        p_portfolio_file_url:   portfolioFileUrl || null,      // 포트폴리오 파일 경로
       });
 
       if (rpcErr) { setError('저장 중 오류가 발생했습니다. 다시 시도해 주세요.'); return; }
@@ -170,7 +173,7 @@ export default function VerifyDocs() {
           토스 · 카카오톡에서 30초 발급 가능합니다.
         </div>
         <div style={{ fontSize: 12, color: T3, marginBottom: 12 }}>
-          PDF 또는 이미지, 5MB 이하
+          PDF 또는 이미지, 20MB 이하 (이미지는 자동 압축)
         </div>
         <UploadZone
           file={certFile} onFile={handleCertFile}
@@ -184,31 +187,13 @@ export default function VerifyDocs() {
         <div style={{ fontSize: 14, fontWeight: 700, color: T1, marginBottom: 4 }}>
           경력 인증 <span style={{ color: '#E53E3E', fontSize: 13 }}>*</span>
         </div>
-        <div style={{ fontSize: 13, color: T2, marginBottom: 14 }}>아래 중 하나를 선택해 주세요.</div>
-
-        {/* 선택 카드 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-          {[
-            { id: 'linkedin',  label: 'LinkedIn 프로필', desc: '링크드인 프로필 URL 입력' },
-            { id: 'portfolio', label: '포트폴리오 / 이력서', desc: 'URL 입력 또는 파일 업로드' },
-          ].map(opt => (
-            <button key={opt.id} type="button"
-              onClick={() => setCareerChoice(opt.id)}
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10,
-                border: careerChoice === opt.id ? `2px solid ${ACCENT}` : `1.5px solid ${BORDER}`,
-                background: careerChoice === opt.id ? 'rgba(16,54,125,0.05)' : '#fff',
-                textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600, color: careerChoice === opt.id ? ACCENT : T1 }}>{opt.label}</div>
-              <div style={{ fontSize: 12, color: T3, marginTop: 2 }}>{opt.desc}</div>
-            </button>
-          ))}
+        <div style={{ fontSize: 13, color: T2, marginBottom: 16 }}>
+          아래 항목 중 하나 이상을 제출해 주세요. (여러 개 동시 제출 가능)
         </div>
 
-        {/* LinkedIn URL 입력 */}
-        {careerChoice === 'linkedin' && (
+        {/* LinkedIn URL */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>LinkedIn 프로필 (선택)</div>
           <input
             type="url"
             placeholder="https://linkedin.com/in/홍길동"
@@ -222,31 +207,38 @@ export default function VerifyDocs() {
             onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
             onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
           />
-        )}
+        </div>
 
-        {/* 포트폴리오 URL + 파일 */}
-        {careerChoice === 'portfolio' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input
-              type="url"
-              placeholder="https://notion.so/내_포트폴리오 (선택)"
-              value={portfolioText}
-              onChange={e => setPortfolioText(e.target.value)}
-              style={{
-                width: '100%', padding: '11px 13px', borderRadius: 9,
-                border: `1px solid ${BORDER}`, fontSize: 14,
-                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-              }}
-              onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
-              onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
-            />
-            <UploadZone
-              file={portfolioFile} onFile={handlePortfolioFile}
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              label="파일로 업로드 (선택)"
-            />
+        {/* 포트폴리오 / 이력서 링크 */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>포트폴리오 / 이력서 링크 (선택)</div>
+          <input
+            type="url"
+            placeholder="https://notion.so/내_포트폴리오"
+            value={portfolioText}
+            onChange={e => setPortfolioText(e.target.value)}
+            style={{
+              width: '100%', padding: '11px 13px', borderRadius: 9,
+              border: `1px solid ${BORDER}`, fontSize: 14,
+              fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+            }}
+            onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
+            onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
+          />
+        </div>
+
+        {/* 포트폴리오 / 이력서 파일 */}
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>포트폴리오 / 이력서 파일 (선택)</div>
+          <div style={{ fontSize: 12, color: T3, marginBottom: 8 }}>
+            PDF · 문서 · 이미지, 20MB 이하 (이미지는 자동 압축)
           </div>
-        )}
+          <UploadZone
+            file={portfolioFile} onFile={handlePortfolioFile}
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            label="파일로 업로드"
+          />
+        </div>
       </Card>
 
       {/* 에러 */}

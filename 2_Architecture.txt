@@ -263,6 +263,10 @@ purit/
 │                    FOR LOOP로 만료 패널 순회 → UPDATE(active, suspend_until=NULL) + notifications INSERT
 │                    GRANT EXECUTE TO service_role
 │                  pg_cron 스케줄: SQL Editor 수동 실행 필요 (파일 내 주석 참조)
+│                080(portfolio_file_url: 패널 검증 서류 포트폴리오 링크/파일 분리)
+│                  panels.portfolio_file_url TEXT 컬럼 추가 (portfolio_url=링크 / portfolio_file_url=파일)
+│                  save_panel_verification_docs RPC 4→5 param 재정의 (DROP 후 CREATE, p_portfolio_file_url 추가)
+│                  GRANT EXECUTE TO authenticated / VerifyDocs 다중 인증 동시 제출 대응
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

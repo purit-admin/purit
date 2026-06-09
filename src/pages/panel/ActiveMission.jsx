@@ -848,7 +848,7 @@ export default function ActiveMission() {
   })() : null;
 
   if (panelPending) {
-    const hasDocs = !!(panel?.health_insurance_url || panel?.linkedin_url || panel?.portfolio_url);
+    const hasDocs = !!(panel?.health_insurance_url || panel?.linkedin_url || panel?.portfolio_url || panel?.portfolio_file_url);
     return (
       <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 560, animation: 'fadeUp 0.4s ease both' }}>
         {hasDocs ? (

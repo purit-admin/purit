@@ -325,10 +325,13 @@
 - loadPanelDetail: .limit(5) 제거 → 전체 로드, feedbackDetailPage state + DETAIL_PAGE_SIZE=5
   · { data, error } 모두 캡처 — error 발생 시 console.error(message·details·hint)
 - onFeedbackClick prop: navigate('/admin/purity', { state: { feedbackId } })
-- PanelDetail 검증 서류 Card:
+- PanelDetail 검증 서류 Card (포트폴리오 링크/파일 분리 표시):
+  · "제출된 서류 없음" 조건: !health_insurance_url && !linkedin_url && !portfolio_url && !portfolio_file_url
   · 건강보험 자격득실 확인서: createSignedUrl(panel.health_insurance_url, 600) — 클릭 시 signed URL 새 탭
   · LinkedIn URL: 외부 링크 직접 연결
-  · 포트폴리오: http로 시작하면 외부 링크, 아니면 createSignedUrl (Storage path)
+  · 포트폴리오 / 이력서 링크(portfolio_url): startsWith('http')면 외부 링크, 아니면 createSignedUrl (레거시 파일 path 호환)
+  · 포트폴리오 / 이력서 파일(portfolio_file_url): 항상 createSignedUrl "📄 파일 열기 →" (080 신규 블록)
+  · SELECT 쿼리에 portfolio_file_url 포함
 - 관리 액션 Card (기간제 정지 시스템, 2026-06-08):
   · pending: 심사 승인(→active) / 심사 거절(→suspended)
   · active: 기간제 정지 2×2 그리드(1일·3일·7일·30일) + 영구 정지 버튼
@@ -396,14 +399,19 @@
 ================================================================
 
 - 접근 조건: 인증된 패널(role='panel')이면 언제나 접근 가능 (pending/active 무관)
-- 파일 업로드 UI: 드래그&드롭 + 클릭 UploadZone (이미지/PDF, 5MB, accept=".jpg,.jpeg,.png,.pdf")
+- 파일 업로드 UI: 드래그&드롭 + 클릭 UploadZone, MAX_FILE_SIZE=20MB
+  · cert accept=".pdf,.jpg,.jpeg,.png" / portfolio accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+- isImageFile(f) 모듈 헬퍼: f.type.startsWith('image/') || /\.(jpe?g|png)$/i.test(f.name)
+  · 이미지면 compressImage 후 업로드, PDF/DOC는 원본 업로드 (cert·portfolio 양쪽 적용)
 - 건강보험 자격득실 확인서(certFile) — 연차 인증, 필수, Storage 경로: {user.id}/health_insurance.{ext}
-- 직무 인증(careerChoice) — 필수, linkedin / portfolio 중 하나 선택
-  · linkedin 선택 시: LinkedIn URL(linkedinUrl) 입력 필수, https://linkedin.com 정규식 검증
-  · portfolio 선택 시: 포트폴리오 파일(portfolioFile) 또는 URL(portfolioText) 중 하나 필수
+- 경력 인증 — 라디오(careerChoice) 제거, 3개 필드 동시 표시 (모두 선택) ★ 다중 동시 제출
+  · linkedinUrl(LinkedIn) / portfolioText(포트폴리오 링크) / portfolioFile(포트폴리오 파일) 중 최소 1개 필수
+  · linkedinUrl 입력 시에만 LINKEDIN_RE 검증 / portfolioText 입력 시에만 URL_RE 검증
   · 포트폴리오 파일 Storage 경로: {user.id}/portfolio.{ext}
+- handleSubmit: cert 필수 → (linkedin||portfolioText||portfolioFile) 최소 1개 → 형식 검증 → setSubmitting(true)
+  · 모든 exit path(업로드 실패·rpcErr·catch) finally에서 setSubmitting(false)
 - 제출: supabase.storage.from('panel-verification-docs').upload(..., { upsert: true })
-  → supabase.rpc('save_panel_verification_docs', { p_user_id, p_health_insurance_url, p_linkedin_url, p_portfolio_url })
+  → supabase.rpc('save_panel_verification_docs', { p_user_id, p_health_insurance_url, p_linkedin_url, p_portfolio_url(링크), p_portfolio_file_url(파일) }) ★ 5-param
 - 제출 성공 → navigate('/panel') 대시보드 이동
 
 ================================================================

@@ -159,12 +159,12 @@ export default function Layout({ role, children }) {
   useEffect(() => {
     if (!user?.id || role !== 'panel') return;
     setPanelStatusLoaded(false);
-    supabase.from('panels').select('id, status, health_insurance_url, linkedin_url, portfolio_url').eq('user_id', user.id).single()
+    supabase.from('panels').select('id, status, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url').eq('user_id', user.id).single()
       .then(({ data: p }) => {
         if (p) {
           setPanelId(p.id);
           setPanelStatus(p.status);
-          setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url));
+          setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url || p.portfolio_file_url));
         }
         setPanelStatusLoaded(true);
       });

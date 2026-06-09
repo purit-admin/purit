@@ -217,7 +217,7 @@ export default function PanelDashboard() {
         </div>
       )}
       {/* 검증 서류 미제출 유도 카드 */}
-      {panelStatus === 'pending' && !panel?.health_insurance_url && !panel?.linkedin_url && !panel?.portfolio_url && (
+      {panelStatus === 'pending' && !panel?.health_insurance_url && !panel?.linkedin_url && !panel?.portfolio_url && !panel?.portfolio_file_url && (
         <Card style={{ padding: '16px 18px', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div>

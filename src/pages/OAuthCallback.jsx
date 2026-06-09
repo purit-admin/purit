@@ -129,6 +129,8 @@ export default function OAuthCallback() {
       } catch (err) {
         console.error('[OAuthCallback error]', err);
         // handledRef 유지(true) — 에러 발생 후 두 번째 processSession 호출이 리디렉트하는 것을 방지
+        // signOut 필수: updateUser 성공 후 RPC 실패 시 세션이 살아있어 /login 이동 시 auto-redirect 발동 (D-97)
+        try { await supabase.auth.signOut(); } catch { /* ignore */ }
         setError('로그인 처리 중 오류가 발생했습니다.');
       }
     }

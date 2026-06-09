@@ -271,11 +271,11 @@ export default function MissionList() {
       if (!user) { setLoading(false); return; }
 
       const { data: p } = await supabase
-        .from('panels').select('id, honor_points, experience, status, health_insurance_url, linkedin_url, portfolio_url').eq('user_id', user.id).single();
+        .from('panels').select('id, honor_points, experience, status, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
       setPanelStatus(p.status || 'active');
-      setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url));
+      setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url || p.portfolio_file_url));
       setPanelHonorPoints(p.honor_points ?? 0);
       setPanelExperience(p.experience || '');
 

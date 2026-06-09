@@ -162,14 +162,19 @@ e. notify_admin_on_feedback_submitted RPC fire-and-forget (어드민 알림)
 ================================================================
 
 - 접근 조건: role='panel'이면 항상 접근 가능 (pending/active 무관)
-- 건강보험 득실확인서 업로드 (이미지/PDF, 5MB, 필수) — 연차 인증
-- 직무 인증 선택 (필수): LinkedIn URL 또는 포트폴리오 (URL or 파일)
-  · LinkedIn: https://linkedin.com/in/... 형식 검증
+- 건강보험 득실확인서 업로드 (이미지/PDF, 20MB, 필수) — 연차 인증
+- 경력 인증 (필수): LinkedIn URL / 포트폴리오 링크 / 포트폴리오 파일 중 최소 1개 ★ 다중 동시 제출 (라디오 선택 제거)
+  · 3개 필드 동시 표시 (모두 선택) — LinkedIn·포트폴리오 링크·포트폴리오 파일
+  · LinkedIn: 입력 시에만 https://linkedin.com/in/... 형식 검증 / 포트폴리오 링크: 입력 시에만 URL 형식 검증
   · 포트폴리오 파일 경로: {user.id}/portfolio.{ext}
-- 파일 업로드: panel-verification-docs Storage 버킷, upsert:true
+- 파일 업로드: panel-verification-docs Storage 버킷, upsert:true, 20MB 제한 ★
   · 경로: {user.id}/health_insurance.{ext}, portfolio.{ext}
-- 제출: save_panel_verification_docs RPC (SECURITY DEFINER, auth.uid()=p_user_id 본인 검증)
+  · 이미지 파일(jpg/png)은 compressImage로 자동 압축 후 업로드 / PDF·DOC는 원본 업로드 (isImageFile 분기)
+- 제출: save_panel_verification_docs RPC (5-param, auth.uid()=p_user_id 본인 검증) ★
+  · p_portfolio_url=링크 / p_portfolio_file_url=파일 path (링크·파일 분리 저장, migration 080)
 - 성공 → /panel 이동 → 서류 유도 Card 자동 소멸
+- 어드민(PanelManagement) 표시: 건강보험 파일 / LinkedIn 링크 / 포트폴리오 링크 / 포트폴리오 파일 각각 분리 표시
+  · 서류 제출 여부 감지(panelHasDocs): health_insurance_url || linkedin_url || portfolio_url || portfolio_file_url (4곳 동일 — Sidebar·Missions·Dashboard·ActiveMission)
 
 ================================================================
 ## 버그/건의 현황 (/panel/bug-reports) — BugReports.jsx
