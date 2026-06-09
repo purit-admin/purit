@@ -1,10 +1,15 @@
 ================================================================
 1_PRD_panel.txt — Purity MVP 패널(Panel) 포털 상세 정의
-최종 업데이트: 2026-06-12 (경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종 추가)
+최종 업데이트: 2026-06-12 (심사 거절→재제출→영구차단 플로우 추가 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
 ================================================================
 
-인증 후 /panel 하위 라우트 접근 가능.
-panelStatus==='pending' 시 /panel·/panel/verify-docs 외 접근 불가 (Layout <main> 블록)
+인증 후 /panel 하위 라우트 접근 가능. 패널 상태 게이트(Layout <main> 블록):
+- 게이트 통과(상태 무관 항상 허용) 경로: /panel · /panel/notifications · /panel/bug-reports
+  · 거절/차단 패널도 거절 알림 확인 + 버그/이의신청 답변 열람 가능 (082)
+- panelStatus==='pending'  : 위 허용 + /panel/verify-docs 외 접근 불가 → "심사 대기" 콘텐츠
+- panelStatus==='rejected' : 위 허용 + /panel/verify-docs 외 접근 불가 → 📝 반려 Card(거절 사유 + "서류 재제출하기")
+- panelStatus==='banned'   : 위 허용 외 전부 차단(verify-docs 포함) → 🚫 영구 정지 Card(재제출 버튼 없음)
+- panelStatus==='suspended': Sidebar 게이트 미적용 — 개별 페이지(Dashboard 등)에서 정지 안내
 
 ================================================================
 ## 대시보드 (/panel) — Dashboard.jsx
@@ -25,6 +30,11 @@ panelStatus==='pending' 시 /panel·/panel/verify-docs 외 접근 불가 (Layout
   · "서류 제출하기 →" → /panel/verify-docs
   · 서류 제출 완료 후 재진입 시 자동 소멸
 - 마감 임박 알림: 1시간 내 만료 draft/rejected 감지 → sendNotification
+- ★ 상태별 조기 반환(082): panelStatus가
+  · 'rejected' → 📝 반려 Card(거절 사유 + "서류 재제출하기 →" /panel/verify-docs)
+  · 'banned'   → 🚫 영구 정지 Card(재제출 버튼 없음)
+  · 'suspended'→ 🚫 계정 정지 Card (기존)
+  (Dashboard는 /panel이라 Sidebar 게이트 미적용 → Dashboard 자체 early return으로 처리)
 
 ================================================================
 ## 미션 관리 (/panel/missions) — Missions.jsx
@@ -166,7 +176,12 @@ e. notify_admin_on_feedback_submitted RPC fire-and-forget (어드민 알림)
 ## 검증 서류 제출 (/panel/verify-docs) — VerifyDocs.jsx
 ================================================================
 
-- 접근 조건: role='panel'이면 항상 접근 가능 (pending/active 무관)
+- 접근 조건: role='panel' (단 banned는 Sidebar 게이트가 차단)
+- ★ 재제출 지원 (082): 진입 시 기존 제출 내역(panels) 로드 → LinkedIn·포트폴리오 링크·연차 프리필
+  · 파일 input은 주입 불가 → "기존 제출 파일 있음, 변경 시에만 재업로드" 안내 표시
+  · 필수 검증 완화: 건강보험·경력 최소1개 조건은 기존 제출분이 있으면 통과
+  · status==='rejected'이면 상단에 거절 사유 배너(rejection_reason) 표시 + 버튼 라벨 "서류 재제출하기 →"
+  · save RPC가 status='pending'으로 flip → notify_admin_on_panel_resubmit 트리거 → 어드민 재심사 알림
 - 건강보험 득실확인서 업로드 (이미지/PDF, 20MB, 필수) — 연차 인증 증빙
 - ★ 본인 연차 입력 (필수, 2~50년차, 2026-06-12): 자격득실 확인서 기준 자가 계산
   · 안내 박스: "계산법 = 근무 연 수 + 1" (예: 4년 2개월 → 5년차 / 1년 8개월 → 2년차)
@@ -192,4 +207,6 @@ e. notify_admin_on_feedback_submitted RPC fire-and-forget (어드민 알림)
 
 - 자신이 제출한 버그/불편 신고 조회
 - 좌측 목록: 유형 뱃지 + 제목 + 날짜 + 메모 미리보기
-- 우측 상세: 메타 + 전체 설명 + 스크린샷 + 어드민 처리 상태
+- 우측 상세: 메타 + 전체 설명 + 스크린샷 + 어드민 처리 상태 + 💬 관리자 답변(admin_reply)
+- ★ 답변 알림 딥링크(082): 어드민 답변 알림(💬) 클릭 → /panel/bug-reports?id=<리포트id>
+  · ?id= 쿼리를 읽어 해당 리포트를 자동 선택·열람(페이지네이션 무관, id로 직접 조회 — bug_reports SELECT RLS로 본인 것만)

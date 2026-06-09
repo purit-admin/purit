@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_admin.txt — Purity MVP 어드민(Admin) 포털 상세 정의
-최종 업데이트: 2026-06-12 (심사대기 신규 뱃지 + 최근 가입순 정렬 + 경력 확정 기능)
+최종 업데이트: 2026-06-12 (심사 거절→재제출→영구차단 플로우 + 거절 사유 입력 + 버그답변 딥링크 / 심사대기 뱃지·최근가입순·경력 확정)
 ================================================================
 
 인증 후 /admin 하위 라우트 접근 가능.
@@ -24,7 +24,8 @@ Admin 계정(purit.admin@gmail.com)은 3개 포털 모두 사용 가능
 - 위험/우수 기준 (getFlag):
   · ⚠️: trust_score < 40 OR (기간 내 제출 ≥3 AND 반려율 > 50%)
   · ⭐: trust_score ≥ 80 AND 기간 내 제출 ≥3 AND 통과율 ≥ 80%
-- 필터 바: 패널명 검색 / 상태(활성/심사대기/정지) / 기간 / 분류(위험/우수) / 레벨 / 정렬
+- 필터 바: 패널명 검색 / 상태(활성/심사대기/반려/정지/영구정지) / 기간 / 분류(위험/우수) / 레벨 / 정렬 ★ 반려·영구정지 추가(082)
+- 상태 뱃지: active=활성(green) / pending=심사중(gold) / rejected=반려(red) / banned=영구정지(red) / suspended=정지(red)
   · ★ 정렬 기본값 = "최근 가입순"(joined_desc, created_at DESC) — 신규 가입 패널 최상단 (2026-06-12)
   · ★ "심사대기" 필터 버튼에 현재 심사대기 총 건수 빨간 뱃지 표시 (pendingCount, FilterGroup badges prop)
 - ★ 신규 가입(미확인) 심사대기 패널 알림 뱃지 (2026-06-12):
@@ -37,7 +38,7 @@ Admin 계정(purit.admin@gmail.com)은 3개 포털 모두 사용 가능
 PanelDetail (우측 360px):
 - 기본 정보 Card: 이름 + 레벨 뱃지, Trust 게이지, 완료미션/가입일/최근활동/상태
   · isTempSuspend 시 황색 배너: "정지 해제 예정 N월 N일 HH:MM"
-  · 계정 상태: active=✅ / pending=⏳ / suspended+suspend_until=🕐 임시 정지 / suspended+null=🚫 영구 정지
+  · 계정 상태: active=✅ / pending=⏳ / rejected=📝 반려(누적 N회) / banned=🚫 영구 차단 / suspended+suspend_until=🕐 임시 정지 / suspended+null=🚫 영구 정지
 - 활동 통계 Card: 기간 내 제출/통과/반려 + PURITY PASS RATE 바
 - 검증 서류 Card: health_insurance_url(createSignedUrl) / LinkedIn URL / 포트폴리오(signed URL or 외부링크)
 - 제출 내역 Card: 전체 이력 5개씩 페이지네이션, 행 클릭 → /admin/purity 딥링크
@@ -49,13 +50,17 @@ PanelDetail (우측 360px):
   · 안내: 확정 시점 기준 매년 자동 +1 (auto_increment_panel_experience pg_cron), 수동 상/하향 가능
   · 증빙은 위 "검증 서류 Card"의 건강보험 자격득실 확인서 링크로 확인
 - 관리 액션 Card:
-  · pending: 심사 승인(→active) / 심사 거절(→suspended)
+  · pending: 심사 승인(→active) / 심사 거절(→rejected 또는 banned) ★ 082 변경
+    - "심사 거절" 클릭 → RejectModal(거절 사유 textarea 필수 입력) — ConfirmModal은 입력 미지원이라 별도 모달(D-19 portal)
+    - 누적 거절 횟수(rejection_count) 기준: 이번이 3번째 거절(count≥2)이면 모달에 "영구 차단 경고" 빨간 배너 + 확인 시 status='banned', 그 외 status='rejected'
+    - 거절 시 fields: { status, rejection_count: +1, rejection_reason } 동시 저장
   · active: 기간제 정지 2×2 그리드(1일·3일·7일·30일) + 영구 정지 → ConfirmModal(danger)
     - 기간제: panels.suspend_until = now+N일, pg_cron 매시간 만료 자동 해제
-  · suspended: "정지 해제" (→active, suspend_until=null)
-  · 모든 정지 액션 후 sendNotification 패널 알림:
-    - 심사 거절 / 기간제 정지 / 영구 정지 / 정지 해제 → 각각 알림 발송
-    - ★ 심사 거절·영구 정지 알림 문구: 문의 안내를 "고객센터" → "버그/불편 신고에서 문의" 로 변경 (2026-06-12)
+  · rejected: 액션 버튼 없음 — 📝 반려 안내 박스(누적 N회 + 최근 거절 사유) 표시, 패널 재제출 대기
+  · banned: 🚫 영구 차단 안내 박스 + "차단 해제" 버튼(→rejected, rejection_count=0, rejection_reason=null) ★ 082
+  · suspended: "정지 해제" (→active, suspend_until=null) — 거절(rejected)이 더 이상 suspended를 쓰지 않아 이 버튼이 거절 패널에 오노출되던 버그 해소
+  · sendNotification 패널 알림 (updatePanel 분기):
+    - 심사 승인 / 심사 반려(📝 사유 포함) / 영구 차단(🚫) / 차단 해제(🔓 재심사 기회) / 기간제·영구 정지 / 정지 해제 각각 발송
 - PAGE_SIZE: 10
 
 ================================================================
@@ -192,8 +197,11 @@ completeBlocked = allFbs.length === 0 || reviewing.length > 0
 - 유형 서브탭: 전체 / 버그 / UX불편 / 데이터 / 기능제안 / 이의신청 / 기타 (건수 pill)
   · 상태 탭 전환 시 typeFilter 자동 'all' 리셋
 - 좌측 목록: 유형 뱃지 + 역할 뱃지 + 제목 + 날짜 + 메모 미리보기
-- 우측 상세: 메타 + 전체 설명 + 스크린샷 + 어드민 메모 textarea + 상태 변경 버튼
+- 우측 상세: 메타 + 전체 설명 + 스크린샷 + 어드민 메모 textarea + 답변(admin_reply) textarea + 상태 변경 버튼
 - handleStatusChange(): UPDATE + 메모 저장 → 현재 탭 목록에서 즉시 제거 + loadAll() 재호출
+- handleSendReply(): bug_reports.admin_reply·replied_at UPDATE → 신고자에게 💬 "버그/건의 답변이 도착했습니다" 알림
+  · ★ actionUrl(082 변경): role별 버그리포트 페이지 + 리포트 id 딥링크 — panel→/panel/bug-reports?id= / company→/company/bug-reports?id= / admin→/admin/reports
+    (기존 /panel·/company/notifications(알림센터 자기 자신)을 가리켜 답변이 안 열리던 dead-link 수정 — 수신 페이지가 ?id로 해당 리포트 자동 열람)
 - 페이지네이션: PAGE_SIZE=10
 
 ================================================================
@@ -213,6 +221,7 @@ completeBlocked = allFbs.length === 0 || reviewing.length > 0
 - 슬롯 완료 (DB 트리거 on_mission_slots_full)
 - 버그/불편 신고 접수 (DB 트리거 on_bug_report_insert)
 - 기업 조기 종료 (notify_early_termination RPC, actionUrl: /admin/missions?missionId=xxx)
+- ★ 패널 서류 재제출 (DB 트리거 on_panel_resubmit → notify_admin_on_panel_resubmit, rejected→pending 시, 🔁 actionUrl: /admin/panels) — 082
 
 [피드백 탭]
 - 새 피드백 제출 (notify_admin_on_feedback_submitted RPC, p_is_resubmit=false)

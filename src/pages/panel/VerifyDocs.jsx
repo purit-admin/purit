@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
 import { Card, Btn } from '../../components/ui';
@@ -69,8 +69,27 @@ export default function VerifyDocs() {
   const [portfolioText, setPortfolioText] = useState('');
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState('');
+  const [existing,      setExisting]      = useState(null); // 재제출 시 기존 제출 내역 프리필용
 
   const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+  // 기존 제출 내역 로드 → 링크·연차 프리필 (재제출 시 빈 폼 방지) + 거절 사유 표시
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('panels')
+        .select('status, rejection_reason, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, experience_years')
+        .eq('user_id', user.id)
+        .single();
+      if (!data) return;
+      setExisting(data);
+      if (data.linkedin_url)             setLinkedinUrl(data.linkedin_url);
+      if (data.portfolio_url)            setPortfolioText(data.portfolio_url);
+      if (data.experience_years != null) setExpYears(String(data.experience_years));
+    })();
+  }, []);
 
   const handleCertFile = (f) => {
     if (f && f.size > MAX_FILE_SIZE) {
@@ -92,7 +111,7 @@ export default function VerifyDocs() {
 
   const handleSubmit = async () => {
     setError('');
-    if (!certFile) {
+    if (!certFile && !existing?.health_insurance_url) {
       setError('건강보험 자격득실 확인서를 첨부해 주세요.'); return;
     }
     // 연차 입력 검증 (자격득실 확인서 기준 본인 계산값)
@@ -100,8 +119,9 @@ export default function VerifyDocs() {
     if (expYears === '' || Number.isNaN(yearsNum) || yearsNum < 2 || yearsNum > 50) {
       setError('본인 연차를 2 이상 50 이하의 숫자로 입력해 주세요.'); return;
     }
-    // 경력 인증: LinkedIn / 포트폴리오 링크 / 포트폴리오 파일 중 최소 1개 필수
-    if (!linkedinUrl.trim() && !portfolioText.trim() && !portfolioFile) {
+    // 경력 인증: LinkedIn / 포트폴리오 링크 / 포트폴리오 파일 중 최소 1개 필수 (기존 제출분 포함)
+    const hasExistingCareer = !!(existing?.linkedin_url || existing?.portfolio_url || existing?.portfolio_file_url);
+    if (!linkedinUrl.trim() && !portfolioText.trim() && !portfolioFile && !hasExistingCareer) {
       setError('경력 인증을 위해 LinkedIn 프로필, 포트폴리오 링크, 포트폴리오 파일 중 하나 이상을 제출해 주세요.'); return;
     }
     if (linkedinUrl.trim() && !LINKEDIN_RE.test(linkedinUrl.trim())) {
@@ -171,6 +191,23 @@ export default function VerifyDocs() {
         <div style={{ fontSize: 14, color: T2 }}>심사 승인을 위해 아래 서류를 제출해 주세요.</div>
       </div>
 
+      {/* 반려 시 거절 사유 안내 — 무엇을 보완해 재제출할지 표시 */}
+      {existing?.status === 'rejected' && (
+        <div style={{
+          background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10,
+          padding: '14px 16px', marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#92400E', marginBottom: 6 }}>
+            📝 서류가 반려되었습니다. 아래 사유를 확인하고 보완하여 재제출해 주세요.
+          </div>
+          {existing.rejection_reason && (
+            <div style={{ fontSize: 13.5, color: '#78350F', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              {existing.rejection_reason}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 건강보험 자격득실 확인서 */}
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: T1, marginBottom: 4 }}>
@@ -187,6 +224,11 @@ export default function VerifyDocs() {
           accept=".pdf,.jpg,.jpeg,.png"
           label="자격득실 확인서 업로드"
         />
+        {existing?.health_insurance_url && !certFile && (
+          <div style={{ fontSize: 12, color: ACCENT, marginTop: 8 }}>
+            ✓ 기존 제출 파일이 있습니다. 변경할 경우에만 새 파일을 업로드하세요.
+          </div>
+        )}
 
         {/* 본인 연차 입력 — 자격득실 확인서 기준 자가 계산 */}
         <div style={{ marginTop: 16 }}>
@@ -286,6 +328,11 @@ export default function VerifyDocs() {
             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
             label="파일로 업로드"
           />
+          {existing?.portfolio_file_url && !portfolioFile && (
+            <div style={{ fontSize: 12, color: ACCENT, marginTop: 8 }}>
+              ✓ 기존 제출 파일이 있습니다. 변경할 경우에만 새 파일을 업로드하세요.
+            </div>
+          )}
         </div>
       </Card>
 
@@ -305,7 +352,7 @@ export default function VerifyDocs() {
         disabled={submitting}
         style={{ width: '100%', padding: '14px 0', fontSize: 15, fontWeight: 700, borderRadius: 10 }}
       >
-        {submitting ? '제출 중...' : '서류 제출하기 →'}
+        {submitting ? '제출 중...' : (existing?.status === 'rejected' ? '서류 재제출하기 →' : '서류 제출하기 →')}
       </Btn>
 
       <div style={{ fontSize: 12, color: T3, textAlign: 'center', marginTop: 12 }}>

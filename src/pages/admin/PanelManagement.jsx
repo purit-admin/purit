@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -88,7 +89,7 @@ export default function AdminPanels() {
     try {
       const { data, error } = await supabase
         .from('panels')
-        .select('id, user_id, name, email, industry, experience, experience_years, experience_confirmed_at, is_executive, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
+        .select('id, user_id, name, email, industry, experience, experience_years, experience_confirmed_at, is_executive, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, rejection_count, rejection_reason, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
         .order('created_at', { ascending: false });
       if (!error) setPanels(data || []);
       setLoading(false);
@@ -175,15 +176,50 @@ export default function AdminPanels() {
           targetRole: 'panel',
         }).catch(err => console.warn('[updatePanel] 승인 알림 실패:', err));
       }
-      // 계정 정지 (심사 거절: pending→suspended / 임시 정지 / 영구 정지)
+      // 심사 반려 (pending → rejected) — 사유 안내 + 재제출 가능
+      if (fields.status === 'rejected' && targetPanel.status === 'pending') {
+        const reasonLine = fields.rejection_reason
+          ? `\n\n[거절 사유] ${fields.rejection_reason}`
+          : '';
+        sendNotification(targetPanel.user_id, {
+          type: 'warning',
+          icon: '📝',
+          title: '검증 서류가 반려되었습니다',
+          body: `심사 서류가 반려되었습니다. 아래 사유를 확인하고 서류를 보완하여 재제출해 주세요.${reasonLine}`,
+          actionUrl: '/panel',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 반려 알림 실패:', err));
+      }
+      // 영구 차단 (누적 3회 거절 → banned)
+      if (fields.status === 'banned') {
+        const reasonLine = fields.rejection_reason
+          ? `\n\n[거절 사유] ${fields.rejection_reason}`
+          : '';
+        sendNotification(targetPanel.user_id, {
+          type: 'warning',
+          icon: '🚫',
+          title: '계정이 영구 정지되었습니다',
+          body: `누적 거절 횟수가 한도에 도달하여 이 계정으로는 더 이상 심사를 받을 수 없습니다. 이의가 있으시면 버그/불편 신고에서 문의해 주세요.${reasonLine}`,
+          actionUrl: '/panel',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 영구 차단 알림 실패:', err));
+      }
+      // 차단 해제 (banned → rejected) — 재심사 기회 부여
+      if (fields.status === 'rejected' && targetPanel.status === 'banned') {
+        sendNotification(targetPanel.user_id, {
+          type: 'info',
+          icon: '🔓',
+          title: '재심사 기회가 부여되었습니다',
+          body: '관리자가 계정 차단을 해제했습니다. 검증 서류를 다시 제출하면 재심사를 받을 수 있습니다.',
+          actionUrl: '/panel/verify-docs',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 차단 해제 알림 실패:', err));
+      }
+      // 계정 정지 (활성 계정의 임시 정지 / 영구 정지)
       if (fields.status === 'suspended') {
-        const isPendingRejection = targetPanel.status === 'pending';
         const isTimed = !!fields.suspend_until;
         let title, body;
-        if (isPendingRejection) {
-          title = '심사에서 탈락하였습니다';
-          body  = '아쉽게도 이번 심사에서 탈락하였습니다. 문의사항이 있으시면 버그/불편 신고에서 문의해 주세요.';
-        } else if (isTimed) {
+        if (isTimed) {
           const until = new Date(fields.suspend_until);
           const daysLeft = Math.round((until.getTime() - Date.now()) / 86400000);
           const untilStr = until.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
@@ -195,7 +231,7 @@ export default function AdminPanels() {
         }
         sendNotification(targetPanel.user_id, {
           type: 'warning',
-          icon: isPendingRejection ? '❌' : '🚫',
+          icon: '🚫',
           title,
           body,
           actionUrl: '/panel',
@@ -333,7 +369,7 @@ export default function AdminPanels() {
         />
         {/* 상태 */}
         <FilterGroup
-          options={[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['suspended', '정지']]}
+          options={[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['rejected', '반려'], ['suspended', '정지'], ['banned', '영구정지']]}
           value={statusFilter}
           onChange={v => { setStatusFilter(v); setPage(1); }}
           badges={{ pending: pendingCount }}
@@ -509,7 +545,11 @@ export default function AdminPanels() {
                       {/* 상태 */}
                       <td style={{ padding: '12px 14px' }}>
                         <Badge type={status === 'active' ? 'green' : status === 'pending' ? 'gold' : 'red'}>
-                          {status === 'active' ? '활성' : status === 'pending' ? '심사중' : '정지'}
+                          {status === 'active' ? '활성'
+                            : status === 'pending' ? '심사중'
+                            : status === 'rejected' ? '반려'
+                            : status === 'banned' ? '영구정지'
+                            : '정지'}
                         </Badge>
                       </td>
                     </tr>
@@ -592,6 +632,63 @@ function FilterGroup({ options, value, onChange, badges = {} }) {
   );
 }
 
+// 심사 거절 모달 — 거절 사유 입력 + 3번째 거절 시 영구 차단 경고 (ConfirmModal은 입력 필드 미지원이라 별도 구현, D-19 portal)
+function RejectModal({ willBan, rejectionCount, reason, onReason, errorMsg, acting, onConfirm, onCancel }) {
+  return ReactDOM.createPortal(
+    <div
+      onClick={onCancel}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="confirm-modal-inner"
+        style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '24px 28px', width: 420, animation: 'fadeUp 0.18s ease both' }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>
+          {willBan ? '⚠️ 영구 차단 경고' : '심사 거절'}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16, lineHeight: 1.6 }}>
+          거절 사유는 패널에게 그대로 전달되며, 재제출 시 무엇을 보완할지 안내합니다.
+        </div>
+
+        {willBan && (
+          <div style={{ fontSize: 12.5, color: '#DC2626', fontWeight: 600, marginBottom: 14, padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, lineHeight: 1.6 }}>
+            이 거절은 누적 {rejectionCount + 1}번째 거절입니다. 확인 시 이 계정은 <strong>영구적으로 사용 불가</strong>가 되며 재심사를 받을 수 없습니다.
+          </div>
+        )}
+
+        <textarea
+          value={reason}
+          onChange={e => onReason(e.target.value)}
+          placeholder="예: 건강보험 자격득실 확인서가 흐릿하여 근무 이력 확인이 어렵습니다. 선명한 파일로 다시 제출해 주세요."
+          rows={4}
+          style={{
+            width: '100%', padding: '11px 13px', borderRadius: 9,
+            border: '1px solid var(--border)', fontSize: 13.5, fontFamily: 'inherit',
+            outline: 'none', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6,
+          }}
+          onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
+          onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+        />
+
+        {errorMsg && (
+          <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600, marginTop: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 6 }}>
+            {errorMsg}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+          <Btn variant="secondary" onClick={onCancel} disabled={acting}>취소</Btn>
+          <Btn variant="danger" onClick={onConfirm} disabled={acting || !reason.trim()}>
+            {acting ? '처리 중...' : (willBan ? '영구 차단하고 거절' : '거절하기')}
+          </Btn>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, onConfirmExperience, flag,
                        feedbackPage, onFeedbackPage, onFeedbackClick, actionMsg, onClearActionMsg }) {
   const totalDetailPages = Math.max(1, Math.ceil(feedbacks.length / DETAIL_PAGE_SIZE));
@@ -604,6 +701,9 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
   const cm = HONOR_COLOR_META[hl.colorTier];
   const [confirmAction, setConfirmAction] = useState(null);
   const [updateError, setUpdateError]     = useState('');
+  const [rejectOpen, setRejectOpen]       = useState(false);
+  const [rejectReason, setRejectReason]   = useState('');
+  const willBan = (panel.rejection_count ?? 0) >= 2; // 누적 2회 → 이번 거절이 3번째 = 영구 차단
   const [expYearsInput, setExpYearsInput] = useState(panel.experience_years != null ? String(panel.experience_years) : '');
   const [isExecInput, setIsExecInput]     = useState(!!panel.is_executive);
   const [expSaving, setExpSaving]         = useState(false);
@@ -663,7 +763,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             { label: '전체 완료 미션', value: `${panel.total_missions || 0}건` },
             { label: '가입일',        value: new Date(panel.created_at).toLocaleDateString('ko-KR') },
             { label: '최근 활동',     value: relativeTime(s.lastAt) },
-            { label: '계정 상태',     value: status === 'active' ? '✅ 활성' : status === 'pending' ? '⏳ 심사중' : isTempSuspend ? '🕐 임시 정지' : '🚫 영구 정지' },
+            { label: '계정 상태',     value: status === 'active' ? '✅ 활성' : status === 'pending' ? '⏳ 심사중' : status === 'rejected' ? `📝 반려 (누적 ${panel.rejection_count || 0}회)` : status === 'banned' ? '🚫 영구 차단' : isTempSuspend ? '🕐 임시 정지' : '🚫 영구 정지' },
           ].map(({ label, value }) => (
             <div key={label} style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{label}</div>
@@ -1008,7 +1108,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
                 ✓ 심사 승인
               </Btn>
               <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center' }}
-                onClick={() => setConfirmAction({ status: 'suspended', label: '심사 거절', desc: '이 패널을 심사 거절 처리합니까?\n계정이 정지 상태로 전환됩니다.' })}>
+                onClick={() => { setRejectReason(''); setUpdateError(''); setRejectOpen(true); }}>
                 ✕ 심사 거절
               </Btn>
             </>
@@ -1039,6 +1139,34 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
               정지 해제
             </Btn>
           )}
+          {status === 'rejected' && (
+            <div style={{ fontSize: 12, color: 'var(--text-2)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+              📝 <strong>반려 처리됨</strong> (누적 거절 {panel.rejection_count || 0}회).
+              패널이 서류를 재제출하면 다시 심사대기 목록에 표시됩니다.
+              {panel.rejection_reason && (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(245,158,11,0.25)', color: 'var(--text-3)' }}>
+                  최근 거절 사유: <span style={{ color: 'var(--text-2)' }}>{panel.rejection_reason}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {status === 'banned' && (
+            <>
+              <div style={{ fontSize: 12, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+                🚫 <strong>영구 차단됨</strong> (누적 거절 {panel.rejection_count || 0}회).
+                이 계정으로는 재심사가 불가합니다.
+                {panel.rejection_reason && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #FECACA', color: 'var(--text-3)' }}>
+                    최근 거절 사유: <span style={{ color: 'var(--text-2)' }}>{panel.rejection_reason}</span>
+                  </div>
+                )}
+              </div>
+              <Btn size="sm" disabled={acting} style={{ justifyContent: 'center' }}
+                onClick={() => setConfirmAction({ status: 'rejected', rejection_count: 0, label: '차단 해제', desc: '이 계정의 영구 차단을 해제합니까?\n반려 상태로 전환되고 누적 거절 횟수가 0으로 초기화됩니다. 패널은 서류를 재제출할 수 있습니다.' })}>
+                차단 해제
+              </Btn>
+            </>
+          )}
         </div>
       </Card>
 
@@ -1053,12 +1181,42 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             const fields = { status: confirmAction.status };
             if (confirmAction.suspend_until) fields.suspend_until = confirmAction.suspend_until;
             if (confirmAction.status === 'active') fields.suspend_until = null;
+            // 차단 해제: 누적 거절 횟수 초기화 + 거절 사유 클리어
+            if (confirmAction.rejection_count != null) {
+              fields.rejection_count = confirmAction.rejection_count;
+              if (confirmAction.rejection_count === 0) fields.rejection_reason = null;
+            }
             const ok = await onUpdate(panel.id, fields);
             if (ok) setConfirmAction(null);
             else setUpdateError('처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
           }}
           onCancel={() => { setUpdateError(''); setConfirmAction(null); }}
           danger
+        />
+      )}
+
+      {rejectOpen && (
+        <RejectModal
+          willBan={willBan}
+          rejectionCount={panel.rejection_count ?? 0}
+          reason={rejectReason}
+          onReason={setRejectReason}
+          errorMsg={updateError}
+          acting={acting}
+          onCancel={() => { setUpdateError(''); setRejectOpen(false); }}
+          onConfirm={async () => {
+            setUpdateError('');
+            if (!rejectReason.trim()) { setUpdateError('거절 사유를 입력해 주세요.'); return; }
+            const nextCount = (panel.rejection_count ?? 0) + 1;
+            const fields = {
+              status: nextCount >= 3 ? 'banned' : 'rejected',
+              rejection_count: nextCount,
+              rejection_reason: rejectReason.trim(),
+            };
+            const ok = await onUpdate(panel.id, fields);
+            if (ok) { setRejectReason(''); setRejectOpen(false); }
+            else setUpdateError('처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
+          }}
         />
       )}
     </div>

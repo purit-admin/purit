@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-12 (패널 경력 어드민 확정·잠금 시스템 — migration 081 + 어드민 심사대기 신규 뱃지)
+최종 업데이트: 2026-06-12 (082 패널 심사 거절→재제출→영구차단 플로우 + 버그답변 딥링크 라우팅 / 081 경력 확정 시스템)
 ================================================================
 
 ## 기술 스택
@@ -83,13 +83,19 @@ purit/
 │   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   │              showBugReport state + "버그/불편 신고" 버튼(로그아웃 버튼 위, 전 포털 공통) + BugReportModal 렌더
 │   │   │              어드민 NAV '운영' 그룹 순서: 기업 관리 → 패널 관리 → 미션 관리 → 피드백 관리(구 'Purit Filter') → 수익 & 정산 → 버그 리포트 ★
-│   │   │              ★ 패널 pending 게이트 (Layout <main> 블록) ★ 신규:
-│   │   │                panelStatusLoaded=false + /panel·/panel/verify-docs 외 경로 → null 렌더 (로딩 대기)
-│   │   │                panelStatus==='pending' + /panel·/panel/verify-docs 외 경로 → 개별 페이지 대신 pending 콘텐츠 표시
-│   │   │                  - panelHasDocs=true (서류 제출 완료): amber "심사 대기 중" 배너 표시
-│   │   │                  - panelHasDocs=false (서류 미제출): "서비스 이용을 위한 경력 인증" Card + "서류 제출하기 →" Btn
+│   │   │              ★ 패널 상태 게이트 (Layout <main> 블록) ★ pending/rejected/banned (082 확장):
+│   │   │                허용(게이트 통과) 경로 공통: /panel · /panel/notifications · /panel/bug-reports
+│   │   │                  (거절/차단 패널도 거절 알림 확인 + 버그/이의신청 답변 열람 가능하도록 082에서 추가)
+│   │   │                panelStatusLoaded=false + (허용+/panel/verify-docs) 외 경로 → null 렌더 (로딩 대기)
+│   │   │                panelStatus==='pending' + (허용+/panel/verify-docs) 외 경로 → pending 콘텐츠
+│   │   │                  - panelHasDocs=true: amber "심사 대기 중" 배너 / false: "경력 인증" Card + "서류 제출하기 →" Btn
+│   │   │                panelStatus==='rejected' + (허용+/panel/verify-docs) 외 경로 → 📝 반려 Card + rejectionReason + "서류 재제출하기 →"
+│   │   │                  (대시보드 panel/Dashboard.jsx 반려 블록과 동일 마크업 — page-wrap maxWidth 900, Card padding 48px 24px)
+│   │   │                panelStatus==='banned' + (허용) 외 경로 → 🚫 영구 정지 Card (재제출 버튼 없음, verify-docs도 차단)
+│   │   │                panelRejectionReason state: 패널 status 로더 select에 rejection_reason 포함
 │   │   │                ※ 개별 페이지(Missions.jsx·ActiveMission.jsx)의 pending 게이트와 이중 방어 구조
 │   │   │                  Sidebar 레벨이 1차 차단, 개별 페이지 게이트가 URL 직접 접근 방어(2차)
+│   │   │                  (rejected/banned는 현재 Sidebar 단일 방어 — 개별 페이지 게이트 미반영, QA 니체-RJ-D 참조)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
 │   │                  ConfirmModal props: title·desc·confirmLabel·cancelLabel·danger·onConfirm·onCancel + errorMsg=''(선택)
 │   │                    errorMsg 있으면 모달 내부 하단에 빨간 배너 표시 → 확인 실패 시 모달 유지 (낙관적 롤백 패턴 — D-65 참조)
@@ -311,6 +317,15 @@ purit/
 │                    최초 확정 / 수동 상·하향 / C레벨 지정 모두 이 RPC (확정 시점이 자동 +1 앵커 리셋) / GRANT authenticated
 │                  RPC auto_increment_panel_experience() — pg_cron 일 1회, 확정 후 경과 만년 수만큼 +N (AGE 기반 다년 보정) / GRANT service_role
 │                    pg_cron 스케줄: SQL Editor 수동 실행 필요 (파일 내 주석)
+│                082(panel_rejection_flow: 패널 심사 거절→재제출→영구차단 플로우) ★ 신규 (2026-06-12)
+│                  panels 컬럼 2개 추가: rejection_count INTEGER DEFAULT 0 / rejection_reason TEXT
+│                  status 모델 분리: 심사 거절 = 'rejected'(재제출 가능) / 누적 3회 거절 = 'banned'(영구 차단, 재제출 불가)
+│                    → 기존 'suspended'는 활성 계정 정지 전용으로 분리 ("정지 해제"가 거절 패널을 잘못 활성화하던 버그 해소)
+│                  save_panel_verification_docs 재정의(동일 6-param CREATE OR REPLACE):
+│                    status가 pending/rejected일 때만 (재)제출 허용(우회 차단) + 제출 시 status='pending' flip + 재제출 시 rejection_reason 클리어
+│                  notify_admin_on_panel_resubmit() 트리거(AFTER UPDATE OF status): rejected→pending 시 어드민 🔁 알림 (062 패턴)
+│                  ※ 어드민 측: PanelManagement.jsx 거절 사유 입력 모달(RejectModal) + 3번째 거절 시 영구차단 경고 + banned "차단 해제"(→rejected, count 0)
+│                  ※ 버그/건의 답변 알림 라우팅: admin/BugReports actionUrl /panel·/company/notifications → /panel·/company/bug-reports?id= (해당 리포트 자동 열림 딥링크)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

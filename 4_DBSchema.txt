@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-29 (067_enhanced_sharing — missions.share_permissions JSONB 추가 + get_shared_mission RPC 전면 확장)
+최종 업데이트: 2026-06-12 (082_panel_rejection_flow — panels.rejection_count/rejection_reason 추가 + save_panel_verification_docs status 가드·pending flip + notify_admin_on_panel_resubmit 트리거)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -31,7 +31,9 @@
   user_id           UUID  FK → auth.users.id  (UNIQUE, 1:1)
   name              TEXT
   email             TEXT  NOT NULL             ← 실제 DB NOT NULL 컬럼 (migration 059/060 INSERT에 포함)
-  status            TEXT  DEFAULT 'active'     ← 'active'|'suspended'|'pending' (057/058 RPC status='active' 체크 대상)
+  status            TEXT  DEFAULT 'active'     ← 'active'|'suspended'|'pending'|'rejected'|'banned' (057/058 RPC status='active' 체크 대상 / CHECK 제약 없음, 앱 레벨 enforce)
+                                                  · rejected = 심사 반려(재제출 가능, 082) / banned = 누적 3회 거절 영구 차단(재제출 불가, 082)
+                                                  · 심사 거절은 더 이상 'suspended'를 쓰지 않음 — suspended는 활성 계정 정지 전용 (082 분리)
   industry          TEXT
   experience        TEXT  (경력 연차 등)
   bio               TEXT
@@ -58,6 +60,8 @@
   experience_years        INTEGER     DEFAULT NULL          ← 081 추가 (확정 연차; 가입 시 자가입력 → 어드민 확정·조정 대상)
   experience_confirmed_at TIMESTAMPTZ DEFAULT NULL          ← 081 추가 (어드민 확정일; NULL=미확정 · 자동 +1 기준점)
   is_executive            BOOLEAN     DEFAULT FALSE         ← 081 추가 (어드민 지정 C레벨/임원 — experience='임원' 동기화, 3.0배)
+  rejection_count         INTEGER     DEFAULT 0             ← 082 추가 (누적 심사 거절 횟수; 3 도달 시 banned)
+  rejection_reason        TEXT                              ← 082 추가 (최근 거절 사유; 패널에게 표시, 재제출 시 NULL 클리어)
   ※ experience(TEXT)는 파생 필드로 유지: 확정/조정/자동증가 시 (is_executive ? '임원' : 'N년')로 동기화
      → getExperienceMultiplier/CareerKey·보상·미션필터·기업타겟팅 등 다운스트림 코드 불변
   ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
@@ -69,6 +73,7 @@
   ※ 078_panel_temp_suspension.sql 에서 suspend_until 컬럼 추가
   ※ 080_portfolio_file_url.sql 에서 portfolio_file_url 컬럼 추가 (포트폴리오 링크/파일 분리)
   ※ 081_panel_experience_confirmation.sql 에서 experience_years / experience_confirmed_at / is_executive 컬럼 추가 + 기존 패널 백필
+  ※ 082_panel_rejection_flow.sql 에서 rejection_count / rejection_reason 컬럼 추가 (심사 거절·재제출·영구차단 플로우)
   suspend_until          TIMESTAMPTZ DEFAULT NULL              ← 078 추가 (기간제 정지 만료 시각; NULL=영구 정지 또는 비정지)
   ※ 신규 패널 status: handle_new_user 트리거(이메일)·create_oauth_user_profile RPC(OAuth) 모두 'pending'으로 생성
   ※ RLS UPDATE 정책 2개:
@@ -651,10 +656,14 @@
     → COALESCE(p_xxx, 컬럼) 패턴 — NULL 인자는 기존 DB 값 유지, 덮어쓰지 않음
     → p_portfolio_url=포트폴리오 링크 / p_portfolio_file_url=포트폴리오 파일 path (080부터 분리)
     → p_experience_years=본인 연차 — experience_confirmed_at IS NULL(미확정)일 때만 반영 (어드민 확정값 보호, 081)
+    → status 가드(082): 현재 status가 'pending' 또는 'rejected'일 때만 (재)제출 허용 — 그 외(suspended/active/banned)는 RETURN FALSE (상태 우회 차단)
+    → status flip(082): 제출 성공 시 status='pending'으로 전환 (rejected→pending = 재제출 / pending→pending 유지) → notify_admin_on_panel_resubmit 트리거 발화
+    → rejection_reason(082): 재제출(기존 status='rejected')이면 NULL로 클리어
     → VerifyDocs.jsx handleSubmit에서 Storage 업로드 직후 호출 (이미지 파일은 compressImage 압축 후 업로드)
     → 파일: 065_save_panel_verification_docs.sql (최초 4-param)
              + 080_portfolio_file_url.sql (p_portfolio_file_url 추가, 5-param 재생성)
-             + 081_panel_experience_confirmation.sql (p_experience_years 추가, 기존 5-param DROP 후 6-param 재생성) ★ 현재 최신
+             + 081_panel_experience_confirmation.sql (p_experience_years 추가, 기존 5-param DROP 후 6-param 재생성)
+             + 082_panel_rejection_flow.sql (status 가드 + pending flip + rejection_reason 클리어, 동일 6-param CREATE OR REPLACE) ★ 현재 최신
 
   admin_confirm_panel_experience(p_panel_id UUID, p_years INT, p_is_executive BOOLEAN DEFAULT FALSE) RETURNS BOOLEAN
     → SECURITY DEFINER — 어드민 경력 확정·조정(최초 확정 / 수동 상·하향 / C레벨 지정 모두 이 함수)
@@ -709,3 +718,11 @@
     → actionUrl: /company/settings
     → 호출: InviteAccept.jsx handleAccept() 성공 직후 fire-and-forget
     → 파일: supabase/migrations/073_notify_feedback_and_team.sql
+
+  notify_admin_on_panel_resubmit() [트리거 함수] — on_panel_resubmit (AFTER UPDATE OF status ON panels)
+    → SECURITY DEFINER — OLD.status='rejected' AND NEW.status='pending'(서류 재제출) 전환에만 발화
+    → 단일 어드민(raw_app_meta_data->>'role'='admin' LIMIT 1) 조회 후 notifications INSERT (062 notify_admin_on_new_panel 패턴 재사용, D-58)
+    → 🔁 "패널 서류 재제출" / actionUrl: /admin/panels / target_role: admin
+    → 발화 경로: save_panel_verification_docs RPC가 rejected→pending flip 시 (082)
+    → 파일: supabase/migrations/082_panel_rejection_flow.sql
+    → 참고: 최초 가입(INSERT pending)은 062 on_panel_pending_created가 담당 — 재제출(UPDATE)은 본 트리거가 담당

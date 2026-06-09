@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-12 (패널 경력 어드민 확정·잠금 + 가입 연차 입력)
+최종 업데이트: 2026-06-12 (패널 심사 거절→재제출→영구차단 알림 + 버그/건의 답변 딥링크 / 경력 어드민 확정·잠금)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -59,6 +59,9 @@
   · 스크린샷 업로드 실패 시 screenshot_url=null으로 graceful fallback — 신고 자체는 정상 제출
   · 제출 성공 → "리포트가 제출되었습니다!" 완료 화면 2.2초 후 자동 닫힘
 - DB: bug_reports 테이블 + DB 트리거(on_bug_report_insert) → 어드민 전체 자동 알림
+- 어드민 답변(admin_reply) 발송 → 신고자에게 💬 알림. actionUrl: 신고자 역할별 버그리포트 페이지 + ?id=<리포트id> 딥링크 ★ 082
+  · 수신 페이지(panel/company BugReports)가 ?id로 해당 리포트 자동 열람 (bug_reports SELECT RLS로 본인 것만)
+  · 거절/차단 패널도 게이트 허용 경로(/panel/bug-reports)라 답변 열람 가능
 - Sidebar.jsx NAV (어드민 '운영' 그룹): '버그 리포트' 메뉴 추가 → /admin/reports
 
 ================================================================
@@ -145,7 +148,10 @@
     · 만료 1시간 전 임박 알림 — 최초 draft(submission_deadline 1h 이내), 재작성 draft(rejection_deadline 1h 이내), 미수락 반려(rejection_deadline 1h 이내) (panel/Dashboard.jsx) → 패널
     · 수락 취소됨 알림 — draft 만료 시 자동 삭제 (expire_panel_drafts RPC, migration 037) → 패널
     · 심사 승인 (PanelManagement.jsx pending→active) → 패널
-    · 심사 거절 (PanelManagement.jsx pending→suspended) → 패널 ★ 신규
+    · 심사 반려 (PanelManagement.jsx pending→rejected) → 패널 "검증 서류가 반려되었습니다" 📝 (거절 사유 포함, 재제출 안내) ★ 082 (구: pending→suspended)
+    · 영구 차단 (PanelManagement.jsx 누적 3회 거절 →banned) → 패널 "계정이 영구 정지되었습니다" 🚫 (재심사 불가) ★ 082
+    · 차단 해제 (PanelManagement.jsx banned→rejected, rejection_count=0) → 패널 "재심사 기회가 부여되었습니다" 🔓 ★ 082
+    · 서류 재제출 (DB 트리거 on_panel_resubmit, rejected→pending) → 어드민 "패널 서류 재제출" 🔁 (actionUrl /admin/panels) ★ 082
     · 기간제 정지 (PanelManagement.jsx active→suspended+suspend_until) → 패널 "N일 임시 정지되었습니다" ★ 신규
     · 영구 정지 (PanelManagement.jsx active→suspended, suspend_until=NULL) → 패널 "계정이 영구 정지되었습니다" ★ 신규
     · 정지 자동 해제 (pg_cron lift_expired_panel_suspensions, 매시간) → 패널 "임시 정지가 해제되었습니다" ★ 신규
