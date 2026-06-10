@@ -4,7 +4,7 @@ import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
-import { getPanelReward, getExperienceMultiplier, getCareerUnlockCredit } from '../../lib/honorLevels';
+import { getPanelReward, getCareerUnlockCredit } from '../../lib/honorLevels';
 
 // 무료 체험 의뢰 통합 관리 — 미션 모니터링 + 피드백 승인/반려 + 미션 완료/취소
 // (PurityFilter·Missions와 동일 RPC 시퀀스를 자체 구현 — 두 페이지 회귀 차단)
@@ -21,6 +21,21 @@ function fmtDate(s) {
   if (!s) return '—';
   const d = new Date(s);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// 패널별 평균 점수(5축) 맵 — 무료 체험 공개 2명 자동 선별용 (호평 상위 2명).
+// 서버 unlock_free_trial_mission RPC의 AVG((coalesce..)/5.0)·Results.jsx와 동일 공식 (D-121/D-35).
+function panelScoreAvgMap(fbs) {
+  const acc = {};
+  (fbs || []).forEach(f => {
+    if (!f.purity_passed || !f.panel_id) return;
+    const s = ((f.clarity_score || 0) + (f.relevance_score || 0) + (f.value_score || 0)
+               + (f.differentiation_score || 0) + (f.trust_score || 0)) / 5;
+    (acc[f.panel_id] ||= []).push(s);
+  });
+  const out = {};
+  Object.entries(acc).forEach(([pid, arr]) => { out[pid] = arr.reduce((a, b) => a + b, 0) / arr.length; });
+  return out;
 }
 
 // 퓨릿 점수 (메인 미션 기준 — 무료 체험은 항상 메인/이미지)
@@ -134,7 +149,7 @@ export default function TrialMissions() {
         .neq('status', 'draft')
         .order('created_at', { ascending: true });
       setDetailFbs(fbs || []);
-      // 공개 2건 선택 초기화: 미션에 어드민 지정값이 있으면 그것, 없으면 자동 상위 2명(전문가·경력순)
+      // 공개 2건 선택 초기화: 어드민 지정값이 있으면 그것, 없으면 자동 호평 상위 2명(평균점수순)
       const m = missions.find(x => x.id === selected);
       const saved = m?.trial_public_panel_ids;
       if (Array.isArray(saved) && saved.length > 0) {
@@ -144,10 +159,12 @@ export default function TrialMissions() {
         (fbs || []).forEach(f => {
           if (f.purity_passed && f.panel_id && !seen.has(f.panel_id)) { seen.add(f.panel_id); approved.push(f); }
         });
+        // 공개 = 호평 상위 2명 (평균점수 DESC, panel_id ASC) — 서버 unlock RPC·Results와 정합
+        const avgMap = panelScoreAvgMap(fbs || []);
         approved.sort((a, b) => {
-          const ea = a.panels?.is_expert ? 1 : 0, eb = b.panels?.is_expert ? 1 : 0;
-          if (eb !== ea) return eb - ea;
-          return getExperienceMultiplier(b.panels?.experience || '') - getExperienceMultiplier(a.panels?.experience || '');
+          const sa = avgMap[a.panel_id] ?? 0, sb = avgMap[b.panel_id] ?? 0;
+          if (sb !== sa) return sb - sa;
+          return a.panel_id < b.panel_id ? -1 : 1;
         });
         setPublicSel(new Set(approved.slice(0, 2).map(f => f.panel_id)));
       }
@@ -373,10 +390,12 @@ export default function TrialMissions() {
   const publicSaved2 = !!(selMission && Array.isArray(selMission.trial_public_panel_ids) && selMission.trial_public_panel_ids.length === 2);
   const effectivePublicSet = (() => {
     if (publicSaved2) return new Set(selMission.trial_public_panel_ids);
+    // 자동 공개 = 호평 상위 2명 (평균점수 DESC, panel_id ASC) — 서버 unlock RPC·Results와 정합
+    const avgMap = panelScoreAvgMap(detailFbs);
     const sorted = [...approvedPanels].sort((a, b) => {
-      const ea = a.panels?.is_expert ? 1 : 0, eb = b.panels?.is_expert ? 1 : 0;
-      if (eb !== ea) return eb - ea;
-      return getExperienceMultiplier(b.panels?.experience || '') - getExperienceMultiplier(a.panels?.experience || '');
+      const sa = avgMap[a.panel_id] ?? 0, sb = avgMap[b.panel_id] ?? 0;
+      if (sb !== sa) return sb - sa;
+      return a.panel_id < b.panel_id ? -1 : 1;
     });
     return new Set(sorted.slice(0, 2).map(f => f.panel_id));
   })();

@@ -1,6 +1,6 @@
 ================================================================
 5_CodeMap.txt — Purity MVP 페이지·컴포넌트별 구현 상세 (CodeMap)
-최종 업데이트: 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
+최종 업데이트: 2026-06-13 (Results 무료 체험 094 — 점수기반 공개 2명 자동 선별·잠긴쪽 티저(criticalCount·weakestAxis)·30% 첫 언락 할인+48h 카운트다운(nowTick·touch_trial_results_seen)) / 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
 ================================================================
 
 ※ 조건부 로드 문서. 특정 페이지/컴포넌트 파일을 수정·디버깅하기 전에만 Read 도구로
@@ -212,6 +212,17 @@
 - PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
 - PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
 - EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
+- 무료 체험 부분 잠금 (085/089/090/094):
+  · trialLocked = mission.is_free_trial && !mission.trial_unlocked. 5축 점수 집계는 전체 공개, 코멘트/어노테이션/추가질문 응답만 잠금.
+  · panelAvgScore: feedbacks 5축 평균을 패널별로 집계(서버 AVG((coalesce..)/5.0)와 동일 공식, D-121).
+  · unlockedPanelIds(공개 2명): adminPublic(trial_public_panel_ids) 있으면 그 값, 없으면 ★094 panelAvgScore DESC, panel_id ASC 상위 2명(호평 자동 선별).
+  · unlockBaseCost(정가) = lockedPanelIds(공개 제외)의 getCareerUnlockCredit 합. 표시·결제 모두 서버 unlock RPC와 정합.
+  · ★094 할인: seenAtMs = mission.trial_results_seen_at, discountEndMs = seenAtMs + 48h. withinDiscount = trialLocked && (end null || nowTick<end).
+    unlockCost = applyUnlockDiscount(unlockBaseCost, withinDiscount)(정가×0.70 ROUND2). discountRemainMs로 카운트다운.
+  · nowTick state + useEffect(1초 setInterval, deps [selected,missions], end 경과 시 clearInterval) — ★ if(loading) return 앞에 배치(Rules of Hooks).
+  · touch_trial_results_seen RPC: loadFeedback에서 무료 미언락 첫 열람 시 호출 → seen_at 세팅 후 missions state 패치(할인 앵커 시작).
+  · trialTeaser: 잠긴 패널 중 어느 한 축이라도 ≤2점이면 criticalCount++, 5축 중 최저평균 축 = weakestAxis(한국어 라벨). 배너에 "잠긴 N명 중 M명 치명적 지적" 노출.
+  · 배너: 정가 취소선 → 할인가 + '첫 언락 30% 할인' 뱃지 + ⏳ 카운트다운. 버튼 라벨도 할인 여부 분기.
 
 ================================================================
 ## company/Diagnosis.jsx

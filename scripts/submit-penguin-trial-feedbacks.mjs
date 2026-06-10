@@ -360,7 +360,7 @@ async function main() {
     .filter(u => /^panel\d+@purit\.io$/.test(u.email || ''))
     .filter(u => {
       const n = parseInt(u.email.match(/\d+/)[0], 10);
-      return n >= 1 && n <= 9;   // 패널 1~9만
+      return n >= 1 && n <= 10;   // 패널 1~10
     })
     .sort((a, b) => {
       const na = parseInt(a.email.match(/\d+/)[0], 10);
@@ -368,7 +368,7 @@ async function main() {
       return na - nb;
     });
 
-  console.log(`\n✅ 패널 계정 ${panelUsers.length}개 확인 (panel1~9)\n`);
+  console.log(`\n✅ 패널 계정 ${panelUsers.length}개 확인 (panel1~10)\n`);
 
   // 4. panels 레코드 매핑
   const { data: panelRecords, error: pErr } = await supabase

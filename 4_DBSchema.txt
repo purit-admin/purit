@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
+최종 업데이트: 2026-06-13 (094 — missions.trial_results_seen_at(할인 48h 앵커, 보호컬럼) / unlock_free_trial_mission 재정의: 자동 공개 2명을 avg_score(5축 평균) 상위로 + 30% 첫 언락 할인(seen_at부터 48h, ROUND(정가×0.70,2)) / touch_trial_results_seen RPC / guard_mission_freemium_columns에 seen_at 추가 / D-126) / 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -124,8 +124,9 @@
   is_free_trial      BOOLEAN NOT NULL DEFAULT false        ← 085 추가 (무료 체험 의뢰 — 회계/공유/완료 격리 분기 기준)
   trial_unlocked     BOOLEAN NOT NULL DEFAULT false        ← 085 추가 (잠긴 피드백 전체 언락 여부 — unlock_free_trial_mission이 set)
   unlock_cost        NUMERIC(10,2) NOT NULL DEFAULT 0       ← 085 추가 (등록 시점 추정치; 087 언락 시 실제 차감액으로 갱신)
-  trial_public_panel_ids UUID[] DEFAULT NULL                ← 089 추가 (어드민 지정 공개 패널 2명; NULL이면 자동 상위 2명 폴백 — Results 공개분·언락비용 권위)
-  ※ 보호 컬럼(092): trial_unlocked·trial_public_panel_ids·credits_consumed·credits_reserved·unlock_cost·is_free_trial 은
+  trial_public_panel_ids UUID[] DEFAULT NULL                ← 089 추가 (어드민 지정 공개 패널 2명; NULL이면 자동 호평(점수) 상위 2명 폴백 — Results 공개분·언락비용 권위)
+  trial_results_seen_at TIMESTAMPTZ DEFAULT NULL            ← 094 추가 (기업이 무료 체험 결과를 처음 연 시각 — 30% 첫 언락 할인 48h 카운트다운 앵커. touch_trial_results_seen이 1회 set)
+  ※ 보호 컬럼(092→094): trial_unlocked·trial_public_panel_ids·credits_consumed·credits_reserved·unlock_cost·is_free_trial·trial_results_seen_at 은
      missions BEFORE UPDATE 트리거(guard_mission_freemium_columns)로 클라 직접 UPDATE 차단 → SECURITY DEFINER RPC만 변경 가능
   created_at         TIMESTAMPTZ DEFAULT now()
 
@@ -515,15 +516,22 @@
     → NewMission.jsx 무료 분기에서 호출 (missions INSERT(draft) 직후) / GRANT authenticated
     → 파일: supabase/migrations/085_free_trial_freemium.sql
 
-  unlock_free_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 087→089→090 재정의 (최신 090)
-    → 잠긴 피드백 전체 언락 — 비용 = 잠긴 패널(공개분 제외)의 경력 크레딧 합
-      공개분: missions.trial_public_panel_ids 있으면 그 2명(089), 없으면 자동 ROW_NUMBER(is_expert DESC, credit DESC, panel_id ASC) rn≤2
+  unlock_free_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 087→089→090→094 재정의 (최신 094)
+    → 잠긴 피드백 전체 언락 — 정가 = 잠긴 패널(공개분 제외)의 경력 크레딧 합
+      공개분 ★094 점수기반: missions.trial_public_panel_ids 있으면 그 2명(089), 없으면 자동 ROW_NUMBER(avg_score DESC, panel_id ASC) rn≤2
+        avg_score = 패널별 AVG((coalesce 5축)/5.0) — 호평(점수 상위) 2명 공개, 저점(치명적) 패널은 잠겨 티저 유발
       경력→크레딧 ★메인 1.5배(090): 주니어1.5 / 미들3 / 시니어4.5(8년+ 포함) / C레벨6 (honorLevels.CAREER_UNLOCK_CREDIT와 일치, D-121)
-      DISTINCT ON(panel_id) + WHERE (v_public 있으면 panel_id<>ALL(v_public), 없으면 rn>2) → 클라(Results) 표시와 합계 일치
+      GROUP BY panel_id + WHERE (v_public 있으면 panel_id<>ALL(v_public), 없으면 rn>2) → 클라(Results) 표시와 합계 일치
+    → ★094 30% 첫 언락 할인: trial_results_seen_at(NULL이면 방금 연 것)부터 48h 이내면 v_cost = ROUND(정가 × 0.70, 2), 이후 정가
+      (honorLevels.TRIAL_FIRST_UNLOCK_DISCOUNT=0.30 / TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS=48 — 클라 applyUnlockDiscount와 1:1 정합, D-121)
     → 소유권: companies.user_id=auth.uid()(오너만, 팀원 미지원) → credit_balance FOR UPDATE → 부족 시 INSUFFICIENT_CREDITS
     → 성공 시 credit_balance -= v_cost, missions.trial_unlocked=true·credits_consumed=v_cost·unlock_cost=v_cost
-    → 반환: { success, cost, new_balance } / Results.jsx 충전·구독 후 호출 / GRANT authenticated
-    → 파일: 090_trial_unlock_main_factor.sql (089 공개 지정 + 메인 1.5배 최종)
+    → 반환: { success, cost, original_cost, discount, new_balance } / Results.jsx 충전·구독 후 호출 / GRANT authenticated
+    → 파일: 094_trial_score_public_and_discount.sql (점수기반 공개 선별 + 30%/48h 할인 최종)
+
+  touch_trial_results_seen(p_mission_id UUID) RETURNS jsonb ★ 신규 (094) SECURITY DEFINER
+    → 기업 오너(companies.user_id=auth.uid()) 검증 → is_free_trial & 미언락 & trial_results_seen_at IS NULL일 때만 NOW()로 1회 세팅(멱등)
+    → 할인 48h 카운트다운 시작점. Results.jsx가 무료 체험 미언락 미션 최초 열람 시 호출. 반환 { success, seen_at }. GRANT authenticated
 
   admin_set_trial_public(p_mission_id UUID, p_panel_ids UUID[]) RETURNS jsonb ★ 신규 (092) SECURITY DEFINER
     → 어드민(user_meta OR app_meta role) 검증 + is_free_trial + 정확히 2건 검증 → missions.trial_public_panel_ids 저장
@@ -537,8 +545,8 @@
     → 어드민 검증 + p_new_status IN(cancelled,active) → missions.status 전환 + is_free_trial이면 companies.free_trial_used 토글
     → 취소→false(무료 기회 복구) / 재개→true(재소진). admin/Missions의 무료 체험 취소·재개만 이 RPC로 라우팅(일반 의뢰는 클라 직접 UPDATE). GRANT authenticated
 
-  guard_mission_freemium_columns() TRIGGER (BEFORE UPDATE ON missions) ★ 신규 (092, D-125)
-    → 보호 컬럼(trial_unlocked·trial_public_panel_ids·credits_consumed·credits_reserved·unlock_cost·is_free_trial) 변경 +
+  guard_mission_freemium_columns() TRIGGER (BEFORE UPDATE ON missions) ★ 092 신규 → 094 재정의 (D-125)
+    → 보호 컬럼(trial_unlocked·trial_public_panel_ids·credits_consumed·credits_reserved·unlock_cost·is_free_trial·trial_results_seen_at[094]) 변경 +
       current_user IN('authenticated','anon')이면 RAISE EXCEPTION 'protected_column'. SECURITY DEFINER RPC(postgres)는 통과.
 
   ─── 무료 체험 관련 재정의 (085) ─────────────────────────────────────────────

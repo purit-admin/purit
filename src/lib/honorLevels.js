@@ -70,6 +70,16 @@ export function getCareerUnlockCredit(experience = '') {
   return CAREER_UNLOCK_CREDIT[getExperienceCareerKey(experience)] || 1;
 }
 
+// 무료 체험 첫 언락 할인: 결과 최초 열람 시점부터 48시간 동안 30% 할인 (마감 후 정가)
+// ※ 서버 unlock_free_trial_mission RPC와 1:1 정합 (D-121 표시가=결제가). 값 변경 시 094 마이그레이션도 함께 수정.
+export const TRIAL_FIRST_UNLOCK_DISCOUNT = 0.30;
+export const TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS = 48;
+// 잠금 해제 비용에 할인 적용 (정가 → 할인가). 소수 둘째자리 반올림 — 서버 ROUND(_,2)와 동일.
+export function applyUnlockDiscount(baseCost, withinWindow) {
+  if (!withinWindow) return baseCost;
+  return Math.round(baseCost * (1 - TRIAL_FIRST_UNLOCK_DISCOUNT) * 100) / 100;
+}
+
 export function getPanelReward(points = 0, experience = '') {
   const level = getHonorLevel(points);
   const mult  = getExperienceMultiplier(experience);
