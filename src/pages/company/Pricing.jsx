@@ -171,6 +171,15 @@ export default function PricingPage() {
           fontWeight: 600, textAlign: 'center',
         }}>{msg}</div>
       )}
+      {currentPlan === 'free_trial' && (
+        <div style={{
+          marginBottom: 24, padding: '14px 20px', borderRadius: 'var(--radius)',
+          background: 'rgba(16,54,125,0.06)', border: '1px solid var(--accent)',
+          fontSize: 14, color: 'var(--text)', textAlign: 'center', fontWeight: 600,
+        }}>
+          🎁 현재 <strong style={{ color: 'var(--accent)' }}>무료 체험</strong> 중입니다 — Starter 플랜으로 시작하면 매월 크레딧으로 더 많은 의뢰와 전체 결과를 받아볼 수 있습니다.
+        </div>
+      )}
       <div style={{ marginBottom: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>PRICING</div>
         <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 10 }}>광고비 낭비 전에 투자하세요</h1>

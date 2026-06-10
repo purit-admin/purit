@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-12 (패널 심사 거절→재제출→영구차단 알림 + 버그/건의 답변 딥링크 / 경력 어드민 확정·잠금)
+최종 업데이트: 2026-06-12 (기업 무료 체험 Freemium — 가입 plan='free_trial' + 첫 의뢰 1회 무료·부분 언락 / 패널 심사 거절→재제출→영구차단 알림 + 버그/건의 답변 딥링크 / 경력 어드민 확정·잠금)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
 ================================================================
@@ -30,6 +30,9 @@
 - 방식: Supabase Auth (이메일 + 패스워드 / Google OAuth)
 - 회원가입(이메일): role 선택(company/panel) → signUp 호출 →
              DB 트리거(handle_new_user)가 panels 또는 companies 테이블에 레코드 자동 생성
+             ★ 기업 가입 시 plan='free_trial'로 시작 (085) — 구 'starter' 자동 부여 폐지.
+               무료 체험 = 첫 메인 의뢰 1회 무료(free_trial_used로 1회 제한). 상세는 1_PRD_company.txt 참조.
+               (이메일=handle_new_user, OAuth=create_oauth_user_profile 둘 다 free_trial)
              ★ 패널 이메일 가입: CREDS 스텝(검증 서류 첨부 UI) 제거 (2026-05-28) — 서류는 가입 후 /panel/verify-docs에서 제출
                (File 객체 sessionStorage 직렬화 불가 이슈 제거, 이메일 가입도 가입→로그인→/panel/verify-docs 흐름으로 통일)
                ★ /panel/verify-docs에서 본인 연차(자격득실 확인서 기준, 2년차 이상)도 함께 입력 → 어드민이 PanelManagement에서 확정 (2026-06-12)

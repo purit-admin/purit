@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / 085 free_trial freemium 진행 중 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
+최종 업데이트: 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -50,6 +50,7 @@ purit/
 │   │              lp 템플릿 sectionLabel 필드: '랜딩페이지 진단'(3종)·'광고 소재 진단'(3종)·'제품 상세 페이지 진단'(3종)·'영상/숏폼 광고 진단'(3종)
 │   │              QuestionTemplates.jsx·NewMission.jsx: sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링 (category='랜딩페이지' 유지 — 기존 필터 로직 불변)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getExperienceCareerKey·getPanelReward·fmtWon·fmtKRW 헬퍼)
+│   │                getCareerUnlockCredit(experience)·CAREER_UNLOCK_CREDIT({junior:1,middle:2,senior:3,clevel:4}) — 무료 체험 언락 패널 1인당 크레딧 (085/087) ★ 신규
 │   │                getExperienceCareerKey(experience): experience 문자열 → 'junior'|'middle'|'senior'|'clevel' 키 반환 (getExperienceMultiplier 래핑)
 │   │                getPanelReward(honorPoints, experience): 레벨 baseReward × getExperienceMultiplier(experience) → 패널 1인당 동적 미션비
 │   │                Missions.jsx MissionCard + ActiveMission.jsx(목록·브리핑·제출완료): missions.reward_amount(고정) 대신 getPanelReward로 동적 계산 표시 (서브미션 × 4500/8000 비율 스케일)
@@ -133,7 +134,14 @@ purit/
 │   │                  PG 연동 포인트: handlePay() 내 TODO 블록 1곳 (토스페이먼츠 SDK 삽입 위치)
 │   │                  에러 시: setError(msg) + setIsProcessing(false) → 모달 유지
 │   │                  done=true 시: 닫기 버튼 숨김 + 배경 클릭 닫기 차단 (1.8초 자동 닫힘만 허용)
-│   │                  사용처 3곳: Pricing.jsx(Flow1 플랜구매·Flow2 크레딧충전) / PanelTargetStep.jsx(Flow3 인라인충전)
+│   │                  사용처: Pricing.jsx(플랜구매·크레딧충전) / PanelTargetStep.jsx(인라인충전) / ChargeOptionsModal(언락) ★ 085
+│   │                  ★ 085: 닫기(X·배경)에 ExitIntentModal 내장(처리중·완료 시엔 바로 닫힘) → 충전·플랜전환·언락 결제 이탈 리텐션 전반 커버
+│   │                ExitIntentModal.jsx (결제/충전/플랜전환 이탈 리텐션 모달 — ReactDOM.createPortal) ★ 신규 (085)
+│   │                  "잠깐만요, 정말 나가시겠어요?" + 마케터 고용비·A/B 테스트비·광고비 낭비 비교(COMPARE 배열, placeholder) + "이래도 안 하시려고요?"
+│   │                  props: onStay(이탈 취소)·onLeave(실제 닫기)·context('credit'|'plan') / zIndex 10000(최상단) / PaymentModal·PanelTargetStep 충전모달·ChargeOptionsModal 닫기에 연결
+│   │                ChargeOptionsModal.jsx (잠금 해제용 "플랜 구독 또는 크레딧 충전" 선택 모달) ★ 신규 (085)
+│   │                  Results 언락 CTA에서 호출 — Starter/Pro 구독(grant_plan_credits) + 크레딧 번들 충전(purchase_credits) 동시 제공
+│   │                  payTarget 선택 → PaymentModal 위임(이탈 리텐션 내장) → onSuccess → 호출측 handleUnlock(언락 진행) / 닫기에 ExitIntentModal
 │   │                  supabase.storage('bug-screenshots').upload → screenshot_url, bug_reports INSERT
 │   │                  업로드 실패 시 screenshot_url=null graceful fallback
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
@@ -342,10 +350,15 @@ purit/
 │                  panel_update_own_docs: FOR UPDATE USING/WITH CHECK (bucket_id='panel-verification-docs' AND auth.uid()=split_part(name,'/',1)) — INSERT 정책과 동일 조건(본인 경로)
 │                  auth_update_mission_assets: FOR UPDATE USING/WITH CHECK (bucket_id='mission-assets' AND auth.role()='authenticated') — INSERT 정책과 동일 조건
 │                  ※ BugReportModal(bug-screenshots, `{uid}/{timestamp}.{ext}`)·NewMission(mission-assets, randomUUID 경로)은 경로 유니크 → 충돌 없음(영향 없음)
-│                085(free_trial_freemium: 기업 무료 체험 + 부분 언락 Freemium 시스템) ※ 진행 중 기능
+│                085(free_trial_freemium: 기업 무료 체험 + 부분 언락 Freemium 시스템) ★ 신규
 │                  companies.free_trial_used / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert 컬럼 추가
 │                  companies.plan DEFAULT 'starter' → 'free_trial' 변경 + 가입 경로(handle_new_user·create_oauth_user_profile) plan='free_trial' 삽입
 │                  admin_change_plan·grant_plan_credits에 'free_trial'(크레딧 0) 반영 / create_free_trial_mission·unlock_free_trial_mission RPC 신규
+│                  재정의: notify_admin_on_mission(무료 첫 의뢰 전 어드민 🔥 강한 알림) / complete_mission_and_refund·recalc_mission_consumed(무료 미션 회계 격리) / get_panel_public_profiles(is_expert 추가) / get_shared_mission(미언락 공유 차단)
+│                  프론트: NewMission(무료 등록·예상 언락 범위) / Results(부분 잠금·per-panel 크레딧·언락) / Dashboard(무료 배너) / PanelTargetStep(주니어·미들·캡10) / admin/TrialMissions(통합 관리) / ChargeOptionsModal·ExitIntentModal 신규 / Missions·PurityFilter 체험 뱃지
+│                087(free_trial_unlock_by_career: 무료 언락 비용을 실제 참여 패널 경력 기준 동적 산정) ★ 신규
+│                  unlock_free_trial_mission 재정의 — 비용 = 잠긴 패널(전문가/경력 상위 2명 = 무료 공개분 제외)의 경력 크레딧 합(주니어1·미들2·시니어3·C레벨4)
+│                  DISTINCT ON(panel_id) + ROW_NUMBER(is_expert DESC, credit DESC, panel_id ASC) WHERE rn>2 → 클라(Results getCareerUnlockCredit) 표시와 합계 일치(서버 권위) / 미언락 시 missions.unlock_cost는 등록 추정치, 언락 시 실차감액으로 갱신
 │                086(fix_companies_plan_check: 가입 전면 실패 긴급 수정 — 085 free_trial 도입 시 DB CHECK 미동기화) ★ 신규
 │                  문제: 운영 DB의 companies_plan_check 제약(대시보드 수동 생성 — 어느 마이그레이션 파일에도 없음)이 구 값('free'/starter/pro/enterprise)만 허용.
 │                    085가 신규 가입 plan을 'free_trial'로 바꾸자 companies INSERT가 제약 위반 → 구글·이메일 가입 전면 실패(D-117).

@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_company.txt — Purity MVP 기업(Company) 포털 상세 정의
-최종 업데이트: 2026-06-10 (등록폼 임시저장→이어쓰기 시 인라인 커스텀 질문 재분리 복원 D-119 / QuestionTemplates 커스텀 탭 기본 뱃지 lp로 변경) / 2026-06-12 (버그/건의 답변 딥링크 라우팅 추가) / 2026-06-10 (PanelTargetStep UX 개선 + 폼 내비게이션 버그 수정)
+최종 업데이트: 2026-06-12 (무료 체험 Freemium — 첫 의뢰 1회 무료·부분 언락·ChargeOptionsModal 플랜구독+충전·ExitIntentModal 이탈 리텐션·Dashboard 무료 배너) / 2026-06-10 (등록폼 임시저장→이어쓰기 시 인라인 커스텀 질문 재분리 복원 D-119 / QuestionTemplates 커스텀 탭 기본 뱃지 lp로 변경) / 2026-06-12 (버그/건의 답변 딥링크 라우팅 추가)
 ※ 워딩 규칙: 기업 포털 UI = "의뢰" / 코드·DB·패널·어드민 = "미션/mission"
 ================================================================
 
@@ -48,6 +48,39 @@
   · active 의뢰·검토 중 피드백 제외
 - Framer Motion 애니메이션: 섹션 fadeUp / Stats staggerChildren
 - 팀원 접속 시 상단 배너: "A사 팀원으로 접속 중 · 편집자/뷰어"
+
+================================================================
+## [무료 체험 Freemium] 첫 의뢰 1회 무료 + 부분 언락 ★ 신규 (085/087)
+================================================================
+
+신규 기업은 plan='free_trial'로 시작 → 첫 메인 의뢰 1회를 크레딧 없이 등록(free_trial_used로 1회 제한).
+결과는 패널 2명분만 무료 공개하고 나머지는 잠금 → 충전/구독으로 언락하는 구조.
+
+### 자격 & 등록 (NewMission.jsx)
+- freeTrialAvailable = (companyPlan==='free_trial' && !free_trial_used). 메인 의뢰만 대상(서브 제외).
+- Dashboard(/company): 자격 보유 시 상단 배너 "🎁 첫 의뢰는 무료입니다" + "무료로 의뢰 등록하기 →"(/company/new 직행).
+- 등록 폼: 상단 큰 무료 배너 + 패널 10명 고정(슬라이더 캡) + 경력 주니어·미들만(시니어·C레벨 차단) + 안내문구.
+- 크레딧 0이어도 제출 가능(부족 게이트 우회). 제출 확인 모달: "최초 1회 무료 / 10명 중 2명 공개 / 나머지 8명 잠금 / 충전·구독 후 해제".
+- 등록 하단 푸터: 의뢰 운영비 대신 "예상 잠금 해제 비용 N~M크레딧"(잠긴 8명 × 선택 경력 1~2cr) 범위 표시 + "등록 시 차감 없음" 안내.
+- create_free_trial_mission RPC로 원자적 active 전환(reserve 우회, 1계정1회 FOR UPDATE) → 어드민에 🔥 강한 알림.
+
+### 결과 부분 공개 (Results.jsx)
+- trialLocked = is_free_trial && !trial_unlocked. 5축 점수(레이더·바)는 10명 전체 집계로 항상 공개.
+- 개별 코멘트/어노테이션은 "공개 2명"(is_expert 우선 → 경력 multiplier 내림차순)만 노출, 나머지는 블러+🔒.
+  · 잠긴 각 총평 카드에 패널 경력별 크레딧 칩 표시(주니어 1·미들 2·시니어 3·C레벨 4 = getCareerUnlockCredit).
+  · 상단 잠금 배너에 총 언락 비용(= 잠긴 패널 크레딧 합) 표시 + "전체 잠금 해제" CTA.
+  · 어노테이션은 잠긴 패널 comment를 ''로 치환해 ImageAnnotator 툴팁 누출 차단.
+- 미언락 미션은 공유 UI 숨김(get_shared_mission도 서버에서 차단) — 페이월 우회 방지.
+- 언락 = 충전/구독 후 unlock_free_trial_mission RPC → 잠긴 패널 경력 크레딧 합을 차감(서버 권위, 087).
+
+### 충전/구독 선택 (ChargeOptionsModal.jsx) — 언락 CTA에서 호출
+- 크레딧 단건 충전만이 아니라 Starter/Pro 플랜 구독 선택지 동시 제공.
+  · 플랜 구독(grant_plan_credits) / 크레딧 충전(purchase_credits) → 결제 성공 후 자동 언락.
+- 결제/충전 이탈 시 ExitIntentModal(리텐션) 노출 — 마케터 고용비·A/B 테스트비 비교 + "이래도 안 하시려고요?"
+  · PaymentModal 내장 + PanelTargetStep 충전 모달·ChargeOptionsModal 닫기에 연결 → 충전·플랜전환·언락 결제 전반 커버.
+
+### plan 라벨
+- free_trial → "무료체험" (Dashboard 잔여 크레딧 sub / Settings 현재 플랜 / Pricing 배너 / PaymentModal·CompanyManagement 라벨맵).
 
 ================================================================
 ## [검증 도구] 의뢰 등록/수정 (/company/new) — NewMission.jsx

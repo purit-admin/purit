@@ -218,6 +218,7 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 5, marginBottom: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+            {m.is_free_trial && <Badge type="gold">🎁 체험</Badge>}
             <Badge type={m.status === 'active' ? ((m.filled_count ?? 0) === 0 ? 'gray' : 'green') : (STATUS_TYPE[m.status] || 'gray')}>
               {m.status === 'active' ? ((m.filled_count ?? 0) === 0 ? '매칭 대기' : '진행 중') : (STATUS_LABEL[m.status] || m.status)}
             </Badge>

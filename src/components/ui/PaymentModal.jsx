@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { X, CreditCard, Landmark, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Btn } from './index';
+import ExitIntentModal from './ExitIntentModal';
 
-const PLAN_LABEL = { starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
-const PLAN_CREDITS = { starter: 50, pro: 165, enterprise: 400 };
+const PLAN_LABEL = { free_trial: '무료체험', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+const PLAN_CREDITS = { free_trial: 0, starter: 50, pro: 165, enterprise: 400 };
 
 // 결제 수단 탭
 const METHODS = [
@@ -33,6 +34,13 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [showExit, setShowExit] = useState(false);
+
+  // 이탈 시도: 처리 중·완료 후엔 바로 닫고, 그 외엔 리텐션 모달
+  function handleCloseAttempt() {
+    if (isProcessing || done) { onClose(); return; }
+    setShowExit(true);
+  }
 
   const orderName = type === 'plan'
     ? `${PLAN_LABEL[plan] ?? plan} 플랜`
@@ -85,7 +93,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
         background: 'rgba(0,0,0,0.45)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget && !isProcessing && !done) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !isProcessing && !done) handleCloseAttempt(); }}
     >
       <div style={{
         background: '#fff', borderRadius: 16,
@@ -98,7 +106,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
         {/* 닫기 버튼 */}
         {!done && (
           <button
-            onClick={onClose}
+            onClick={handleCloseAttempt}
             disabled={isProcessing}
             style={{
               position: 'absolute', top: 18, right: 18,
@@ -228,5 +236,16 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
     </div>
   );
 
-  return ReactDOM.createPortal(modal, document.body);
+  return (
+    <>
+      {ReactDOM.createPortal(modal, document.body)}
+      {showExit && (
+        <ExitIntentModal
+          context={type === 'plan' ? 'plan' : 'credit'}
+          onStay={() => setShowExit(false)}
+          onLeave={() => { setShowExit(false); onClose(); }}
+        />
+      )}
+    </>
+  );
 }

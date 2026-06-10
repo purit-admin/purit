@@ -265,6 +265,7 @@ export default function NewMission() {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [submitError, setSubmitError]     = useState('');
   const [companyPlan, setCompanyPlan]     = useState(null);
+  const [companyFreeTrialUsed, setCompanyFreeTrialUsed] = useState(false);
   const [companyId, setCompanyId]         = useState(null);
   const [creditBalance, setCreditBalance] = useState(null);
   const [teamRole, setTeamRole]           = useState(null);
@@ -306,7 +307,8 @@ export default function NewMission() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { company: data, teamRole: tr } = await resolveCompany(user.id);
-      setCompanyPlan(data?.plan?.toLowerCase() || 'starter');
+      setCompanyPlan(data?.plan?.toLowerCase() || 'free_trial');
+      setCompanyFreeTrialUsed(data?.free_trial_used ?? false);
       if (data?.id) setCompanyId(data.id);
       if (data != null) setCreditBalance(data.credit_balance ?? 0);
       setTeamRole(tr);
@@ -692,6 +694,9 @@ export default function NewMission() {
     return JSON.stringify(base);
   };
 
+  // 무료 체험 자격: free_trial 플랜 + 아직 미사용 (메인 의뢰 한정)
+  const freeTrialAvailable = companyPlan === 'free_trial' && !companyFreeTrialUsed;
+
   const handleSubmit = async () => {
     if (teamRole === 'viewer') return;
     if (submittingRef.current) return;
@@ -714,35 +719,55 @@ export default function NewMission() {
       const description = buildDescription();
 
       if (effectiveEditMode && effectiveEditId) {
+        const submitPanels = freeTrialAvailable ? Math.min(form.panels, 10) : form.panels;
         const updatePayload = {
           title:         form.product || '의뢰',
           target_url:    form.lpUrl,
           description,
           persona,
-          panel_count:   form.panels,
+          panel_count:   submitPanels,
           reward_amount: calcPanelPayout(careerLevels, 'main'),
           assets:        form.focusAreas,
           image_urls:    form.imageUrls,
         };
         if (isDraftMode) {
-          const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
-          const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
-            p_mission_id: effectiveEditId,
-            p_company_id: company.id,
-            p_credits:    requiredCredits,
-          });
-          if (creditErr || !creditData?.success) {
-            throw new Error(
-              creditData?.error === 'INSUFFICIENT_CREDITS'
-                ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
-                : '크레딧 처리 중 오류가 발생했습니다.'
-            );
+          if (freeTrialAvailable) {
+            // 무료 체험 draft 활성화: create_free_trial_mission 이 status='active' 설정
+            const unlockCost = calcCredits(submitPanels, careerLevels, 'main');
+            const { data: ftData, error: ftErr } = await supabase.rpc('create_free_trial_mission', {
+              p_mission_id:  effectiveEditId,
+              p_company_id:  company.id,
+              p_unlock_cost: unlockCost,
+            });
+            if (ftErr || !ftData?.success) {
+              throw new Error(
+                ftData?.error === 'TRIAL_ALREADY_USED'
+                  ? '무료 체험은 1회만 가능합니다.'
+                  : '무료 체험 의뢰 등록 중 오류가 발생했습니다.'
+              );
+            }
+          } else {
+            const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
+            const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+              p_mission_id: effectiveEditId,
+              p_company_id: company.id,
+              p_credits:    requiredCredits,
+            });
+            if (creditErr || !creditData?.success) {
+              throw new Error(
+                creditData?.error === 'INSUFFICIENT_CREDITS'
+                  ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+                  : '크레딧 처리 중 오류가 발생했습니다.'
+              );
+            }
+            updatePayload.status = 'active';
           }
-          updatePayload.status = 'active';
         }
         const { error } = await supabase.from('missions').update(updatePayload).eq('id', effectiveEditId);
         if (error) throw error;
       } else {
+        // 무료 체험은 패널 10명 상한
+        const submitPanels = freeTrialAvailable ? Math.min(form.panels, 10) : form.panels;
         const { error } = await supabase.from('missions').insert({
           id:                missionUuid,
           company_id:        company.id,
@@ -751,7 +776,7 @@ export default function NewMission() {
           target_url:        form.lpUrl,
           description,
           persona,
-          panel_count:       form.panels,
+          panel_count:       submitPanels,
           reward_amount:     calcPanelPayout(careerLevels, 'main'),
           status:            'draft',
           assets:            form.focusAreas,
@@ -760,25 +785,43 @@ export default function NewMission() {
         });
         if (error) throw error;
 
-        // 크레딧 예약 — 성공 후에만 active 전환 (트리거 조기 발화 방지)
-        const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
-        const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
-          p_mission_id: missionUuid,
-          p_company_id: company.id,
-          p_credits:    requiredCredits,
-        });
-        if (creditErr || !creditData?.success) {
-          await supabase.from('missions').delete().eq('id', missionUuid);
-          throw new Error(
-            creditData?.error === 'INSUFFICIENT_CREDITS'
-              ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
-              : '크레딧 처리 중 오류가 발생했습니다.'
-          );
-        }
-        const { error: activateErr } = await supabase.from('missions').update({ status: 'active' }).eq('id', missionUuid);
-        if (activateErr) {
-          await supabase.from('missions').delete().eq('id', missionUuid);
-          throw activateErr;
+        if (freeTrialAvailable) {
+          // 무료 체험: 크레딧 선차감 없이 active 전환 + 언락 비용(정상 의뢰 크레딧) 스냅샷
+          const unlockCost = calcCredits(submitPanels, careerLevels, 'main');
+          const { data: ftData, error: ftErr } = await supabase.rpc('create_free_trial_mission', {
+            p_mission_id:  missionUuid,
+            p_company_id:  company.id,
+            p_unlock_cost: unlockCost,
+          });
+          if (ftErr || !ftData?.success) {
+            await supabase.from('missions').delete().eq('id', missionUuid);
+            throw new Error(
+              ftData?.error === 'TRIAL_ALREADY_USED'
+                ? '무료 체험은 1회만 가능합니다.'
+                : '무료 체험 의뢰 등록 중 오류가 발생했습니다.'
+            );
+          }
+        } else {
+          // 크레딧 예약 — 성공 후에만 active 전환 (트리거 조기 발화 방지)
+          const requiredCredits = calcCredits(form.panels, careerLevels, 'main');
+          const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+            p_mission_id: missionUuid,
+            p_company_id: company.id,
+            p_credits:    requiredCredits,
+          });
+          if (creditErr || !creditData?.success) {
+            await supabase.from('missions').delete().eq('id', missionUuid);
+            throw new Error(
+              creditData?.error === 'INSUFFICIENT_CREDITS'
+                ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+                : '크레딧 처리 중 오류가 발생했습니다.'
+            );
+          }
+          const { error: activateErr } = await supabase.from('missions').update({ status: 'active' }).eq('id', missionUuid);
+          if (activateErr) {
+            await supabase.from('missions').delete().eq('id', missionUuid);
+            throw activateErr;
+          }
         }
       }
       navigate('/company');
@@ -958,6 +1001,23 @@ export default function NewMission() {
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>{effectiveEditMode ? 'EDIT MISSION' : 'NEW MISSION'}</div>
             <h1 style={{ fontSize: 28, fontWeight: 800 }}>{effectiveEditMode ? '의뢰 수정' : '마케팅 소재 종합 진단 등록'}</h1>
           </div>
+
+          {/* 무료 체험 배너 */}
+          {freeTrialAvailable && (
+            <div style={{
+              padding: '18px 22px', marginBottom: 16, borderRadius: 'var(--radius-lg)',
+              background: 'linear-gradient(135deg, rgba(16,54,125,0.10), rgba(16,54,125,0.04))',
+              border: '1.5px solid var(--accent)',
+            }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--accent)', marginBottom: 6 }}>
+                🎁 무료 체험 의뢰 · 크레딧 차감 없음
+              </div>
+              <div style={{ fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.65 }}>
+                첫 의뢰는 무료로 전문가 패널 검증을 받아보세요. 결과 화면에서 <strong>5축 점수와 피드백 2건</strong>이 무료 공개되며,
+                나머지 피드백은 크레딧 충전 후 잠금 해제할 수 있습니다. (패널 10명 · 주니어·미들)
+              </div>
+            </div>
+          )}
 
           {/* 뷰어 차단 배너 */}
           {teamRole === 'viewer' && (
@@ -1678,6 +1738,7 @@ export default function NewMission() {
                 companyId={companyId}
                 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
                 onSaveDraft={saveDraft}
+                freeTrialAvailable={freeTrialAvailable}
               />
             )}
 
@@ -1749,14 +1810,14 @@ export default function NewMission() {
             )}
             <Btn
               onClick={() => {
-                if (step === STEPS.length - 2 && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance) {
+                if (!freeTrialAvailable && step === STEPS.length - 2 && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance) {
                   panelStepRef.current?.openCreditModal();
                   return;
                 }
                 step < STEPS.length - 1 ? setStep(s => s + 1) : setShowSubmitConfirm(true);
               }}
               size="md"
-              disabled={teamRole === 'viewer' || submitting || uploading || !stepValid || (step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
+              disabled={teamRole === 'viewer' || submitting || uploading || !stepValid || (!freeTrialAvailable && step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
             >
               {step === STEPS.length - 1 ? (submitting ? '처리 중...' : effectiveEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
             </Btn>
@@ -1783,19 +1844,32 @@ export default function NewMission() {
             title="의뢰를 제출할까요?"
             desc={
               <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
-                  <span>예상 소모 크레딧</span>
-                  <strong style={{ color: 'var(--text)' }}>{Math.ceil(credits)} cr</strong>
-                </div>
-                {remaining != null && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
-                    <span>제출 후 잔여 크레딧</span>
-                    <strong style={{ color: remaining < 0 ? '#ef4444' : 'var(--text)' }}>{Math.floor(remaining)} cr</strong>
+                {freeTrialAvailable ? (
+                  <div style={{ padding: '14px 16px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, marginBottom: 12, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800, color: '#B45309', marginBottom: 6 }}>⚠️ 무료 체험 의뢰 — 제출 전 확인</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8 }}>
+                      <li><strong>최초 1회</strong> 의뢰 등록 무료 체험 중입니다.</li>
+                      <li>결과는 패널 <strong>10명 중 2명 분만 공개</strong> 되고,<br /><strong>나머지 8명은 잠금</strong>됩니다.</li>
+                      <li>전체 피드백은 <strong>크레딧 충전이나 구독 후</strong> 잠금 해제할 수 있습니다.</li>
+                    </ul>
                   </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                      <span>예상 소모 크레딧</span>
+                      <strong style={{ color: 'var(--text)' }}>{Math.ceil(credits)} cr</strong>
+                    </div>
+                    {remaining != null && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                        <span>제출 후 잔여 크레딧</span>
+                        <strong style={{ color: remaining < 0 ? '#ef4444' : 'var(--text)' }}>{Math.floor(remaining)} cr</strong>
+                      </div>
+                    )}
+                  </>
                 )}
-                <div style={{ padding: '10px 14px', background: 'rgba(16,54,125,0.06)', borderRadius: 8, marginBottom: 12 }}>
+                <div style={{ padding: '10px 14px', background: 'rgba(16,54,125,0.06)', borderRadius: 8, marginBottom: 12, textAlign: 'left' }}>
                   <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>💡 고품질 피드백을 받으려면</div>
-                  <div>브리핑과 검증 포인트를 <strong>구체적으로 작성할수록</strong> 패널이 핵심을 짚은 피드백을 제공합니다. 제출 전 소재 설명과 브리핑을 다시 한번 확인하세요.</div>
+                  <div>브리핑과 검증 포인트를 <strong>구체적으로 작성할수록</strong><br />패널이 핵심을 짚은 피드백을 제공합니다.<br />제출 전 소재 설명을 다시 한번 확인하세요.</div>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                   ※ 첫 피드백 수신 후에는 의뢰 내용을 수정할 수 없습니다.

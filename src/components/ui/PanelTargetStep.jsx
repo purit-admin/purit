@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn } from './index';
 import PaymentModal from './PaymentModal';
+import ExitIntentModal from './ExitIntentModal';
+import { CAREER_UNLOCK_CREDIT } from '../../lib/honorLevels';
 
 export const CAREER_LEVELS = [
   { key: 'junior', label: '주니어',       sub: '1–3년차',    multiplier: 1.0, proOnly: false },
@@ -17,6 +19,7 @@ export const SUB_BASE_PAYOUT  = 4500;
 const SLIDER_MIN  = 10;
 const SLIDER_MAX  = 30;
 const STARTER_MAX = 15;
+const FREE_TRIAL_MAX = 10;  // 무료 체험 패널 상한
 
 const CREDIT_BUNDLES = [10, 30, 50, 100];
 
@@ -64,10 +67,12 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   companyId = null,
   onCreditBalanceUpdate = null,
   onSaveDraft = null,
+  freeTrialAvailable = false,
 }, ref) {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
+  const [showExitIntent, setShowExitIntent] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState(null);
   const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
@@ -96,37 +101,49 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
     navigate('/company/plans');
   }
 
-  const isStarter  = !plan || plan === 'starter';
-  const isPro      = plan === 'pro';
+  const isFreeTrial  = plan === 'free_trial';
+  const isStarter    = !plan || plan === 'starter';
+  const isPro        = plan === 'pro';
+  const isRestricted = isStarter || isFreeTrial;  // 25,000원 단가·업그레이드 박스 공통
   const credits    = calcCredits(panelCount, careerLevels, missionType);
   const missionFactor = missionType === 'main' ? 1.5 : 1.0;
   const minCredits = Math.round(panelCount * getMinWeight(careerLevels) * missionFactor * 100) / 100;
   const isRange    = fmtCr(minCredits) !== fmtCr(credits);
-  const isShort    = creditBalance != null && credits > creditBalance;
+  // 무료체험 자격 보유 시 등록이 무료이므로 부족 경고 숨김
+  const isShort    = freeTrialAvailable ? false : (creditBalance != null && credits > creditBalance);
+  // 무료체험 예상 잠금 해제 비용 = 잠긴 패널(전체-2명) × 선택 경력 크레딧(주1·미들2…) 범위
+  const ftLockedCount  = Math.max(0, panelCount - 2);
+  const ftSelCredits   = (careerLevels.length ? careerLevels : ['junior']).map(k => CAREER_UNLOCK_CREDIT[k] ?? 1);
+  const ftMinUnlock    = ftLockedCount * Math.min(...ftSelCredits);
+  const ftMaxUnlock    = ftLockedCount * Math.max(...ftSelCredits);
 
   useImperativeHandle(ref, () => ({ openCreditModal }));
 
-  // 스타터 플랜에서 Pro 전용 직급(시니어·C레벨)이 이미 선택된 채로 복원됐을 때 자동 제거
+  // 복원된 직급 자동 정리: 스타터는 proOnly 전부 제거 / 무료체험은 C레벨만 제거(시니어 허용)
   useEffect(() => {
-    if (plan !== 'starter') return;
-    const hasProLevels = careerLevels.some(k => CAREER_LEVELS.find(c => c.key === k)?.proOnly);
-    if (!hasProLevels) return;
-    const allowed = careerLevels.filter(k => !CAREER_LEVELS.find(c => c.key === k)?.proOnly);
-    onCareerLevels(allowed.length > 0 ? allowed : ['junior']);
+    if (isStarter || isFreeTrial) {
+      // 스타터·무료체험: proOnly(시니어·C레벨) 제거 → 주니어·미들만
+      const hasProLevels = careerLevels.some(k => CAREER_LEVELS.find(c => c.key === k)?.proOnly);
+      if (!hasProLevels) return;
+      const allowed = careerLevels.filter(k => !CAREER_LEVELS.find(c => c.key === k)?.proOnly);
+      onCareerLevels(allowed.length > 0 ? allowed : ['junior']);
+    }
   }, [plan, careerLevels]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const unitPrice = isStarter ? 25000 : 21600;
+  const unitPrice = isRestricted ? 25000 : 21600;
 
   const handleSliderChange = (e) => onPanelCount(Number(e.target.value));
   const handleSliderCommit = () => {
-    if (isStarter && panelCount > STARTER_MAX) {
+    if (isFreeTrial && panelCount > FREE_TRIAL_MAX) {
+      onPanelCount(FREE_TRIAL_MAX);  // 무료체험 최대 10명
+    } else if (isStarter && panelCount > STARTER_MAX) {
       onPanelCount(STARTER_MAX);
       setShowUpgrade(true);
     }
   };
 
   const toggleCareer = (key, proOnly) => {
-    if (proOnly && isStarter) { setShowUpgrade(true); return; }
+    if (proOnly && (isStarter || isFreeTrial)) { setShowUpgrade(true); return; }  // 스타터·무료체험: 시니어·C레벨 차단
     const next = careerLevels.includes(key)
       ? careerLevels.filter(k => k !== key)
       : [...careerLevels, key];
@@ -152,7 +169,11 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
       <div>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>패널 인원수</h2>
         <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20, lineHeight: 1.6 }}>
-          {isStarter
+          {freeTrialAvailable
+            ? `무료 체험은 패널 ${FREE_TRIAL_MAX}명으로 진행됩니다.`
+            : isFreeTrial
+            ? `현재 플랜은 최대 ${FREE_TRIAL_MAX}명까지 선택 가능합니다.`
+            : isStarter
             ? `스타터 플랜은 최대 ${STARTER_MAX}명까지 선택 가능합니다.`
             : '최대 30명까지 패널을 선택할 수 있습니다.'}
         </p>
@@ -162,7 +183,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
           <input
             type="range"
             min={SLIDER_MIN}
-            max={SLIDER_MAX}
+            max={isFreeTrial ? FREE_TRIAL_MAX : SLIDER_MAX}
             step={1}
             value={panelCount}
             onChange={handleSliderChange}
@@ -170,7 +191,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
             onTouchEnd={handleSliderCommit}
             style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
           />
-          <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>{SLIDER_MAX}명</span>
+          <span style={{ fontSize: 12, color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>{isFreeTrial ? FREE_TRIAL_MAX : SLIDER_MAX}명</span>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 8 }}>
@@ -200,13 +221,23 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
       {/* ── 경력/직급 선택 ── */}
       <div>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>패널 경력/직급</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: isFreeTrial ? 10 : 16, lineHeight: 1.6 }}>
           원하는 경력대를 중복 선택할 수 있습니다. 높은 직급일수록 크레딧 소모가 늘어납니다.
         </p>
+        {isFreeTrial && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16,
+            padding: '10px 14px', borderRadius: 'var(--radius)',
+            background: 'rgba(16,54,125,0.06)', border: '1px solid var(--accent)',
+            fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600,
+          }}>
+            🎁 무료 체험은 <strong style={{ color: 'var(--accent)' }}>주니어·미들 패널</strong>만 선택할 수 있습니다. (시니어·C레벨은 Pro 플랜)
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {CAREER_LEVELS.map(({ key, label, sub, multiplier, proOnly }) => {
             const isSelected  = careerLevels.includes(key);
-            const isProLocked = proOnly && isStarter;
+            const isProLocked = proOnly && (isStarter || isFreeTrial);
             return (
               <button
                 key={key}
@@ -255,7 +286,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
         background: 'var(--surface)', borderTop: '2px solid var(--accent)',
         zIndex: 10,
       }}>
-        {creditBalance != null && (
+        {!freeTrialAvailable && creditBalance != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               보유 크레딧
@@ -268,10 +299,20 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            {isRange ? '예상 소모 범위' : '최대 예상 소모'}
+            {freeTrialAvailable ? '예상 잠금 해제 비용' : (isRange ? '예상 소모 범위' : '최대 예상 소모')}
           </div>
           <div style={{ textAlign: 'right' }}>
-            {isRange ? (
+            {freeTrialAvailable ? (
+              <>
+                {ftMinUnlock !== ftMaxUnlock && (
+                  <>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 22, color: 'var(--text-2)' }}>{ftMinUnlock}</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 18, color: 'var(--text-3)', margin: '0 4px' }}>~</span>
+                  </>
+                )}
+                <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 28, color: 'var(--accent)' }}>{ftMaxUnlock}</span>
+              </>
+            ) : isRange ? (
               <>
                 <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 22, color: 'var(--text-2)' }}>
                   {fmtCr(minCredits)}
@@ -309,21 +350,36 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
           </div>
         )}
 
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: 10,
-          padding: '10px 14px', borderRadius: 'var(--radius)',
-          background: 'rgba(22,163,74,0.07)',
-          border: '1px solid rgba(22,163,74,0.25)',
-          marginTop: 4,
-        }}>
-          <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.5 }}>↩</span>
-          <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.65, margin: 0 }}>
-            의뢰 등록 시 최대 예상 소모량이 먼저 차감되며,<br />
-            <strong style={{ color: '#15803d', fontWeight: 700 }}>
-              테스트 완료 후 실제 매칭된 직급 비율에 따라 차액 크레딧은 즉시 환불(Refund)됩니다.
-            </strong>
-          </p>
-        </div>
+        {freeTrialAvailable ? (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '10px 14px', borderRadius: 'var(--radius)',
+            background: 'rgba(16,54,125,0.06)', border: '1px solid var(--accent)', marginTop: 4,
+          }}>
+            <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.5 }}>🎁</span>
+            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.65, margin: 0 }}>
+              무료 체험은 <strong style={{ color: 'var(--accent)', fontWeight: 700 }}>등록 시 차감 없음</strong>.
+              결과에서 패널 2명은 무료 공개되고, <strong>잠긴 {ftLockedCount}명</strong>은 위 비용으로 충전·구독 후 해제합니다.
+              (최종 비용은 실제 참여 경력에 따라 확정)
+            </p>
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '10px 14px', borderRadius: 'var(--radius)',
+            background: 'rgba(22,163,74,0.07)',
+            border: '1px solid rgba(22,163,74,0.25)',
+            marginTop: 4,
+          }}>
+            <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.5 }}>↩</span>
+            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.65, margin: 0 }}>
+              의뢰 등록 시 최대 예상 소모량이 먼저 차감되며,<br />
+              <strong style={{ color: '#15803d', fontWeight: 700 }}>
+                테스트 완료 후 실제 매칭된 직급 비율에 따라 차액 크레딧은 즉시 환불(Refund)됩니다.
+              </strong>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── 크레딧 결제 모달 ── */}
@@ -341,6 +397,15 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
           onClose={() => setShowPayment(false)}
         />,
         document.body
+      )}
+
+      {/* ── 충전 이탈 리텐션 모달 ── */}
+      {showExitIntent && (
+        <ExitIntentModal
+          context="credit"
+          onStay={() => setShowExitIntent(false)}
+          onLeave={() => { setShowExitIntent(false); setShowCreditModal(false); }}
+        />
       )}
 
       {/* ── 임시저장 확인 모달 ── */}
@@ -440,7 +505,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
       {/* ── 크레딧 충전 / 업그레이드 모달 ── */}
       {showCreditModal && ReactDOM.createPortal(
         <div
-          onClick={() => setShowCreditModal(false)}
+          onClick={() => setShowExitIntent(true)}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -451,7 +516,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--surface)', borderRadius: 'var(--radius)',
-              padding: '32px 28px', maxWidth: isStarter ? 520 : 440, width: '100%',
+              padding: '32px 28px', maxWidth: isRestricted ? 520 : 440, width: '100%',
               border: '1px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.35)',
             }}
           >
@@ -459,14 +524,14 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
-                  {isStarter ? '크레딧 부족' : '크레딧 충전'}
+                  {isRestricted ? '크레딧 부족' : '크레딧 충전'}
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800 }}>
-                  {isStarter ? '플랜 업그레이드 또는 추가 충전' : '추가 크레딧 충전'}
+                  {isRestricted ? '플랜 업그레이드 또는 추가 충전' : '추가 크레딧 충전'}
                 </div>
               </div>
               <button
-                onClick={() => setShowCreditModal(false)}
+                onClick={() => setShowExitIntent(true)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 20, lineHeight: 1, padding: 4 }}
               >✕</button>
             </div>
@@ -487,8 +552,8 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
 
             <>
               <>
-                {/* Starter: 업그레이드 섹션 */}
-                {isStarter && (
+                {/* 업그레이드 섹션 — 무료체험: Starter 박스 / 스타터: Pro 박스 */}
+                {isRestricted && (
                   <>
                     <div style={{ padding: '18px 20px', borderRadius: 'var(--radius)', border: '1px solid rgba(191,149,63,0.4)', background: 'rgba(191,149,63,0.05)', marginBottom: 16 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -497,22 +562,33 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
                             fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 4,
                             background: 'linear-gradient(90deg, #bf953f, #fcf6ba, #b38728)',
                             color: '#1D1D1F', letterSpacing: '0.05em', marginRight: 8,
-                          }}>PRO</span>
+                          }}>{isFreeTrial ? 'STARTER' : 'PRO'}</span>
                           <span style={{ fontSize: 14, fontWeight: 700 }}>플랜으로 업그레이드</span>
                         </div>
                       </div>
                       <ul style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 2, margin: '0 0 14px 0', paddingLeft: 16 }}>
-                        <li>시니어·C레벨 패널 매칭 오픈</li>
-                        <li>최대 30명 패널 슬롯</li>
-                        <li>추가 크레딧 14% 할인 (1cr = 21,600원)</li>
-                        <li>월 165 크레딧 제공</li>
+                        {isFreeTrial ? (
+                          <>
+                            <li>월 50 크레딧 제공</li>
+                            <li>최대 15명 패널 슬롯</li>
+                            <li>주니어·미들 패널 매칭</li>
+                            <li>추가 크레딧 구매 가능 (1cr = 25,000원)</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>시니어·C레벨 패널 매칭 오픈</li>
+                            <li>최대 30명 패널 슬롯</li>
+                            <li>추가 크레딧 14% 할인 (1cr = 21,600원)</li>
+                            <li>월 165 크레딧 제공</li>
+                          </>
+                        )}
                       </ul>
                       <Btn
                         size="sm"
                         style={{ width: '100%', justifyContent: 'center' }}
                         onClick={() => { handleGoToPlans(); }}
                       >
-                        Pro 플랜 전환하기 →
+                        {isFreeTrial ? 'Starter 플랜 시작하기 →' : 'Pro 플랜 전환하기 →'}
                       </Btn>
                     </div>
 

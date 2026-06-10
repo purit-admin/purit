@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_admin.txt — Purity MVP 어드민(Admin) 포털 상세 정의
-최종 업데이트: 2026-06-12 (심사 거절→재제출→영구차단 플로우 + 거절 사유 입력 + 버그답변 딥링크 / 심사대기 뱃지·최근가입순·경력 확정)
+최종 업데이트: 2026-06-12 (체험 의뢰 관리 /admin/trials 신규 — 무료 체험 모니터링+승인/반려+완료/취소 통합 / 미션·피드백 관리 체험 뱃지 / 무료 첫 의뢰 🔥 강한 알림 / 심사 거절→재제출→영구차단 플로우 + 거절 사유 입력 + 버그답변 딥링크)
 ================================================================
 
 인증 후 /admin 하위 라우트 접근 가능.
@@ -131,12 +131,30 @@ completeBlocked = allFbs.length === 0 || reviewing.length > 0
 완료 탭 '재진행': reactivate_mission_and_reclaim RPC (환불 크레딧 회수)
 취소 탭 '재개': updateStatus('active') (크레딧 처리 없음)
 취소 탭 '영구 삭제': ConfirmModal → missions DELETE
+★ 무료 체험 의뢰는 미션 카드에 "🎁 체험" 뱃지 표시 (is_free_trial) — 일반 의뢰와 함께 뜨되 구분 (085)
+
+================================================================
+## 체험 의뢰 관리 (/admin/trials) — TrialMissions.jsx ★ 신규 (085)
+================================================================
+
+무료 체험 의뢰(is_free_trial)의 모니터링 + 피드백 승인/반려 + 미션 완료/취소를 한 곳에서 처리.
+(작동 중인 Missions·PurityFilter는 미수정 — 동일 RPC를 자체 호출하는 통합 페이지로 회귀 차단)
+
+- 등록 시 어드민 전원에게 🔥 "[무료체험] 첫 의뢰 — 즉시 대응" 알림 (actionUrl /admin/trials?id=). Sidebar '운영' 그룹 메뉴.
+- 상태 탭: 전체 / 진행(active·in_review) / 완료 / 취소 (각 건수 뱃지).
+- 마스터-디테일: 좌측 체험 의뢰 목록(회사·슬롯·언락 상태) → 우측 상세.
+  · 미션 헤더: 슬롯·"예상 언락 비용 ~Ncr(참여 경력 따라 변동)" / 언락 후 확정값. 완료·취소 버튼(complete_mission_and_refund·status 변경 + 기업 알림).
+  · 피드백 목록: 패널명·5축 점수·퓨릿 점수(calcPurityScore)·상태. "상세" → 어노테이션(ImageAnnotator)+총평 미리보기.
+  · 승인/반려: PurityFilter와 동일 RPC 시퀀스(purity_passed·payout·rejection_deadline 4h·decrement_mission_filled_count·honor±5·패널 알림).
+    무료 미션이라 recalc_mission_consumed 생략(credits_consumed는 언락이 관리).
+- 운영: 전문가 패널 계정(expert1·expert2, is_expert·시니어·active — scripts/create-expert-panels.mjs)으로 슬롯 선점 수락.
 
 ================================================================
 ## Purity Filter (/admin/purity) — PurityFilter.jsx
 ================================================================
 
 - 피드백 목록 정렬: 오래된 순 (ascending)
+- ★ 무료 체험 의뢰 피드백은 목록에 "🎁 체험 ·" 접두 표시 (missions.is_free_trial, 쿼리에 컬럼 추가 085) — 체험 의뢰 관리에서도 처리 가능
 - 의뢰명 검색: 200px 입력창 + ✕ 초기화
 - 상태 탭: 검토 대기 / 승인됨 / 반려됨
 - 미션 타입 필터: 전체 / 메인 / 서브 (건수 실시간 표시)

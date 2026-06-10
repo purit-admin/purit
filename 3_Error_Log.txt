@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-10 (D-118 Storage 버킷 UPDATE 정책 누락 upsert 재업로드 무음 실패 / D-119 draft 병합저장 후 복원 시 재분리 누락으로 편집 UI 소실) / 2026-06-12 (D-120 — auth.users 직접참조 FK가 CASCADE여도 2차 사슬 자식 FK가 NO ACTION이면 유저 삭제 차단 / D-117 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴 + 086 가입 전면 실패 사례로 D-117 보강: 대시보드 수동 제약·enum 개명 시 기존행 선행 정규화)
+최종 업데이트: 2026-06-12 (D-121 클라/서버 동적가격 정렬·dedup·동점 불일치로 표시가≠결제가 / D-122 공유 회계 RPC가 무료 미션 격리 깨뜨림) / 2026-06-10 (D-118 Storage 버킷 UPDATE 정책 누락 upsert 재업로드 무음 실패 / D-119 draft 병합저장 후 복원 시 재분리 누락으로 편집 UI 소실) / 2026-06-12 (D-120 — auth.users 직접참조 FK가 CASCADE여도 2차 사슬 자식 FK가 NO ACTION이면 유저 삭제 차단 / D-117 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴 + 086 가입 전면 실패 사례로 D-117 보강: 대시보드 수동 제약·enum 개명 시 기존행 선행 정규화)
 ================================================================
 
 ## 핵심 원칙
@@ -1637,3 +1637,17 @@ D-120. auth.users 직접 참조 FK가 모두 CASCADE여도, 2차 사슬 자식 F
      -> 해결: 회사·패널·의뢰가 "소유한" 하위 FK를 ON DELETE CASCADE로 재정의(migration 088, 20개). 의도적 SET NULL(template_id→question_templates)은 유지.
      -> 원칙: 부모 row를 cascade로 지우려면 그 부모의 "모든" 자식 FK가 CASCADE/SET NULL이어야 한다 — 직접 참조 FK만 점검하면 한 단계 더 깊은 블로커를 놓친다.
              "Database error deleting user"는 거의 항상 이 FK 무결성 문제이며, 에러 메시지가 generic하므로 information_schema 전수 조회로 원인을 특정할 것.
+
+D-121. 같은 "동적 가격"을 클라이언트(표시)와 서버(차감) 양쪽에서 계산할 때, 정렬·중복제거·동점처리가 어긋나면 "표시가격 ≠ 결제가격"이 되는 패턴 ✅ 해결
+     -> 증상: 무료 체험 언락 비용을 Results.jsx(표시)와 unlock_free_trial_mission RPC(차감)가 각각 계산 → 같은 경력 데이터인데 합계가 달라질 여지. 본 금액과 빠지는 금액 불일치.
+     -> 원인 1: 클라는 panel_id로 dedup(`[...new Set(...)]`)하는데 SQL은 feedbacks 행 기준 → 한 패널이 복수 승인 피드백이면 행 수가 달라져 ROW_NUMBER 순위가 어긋남.
+     -> 원인 2: SQL ROW_NUMBER OVER(ORDER BY ...)에 tiebreaker가 없으면 동점(같은 credit) 패널의 순위가 불확정 → "상위 2명 무료" 집합이 실행마다 달라질 수 있음.
+     -> 원인 3: 경력→크레딧 매핑이 클라(getCareerUnlockCredit) 헬퍼와 SQL CASE가 미묘하게 다르면 합계 불일치.
+     -> 해결: ① SQL `DISTINCT ON (panel_id)`로 엔티티 단위 dedup ② ORDER BY에 `panel_id ASC` tiebreaker ③ 경력→크레딧 CASE를 클라 헬퍼와 1:1 정합. 서버를 최종 권위로, 클라는 표시만.
+     -> 원칙: 표시용·과금용 계산이 분리된 곳은 (a)엔티티 dedup (b)결정론적 정렬 tiebreaker (c)동일 공식 셋을 양쪽에서 동일 보장해야 한다.
+
+D-122. 여러 페이지가 공유하는 회계 RPC(recalc/refund)가 특정 미션 유형의 회계 컬럼을 무조건 덮어써 그 유형의 격리가 깨지는 패턴 ✅ 해결
+     -> 증상: 무료 체험 미션의 credits_consumed가 0이어야(미언락) 하는데, 피드백 승인 시 PurityFilter가 부르는 recalc_mission_consumed가 정상 공식으로 재계산해 덮어씀 → 미언락인데 소비가 잡혀 Revenue 왜곡.
+     -> 원인: recalc/complete_mission_and_refund는 모든 미션에 동일 로직. 무료 체험은 credits_consumed를 unlock RPC가 단독 관리해야 하는데 가드가 없으면 공유 RPC가 끼어듦.
+     -> 해결: 두 RPC 최상단에 `IF is_free_trial THEN (재계산·환불 없이 조기반환, 기존 값 보존)` 가드. 어느 페이지에서 승인/완료해도 무료 회계는 unlock RPC만 변경.
+     -> 원칙: 특정 유형을 회계에서 "격리"하려면, 그 컬럼을 만지는 "모든" 공유 RPC에 가드를 넣어야 한다 — 한 진입점(완료)만 막고 다른 진입점(승인 시 recalc)을 놓치면 격리가 샌다.

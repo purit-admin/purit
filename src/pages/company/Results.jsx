@@ -2,8 +2,10 @@
 import { useSearchParams } from 'react-router-dom';
 import { Card, ScoreBar, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
+import ChargeOptionsModal from '../../components/ui/ChargeOptionsModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
+import { getExperienceMultiplier, getCareerUnlockCredit } from '../../lib/honorLevels';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip,
@@ -538,7 +540,26 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
 }
 
 /* ─── 이미지 미션: 차원 탭 뷰 ─── */
-function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAnnotations, panelProfiles }) {
+/* ─── 무료 체험 잠금 오버레이 ─── */
+function LockOverlay({ onUnlock, label = '🔒 잠금 해제 후 열람' }) {
+  return (
+    <div
+      onClick={onUnlock}
+      style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(248,250,252,0.35)', borderRadius: 'var(--radius)',
+        cursor: onUnlock ? 'pointer' : 'default',
+      }}
+    >
+      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', background: 'rgba(255,255,255,0.9)', padding: '4px 12px', borderRadius: 999, border: '1px solid var(--accent)' }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAnnotations, panelProfiles, locked = false, unlockedPanelIds = null }) {
+  const isAnnLocked = (panelId) => locked && unlockedPanelIds && !unlockedPanelIds.has(panelId);
   const [selectedAnnId, setSelectedAnnId] = useState(null);
   const [annPage, setAnnPage] = useState(1);
   const meta = DIM_META[dim];
@@ -586,7 +607,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
           <ImageAnnotator
             imageUrl={imageUrls[currentImageIdx]}
             imageIndex={currentImageIdx}
-            annotations={imgAnns}
+            annotations={imgAnns.map(a => isAnnLocked(a.panel_id) ? { ...a, comment: '' } : a)}
             seqPool={allDimAnns}
             highlightedId={selectedAnnId}
             readonly
@@ -637,7 +658,12 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
                       <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
                     </div>
                     {ann.comment
-                      ? <TruncatedComment text={ann.comment} />
+                      ? (isAnnLocked(ann.panel_id)
+                          ? <div style={{ position: 'relative' }}>
+                              <div style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none' }}><TruncatedComment text={ann.comment} /></div>
+                              <LockOverlay />
+                            </div>
+                          : <TruncatedComment text={ann.comment} />)
                       : <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
                     }
                   </div>
@@ -654,8 +680,9 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
 }
 
 /* ─── 이미지 미션: 종합 탭 ─── */
-function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
+function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated, locked = false, unlockedPanelIds = null, onUnlock = null }) {
   const [commentPage, setCommentPage] = useState(1);
+  const isPanelLocked = (panelId) => locked && unlockedPanelIds && !unlockedPanelIds.has(panelId);
   const radarData = DIMS.map(dim => {
     const key = DIM_META[dim].key;
     const val = calcAvg(feedbacks, key);
@@ -732,21 +759,39 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
       ) : (
         <div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {pagedComments.map(({ panel, panelId, fbId, text, passed }) => (
+            {pagedComments.map(({ panel, panelId, fbId, text, passed }) => {
+              const cLocked = isPanelLocked(panelId);
+              const cCredit = getCareerUnlockCredit(panelProfiles[panelId]?.experience || '');
+              return (
               <div key={panel} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
                     <PanelBadges panelId={panelId} profiles={panelProfiles} />
                     {passed && <Badge type="green">Purit 통과</Badge>}
+                    {cLocked && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim, rgba(16,54,125,0.08))', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--accent)' }}>
+                        🔒 {cCredit}크레딧
+                      </span>
+                    )}
                   </div>
-                  <div style={{ flexShrink: 0 }}>
-                    <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
-                  </div>
+                  {!cLocked && (
+                    <div style={{ flexShrink: 0 }}>
+                      <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                {cLocked ? (
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none', fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                    <LockOverlay onUnlock={onUnlock} label={`🔒 ${cCredit}크레딧으로 잠금 해제`} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
           <Pagination page={commentPage} total={overallComments.length} onPage={setCommentPage} />
         </div>
@@ -884,6 +929,10 @@ export default function Results() {
   const [subPage, setSubPage]             = useState(1);
   const [missionTab, setMissionTab]       = useState('all');
   const [period, setPeriod]               = useState('all');
+  const [creditBalance, setCreditBalance] = useState(0);
+  const [showUnlockPay, setShowUnlockPay] = useState(false);
+  const [unlocking, setUnlocking]         = useState(false);
+  const [unlockError, setUnlockError]     = useState('');
 
   // 미션 목록 로드
   useEffect(() => {
@@ -894,6 +943,7 @@ export default function Results() {
       const { company: co } = await resolveCompany(user.id);
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
+      setCreditBalance(co.credit_balance ?? 0);
       // completed는 전부 표시, cancelled는 어드민이 완료 처리(company_notified_at SET)한 경우만 표시
       // dismissed=true 의뢰는 기업 포털에서 숨김 처리
       const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id)
@@ -959,7 +1009,7 @@ export default function Results() {
       const { data: ppRows } = await supabase.rpc('get_panel_public_profiles', { p_mission_id: selected });
       if (ppRows) {
         const map = {};
-        ppRows.forEach(r => { map[r.panel_id] = { industry: r.industry, experience: r.experience }; });
+        ppRows.forEach(r => { map[r.panel_id] = { industry: r.industry, experience: r.experience, is_expert: r.is_expert }; });
         setPanelProfiles(map);
       }
 
@@ -1120,6 +1170,46 @@ export default function Results() {
   const isSubMission  = mission && ['preference', 'pricing', 'email'].includes(mission.type);
   const hasImages     = mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0 && !isSubMission;
 
+  // 무료 체험 부분 잠금: 미언락이면 전문가 우선 2명만 상세 공개(점수 집계는 전체 공개)
+  const trialLocked = !!mission?.is_free_trial && !mission?.trial_unlocked;
+  const unlockedPanelIds = (() => {
+    const ids = [...new Set(feedbacks.map(f => f.panel_id).filter(Boolean))];
+    if (!trialLocked) return new Set(ids);
+    const sorted = ids.sort((a, b) => {
+      const pa = panelProfiles[a] || {}, pb = panelProfiles[b] || {};
+      const ea = pa.is_expert ? 1 : 0, eb = pb.is_expert ? 1 : 0;
+      if (eb !== ea) return eb - ea;
+      return getExperienceMultiplier(pb.experience || '') - getExperienceMultiplier(pa.experience || '');
+    });
+    return new Set(sorted.slice(0, 2));
+  })();
+  // 언락 비용 = 잠긴 패널(상위 2명 무료 제외)의 경력 크레딧 합 (실제 참여 경력 기준)
+  const lockedPanelIds = [...new Set(feedbacks.map(f => f.panel_id).filter(Boolean))].filter(pid => !unlockedPanelIds.has(pid));
+  const unlockCost = lockedPanelIds.reduce((s, pid) => s + getCareerUnlockCredit(panelProfiles[pid]?.experience || ''), 0);
+
+  const handleUnlock = async () => {
+    if (!mission) return;
+    setUnlocking(true); setUnlockError('');
+    try {
+      const { data, error } = await supabase.rpc('unlock_free_trial_mission', { p_mission_id: mission.id });
+      if (error) throw error;
+      if (data?.success) {
+        setMissions(ms => ms.map(m => m.id === mission.id ? { ...m, trial_unlocked: true } : m));
+        if (typeof data.new_balance === 'number') setCreditBalance(data.new_balance);
+        setShowUnlockPay(false);
+      } else if (data?.error === 'INSUFFICIENT_CREDITS') {
+        setUnlockError('크레딧이 부족합니다. 충전 후 잠금을 해제하세요.');
+        setShowUnlockPay(true);
+      } else {
+        setUnlockError('잠금 해제 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      setUnlockError(e.message || '잠금 해제에 실패했습니다.');
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
   // 기간 필터 — 의뢰 등록일(mission.created_at) 기준으로 미션 목록 필터링
   const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
   const periodMissions = cutoff ? missions.filter(m => new Date(m.created_at) >= cutoff) : missions;
@@ -1229,7 +1319,7 @@ export default function Results() {
                     )}
                   </div>
                 </div>
-                {mission?.status === 'completed' && (
+                {mission?.status === 'completed' && !trialLocked && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
                     {/* 공개 범위 토글 */}
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -1281,6 +1371,37 @@ export default function Results() {
               </div>
             ) : (
               <>
+                {/* 무료 체험 부분 잠금 배너 */}
+                {trialLocked && (
+                  <div style={{
+                    padding: '18px 20px', marginBottom: 20, borderRadius: 'var(--radius-lg)',
+                    background: 'rgba(16,54,125,0.06)', border: '1px solid var(--accent)',
+                    display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                  }}>
+                    <div style={{ minWidth: 200, flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--accent)', marginBottom: 4 }}>
+                        🔒 무료 체험 결과 — 패널 2명 피드백 공개 중
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                        5축 점수는 전체 패널 기준으로 집계됩니다. 전체 피드백·어노테이션을 보려면 <strong>{unlockCost}크레딧</strong>으로 잠금을 해제하세요.
+                        {unlockError && <span style={{ display: 'block', color: '#ef4444', marginTop: 4 }}>{unlockError}</span>}
+                      </div>
+                    </div>
+                    <Btn onClick={handleUnlock} disabled={unlocking} style={{ flexShrink: 0 }}>
+                      {unlocking ? '처리 중...' : `전체 잠금 해제 (${unlockCost}cr)`}
+                    </Btn>
+                  </div>
+                )}
+                {showUnlockPay && companyId && (
+                  <ChargeOptionsModal
+                    needed={unlockCost}
+                    currentBalance={creditBalance}
+                    companyId={companyId}
+                    onSuccess={(newBalance) => { if (typeof newBalance === 'number') setCreditBalance(newBalance); setShowUnlockPay(false); handleUnlock(); }}
+                    onClose={() => setShowUnlockPay(false)}
+                  />
+                )}
+
                 {/* 서브 미션 */}
                 {isSubMission && (
                   <Card style={{ padding: '24px' }}>
@@ -1322,7 +1443,7 @@ export default function Results() {
 
                     {/* 탭 콘텐츠 */}
                     {activeDimTab === 'summary' ? (
-                      <SummaryTabView key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
+                      <SummaryTabView key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} locked={trialLocked} unlockedPanelIds={unlockedPanelIds} onUnlock={handleUnlock} />
                     ) : (
                       <DimTabView
                         key={mission?.id}
@@ -1332,6 +1453,8 @@ export default function Results() {
                         setCurrentImageIdx={setCurrentImageIdx}
                         allAnnotations={allAnnotations}
                         panelProfiles={panelProfiles}
+                        locked={trialLocked}
+                        unlockedPanelIds={unlockedPanelIds}
                       />
                     )}
                   </div>
@@ -1339,7 +1462,7 @@ export default function Results() {
 
                 {/* 텍스트 미션 (이미지 없는 구형) */}
                 {!isSubMission && !hasImages && feedbacks.length > 0 && (
-                  <TextMissionResults key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
+                  <TextMissionResults key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} locked={trialLocked} unlockedPanelIds={unlockedPanelIds} />
                 )}
               </>
             )}

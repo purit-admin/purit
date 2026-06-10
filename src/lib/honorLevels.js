@@ -63,6 +63,12 @@ export function getExperienceCareerKey(experience = '') {
   return 'junior';
 }
 
+// 무료 체험 언락: 패널 1인당 잠금 해제 크레딧 (경력 기준 — 주니어1·미들2·시니어3·C레벨4)
+export const CAREER_UNLOCK_CREDIT = { junior: 1, middle: 2, senior: 3, clevel: 4 };
+export function getCareerUnlockCredit(experience = '') {
+  return CAREER_UNLOCK_CREDIT[getExperienceCareerKey(experience)] || 1;
+}
+
 export function getPanelReward(points = 0, experience = '') {
   const level = getHonorLevel(points);
   const mult  = getExperienceMultiplier(experience);

@@ -6,9 +6,9 @@ import { supabase } from '../../lib/supabase';
 
 const PAGE_SIZE = 10;
 
-const PLAN_LABEL   = { starter: 'STARTER', pro: 'PRO', enterprise: 'ENTERPRISE' };
-const PLAN_CREDITS = { starter: 50, pro: 165, enterprise: 400 };
-const PLAN_COLOR   = { starter: '#64748B', pro: 'var(--accent)', enterprise: '#92400E' };
+const PLAN_LABEL   = { free_trial: '무료체험', starter: 'STARTER', pro: 'PRO', enterprise: 'ENTERPRISE' };
+const PLAN_CREDITS = { free_trial: 0, starter: 50, pro: 165, enterprise: 400 };
+const PLAN_COLOR   = { free_trial: '#94A3B8', starter: '#64748B', pro: 'var(--accent)', enterprise: '#92400E' };
 
 const MISSION_TYPE_LABEL = {
   landing_page: 'LP 검증',
@@ -317,6 +317,7 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
                 fontSize: 13, color: 'var(--text)', outline: 'none',
               }}
             >
+              <option value="free_trial">무료체험 (0cr)</option>
               <option value="starter">STARTER (월 50cr)</option>
               <option value="pro">PRO (월 165cr)</option>
               <option value="enterprise">ENTERPRISE (월 400cr)</option>
