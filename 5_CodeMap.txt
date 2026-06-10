@@ -1,6 +1,6 @@
 ================================================================
 5_CodeMap.txt — Purity MVP 페이지·컴포넌트별 구현 상세 (CodeMap)
-최종 업데이트: 2026-06-10
+최종 업데이트: 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
 ================================================================
 
 ※ 조건부 로드 문서. 특정 페이지/컴포넌트 파일을 수정·디버깅하기 전에만 Read 도구로
@@ -82,6 +82,12 @@
 - 메인·서브 의뢰 모두: 목록 뷰 draft/active 이어하기·수정 버튼은 navigate 불사용
   · openDraftOrActiveForEdit(missionId) 헬퍼로 직접 DB 로드 후 필드 복원 + setView('form'/'create') 호출
     (같은 경로 navigate는 컴포넌트 리마운트 미실행으로 useEffect 미재실행 — D-43)
+- ★ 질문 복원 시 재분리 (4개 폼 공통, D-119, 2026-06-10): 저장은 selectedQuestions+localCustomQs를 allLPSelected로 병합 직렬화.
+  복원 2곳(초기 load useEffect + openDraftOrActiveForEdit)에서 병합 배열을 local- 접두사 기준으로 재분리:
+    const isLocal = q => typeof q.id==='string' && q.id.startsWith('local-')
+    setLocalCustomQs(filter(isLocal)) / setSelectedQuestions(filter(!isLocal))
+  · 안 하면 인라인 생성 질문이 selectedQuestions에 묻혀 '추가된 질문 목록'(localCustomQs.length>0 게이트) 카드·×취소 버튼 소실
+  · 폼당 복원 2곳 모두 수정 필요(들여쓰기 8칸/6칸 상이) — 한쪽만 고치면 한 진입 경로만 해결
 - 리스트 뷰에서 완료 카드 클릭 → navigate('/company/results?id=...', { replace: true })
   · (history 오염 방지: 동일 폼 페이지 내 완료 카드 결과 이동이 history에 쌓이지 않도록, D-113)
 - NewMission.jsx: currentEditId state + effectiveEditMode(isEditMode||!!currentEditId) + effectiveEditId(currentEditId||editMissionId)
@@ -129,6 +135,7 @@
 - 탭 이모지: lp/preference/pricing/email 탭은 icon: null, 커스텀 탭만 icon: '➕'
 - "질문 만들기" → "커스텀 질문" (탭 레이블 + 탭 콘텐츠 헤더 모두 변경)
 - CUSTOM_CAT_TABS 4개(LP 포함): lp→'랜딩페이지', preference→'광고소재', pricing→'가격', email→'이메일'
+- customCategory 초기값 = 'lp'(마케팅 소재 종합 진단) ★ 2026-06-10 (구 'preference') — 커스텀 탭 진입 시 첫 뱃지 선택과 일치
 - handleUse (전 탭 통일): navigate(tab.path, { state: { templateId, templateName } }) — DB 템플릿만 use_count +1
 - load(): DB에 LP 기본 템플릿 없으면 QUESTION_TEMPLATES.lp 로컬 상수로 보완 (D-31)
 - 미리보기 패널 상단: "이 템플릿으로 의뢰 등록 →" 버튼 (전 탭 공통, handleUse 호출)

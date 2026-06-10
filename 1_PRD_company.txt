@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_company.txt — Purity MVP 기업(Company) 포털 상세 정의
-최종 업데이트: 2026-06-12 (버그/건의 답변 딥링크 라우팅 추가) / 2026-06-10 (PanelTargetStep UX 개선 + 폼 내비게이션 버그 수정)
+최종 업데이트: 2026-06-10 (등록폼 임시저장→이어쓰기 시 인라인 커스텀 질문 재분리 복원 D-119 / QuestionTemplates 커스텀 탭 기본 뱃지 lp로 변경) / 2026-06-12 (버그/건의 답변 딥링크 라우팅 추가) / 2026-06-10 (PanelTargetStep UX 개선 + 폼 내비게이션 버그 수정)
 ※ 워딩 규칙: 기업 포털 UI = "의뢰" / 코드·DB·패널·어드민 = "미션/mission"
 ================================================================
 
@@ -84,6 +84,10 @@
   · QUESTION_TEMPLATES.lp 3개 템플릿 아코디언
   · 최대 5개 / 서술형 최대 2개 / "N/5 선택됨" 배지
   · "질문 만들기" 인라인 섹션: textarea + 타입 버튼 + "추가"(localCustomQs) + "템플릿에 저장 →"(DB INSERT)
+    - localCustomQs(인라인 생성, id=local-)는 '추가된 질문 목록' 카드에서 ×버튼으로 취소 가능
+  · ★ 임시저장/이어쓰기 복원 시 질문 재분리 (2026-06-10, D-119): 저장은 allLPSelected(selectedQuestions+localCustomQs) 병합,
+    복원은 local- 접두사 기준으로 localCustomQs/selectedQuestions로 재분리 → '추가된 질문 목록' 취소 UI 복구
+    (4개 등록폼 NewMission·PreferenceTest·PricingTest·ColdEmailTest 공통 — 폼당 복원 2곳)
   · location.state.templateId+templateName: 해당 템플릿 사전 선택 + Step 2 직행
 - Step 3 패널 설정 (PanelTargetStep 컴포넌트):
   · 패널 인원수 슬라이더 (10~30명, 기본 10명)
@@ -211,6 +215,7 @@
 
 - 탭 5개: 마케팅 소재 종합 진단 | 소재 비교 A/B | 가격 페이지 | 이메일 검증 | ➕ 커스텀 질문
   · lp/preference/pricing/email 탭: 이모지 없음 / 커스텀 탭만 ➕
+  · ➕ 커스텀 질문 탭의 카테고리 뱃지 기본 선택 = 'lp'(마케팅 소재 종합 진단) ★ 2026-06-10 (구 'preference' 소재 비교에서 변경, customCategory 초기값)
 - 템플릿 탭: 카드 클릭 비활성 / "미리보기" 버튼 → 우측 사이드패널
   · DB 없으면 QUESTION_TEMPLATES.lp 로컬 폴백 (D-31)
   · sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링

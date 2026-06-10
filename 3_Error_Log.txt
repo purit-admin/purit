@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-12 (D-117 추가 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴)
+최종 업데이트: 2026-06-10 (D-118 Storage 버킷 UPDATE 정책 누락 upsert 재업로드 무음 실패 / D-119 draft 병합저장 후 복원 시 재분리 누락으로 편집 UI 소실) / 2026-06-12 (D-117 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1590,3 +1590,29 @@ D-117. UI(모달·드롭다운)에 enum 옵션을 추가하면서 대응하는 D
              역으로, CHECK 제약을 가진 컬럼(type/status/payment_method 등)에 새 값을 보내는 프론트가 생기면 제약부터 확인.
              점검 대상(이 프로젝트): bug_reports.type/status, invoices.payment_type/payment_method, missions/feedbacks status 등.
              (panels.status는 CHECK가 없어 rejected/banned 추가가 통과됨 — CHECK 유무에 따라 결과가 갈리므로 컬럼별로 확인 필요.)
+
+D-118. Supabase Storage 버킷에 INSERT 정책만 있고 UPDATE 정책이 없으면 upsert:true 재업로드가 400으로 무음 실패하는 패턴 ✅ 해결
+     -> 증상: 패널이 같은 형식 서류를 재제출하면 "건강보험 파일 업로드에 실패했습니다" 400. 최초 제출이나 다른 확장자 제출은 정상 → 간헐 버그처럼 보임.
+             (기업 소재 이미지 교체 재업로드도 동일 원인 — 단 catch가 console.error만 해서 화면 무반응 무음 실패)
+     -> 원인: 업로드 코드가 고정 경로(`{uid}/health_insurance.{ext}`, `{cid}/{mid}/va.{ext}` 등) + upsert:true.
+             upsert는 같은 경로에 파일이 이미 있으면 INSERT가 아니라 UPDATE(덮어쓰기)로 동작함.
+             그런데 버킷 RLS에 FOR INSERT·FOR SELECT 정책만 있고 FOR UPDATE 정책이 없으면 덮어쓰기가 RLS에 막혀 400.
+             → 성공/실패가 "새로 올리는 파일의 경로가 기존 파일과 겹치는지"로 갈려, 최초·다른확장자는 INSERT라 통과(함정).
+     -> 해결: 버킷마다 INSERT 정책과 동일 조건의 FOR UPDATE 정책 추가 (USING + WITH CHECK 둘 다 — UPDATE는 두 절 모두 필요).
+             panel-verification-docs: auth.uid()=split_part(name,'/',1)(본인 경로) / mission-assets: auth.role()='authenticated'.
+     -> 원칙: Storage에 upsert:true + 고정 경로(타임스탬프·randomUUID 없는 경로)로 업로드하는 코드를 볼 때마다,
+             해당 버킷에 FOR UPDATE 정책이 있는지 확인할 것. INSERT 정책만 보고 "쓰기 됨"으로 판단하면 재업로드에서 터진다.
+             경로에 Date.now()/randomUUID()가 들어가 매번 유니크하면 항상 INSERT라 UPDATE 정책 불필요(BugReportModal·NewMission).
+             규칙 15(DELETE/UPDATE 권한 명시성)의 Storage 버킷 버전 — storage.objects도 RLS 테이블이므로 연산별 정책을 따져야 함.
+
+D-119. draft 저장 시 두 state를 하나로 병합 저장한 뒤, 복원 시 다시 분리하지 않으면 한쪽 관리 UI가 사라져 편집 불가가 되는 패턴 ✅ 해결
+     -> 증상: 의뢰 등록 질문 단계에서 '질문 만들기'로 인라인 생성한 커스텀 질문을, 임시저장 후 이어쓰기로 복원하면
+             '선택된 질문' 요약엔 보이지만 '추가된 질문 목록' 카드(×취소 버튼 포함)가 사라져 선택 취소가 불가능.
+     -> 원인: 저장 시 selectedQuestions(일반 선택) + localCustomQs(인라인 생성, id=local-)를 allLPSelected로 병합해 하나의 키로 저장.
+             복원 시 그 병합 배열을 통째로 setSelectedQuestions에만 넣고 localCustomQs는 빈 채로 둠.
+             → localCustomQs.length>0 게이트로 렌더되는 '추가된 질문 목록'(삭제 UI)이 사라지고, local- 질문은 어느 그룹에도 안 잡혀 편집 불가.
+             D-59(저장만 하고 복원 코드에 setState 누락)의 변형 — 여기선 저장은 합쳐서 했는데 복원에서 "되돌려 나누기"를 안 한 비대칭.
+     -> 해결: 복원 지점에서 병합 배열을 식별자(id가 'local-'로 시작) 기준으로 재분리 →
+             setLocalCustomQs(filter(isLocal)) + setSelectedQuestions(filter(!isLocal)). 저장·제출은 다시 allLPSelected로 합쳐 동작 유지.
+     -> 원칙: 저장 시 A+B를 한 키로 합쳐 직렬화했다면, 복원에서 반드시 같은 기준으로 A·B로 되돌려 나눌 것(저장·복원 대칭 — 규칙 10).
+             병합 저장은 4개 등록 폼(NewMission/PreferenceTest/PricingTest/ColdEmailTest)에 복제돼 있어 복원 지점도 폼당 2곳씩 전수 수정 필요(수평 전개).

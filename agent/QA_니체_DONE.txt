@@ -359,3 +359,11 @@
 [니체-RJ-B] panel/VerifyDocs.jsx — save_panel_verification_docs RPC가 FALSE 반환(082 상태 가드) 시 조용한 실패를 성공으로 처리. 반환값 캡처 + data===false 시 에러 표시·navigate 차단 추가 (D-37/규칙7)  ✅
 [니체-RJ-D] panel/Missions.jsx·ActiveMission.jsx — 페이지 자체 상태 게이트에 rejected/banned 미포함(방어 깊이). Missions 렌더에 rejected(사유+재제출)/banned 게이트 추가, ActiveMission load() 차단 조건을 비활성 전체(status!=='active')로 확장 + 렌더 상태별 분기  ✅
 [니체-RJ-E] Sidebar.jsx 패널 상태 게이트 — suspended(정지) 분기 누락으로 정지 패널이 /panel/profile·/panel/history URL 직접 접근 시 무방비 노출(들쭉날쭉 동작). rejected/banned 추가 시 수평전개 누락(078부터 잔존). Sidebar 게이트에 suspended 분기 추가 — 정산내역(/panel/history)·알림·버그신고만 허용, 나머지(프로필 포함)는 정지카드(정산 내역 보기 버튼)로 통일. 제품 결정: 정지 중에도 본인 정산내역은 열람 가능 (사용자 승인). History.jsx 무수정(Sidebar 허용 경로로 통과) / Profile.jsx 무수정(Sidebar가 자동 차단)  ✅
+
+-- 2026-06-10 수동테스트 중 발견·수정 (Storage upsert + UPDATE 정책 누락) --
+[니체-DOC-A] panel-verification-docs 버킷 — INSERT/SELECT 정책만 있고 UPDATE 없음. VerifyDocs.jsx 업로드가 고정경로(`{uid}/health_insurance.{ext}`) + upsert:true → 같은 확장자로 재제출 시 경로 충돌→upsert가 UPDATE로 동작→정책 없어 400 차단("건강보험 파일 업로드 실패"). 최초/다른확장자 제출은 INSERT라 통과해 간헐버그처럼 보임. 마이그레이션 084: panel_update_own_docs(본인 user_id 하위 경로) UPDATE 정책 추가. 라이브 적용·검증 완료  ✅
+[니체-DOC-B] (수평전개) mission-assets 버킷 동일 결함 — PreferenceTest.jsx(`va|vb.{ext}`)·PricingTest.jsx(`pricing.{ext}`)가 upsert:true+고정파일명. 기업이 A/B·가격 이미지 교체 재업로드 시 경로충돌→UPDATE→400, catch가 console.error만 해 화면 무반응 실패. 마이그레이션 084: auth_update_mission_assets(authenticated) UPDATE 정책 추가. 라이브 적용·검증 완료  ✅
+
+-- 2026-06-10 임시저장→이어쓰기 시 인라인 커스텀 질문 관리불능 (저장·복원 비대칭, 니체규칙10/D-59) --
+[니체-DRAFT-A] NewMission.jsx — 질문 설정 단계에서 '질문 만들기'로 인라인 생성한 커스텀 질문(localCustomQs, id=local-)을 저장 시 allLPSelected로 selectedQuestions에 병합 저장하는데, 복원(2곳: 418 useEffect / 593 이어쓰기) 시 통째로 selectedQuestions에만 넣고 localCustomQs를 빈 채로 둠 → '추가된 질문 목록' 카드(localCustomQs.length>0 게이트)가 사라져 ×취소 버튼 소실 + 어느 체크박스에도 안 잡혀 선택취소 불가('선택된 질문' 요약엔 표시됨). 복원 2곳에서 local- 접두사 기준 재분리 복원(setLocalCustomQs/setSelectedQuestions)으로 수정  ✅
+[니체-DRAFT-B] (수평전개) PreferenceTest·PricingTest·ColdEmailTest 동일 패턴 동일 버그 — 각 복원 2곳(총 6곳) 모두 local- 재분리 복원으로 일괄 수정. 4개 등록폼 빌드 통과·미수정 지점 0 확인  ✅

@@ -415,7 +415,13 @@ export default function NewMission() {
         personaRole:    parsed.personaRole || '',
         personaContext: parsed.personaContext || '',
       }));
-      if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+      if (Array.isArray(parsed.selectedQuestions)) {
+        // 저장 시 합쳐진(allLPSelected) 질문을 local-(인라인 생성) / 그 외로 다시 분리 복원
+        // → '추가된 질문 목록' 카드(취소 버튼 포함) 복구
+        const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');
+        setLocalCustomQs(parsed.selectedQuestions.filter(isLocal));
+        setSelectedQuestions(parsed.selectedQuestions.filter(q => !isLocal(q)));
+      }
       if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
       if (parsed.step != null) setStep(parsed.step);
     }
@@ -590,7 +596,12 @@ export default function NewMission() {
         personaRole:    parsed.personaRole || '',
         personaContext: parsed.personaContext || '',
       }));
-      if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+      if (Array.isArray(parsed.selectedQuestions)) {
+        // 저장 시 합쳐진(allLPSelected) 질문을 local-(인라인 생성) / 그 외로 다시 분리 복원
+        const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');
+        setLocalCustomQs(parsed.selectedQuestions.filter(isLocal));
+        setSelectedQuestions(parsed.selectedQuestions.filter(q => !isLocal(q)));
+      }
       if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
       if (parsed.step != null) setStep(parsed.step);
       setView('form');

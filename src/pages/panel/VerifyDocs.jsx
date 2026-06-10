@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
-import { Card, Btn } from '../../components/ui';
+import { Card, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { compressImage } from '../../lib/imageUtils';
 
@@ -70,6 +70,10 @@ export default function VerifyDocs() {
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState('');
   const [existing,      setExisting]      = useState(null); // 재제출 시 기존 제출 내역 프리필용
+  const [showLastChance, setShowLastChance] = useState(false); // 3번째 제출(마지막 기회) 확인 모달
+
+  // 이미 2회 거절됨 → 이번 재제출이 3번째(마지막 기회), 또 거절되면 영구 정지(082 banned)
+  const isLastChance = existing?.status === 'rejected' && (existing?.rejection_count ?? 0) >= 2;
 
   const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -80,7 +84,7 @@ export default function VerifyDocs() {
       if (!user) return;
       const { data } = await supabase
         .from('panels')
-        .select('status, rejection_reason, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, experience_years')
+        .select('status, rejection_reason, rejection_count, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, experience_years')
         .eq('user_id', user.id)
         .single();
       if (!data) return;
@@ -109,7 +113,8 @@ export default function VerifyDocs() {
     setPortfolioFile(f);
   };
 
-  const handleSubmit = async () => {
+  // 제출 버튼 클릭 → 유효성 검증 후, 마지막 기회면 확인 모달, 아니면 바로 제출
+  const handleSubmit = () => {
     setError('');
     if (!certFile && !existing?.health_insurance_url) {
       setError('건강보험 자격득실 확인서를 첨부해 주세요.'); return;
@@ -131,6 +136,14 @@ export default function VerifyDocs() {
       setError('올바른 포트폴리오 URL 형식을 입력해 주세요. (예: https://...)'); return;
     }
 
+    // 마지막 기회(누적 2회 거절)면 영구 정지 경고 모달 → 확인 시에만 제출
+    if (isLastChance) { setShowLastChance(true); return; }
+    doSubmit(yearsNum);
+  };
+
+  // 실제 업로드 + 저장 (검증 통과 후에만 호출)
+  const doSubmit = async (yearsNum) => {
+    setShowLastChance(false);
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -207,6 +220,22 @@ export default function VerifyDocs() {
               {existing.rejection_reason}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 마지막 기회 경고 — 누적 2회 거절, 이번이 3번째(또 거절되면 영구 정지) */}
+      {isLastChance && (
+        <div style={{
+          background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10,
+          padding: '14px 16px', marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#991B1B', marginBottom: 4 }}>
+            ⚠️ 마지막 심사 기회입니다.
+          </div>
+          <div style={{ fontSize: 13, color: '#B91C1C', lineHeight: 1.6 }}>
+            이미 2회 반려되어, 이번 서류가 또 거절되면 계정이 <strong>영구 정지</strong>되어 더 이상 제출할 수 없습니다.
+            서류를 충분히 보완한 뒤 제출해 주세요.
+          </div>
         </div>
       )}
 
@@ -360,6 +389,18 @@ export default function VerifyDocs() {
       <div style={{ fontSize: 12, color: T3, textAlign: 'center', marginTop: 12 }}>
         서류 검토 후 어드민이 심사를 완료하면 미션 참여가 가능합니다.
       </div>
+
+      {showLastChance && (
+        <ConfirmModal
+          title="마지막 심사 기회입니다"
+          desc={'이번에 제출하는 서류가 또 거절되면 계정이 영구 정지되어 더 이상 제출할 수 없습니다.\n\n서류를 충분히 보완하셨습니까?'}
+          confirmLabel="네, 제출하겠습니다"
+          cancelLabel="다시 확인하기"
+          danger
+          onConfirm={() => doSubmit(parseInt(expYears, 10))}
+          onCancel={() => setShowLastChance(false)}
+        />
+      )}
     </div>
     </div>
   );

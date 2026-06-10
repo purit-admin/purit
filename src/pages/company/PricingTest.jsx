@@ -154,7 +154,12 @@ export default function PricingTest() {
         if (parsed.image) setPricingImage(parsed.image);
         if (parsed.productDescription) setProductDescription(parsed.productDescription);
         if (parsed.industry) setIndustry(parsed.industry);
-        if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+        if (Array.isArray(parsed.selectedQuestions)) {
+          // 저장 시 합쳐진 질문을 local-(인라인 생성)/그 외로 다시 분리 복원 ('추가된 질문 목록' 취소 UI 복구)
+          const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');
+          setLocalCustomQs(parsed.selectedQuestions.filter(isLocal));
+          setSelectedQuestions(parsed.selectedQuestions.filter(q => !isLocal(q)));
+        }
         if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
         if (parsed.panelSize) setPanelSize(parsed.panelSize);
       });
@@ -298,7 +303,12 @@ export default function PricingTest() {
       if (parsed.image) setPricingImage(parsed.image);
       if (parsed.productDescription) setProductDescription(parsed.productDescription);
       if (parsed.industry) setIndustry(parsed.industry);
-      if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+      if (Array.isArray(parsed.selectedQuestions)) {
+        // 저장 시 합쳐진 질문을 local-(인라인 생성)/그 외로 다시 분리 복원 ('추가된 질문 목록' 취소 UI 복구)
+        const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');
+        setLocalCustomQs(parsed.selectedQuestions.filter(isLocal));
+        setSelectedQuestions(parsed.selectedQuestions.filter(q => !isLocal(q)));
+      }
       if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
       if (parsed.panelSize) setPanelSize(parsed.panelSize);
       setView('create');

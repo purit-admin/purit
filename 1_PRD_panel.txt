@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_panel.txt — Purity MVP 패널(Panel) 포털 상세 정의
-최종 업데이트: 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 RJ-E / 심사 거절→재제출→영구차단 플로우 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
+최종 업데이트: 2026-06-10 (VerifyDocs 마지막 기회 경고 배너+확인 모달 / 084 서류 재제출 upsert 실패 수정 D-118) / 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 RJ-E / 심사 거절→재제출→영구차단 플로우 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
 ================================================================
 
 인증 후 /panel 하위 라우트 접근 가능. 패널 상태 게이트(Layout <main> 블록):
@@ -183,6 +183,13 @@ e. notify_admin_on_feedback_submitted RPC fire-and-forget (어드민 알림)
   · 필수 검증 완화: 건강보험·경력 최소1개 조건은 기존 제출분이 있으면 통과
   · status==='rejected'이면 상단에 거절 사유 배너(rejection_reason) 표시 + 버튼 라벨 "서류 재제출하기 →"
   · save RPC가 status='pending'으로 flip → notify_admin_on_panel_resubmit 트리거 → 어드민 재심사 알림
+- ★ 마지막 기회 경고 (2026-06-10): rejection_count >= 2 (이미 2회 거절 = 이번이 3번째, 또 거절 시 banned 영구 정지)인 경우
+  · 조회 쿼리에 rejection_count 포함 → isLastChance = (status==='rejected' && rejection_count>=2)
+  · 상단 빨간 경고 배너: "⚠️ 마지막 심사 기회입니다. … 또 거절되면 계정이 영구 정지되어 더 이상 제출할 수 없습니다."
+  · 제출 직전 ConfirmModal(danger): "마지막 심사 기회입니다 / 또 거절되면 영구 정지" → "네, 제출하겠습니다"·"다시 확인하기"
+  · 흐름: handleSubmit(유효성 검증) → isLastChance면 모달, 아니면 doSubmit() 즉시. 모달 확인 시에만 doSubmit() 실제 업로드·제출
+  · 일반(1·2번째) 거절 패널은 모달 없이 기존대로 바로 제출 / banned는 verify-docs 진입 자체 차단(082 게이트)이라 count>2 불가
+  · 어드민 거절 모달의 willBan(rejection_count>=2 경고)과 대칭 — 어드민·패널 양측이 마지막 단계에서 영구 정지를 경고
 - 건강보험 득실확인서 업로드 (이미지/PDF, 20MB, 필수) — 연차 인증 증빙
 - ★ 본인 연차 입력 (필수, 2~50년차, 2026-06-12): 자격득실 확인서 기준 자가 계산
   · 안내 박스: "계산법 = 근무 연 수 + 1" (예: 4년 2개월 → 5년차 / 1년 8개월 → 2년차)
@@ -194,6 +201,7 @@ e. notify_admin_on_feedback_submitted RPC fire-and-forget (어드민 알림)
   · 포트폴리오 파일 경로: {user.id}/portfolio.{ext}
 - 파일 업로드: panel-verification-docs Storage 버킷, upsert:true, 20MB 제한 ★
   · 경로: {user.id}/health_insurance.{ext}, portfolio.{ext}
+  · ★ 084: 버킷에 FOR UPDATE 정책(panel_update_own_docs) 추가 — 없으면 같은 확장자 재제출이 upsert(덮어쓰기)→RLS 400 무음 차단 (D-118)
   · 이미지 파일(jpg/png)은 compressImage로 자동 압축 후 업로드 / PDF·DOC는 원본 업로드 (isImageFile 분기)
 - 제출: save_panel_verification_docs RPC (6-param, auth.uid()=p_user_id 본인 검증) ★ (migration 081에서 6-param 확장)
   · p_portfolio_url=링크 / p_portfolio_file_url=파일 path (링크·파일 분리 저장, migration 080)
