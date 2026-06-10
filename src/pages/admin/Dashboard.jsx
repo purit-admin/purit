@@ -180,7 +180,12 @@ export default function AdminDashboard() {
                   <td style={{ padding: '14px 20px', fontSize: 13, color: C.text2 }}>{p.total_missions || 0}</td>
                   <td style={{ padding: '14px 20px' }}>
                     <Badge type={p.status === 'active' ? 'green' : p.status === 'pending' ? 'gold' : 'red'}>
-                      {p.status === 'active' ? '활성' : p.status === 'pending' ? '심사중' : p.status === 'suspended' ? '정지' : '활성'}
+                      {p.status === 'active' ? '활성'
+                        : p.status === 'pending' ? '심사중'
+                        : p.status === 'rejected' ? '반려'
+                        : p.status === 'banned' ? '영구정지'
+                        : p.status === 'suspended' ? '정지'
+                        : '활성'}
                     </Badge>
                   </td>
                 </tr>

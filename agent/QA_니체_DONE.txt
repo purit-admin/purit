@@ -352,3 +352,9 @@
 [기업-설정-A] company/Settings.jsx — handleChangeRole() 실패 시 roleChangeError state 추가 + 3초 자동 소멸 에러 배너 렌더 추가  ✅
 [Admin-D] admin/Dashboard.jsx + admin/CompanyManagement.jsx — select('*') → 렌더에 사용하는 컬럼만 명시적 select로 교체  ✅
 [Pnl-Active-A] panel/ActiveMission.jsx — handleCancelAccept() 에러 경로에서 setCancelModal(false)(모달 닫기 코드)가 먼저 실행되어 오류 메시지 무음 처리. setCancelModal(false) 제거 → 모달 유지 + cancelError 표시  ✅
+
+-- 2026-06-12 니체 전수조사 수정 완료 (RJ-A~D, 패널 거절/재제출/영구차단 플로우 연동 검증) --
+[니체-RJ-C] bug_reports.type CHECK 제약에 'appeal'(이의 신청) 누락 → 이의신청 제출 INSERT 실패 수정. 마이그레이션 083: type CHECK에 'appeal' 추가 + notify_admin_on_bug_report 트리거 type_label에 '⚖️ 이의 신청' 분기 추가  ✅
+[니체-RJ-A] admin/Dashboard.jsx — 최근 패널 상태 배지가 rejected/banned를 "활성"으로 오표시. PanelManagement와 동일하게 rejected→'반려'/banned→'영구정지' 분기 추가 (D-35 형제 페이지 누락)  ✅
+[니체-RJ-B] panel/VerifyDocs.jsx — save_panel_verification_docs RPC가 FALSE 반환(082 상태 가드) 시 조용한 실패를 성공으로 처리. 반환값 캡처 + data===false 시 에러 표시·navigate 차단 추가 (D-37/규칙7)  ✅
+[니체-RJ-D] panel/Missions.jsx·ActiveMission.jsx — 페이지 자체 상태 게이트에 rejected/banned 미포함(방어 깊이). Missions 렌더에 rejected(사유+재제출)/banned 게이트 추가, ActiveMission load() 차단 조건을 비활성 전체(status!=='active')로 확장 + 렌더 상태별 분기  ✅

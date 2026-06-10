@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-12 (D-116 추가 — localStorage 앵커 async-읽기/sync-쓰기 경쟁 상태 패턴)
+최종 업데이트: 2026-06-12 (D-117 추가 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴)
 ================================================================
 
 ## 핵심 원칙
@@ -1574,3 +1574,19 @@ D-116. 동일 localStorage 키를 한 useEffect는 async로 읽고(카운트 계
              읽기(async)와 쓰기(sync)가 서로 다른 useEffect에 있으면 반드시 경쟁 상태를 의심할 것.
              async 결과로 state를 setState하기 직전에 "지금도 그 화면을 보고 있는가"를 실시간 값으로 재확인하면
              타이밍에 무관하게 일관된 결과를 보장할 수 있음.
+
+D-117. UI(모달·드롭다운)에 enum 옵션을 추가하면서 대응하는 DB CHECK 제약(또는 enum 타입)을 함께 갱신하지 않아 INSERT가 제약 위반으로 실패하는 패턴 ✅ 해결
+     -> 증상: 버그/불편 신고 모달에서 "⚖️ 이의 신청" 유형으로 제출하면 "제출 중 오류가 발생했습니다"만 뜨고 저장 0건.
+             다른 유형(버그/UX/데이터/기능제안/기타)은 정상 제출됨.
+     -> 원인: BugReportModal의 REPORT_TYPES에는 key:'appeal'이 추가됐으나,
+             bug_reports.type 컬럼의 CHECK 제약은 여전히 ('bug','ux','data','feature','other')만 허용(022 정의 시점).
+             → type='appeal' INSERT 시 CHECK 위반으로 insErr 반환 → 사용자에게 일반 에러만 표시.
+             프론트(모달 옵션)와 DB(제약)가 분리돼 있어, 옵션만 추가하면 화면상으론 완성돼 보이지만 저장 단계에서 조용히 막힘.
+             표시 측(TYPE_META, 알림 트리거 type_label)은 'appeal'을 다뤄도 INSERT가 막혀 데이터 자체가 안 생김.
+     -> 해결: 마이그레이션으로 CHECK 제약 교체 — ALTER TABLE ... DROP CONSTRAINT IF EXISTS <table>_<col>_check;
+             ALTER TABLE ... ADD CONSTRAINT ... CHECK (... 'appeal' 포함 ...);
+             + 같은 enum을 분기하는 트리거/함수(notify_admin_on_bug_report의 type_label CASE)도 함께 갱신.
+     -> 원칙: 모달·셀렉트·라디오에 선택지(enum 값)를 추가할 때는 반드시 그 값을 저장하는 DB 컬럼의 CHECK 제약·enum 타입을 동시 점검할 것.
+             역으로, CHECK 제약을 가진 컬럼(type/status/payment_method 등)에 새 값을 보내는 프론트가 생기면 제약부터 확인.
+             점검 대상(이 프로젝트): bug_reports.type/status, invoices.payment_type/payment_method, missions/feedbacks status 등.
+             (panels.status는 CHECK가 없어 rejected/banned 추가가 통과됨 — CHECK 유무에 따라 결과가 갈리므로 컬럼별로 확인 필요.)

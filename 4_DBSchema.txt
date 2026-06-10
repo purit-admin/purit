@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-12 (082_panel_rejection_flow — panels.rejection_count/rejection_reason 추가 + save_panel_verification_docs status 가드·pending flip + notify_admin_on_panel_resubmit 트리거)
+최종 업데이트: 2026-06-12 (083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -366,13 +366,16 @@
   created_at      TIMESTAMPTZ DEFAULT now()
   user_id         UUID        FK → auth.users.id  ON DELETE CASCADE
   role            TEXT        NOT NULL  ('company'|'panel'|'admin')
-  type            TEXT        NOT NULL  ('bug'|'ux'|'data'|'feature'|'other')
+  type            TEXT        NOT NULL  ('bug'|'ux'|'data'|'feature'|'appeal'|'other')  ★ 'appeal'(이의 신청)은 083에서 CHECK 추가 (BugReportModal에 있었으나 제약 누락으로 INSERT 실패하던 버그 수정)
   page_url        TEXT        NOT NULL DEFAULT ''
   title           TEXT        NOT NULL
   description     TEXT        NOT NULL
   screenshot_url  TEXT        (Storage public URL, NULL 허용)
   status          TEXT        NOT NULL DEFAULT 'pending'  ('pending'|'in_progress'|'resolved'|'dismissed')
   admin_memo      TEXT        DEFAULT ''
+  admin_reply     TEXT                    ← 023 추가 (어드민 답변 — 신고자에게 💬 알림 발송 시 표시)
+  replied_at      TIMESTAMPTZ             ← 023 추가 (답변 발송 시각)
+  ※ notify_admin_on_bug_report 트리거: 신규 신고 시 어드민 전원 알림 (082 미사용 — 022 트리거, 083에서 type_label에 appeal 분기 추가)
 
   ※ RLS:
     - INSERT: auth.uid() = user_id (본인만 신고 가능)

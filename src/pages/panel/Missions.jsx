@@ -221,6 +221,7 @@ export default function MissionList() {
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]               = useState(null);
   const [panelStatus, setPanelStatus]       = useState('active');
+  const [panelRejectionReason, setPanelRejectionReason] = useState('');
   const [panelHasDocs, setPanelHasDocs]     = useState(false);
   const [panelHonorPoints, setPanelHonorPoints] = useState(0);
   const [panelExperience, setPanelExperience]   = useState('');
@@ -271,10 +272,11 @@ export default function MissionList() {
       if (!user) { setLoading(false); return; }
 
       const { data: p } = await supabase
-        .from('panels').select('id, honor_points, experience, status, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url').eq('user_id', user.id).single();
+        .from('panels').select('id, honor_points, experience, status, rejection_reason, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
       setPanelStatus(p.status || 'active');
+      setPanelRejectionReason(p.rejection_reason || '');
       setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url || p.portfolio_file_url));
       setPanelHonorPoints(p.honor_points ?? 0);
       setPanelExperience(p.experience || '');
@@ -443,6 +445,41 @@ export default function MissionList() {
         <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
           관리자에 의해 계정 활동이 정지되었습니다.<br/>
           문의사항은 운영팀에 연락해주세요.
+        </p>
+      </Card>
+    </div>
+  );
+
+  if (panelStatus === 'rejected') return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+      <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>📝</div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>검증 서류가 반려되었습니다</h2>
+        {panelRejectionReason && (
+          <div style={{
+            fontSize: 13.5, color: '#78350F', background: '#FFFBEB', border: '1px solid #FCD34D',
+            borderRadius: 8, padding: '12px 16px', margin: '0 auto 20px', maxWidth: 480,
+            textAlign: 'left', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+          }}>
+            <strong style={{ color: '#92400E' }}>거절 사유</strong><br/>{panelRejectionReason}
+          </div>
+        )}
+        <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+          사유를 확인하고 서류를 보완하여 재제출해 주세요.
+        </p>
+        <Btn onClick={() => navigate('/panel/verify-docs')}>서류 재제출하기 →</Btn>
+      </Card>
+    </div>
+  );
+
+  if (panelStatus === 'banned') return (
+    <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+      <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 영구 정지되었습니다</h2>
+        <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
+          누적 거절 횟수가 한도에 도달하여 이 계정으로는 더 이상 심사를 받을 수 없습니다.<br/>
+          이의가 있으시면 운영팀에 연락해주세요.
         </p>
       </Card>
     </div>

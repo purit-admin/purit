@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-12 (082 패널 심사 거절→재제출→영구차단 플로우 + 버그답변 딥링크 라우팅 / 081 경력 확정 시스템)
+최종 업데이트: 2026-06-12 (083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -93,9 +93,9 @@ purit/
 │   │   │                  (대시보드 panel/Dashboard.jsx 반려 블록과 동일 마크업 — page-wrap maxWidth 900, Card padding 48px 24px)
 │   │   │                panelStatus==='banned' + (허용) 외 경로 → 🚫 영구 정지 Card (재제출 버튼 없음, verify-docs도 차단)
 │   │   │                panelRejectionReason state: 패널 status 로더 select에 rejection_reason 포함
-│   │   │                ※ 개별 페이지(Missions.jsx·ActiveMission.jsx)의 pending 게이트와 이중 방어 구조
+│   │   │                ※ 개별 페이지(Missions.jsx·ActiveMission.jsx)의 상태 게이트와 다중 방어 구조
 │   │   │                  Sidebar 레벨이 1차 차단, 개별 페이지 게이트가 URL 직접 접근 방어(2차)
-│   │   │                  (rejected/banned는 현재 Sidebar 단일 방어 — 개별 페이지 게이트 미반영, QA 니체-RJ-D 참조)
+│   │   │                  Missions.jsx: suspended/rejected/banned/pending 렌더 게이트 / ActiveMission.jsx: load()에서 status!=='active' 전체 차단 후 렌더 상태별 분기 (083 RJ-D 반영)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
 │   │                  ConfirmModal props: title·desc·confirmLabel·cancelLabel·danger·onConfirm·onCancel + errorMsg=''(선택)
 │   │                    errorMsg 있으면 모달 내부 하단에 빨간 배너 표시 → 확인 실패 시 모달 유지 (낙관적 롤백 패턴 — D-65 참조)
@@ -326,6 +326,9 @@ purit/
 │                  notify_admin_on_panel_resubmit() 트리거(AFTER UPDATE OF status): rejected→pending 시 어드민 🔁 알림 (062 패턴)
 │                  ※ 어드민 측: PanelManagement.jsx 거절 사유 입력 모달(RejectModal) + 3번째 거절 시 영구차단 경고 + banned "차단 해제"(→rejected, count 0)
 │                  ※ 버그/건의 답변 알림 라우팅: admin/BugReports actionUrl /panel·/company/notifications → /panel·/company/bug-reports?id= (해당 리포트 자동 열림 딥링크)
+│                083(bug_reports_appeal_type: 이의 신청 제출 실패 수정) ★ 신규 (2026-06-12)
+│                  bug_reports.type CHECK 제약에 'appeal' 추가 ('bug'|'ux'|'data'|'feature'|'appeal'|'other') — BugReportModal에 있었으나 제약 누락으로 INSERT 실패하던 버그 수정
+│                  notify_admin_on_bug_report 트리거 재정의: type_label CASE에 '⚖️ 이의 신청' 분기 추가 (기존 '기타'로 표기되던 부수 문제)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

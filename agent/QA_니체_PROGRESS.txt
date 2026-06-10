@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-12 (니체 전수조사 — 패널 거절/재제출/영구차단 플로우 + 버그답변 라우팅 연동 검증, 4건 신규 발견: RJ-A~D)
+최종 업데이트: 2026-06-12 (RJ-A~D 4건 전부 수정 완료 → DONE 이동 / 무결성·수평전개 재검증 통과)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -13,43 +13,12 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
   ⏭      보류/스킵 — 하단 섹션에 별도 관리
 
 ================================================================
-## 🔴 P1 Critical (1건)
+## 🔴 P1 Critical (0건)
 ================================================================
 
-[니체-RJ-C] ⚖️ 이의 신청(appeal) 제출 전면 실패 — bug_reports type CHECK 제약 누락
-- 🚨 중요도: P1 — 이의 신청 리포트가 DB CHECK 위반으로 INSERT 자체가 실패. 거절/차단 패널이 가장 필요로 하는 "이의 신청" 흐름의 첫 단계가 막힘. (이번 대화에서 거절 패널의 버그/건의 접근·답변 라우팅을 정비했으나, 정작 이의신청 제출이 막혀 흐름 미완성 — 역방향 추적 규칙 14로 발견)
-- 📍 위치: supabase/migrations/022_bug_reports.sql line 9
-         CHECK (type IN ('bug','ux','data','feature','other')) — 'appeal' 누락, 후속 보정 마이그레이션 없음
-- 🕵️ 재현: 어느 포털이든 사이드바 하단 "버그/불편 신고" → 유형 "⚖️ 이의 신청" 선택 → 제출 → "제출 중 오류가 발생했습니다" 표시, 저장 0건
-- 🤦 현재: BugReportModal.jsx line 13 REPORT_TYPES에 key:'appeal' 존재 → line 50-59 insert에 type='appeal' 전송 → CHECK 위반 → insErr → 사용자에게 에러
-- ✨ 기대: 신규 마이그레이션으로 CHECK 제약에 'appeal' 추가
-         (ALTER TABLE bug_reports DROP CONSTRAINT bug_reports_type_check;
-          ALTER TABLE bug_reports ADD CONSTRAINT bug_reports_type_check CHECK (type IN ('bug','ux','data','feature','appeal','other'));)
-- 🔍 수평전개: notify_admin_on_bug_report 트리거(022)의 type_label CASE에도 'appeal' 분기 없음 → 이의신청 알림 제목이 '기타'로 표기됨(부수 확인). admin/BugReports·company·panel BugReports의 TYPE_META에는 appeal 이미 정의됨(표시 측은 정상).
-
 ================================================================
-## 🟡 P2 Major (4건)
+## 🟡 P2 Major (2건)
 ================================================================
-
-[니체-RJ-A] admin/Dashboard.jsx — 신규 패널 상태(rejected/banned)가 "활성"으로 오표시 (D-35 수평전개)
-- 🚨 중요도: P2 — 어드민 대시보드 "최근 패널" 목록에서 거절(rejected)·영구차단(banned) 패널이 빨간 배지에 "활성" 텍스트로 모순 표시. 어드민이 상태를 오인.
-- 📍 위치: src/pages/admin/Dashboard.jsx line 182-184
-- 🤦 현재: {p.status === 'active' ? '활성' : p.status === 'pending' ? '심사중' : p.status === 'suspended' ? '정지' : '활성'}
-         → rejected/banned는 마지막 else '활성'으로 표시 (배지 type은 red). 텍스트(활성)와 색(빨강) 모순.
-- ✨ 기대: PanelManagement.jsx line 547-551과 동일하게 rejected→'반려', banned→'영구정지' 분기 추가
-- 🔍 수평전개: 동일 패널 데이터를 표시하는 곳은 admin/Dashboard·PanelManagement 2곳. PanelManagement는 이번 대화에서 이미 신규 상태 반영 완료. admin/Dashboard만 누락 (D-35 전형).
-
-[니체-RJ-B] VerifyDocs.jsx — save RPC가 FALSE 반환해도 성공으로 처리(조용한 실패)
-- 🚨 중요도: P2 — 082에서 save_panel_verification_docs가 status NOT IN (pending,rejected)이면 FALSE 반환하도록 가드 추가됨. 그런데 VerifyDocs는 반환값을 확인하지 않아, 저장이 안 됐는데도 성공처럼 /panel로 이동.
-- 📍 위치: src/pages/panel/VerifyDocs.jsx line 148-158
-- 🕵️ 재현: active(또는 suspended/banned) 패널이 /panel/verify-docs 직접 접근 → 서류 제출 → 실제 저장 0건이지만 "성공"으로 /panel 이동
-- 🤦 현재: const { error: rpcErr } = await supabase.rpc('save_panel_verification_docs', {...}); if (rpcErr) {...} navigate('/panel');
-         → RPC가 data=false(에러 아님)를 반환하면 rpcErr=null → navigate 실행(조용한 실패). D-37/규칙7 패턴.
-- ✨ 기대: const { data, error } = await rpc(...); if (error || data === false) { setError('현재 상태에서는 서류를 제출할 수 없습니다.'); return; }
-- 🔍 수평전개: 이 조용한-실패 경로는 082의 상태 가드 추가로 새로 생김. RPC가 boolean을 반환하는 다른 호출부(admin_confirm_panel_experience는 data===false 체크 이미 함 — PanelManagement.jsx:228)와 대비해 VerifyDocs만 반환값 미확인.
-
-[완성도-C] 경력 미설정 패널에게 careerLevels 제한 미션 전부 노출
-
 
 [완성도-C] 경력 미설정 패널에게 careerLevels 제한 미션 전부 노출
 - 📍 위치: src/pages/panel/Missions.jsx (line 406-416)
@@ -70,15 +39,8 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 ================================================================
-## 🟢 P3 Minor (1건)
+## 🟢 P3 Minor (0건)
 ================================================================
-
-[니체-RJ-D] panel/Missions.jsx·ActiveMission.jsx 페이지 자체 게이트에 rejected/banned 미포함 (방어 깊이)
-- 🚨 중요도: P3 — 현재 Sidebar 게이트가 거절/차단 패널의 해당 경로 렌더를 1차 차단하므로 기능적 노출은 없음(단일 방어). pending은 Sidebar+페이지 이중 방어인데, rejected/banned는 페이지 게이트가 없어 Sidebar 변경 시 노출 위험.
-- 📍 위치: src/pages/panel/Missions.jsx line 438(suspended)·451(pending) / ActiveMission.jsx line 239(pending) — rejected/banned 분기 없음
-- 🤦 현재: 두 페이지의 상태 게이트가 suspended/pending만 처리. rejected/banned는 어느 분기에도 안 걸려 정상 화면으로 폴백(단, Sidebar 게이트가 렌더 자체를 막아 현재는 도달 불가)
-- ✨ 기대: pending 이중 방어 구조와 동일하게 두 페이지 게이트에 rejected/banned 분기 추가(일관성). 우선순위 낮음.
-- 🔍 수평전개: 패널 상태 게이트를 가진 페이지 전수 — Sidebar(반영 완료)·Dashboard(반영 완료)·Missions(미반영)·ActiveMission(미반영). Profile/History/BugReports/VerifyDocs/NotificationCenter는 Sidebar 게이트가 처리(허용 경로 정의됨).
 
 
 
@@ -151,14 +113,14 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 6건
-  🔴 P1  1건 (니체-RJ-C)
-  🟡 P2  4건 (완성도-C, 완성도-D, 니체-RJ-A, 니체-RJ-B)
-  🟢 P3  1건 (니체-RJ-D)
+미완료 합계: 2건
+  🔴 P1  0건
+  🟡 P2  2건 (완성도-C, 완성도-D)
+  🟢 P3  0건
   ⚪ P4  0건
 
 스킵/보류: 22건
 
-완료 항목: QA_DONE.txt 참조 (총 210건)
+완료 항목: QA_DONE.txt 참조 (총 214건)
 
 ================================================================

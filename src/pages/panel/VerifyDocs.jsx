@@ -165,7 +165,7 @@ export default function VerifyDocs() {
         }
       }
 
-      const { error: rpcErr } = await supabase.rpc('save_panel_verification_docs', {
+      const { data: rpcOk, error: rpcErr } = await supabase.rpc('save_panel_verification_docs', {
         p_user_id:              user.id,
         p_health_insurance_url: healthInsuranceUrl || null,
         p_linkedin_url:         linkedinUrl.trim() || null,
@@ -175,6 +175,8 @@ export default function VerifyDocs() {
       });
 
       if (rpcErr) { setError('저장 중 오류가 발생했습니다. 다시 시도해 주세요.'); return; }
+      // RPC는 status가 pending/rejected가 아니면(active/suspended/banned) FALSE 반환 → 에러 없이 조용히 실패하므로 반환값도 확인 (082 상태 가드)
+      if (rpcOk === false) { setError('현재 상태에서는 서류를 제출할 수 없습니다. 관리자에게 문의해 주세요.'); return; }
       navigate('/panel');
     } catch {
       setError('오류가 발생했습니다. 다시 시도해 주세요.');
