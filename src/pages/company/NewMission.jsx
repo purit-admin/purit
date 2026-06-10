@@ -199,6 +199,64 @@ const INCOME_OPTIONS = [
   '400~500만원', '500~700만원', '700~1,000만원', '1,000만원 이상', '1억 이상',
 ];
 
+// 듀얼 레인지 슬라이더 — 커스텀 div 핸들 + pointer 드래그 (브라우저 기본 핸들의 양끝 삐져나옴 문제 제거)
+function DualRangeSlider({ min, max, step, valueMin, valueMax, onChangeMin, onChangeMax }) {
+  const trackRef = useRef(null);
+  const draggingRef = useRef(null); // 'min' | 'max' | null
+  const R = 9; // 핸들 반지름(px)
+
+  const frac = (v) => (v - min) / (max - min);
+  // inset 보정 핸들 중심: 0%→9px, 100%→(100%-9px) → 핸들이 항상 트랙 안에 머묾
+  const centerLeft = (v) => `calc(${frac(v) * 100}% + ${(1 - 2 * frac(v)) * R}px)`;
+
+  const valueFromX = (clientX) => {
+    const el = trackRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const usable = rect.width - 2 * R;
+    const f = usable <= 0 ? 0 : Math.max(0, Math.min(1, (clientX - rect.left - R) / usable));
+    return Math.round((min + f * (max - min)) / step) * step;
+  };
+
+  const apply = (which, v) => {
+    if (v == null) return;
+    if (which === 'min') onChangeMin(Math.min(v, valueMax - step));
+    else onChangeMax(Math.max(v, valueMin + step));
+  };
+  const startDrag = (which, e) => { draggingRef.current = which; trackRef.current?.setPointerCapture?.(e.pointerId); };
+  const onTrackDown = (e) => {
+    const v = valueFromX(e.clientX);
+    const which = Math.abs(v - valueMin) <= Math.abs(v - valueMax) ? 'min' : 'max';
+    startDrag(which, e); apply(which, v);
+  };
+  const onThumbDown = (which) => (e) => { e.stopPropagation(); startDrag(which, e); };
+  const onMove = (e) => { if (draggingRef.current) apply(draggingRef.current, valueFromX(e.clientX)); };
+  const onUp = () => { draggingRef.current = null; };
+
+  const thumbStyle = (v, z) => ({
+    position: 'absolute', top: '50%', left: centerLeft(v), transform: 'translate(-50%, -50%)',
+    width: 18, height: 18, borderRadius: '50%', background: '#fff', border: '2.5px solid var(--accent)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.15)', cursor: 'grab', touchAction: 'none', zIndex: z,
+  });
+
+  return (
+    <div ref={trackRef} onPointerDown={onTrackDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+      style={{ position: 'relative', height: 22, userSelect: 'none', touchAction: 'none', cursor: 'pointer' }}>
+      {/* 배경 트랙 (핸들 중심 범위와 동일하게 좌우 9px inset) */}
+      <div style={{ position: 'absolute', top: '50%', left: R, right: R, transform: 'translateY(-50%)', height: 4, background: 'var(--border)', borderRadius: 2 }} />
+      {/* 채워진 트랙 */}
+      <div style={{
+        position: 'absolute', top: '50%', transform: 'translateY(-50%)', height: 4, background: 'var(--accent)', borderRadius: 2,
+        left: centerLeft(valueMin),
+        width: `calc(${(frac(valueMax) - frac(valueMin)) * 100}% - ${2 * R * (frac(valueMax) - frac(valueMin))}px)`,
+      }} />
+      {/* 핸들 2개 */}
+      <div onPointerDown={onThumbDown('min')} style={thumbStyle(valueMin, valueMin >= valueMax - step ? 5 : 3)} />
+      <div onPointerDown={onThumbDown('max')} style={thumbStyle(valueMax, 4)} />
+    </div>
+  );
+}
+
 const PAGE_SIZE = 5;
 const WINDOW = 5;
 
@@ -1164,40 +1222,9 @@ export default function NewMission() {
                           <span style={{ fontSize: 13, color: 'var(--text-3)' }}>~</span>
                           <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{form.personaAgeMax}세</span>
                         </div>
-                        <div style={{ position: 'relative', height: 22, userSelect: 'none' }}>
-                          {/* 배경 트랙 */}
-                          <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: '100%', height: 4, background: 'var(--border)', borderRadius: 2 }} />
-                          {/* 채워진 트랙 */}
-                          <div style={{
-                            position: 'absolute', top: '50%', transform: 'translateY(-50%)', height: 4, background: 'var(--accent)', borderRadius: 2,
-                            left: `${(form.personaAgeMin - AGE_MIN) / (AGE_MAX - AGE_MIN) * 100}%`,
-                            width: `${(form.personaAgeMax - form.personaAgeMin) / (AGE_MAX - AGE_MIN) * 100}%`,
-                          }} />
-                          {/* 최솟값 썸 (시각) */}
-                          <div style={{
-                            position: 'absolute', top: '50%', transform: 'translate(-50%, -50%)',
-                            left: `${(form.personaAgeMin - AGE_MIN) / (AGE_MAX - AGE_MIN) * 100}%`,
-                            width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                            border: '2.5px solid var(--accent)', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', pointerEvents: 'none', zIndex: 1,
-                          }} />
-                          {/* 최댓값 썸 (시각) */}
-                          <div style={{
-                            position: 'absolute', top: '50%', transform: 'translate(-50%, -50%)',
-                            left: `${(form.personaAgeMax - AGE_MIN) / (AGE_MAX - AGE_MIN) * 100}%`,
-                            width: 18, height: 18, borderRadius: '50%', background: '#fff',
-                            border: '2.5px solid var(--accent)', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', pointerEvents: 'none', zIndex: 1,
-                          }} />
-                          {/* 최솟값 input (투명, 인터랙션) */}
-                          <input type="range" min={AGE_MIN} max={AGE_MAX} step={5} value={form.personaAgeMin}
-                            onChange={e => set('personaAgeMin', Math.min(+e.target.value, form.personaAgeMax - 5))}
-                            style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0, cursor: 'pointer',
-                              zIndex: form.personaAgeMin >= form.personaAgeMax - 5 ? 5 : 3, margin: 0 }} />
-                          {/* 최댓값 input (투명, 인터랙션) */}
-                          <input type="range" min={AGE_MIN} max={AGE_MAX} step={5} value={form.personaAgeMax}
-                            onChange={e => set('personaAgeMax', Math.max(+e.target.value, form.personaAgeMin + 5))}
-                            style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0, cursor: 'pointer',
-                              zIndex: form.personaAgeMax <= form.personaAgeMin + 5 ? 5 : 4, margin: 0 }} />
-                        </div>
+                        <DualRangeSlider min={AGE_MIN} max={AGE_MAX} step={5}
+                          valueMin={form.personaAgeMin} valueMax={form.personaAgeMax}
+                          onChangeMin={(v) => set('personaAgeMin', v)} onChangeMax={(v) => set('personaAgeMax', v)} />
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-3)' }}>
                           <span>10세</span><span>40세</span><span>70세</span>
                         </div>

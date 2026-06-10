@@ -1175,6 +1175,9 @@ export default function Results() {
   const unlockedPanelIds = (() => {
     const ids = [...new Set(feedbacks.map(f => f.panel_id).filter(Boolean))];
     if (!trialLocked) return new Set(ids);
+    // 어드민이 공개 패널을 직접 지정했으면 그 값을 우선 사용 (없으면 자동 상위 2명 폴백)
+    const adminPublic = mission?.trial_public_panel_ids;
+    if (Array.isArray(adminPublic) && adminPublic.length > 0) return new Set(adminPublic);
     const sorted = ids.sort((a, b) => {
       const pa = panelProfiles[a] || {}, pb = panelProfiles[b] || {};
       const ea = pa.is_expert ? 1 : 0, eb = pb.is_expert ? 1 : 0;

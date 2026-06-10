@@ -4,7 +4,7 @@ import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
-import { getPanelReward } from '../../lib/honorLevels';
+import { getPanelReward, getExperienceMultiplier } from '../../lib/honorLevels';
 
 // 무료 체험 의뢰 통합 관리 — 미션 모니터링 + 피드백 승인/반려 + 미션 완료/취소
 // (PurityFilter·Missions와 동일 RPC 시퀀스를 자체 구현 — 두 페이지 회귀 차단)
@@ -71,6 +71,7 @@ export default function TrialMissions() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
   const [selected, setSelected] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [detailFbs, setDetailFbs] = useState([]);
   const [annotations, setAnnotations] = useState([]);
@@ -80,10 +81,25 @@ export default function TrialMissions() {
 
   const [acting, setActing] = useState(false);
   const [statusError, setStatusError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [rejectTarget, setRejectTarget] = useState(null); // feedback
   const [rejectNote, setRejectNote] = useState('');
   const [confirmComplete, setConfirmComplete] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(null);
+  const [confirmReactivate, setConfirmReactivate] = useState(null); // 완료→진행
+  const [confirmResume, setConfirmResume] = useState(null);         // 취소→진행
+  const [confirmDelete, setConfirmDelete] = useState(null);         // 삭제
+
+  // 일괄 처리 (검토 대기 피드백)
+  const [checkedIds, setCheckedIds] = useState(new Set());
+  const [bulkActing, setBulkActing] = useState(false);
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState(false);
+  const [confirmBulkReject, setConfirmBulkReject] = useState(false);
+
+  // 공개 2건 선택 (어드민 지정)
+  const [publicSel, setPublicSel] = useState(new Set()); // panel_id Set (최대 2)
+  const [savingPublic, setSavingPublic] = useState(false);
+  const [publicSaved, setPublicSaved] = useState(false);
 
   async function loadMissions() {
     const { data } = await supabase
@@ -107,23 +123,41 @@ export default function TrialMissions() {
 
   // 선택 미션 상세 로드
   useEffect(() => {
-    if (!selected) { setDetailFbs([]); setAnnotations([]); return; }
+    if (!selected) { setDetailFbs([]); setAnnotations([]); setCheckedIds(new Set()); setPublicSel(new Set()); return; }
     setDetailLoading(true); setExpandedFb(null); setAdminImageIdx(0); setStatusError('');
+    setCheckedIds(new Set()); setPublicSaved(false);
     (async () => {
       const { data: fbs } = await supabase
         .from('feedbacks')
-        .select('*, panels(user_id, name, honor_points, experience, notif_prefs)')
+        .select('*, panels(user_id, name, honor_points, experience, is_expert, notif_prefs)')
         .eq('mission_id', selected)
         .neq('status', 'draft')
         .order('created_at', { ascending: true });
       setDetailFbs(fbs || []);
+      // 공개 2건 선택 초기화: 미션에 어드민 지정값이 있으면 그것, 없으면 자동 상위 2명(전문가·경력순)
+      const m = missions.find(x => x.id === selected);
+      const saved = m?.trial_public_panel_ids;
+      if (Array.isArray(saved) && saved.length > 0) {
+        setPublicSel(new Set(saved));
+      } else {
+        const seen = new Set(); const approved = [];
+        (fbs || []).forEach(f => {
+          if (f.purity_passed && f.panel_id && !seen.has(f.panel_id)) { seen.add(f.panel_id); approved.push(f); }
+        });
+        approved.sort((a, b) => {
+          const ea = a.panels?.is_expert ? 1 : 0, eb = b.panels?.is_expert ? 1 : 0;
+          if (eb !== ea) return eb - ea;
+          return getExperienceMultiplier(b.panels?.experience || '') - getExperienceMultiplier(a.panels?.experience || '');
+        });
+        setPublicSel(new Set(approved.slice(0, 2).map(f => f.panel_id)));
+      }
       const { data: anns } = await supabase
         .from('feedback_annotations')
         .select('*').eq('mission_id', selected).order('created_at');
       setAnnotations(anns || []);
       setDetailLoading(false);
     })();
-  }, [selected]);
+  }, [selected]); // eslint-disable-line
 
   const selMission = missions.find(m => m.id === selected) || null;
 
@@ -198,7 +232,135 @@ export default function TrialMissions() {
     setConfirmCancel(null); setActing(false);
   };
 
-  const tabbed = missions.filter(TABS.find(t => t.key === tab).match);
+  // ── 미션 재진행 (완료→진행, 크레딧 회수 RPC — 무료라 회수 0) ──
+  const reactivateCompleted = async (m) => {
+    setActing(true); setStatusError('');
+    const { data, error } = await supabase.rpc('reactivate_mission_and_reclaim', { p_mission_id: m.id });
+    if (error || !data?.success) {
+      const code = data?.error || error?.message || '재진행 처리 실패';
+      setStatusError(code === 'INSUFFICIENT_CREDITS' ? '기업 잔여 크레딧이 회수 필요액보다 부족하여 재진행할 수 없습니다.' : code);
+      setActing(false); setConfirmReactivate(null); return;
+    }
+    setMissions(ms => ms.map(x => x.id === m.id ? { ...x, status: 'active' } : x));
+    if (m.companies?.user_id) sendNotification(m.companies.user_id, {
+      type: 'info', icon: '🔄', title: '의뢰 재진행',
+      body: `[${m.title}] 완료된 의뢰가 재진행 처리되었습니다.`,
+      actionUrl: '/company', targetRole: 'company', prefKey: 'missionStatusChange',
+    });
+    setConfirmReactivate(null); setActing(false);
+  };
+
+  // ── 미션 재개 (취소→진행) ──
+  const resumeMission = async (m) => {
+    setActing(true); setStatusError('');
+    const { error } = await supabase.from('missions').update({ status: 'active' }).eq('id', m.id);
+    if (error) { setStatusError('재개 실패: ' + error.message); setActing(false); setConfirmResume(null); return; }
+    setMissions(ms => ms.map(x => x.id === m.id ? { ...x, status: 'active' } : x));
+    if (m.companies?.user_id) sendNotification(m.companies.user_id, {
+      type: 'success', icon: '▶️', title: '의뢰 재개',
+      body: `[${m.title}] 취소된 의뢰가 재개되었습니다. 패널 매칭이 다시 시작됩니다.`,
+      actionUrl: '/company', targetRole: 'company', prefKey: 'missionStatusChange',
+    });
+    setConfirmResume(null); setActing(false);
+  };
+
+  // ── 미션 삭제 ──
+  const deleteMission = async (m) => {
+    setActing(true); setDeleteError('');
+    const { error } = await supabase.from('missions').delete().eq('id', m.id);
+    if (error) { setDeleteError('삭제 실패: ' + error.message); setActing(false); return; }
+    setMissions(ms => ms.filter(x => x.id !== m.id));
+    if (selected === m.id) setSelected(null);
+    setConfirmDelete(null); setActing(false);
+  };
+
+  // ── 일괄 승인 (검토 대기 피드백) ──
+  const toggleCheck = (id) => {
+    setCheckedIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  };
+  const pendingIds = detailFbs.filter(f => f.status === 'submitted' && !f.purity_passed).map(f => f.id);
+  const allChecked = pendingIds.length > 0 && pendingIds.every(id => checkedIds.has(id));
+  const toggleAll = () => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      if (allChecked) pendingIds.forEach(id => next.delete(id));
+      else pendingIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const bulkApprove = async () => {
+    if (checkedIds.size === 0 || bulkActing) return;
+    setBulkActing(true); setStatusError('');
+    const ids = [...checkedIds];
+    const payoutMap = {};
+    ids.forEach(id => {
+      const f = detailFbs.find(x => x.id === id); if (!f) return;
+      payoutMap[id] = getPanelReward(f.panels?.honor_points || 0, f.panels?.experience || '');
+    });
+    const { error } = await supabase.from('feedbacks')
+      .update({ purity_passed: true, status: 'approved', rejection_penalty_applied: false }).in('id', ids);
+    if (error) { setStatusError('일괄 승인 실패: ' + error.message); setBulkActing(false); return; }
+    await Promise.all(ids.map(id => supabase.from('feedbacks').update({ payout_amount: payoutMap[id] }).eq('id', id)));
+    setDetailFbs(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved', payout_amount: payoutMap[f.id], rejection_penalty_applied: false } : f));
+    // 무료 미션이라 recalc_mission_consumed 생략 (언락이 credits_consumed 관리)
+    ids.forEach(id => {
+      const f = detailFbs.find(x => x.id === id);
+      if (f?.rejection_penalty_applied && f?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: 5 });
+    });
+    const notifRows = ids.map(id => detailFbs.find(x => x.id === id)).filter(Boolean)
+      .filter(f => f.panels?.user_id && f.panels?.notif_prefs?.feedbackApproved !== false)
+      .map(f => ({ user_id: f.panels.user_id, type: 'success', icon: '✅', title: '피드백 승인', body: `[${selMission?.title || '의뢰'}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, action_url: '/panel/history', target_role: 'panel', read: false }));
+    if (notifRows.length) supabase.from('notifications').insert(notifRows).then(({ error: ne }) => { if (ne) console.warn('[trial bulk approve notif]', ne.message); });
+    setCheckedIds(new Set()); setBulkActing(false); setConfirmBulkApprove(false);
+  };
+
+  const bulkReject = async () => {
+    if (checkedIds.size === 0 || bulkActing) return;
+    setBulkActing(true); setStatusError('');
+    const ids = [...checkedIds];
+    const deadline = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(); // 무료=메인 4h
+    const { error } = await supabase.from('feedbacks')
+      .update({ purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: deadline }).in('id', ids);
+    if (error) { setStatusError('일괄 반려 실패: ' + error.message); setBulkActing(false); return; }
+    setDetailFbs(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: deadline } : f));
+    let mid = null;
+    for (const id of ids) {
+      const f = detailFbs.find(x => x.id === id);
+      if (f?.mission_id) { mid = f.mission_id; await supabase.rpc('decrement_mission_filled_count', { p_mission_id: f.mission_id }); }
+      if (f?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 });
+    }
+    if (mid) setMissions(ms => ms.map(m => m.id === mid ? { ...m, filled_count: Math.max(0, (m.filled_count || 0) - ids.length) } : m));
+    const notifRows = ids.map(id => detailFbs.find(x => x.id === id)).filter(Boolean)
+      .filter(f => f.panels?.user_id && f.panels?.notif_prefs?.feedbackRejected !== false)
+      .map(f => ({ user_id: f.panels.user_id, type: 'warning', icon: '⚠️', title: '피드백 반려', body: `[${selMission?.title || '의뢰'}] 피드백이 반려되었습니다. 4시간 내 재제출하면 보상 기회가 유지됩니다.`, action_url: '/panel/missions?tab=needsRevision', target_role: 'panel', read: false }));
+    if (notifRows.length) supabase.from('notifications').insert(notifRows).then(({ error: ne }) => { if (ne) console.warn('[trial bulk reject notif]', ne.message); });
+    setCheckedIds(new Set()); setBulkActing(false); setConfirmBulkReject(false);
+  };
+
+  // ── 공개 2건 선택 (승인된 피드백만, 최대 2) ──
+  const togglePublic = (panelId) => {
+    setPublicSel(prev => {
+      const next = new Set(prev);
+      if (next.has(panelId)) next.delete(panelId);
+      else if (next.size < 2) next.add(panelId);
+      return next;
+    });
+    setPublicSaved(false);
+  };
+  const savePublic = async () => {
+    if (publicSel.size !== 2 || savingPublic) return;
+    setSavingPublic(true); setStatusError('');
+    const ids = [...publicSel];
+    const { error } = await supabase.from('missions').update({ trial_public_panel_ids: ids }).eq('id', selected);
+    if (error) { setStatusError('공개 설정 저장 실패: ' + error.message); setSavingPublic(false); return; }
+    setMissions(ms => ms.map(m => m.id === selected ? { ...m, trial_public_panel_ids: ids } : m));
+    setSavingPublic(false); setPublicSaved(true);
+  };
+
+  const tabbed = missions
+    .filter(TABS.find(t => t.key === tab).match)
+    .filter(m => !searchQuery.trim() || (m.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()));
   const pendingCount = detailFbs.filter(f => f.status === 'submitted' && !f.purity_passed).length;
 
   if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>;
@@ -210,13 +372,13 @@ export default function TrialMissions() {
         무료 체험 의뢰의 모니터링·피드백 승인/반려·완료/취소를 한 곳에서 처리합니다. 전문가 패널 계정(expert1·expert2)으로 슬롯을 선점 수락하세요.
       </p>
 
-      {/* 상태 탭 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+      {/* 상태 탭 + 검색 */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         {TABS.map(t => {
           const cnt = missions.filter(t.match).length;
           const active = tab === t.key;
           return (
-            <button key={t.key} onClick={() => { setTab(t.key); }} style={{
+            <button key={t.key} onClick={() => { setTab(t.key); setSelected(null); }} style={{
               padding: '7px 16px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
               border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
               background: active ? 'var(--accent)' : 'var(--surface)', color: active ? '#fff' : 'var(--text-2)',
@@ -225,6 +387,13 @@ export default function TrialMissions() {
             </button>
           );
         })}
+        <input
+          type="text"
+          placeholder="의뢰명으로 검색..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setSelected(null); }}
+          style={{ marginLeft: 'auto', width: 260, padding: '7px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}
+        />
       </div>
 
       {statusError && (
@@ -290,14 +459,58 @@ export default function TrialMissions() {
                         <Btn size="sm" variant="danger" onClick={() => setConfirmCancel(selMission)} disabled={acting}>취소</Btn>
                       </>
                     )}
+                    {selMission.status === 'completed' && (
+                      <Btn size="sm" onClick={() => setConfirmReactivate(selMission)} disabled={acting}>재진행</Btn>
+                    )}
+                    {selMission.status === 'cancelled' && (
+                      <>
+                        <Btn size="sm" onClick={() => setConfirmResume(selMission)} disabled={acting}>재개</Btn>
+                        <Btn size="sm" variant="danger" onClick={() => setConfirmDelete(selMission)} disabled={acting}>삭제</Btn>
+                      </>
+                    )}
                   </div>
                 </div>
               </Card>
 
+              {/* 공개 2건 선택 (미언락 + 승인 피드백 존재 시) */}
+              {!selMission.trial_unlocked && detailFbs.some(f => f.purity_passed) && (
+                <Card style={{ padding: 14, marginBottom: 12, background: 'var(--accent-dim2)', border: '1px solid var(--accent-dim)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>기업에 공개할 피드백 선택 (2건 고정)</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2, lineHeight: 1.5 }}>
+                        승인된 피드백 중 정확히 2건을 골라 저장하면 기업에게 즉시 공개되고 나머지는 잠금(블러)됩니다. 현재 <b>{publicSel.size}/2</b> 선택
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                      {publicSaved && <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>✓ 저장됨</span>}
+                      <Btn size="sm" onClick={savePublic} disabled={savingPublic || publicSel.size !== 2}>{savingPublic ? '저장 중…' : '공개 설정 저장'}</Btn>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
               {/* 피드백 목록 */}
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
-                피드백 {detailFbs.length}건 {pendingCount > 0 && <span style={{ color: '#F59E0B' }}>· 검토 대기 {pendingCount}</span>}
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span>피드백 {detailFbs.length}건 {pendingCount > 0 && <span style={{ color: '#F59E0B' }}>· 검토 대기 {pendingCount}</span>}</span>
+                {pendingIds.length > 0 && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 12, color: 'var(--text-3)', fontWeight: 600 }}>
+                    <input type="checkbox" checked={allChecked} onChange={toggleAll} style={{ accentColor: 'var(--accent)', cursor: 'pointer', width: 14, height: 14 }} />
+                    전체 선택
+                  </label>
+                )}
               </div>
+
+              {/* 일괄 처리 바 */}
+              {checkedIds.size > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--accent-dim)', borderRadius: 'var(--radius)', marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', flex: 1 }}>{checkedIds.size}개 선택됨</span>
+                  <button disabled={bulkActing} onClick={() => setConfirmBulkApprove(true)} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#16a34a', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>{bulkActing ? '처리 중...' : '✓ 일괄 승인'}</button>
+                  <button disabled={bulkActing} onClick={() => setConfirmBulkReject(true)} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', background: '#dc2626', color: '#fff', cursor: bulkActing ? 'not-allowed' : 'pointer', opacity: bulkActing ? 0.6 : 1 }}>{bulkActing ? '처리 중...' : '✕ 일괄 반려'}</button>
+                  <button onClick={() => setCheckedIds(new Set())} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer' }}>선택 해제</button>
+                </div>
+              )}
+
               {detailLoading ? (
                 <div style={{ color: 'var(--text-3)', fontSize: 13 }}>피드백 불러오는 중...</div>
               ) : detailFbs.length === 0 ? (
@@ -317,6 +530,9 @@ export default function TrialMissions() {
                       <Card key={f.id} style={{ padding: 14 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+                            {isPending && (
+                              <input type="checkbox" checked={checkedIds.has(f.id)} onChange={() => toggleCheck(f.id)} style={{ accentColor: 'var(--accent)', cursor: 'pointer', width: 14, height: 14, flexShrink: 0 }} />
+                            )}
                             <span style={{ fontWeight: 700, fontSize: 13 }}>{f.panels?.name || '패널'}</span>
                             <Badge type={st.type}>{st.label}</Badge>
                             <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
@@ -324,6 +540,17 @@ export default function TrialMissions() {
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                            {!selMission.trial_unlocked && f.purity_passed && (
+                              <button onClick={() => togglePublic(f.panel_id)} disabled={!publicSel.has(f.panel_id) && publicSel.size >= 2}
+                                style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                                  cursor: (!publicSel.has(f.panel_id) && publicSel.size >= 2) ? 'not-allowed' : 'pointer',
+                                  border: `1.5px solid ${publicSel.has(f.panel_id) ? '#16a34a' : 'var(--border)'}`,
+                                  background: publicSel.has(f.panel_id) ? 'rgba(22,163,74,0.1)' : 'var(--surface)',
+                                  color: publicSel.has(f.panel_id) ? '#16a34a' : 'var(--text-3)',
+                                  opacity: (!publicSel.has(f.panel_id) && publicSel.size >= 2) ? 0.45 : 1 }}>
+                                {publicSel.has(f.panel_id) ? '🔓 공개' : '🔒 잠금'}
+                              </button>
+                            )}
                             <div style={{ textAlign: 'right' }}>
                               <span style={{ fontSize: 11, color: 'var(--text-3)', marginRight: 4 }}>퓨릿</span>
                               <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16, color: scoreColor }}>{score}</span>
@@ -430,6 +657,73 @@ export default function TrialMissions() {
           errorMsg={statusError}
           onConfirm={() => cancelMission(confirmCancel)}
           onCancel={() => { setConfirmCancel(null); setStatusError(''); }}
+        />
+      )}
+
+      {/* 재진행 확인 (완료→진행) */}
+      {confirmReactivate && (
+        <ConfirmModal
+          title="완료된 의뢰를 다시 진행할까요?"
+          desc="완료된 무료 체험 의뢰를 진행 상태로 되돌립니다. (무료 의뢰는 크레딧 회수가 발생하지 않습니다.) 기업에 재진행 알림이 발송됩니다."
+          confirmLabel={acting ? '처리 중…' : '재진행'}
+          cancelLabel="취소"
+          errorMsg={statusError}
+          onConfirm={() => reactivateCompleted(confirmReactivate)}
+          onCancel={() => { setConfirmReactivate(null); setStatusError(''); }}
+        />
+      )}
+
+      {/* 재개 확인 (취소→진행) */}
+      {confirmResume && (
+        <ConfirmModal
+          title="취소된 의뢰를 재개할까요?"
+          desc="취소된 무료 체험 의뢰를 진행 상태로 되돌립니다. 패널 매칭이 다시 시작되고 기업에 재개 알림이 발송됩니다."
+          confirmLabel={acting ? '처리 중…' : '재개'}
+          cancelLabel="취소"
+          errorMsg={statusError}
+          onConfirm={() => resumeMission(confirmResume)}
+          onCancel={() => { setConfirmResume(null); setStatusError(''); }}
+        />
+      )}
+
+      {/* 삭제 확인 */}
+      {confirmDelete && (
+        <ConfirmModal
+          title="의뢰를 삭제할까요?"
+          desc="이 무료 체험 의뢰를 영구 삭제합니다. 되돌릴 수 없습니다."
+          confirmLabel={acting ? '처리 중…' : '삭제'}
+          cancelLabel="취소"
+          danger
+          errorMsg={deleteError}
+          onConfirm={() => deleteMission(confirmDelete)}
+          onCancel={() => { setConfirmDelete(null); setDeleteError(''); }}
+        />
+      )}
+
+      {/* 일괄 승인 확인 */}
+      {confirmBulkApprove && (
+        <ConfirmModal
+          title={`${checkedIds.size}건을 일괄 승인할까요?`}
+          desc="선택한 검토 대기 피드백을 모두 승인합니다. 각 패널에게 승인 알림과 보상이 지급됩니다."
+          confirmLabel={bulkActing ? '처리 중…' : '일괄 승인'}
+          cancelLabel="취소"
+          errorMsg={statusError}
+          onConfirm={bulkApprove}
+          onCancel={() => { setConfirmBulkApprove(false); setStatusError(''); }}
+        />
+      )}
+
+      {/* 일괄 반려 확인 */}
+      {confirmBulkReject && (
+        <ConfirmModal
+          title={`${checkedIds.size}건을 일괄 반려할까요?`}
+          desc="선택한 검토 대기 피드백을 모두 반려합니다. 각 패널에게 반려 알림이 발송되고 4시간 내 재제출 기회가 부여됩니다."
+          confirmLabel={bulkActing ? '처리 중…' : '일괄 반려'}
+          cancelLabel="취소"
+          danger
+          errorMsg={statusError}
+          onConfirm={bulkReject}
+          onCancel={() => { setConfirmBulkReject(false); setStatusError(''); }}
         />
       )}
     </div>

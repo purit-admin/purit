@@ -89,10 +89,10 @@ const NAV = {
     {
       group: '운영',
       items: [
+        { path: '/admin/trials', label: '체험 의뢰 관리', icon: Sparkles },
         { path: '/admin/companies', label: '기업 관리', icon: Building2 },
         { path: '/admin/panels', label: '패널 관리', icon: Users },
         { path: '/admin/missions', label: '미션 관리', icon: ClipboardList },
-        { path: '/admin/trials', label: '체험 의뢰 관리', icon: Sparkles },
         { path: '/admin/purity', label: '피드백 관리', icon: ShieldCheck },
         { path: '/admin/revenue', label: '수익 & 정산', icon: PieChart },
         { path: '/admin/reports', label: '버그 리포트', icon: Flag },

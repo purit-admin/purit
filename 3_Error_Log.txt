@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-12 (D-121 클라/서버 동적가격 정렬·dedup·동점 불일치로 표시가≠결제가 / D-122 공유 회계 RPC가 무료 미션 격리 깨뜨림) / 2026-06-10 (D-118 Storage 버킷 UPDATE 정책 누락 upsert 재업로드 무음 실패 / D-119 draft 병합저장 후 복원 시 재분리 누락으로 편집 UI 소실) / 2026-06-12 (D-120 — auth.users 직접참조 FK가 CASCADE여도 2차 사슬 자식 FK가 NO ACTION이면 유저 삭제 차단 / D-117 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴 + 086 가입 전면 실패 사례로 D-117 보강: 대시보드 수동 제약·enum 개명 시 기존행 선행 정규화)
+최종 업데이트: 2026-06-12 (D-123 듀얼 핸들 슬라이더는 native input 2개 겹침 금지 — 클릭독점·양끝삐져나옴 quirk → 커스텀 div핸들+pointer드래그+inset% 공식 / D-121 클라/서버 동적가격 정렬·dedup·동점 불일치로 표시가≠결제가 / D-122 공유 회계 RPC가 무료 미션 격리 깨뜨림) / 2026-06-10 (D-118 Storage 버킷 UPDATE 정책 누락 upsert 재업로드 무음 실패 / D-119 draft 병합저장 후 복원 시 재분리 누락으로 편집 UI 소실) / 2026-06-12 (D-120 — auth.users 직접참조 FK가 CASCADE여도 2차 사슬 자식 FK가 NO ACTION이면 유저 삭제 차단 / D-117 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴 + 086 가입 전면 실패 사례로 D-117 보강: 대시보드 수동 제약·enum 개명 시 기존행 선행 정규화)
 ================================================================
 
 ## 핵심 원칙
@@ -1651,3 +1651,10 @@ D-122. 여러 페이지가 공유하는 회계 RPC(recalc/refund)가 특정 미�
      -> 원인: recalc/complete_mission_and_refund는 모든 미션에 동일 로직. 무료 체험은 credits_consumed를 unlock RPC가 단독 관리해야 하는데 가드가 없으면 공유 RPC가 끼어듦.
      -> 해결: 두 RPC 최상단에 `IF is_free_trial THEN (재계산·환불 없이 조기반환, 기존 값 보존)` 가드. 어느 페이지에서 승인/완료해도 무료 회계는 unlock RPC만 변경.
      -> 원칙: 특정 유형을 회계에서 "격리"하려면, 그 컬럼을 만지는 "모든" 공유 RPC에 가드를 넣어야 한다 — 한 진입점(완료)만 막고 다른 진입점(승인 시 recalc)을 놓치면 격리가 샌다.
+
+D-123. 듀얼(2핸들) 레인지 슬라이더를 native <input type=range>로 만들면 (a)두 input 겹침 시 위 input이 클릭 독점 (b)핸들이 양 끝에서 삐져나옴 — 둘 다 native로는 해결 불가 ✅ 해결
+     -> 증상 1(클릭불가): 투명 input 2개를 position:absolute width:100%로 겹쳐 듀얼 슬라이더 구성 시, z-index 위에 있는 input이 트랙 전체에서 pointer 이벤트를 독점 → 반대쪽 핸들이 영영 클릭 안 됨(한쪽만 동작). z-index 스왑은 두 핸들이 맞붙는 극단에서만 작동해 평상시 무용.
+     -> 증상 2(삐져나옴): Chrome은 native 핸들을 값 위치에 정확히 중앙정렬하고 양끝 inset을 안 줌 → 가운데는 OK, 양 끝으로 갈수록 핸들 바깥 절반이 트랙을 넘어 삐져나옴이 선형 증가. 트랙을 들여써도 삐져나옴은 input 자체 가장자리 기준이라 제어 불가(매 수정마다 같은 벽).
+     -> 시도했다 실패한 우회: pointer-events:none(트랙)+all(thumb)로 클릭 독점은 풀리나, 투명 native thumb와 별도 시각 div의 위치가 어긋나(native는 inset, div는 순수 %) "핸들 오른쪽만 눌림"이 발생. native thumb을 직접 보이게 해도 증상 2는 그대로.
+     -> 해결: native input을 폐기하고 커스텀 div 핸들 + 직접 pointer 드래그로 재구현(DualRangeSlider). 핸들 중심을 inset 보정 공식 calc(frac*100% + (1-2*frac)*R px)(R=핸들 반지름)로 배치 → 0%=R·100%=(100%-R)로 항상 트랙 안에 머묾. 채움 막대도 동일 공식이라 핸들 중심과 정확히 일치. 드래그는 trackRef.setPointerCapture + valueFromX(clientX) step 스냅.
+     -> 원칙: 듀얼 핸들 슬라이더는 native input 2개 겹침으로 만들지 말 것. 브라우저별 thumb inset/이벤트 독점 quirk에 끝없이 부딪힌다. 커스텀 div 핸들 + pointer 이벤트 + inset 보정 % 공식이 유일하게 결정론적이며 브라우저 독립적이다.
