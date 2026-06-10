@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-13 (체험 의뢰 관리 고도화 089~092 — trial_public_panel_ids 어드민 지정 공개·언락 메인1.5배(090)·admin_delete_trial_mission 무료기회 복구(091,D-124)·결제컬럼 보호 트리거+admin_set_trial_public(092,D-125)·어드민 운영그룹 체험관리 맨 위 / Results 추가질문 응답만 잠금·텍스트미션 잠금 동등·공개 우선 정렬) / 2026-06-12 (기업 사이드바 '자산' 그룹 순서 변경 — 피드백 결과 최상단 / submit-penguin-trial-feedbacks.mjs 테스트 스크립트 추가) / 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
+최종 업데이트: 2026-06-13 (093 무료 체험 의뢰 '취소' 복구 — admin_set_trial_mission_status: 취소→free_trial_used 복구·재개→재소진(어드민 경로 전용, 기업 조기종료는 미복구) / 메인 의뢰 검증 포커스에 'A/B 소재 비교' 추가 + 패널 미션 브리핑·이미지 피드백 화면에 검증 포커스(assets) 뱃지 노출 / 기업 포털 무료 첫 의뢰 '🎁 체험 의뢰' 뱃지 — Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (체험 의뢰 관리 고도화 089~092 — trial_public_panel_ids 어드민 지정 공개·언락 메인1.5배(090)·admin_delete_trial_mission 무료기회 복구(091,D-124)·결제컬럼 보호 트리거+admin_set_trial_public(092,D-125)·어드민 운영그룹 체험관리 맨 위 / Results 추가질문 응답만 잠금·텍스트미션 잠금 동등·공개 우선 정렬) / 2026-06-12 (기업 사이드바 '자산' 그룹 순서 변경 — 피드백 결과 최상단 / submit-penguin-trial-feedbacks.mjs 테스트 스크립트 추가) / 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -388,6 +388,13 @@ purit/
 │                  직접 UPDATE해 무료 언락 가능. guard_mission_freemium_columns() BEFORE UPDATE 트리거:
 │                  보호 컬럼 변경 + current_user IN('authenticated','anon')이면 RAISE EXCEPTION. SECURITY DEFINER RPC(postgres)는 통과.
 │                  admin_set_trial_public(mission_id, panel_ids[]) 어드민 전용 RPC 추가(공개 2건 고정 검증) → 트리거 우회 정상 저장 경로.
+│                093(admin_cancel_trial_restore: 무료 체험 의뢰 '취소'만 해도 무료 기회 복구) ★ 신규
+│                  admin_set_trial_mission_status(p_mission_id, p_new_status) SECURITY DEFINER: 어드민 검증 → status 전환 +
+│                  is_free_trial이면 free_trial_used 토글(취소→false 복구 / 재개→true 재소진). admin/Missions updateStatus의 무료 체험 취소·재개만 라우팅(일반 의뢰는 직접 UPDATE 유지).
+│                  ※ 기업 직접 조기 종료(company Dashboard)는 이 RPC 미사용 → 복구 안 됨(farming 방지). 091/D-124 'set/reset 대칭'을 cancel 경로로 확장.
+│                  ※ 동반 UI 변경(마이그레이션 아님): NewMission FOCUS 4번째에 'A/B 소재 비교' 추가(강조 없는 일반 칩) /
+│                    패널 ActiveMission 브리핑·이미지 피드백 화면에 mission.assets(검증 포커스) 뱃지 노출 /
+│                    기업 포털 '🎁 체험 의뢰' 뱃지 — company Dashboard·NewMission 목록·Results 좌측(어드민 🎁 체험과 동일 패턴, NewMission 목록 select에 is_free_trial 추가).
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

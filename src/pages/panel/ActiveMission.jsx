@@ -1027,6 +1027,14 @@ export default function ActiveMission() {
             </div>
           );
         })()}
+        {!['preference', 'pricing', 'email'].includes(mission.type) && Array.isArray(mission.assets) && mission.assets.length > 0 && (
+          <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 16 }}>
+            <strong style={{ color: 'var(--text)', fontSize: 14 }}>검증 포커스:</strong>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {mission.assets.map((a, i) => <Badge key={i} type="blue">{a}</Badge>)}
+            </div>
+          </div>
+        )}
         {mission.target_url && (
           <a href={mission.target_url} target="_blank" rel="noreferrer"
             style={{ fontSize: 13, color: 'var(--text-2)', display: 'inline-block', marginBottom: 16 }}>
@@ -1367,6 +1375,14 @@ export default function ActiveMission() {
           </div>
           <div />
         </div>
+
+        {/* 검증 포커스 리마인더 — 기업이 지정한 중점 항목을 보며 피드백 */}
+        {Array.isArray(mission.assets) && mission.assets.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>검증 포커스:</span>
+            {mission.assets.map((a, i) => <Badge key={i} type="blue">{a}</Badge>)}
+          </div>
+        )}
 
         {/* 차원 선택 탭 — 전체 폭, split 위에 배치 */}
         <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8 }}>

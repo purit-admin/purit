@@ -410,7 +410,7 @@ export default function NewMission() {
         const { company: co } = await resolveCompany(user.id);
         if (co) {
           const { data } = await supabase.from('missions')
-            .select('id, title, status, panel_count, filled_count, created_at, company_notified_at')
+            .select('id, title, status, panel_count, filled_count, created_at, company_notified_at, is_free_trial')
             .eq('company_id', co.id)
             .or('type.is.null,type.eq.landing_page')
             .eq('dismissed', false)
@@ -488,7 +488,7 @@ export default function NewMission() {
     load();
   }, []);
 
-  const FOCUS = ['첫인상 / 가독성', 'CTA 전환율', '가격 및 가치 전달', '신뢰 요소', '모바일 최적화', '핵심 메시지 명확성', '비주얼 완성도', '타겟 일치도'];
+  const FOCUS = ['첫인상 / 가독성', 'CTA 전환율', '가격 및 가치 전달', 'A/B 소재 비교', '신뢰 요소', '모바일 최적화', '핵심 메시지 명확성', '비주얼 완성도', '타겟 일치도'];
 
   const stepValid = (() => {
     if (step === 0) return !!form.industry && !!form.product.trim() && !!form.personaIncome && !!form.personaRole.trim();
@@ -998,6 +998,7 @@ export default function NewMission() {
                                 🔒 수정 잠금
                               </span>
                             )}
+                            {m.is_free_trial && <Badge type="gold">🎁 체험 의뢰</Badge>}
                           </div>
                           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.title || '마케팅 소재 종합 진단'}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-3)' }}>

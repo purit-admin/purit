@@ -533,6 +533,10 @@
     → 어드민 검증 → 미션 DELETE(자식 CASCADE, 088) → is_free_trial이면 companies.free_trial_used=false 복구(무료 기회 재부여, D-124)
     → TrialMissions·admin/Missions 삭제 모두 이 RPC 사용(복구는 무료 의뢰만). GRANT authenticated
 
+  admin_set_trial_mission_status(p_mission_id UUID, p_new_status TEXT) RETURNS jsonb ★ 신규 (093) SECURITY DEFINER
+    → 어드민 검증 + p_new_status IN(cancelled,active) → missions.status 전환 + is_free_trial이면 companies.free_trial_used 토글
+    → 취소→false(무료 기회 복구) / 재개→true(재소진). admin/Missions의 무료 체험 취소·재개만 이 RPC로 라우팅(일반 의뢰는 클라 직접 UPDATE). GRANT authenticated
+
   guard_mission_freemium_columns() TRIGGER (BEFORE UPDATE ON missions) ★ 신규 (092, D-125)
     → 보호 컬럼(trial_unlocked·trial_public_panel_ids·credits_consumed·credits_reserved·unlock_cost·is_free_trial) 변경 +
       current_user IN('authenticated','anon')이면 RAISE EXCEPTION 'protected_column'. SECURITY DEFINER RPC(postgres)는 통과.

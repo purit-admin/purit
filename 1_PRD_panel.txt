@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_panel.txt — Purity MVP 패널(Panel) 포털 상세 정의
-최종 업데이트: 2026-06-10 (VerifyDocs 마지막 기회 경고 배너+확인 모달 / 084 서류 재제출 upsert 실패 수정 D-118) / 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 RJ-E / 심사 거절→재제출→영구차단 플로우 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
+최종 업데이트: 2026-06-13 (메인 의뢰 검증 포커스(mission.assets) 뱃지를 미션 브리핑 + 이미지 피드백 작성 화면 상단에 노출 — 기업이 고른 중점 항목('A/B 소재 비교' 포함)을 보며 평가 / 서브 의뢰는 미표시) / 2026-06-10 (VerifyDocs 마지막 기회 경고 배너+확인 모달 / 084 서류 재제출 upsert 실패 수정 D-118) / 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 RJ-E / 심사 거절→재제출→영구차단 플로우 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
 ================================================================
 
 인증 후 /panel 하위 라우트 접근 가능. 패널 상태 게이트(Layout <main> 블록):
@@ -87,6 +87,7 @@ feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline
   · submission_deadline 만료 → deadlineExpired=true (화면 + "초안 삭제하기")
   · rejection_deadline IS NOT NULL (재작성 draft) → rejection_deadline 기준 체크 (D-76 참조)
   · 유효 → deadlineBanner state 설정 (브리핑·폼 상단 표시)
+- ★ 검증 포커스 노출(메인 의뢰): mission.assets(기업이 고른 검증 포커스, 'A/B 소재 비교' 포함)를 미션 브리핑 + 이미지 피드백 작성 화면 상단에 뱃지로 표시 → 패널이 그 관점을 중점으로 평가. 서브 의뢰는 미표시(assets=[]).
 
 [이미지 미션]
 - ImageAnnotator로 드래그 영역 지정

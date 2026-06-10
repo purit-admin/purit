@@ -5,7 +5,7 @@ import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import ChargeOptionsModal from '../../components/ui/ChargeOptionsModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
-import { getExperienceMultiplier, getCareerUnlockCredit } from '../../lib/honorLevels';
+import { getCareerUnlockCredit, applyUnlockDiscount, TRIAL_FIRST_UNLOCK_DISCOUNT, TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS } from '../../lib/honorLevels';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip,
@@ -169,6 +169,7 @@ function MissionItem({ m, isSelected, onClick }) {
       <div style={{ fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
         {isCompleted && <span style={{ color: '#22c55e', fontWeight: 700 }}>✅ 완료</span>}
         {isCancelled && <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>조기 종료</span>}
+        {m.is_free_trial && <span style={{ color: '#92400e', fontWeight: 700 }}>🎁 체험</span>}
         <span style={{ color: 'var(--text-3)' }}>피드백 {m.filled_count || 0}개</span>
       </div>
     </div>
@@ -1016,6 +1017,7 @@ export default function Results() {
   const [showUnlockPay, setShowUnlockPay] = useState(false);
   const [unlocking, setUnlocking]         = useState(false);
   const [unlockError, setUnlockError]     = useState('');
+  const [nowTick, setNowTick]             = useState(Date.now()); // 할인 카운트다운 1초 틱
 
   // 미션 목록 로드
   useEffect(() => {
@@ -1086,6 +1088,15 @@ export default function Results() {
         .eq('purity_passed', true)
         .order('created_at', { ascending: false });
       setFeedbacks(fbs || []);
+
+      // 무료 체험 미언락 미션을 처음 열면 할인 48h 앵커(trial_results_seen_at) 세팅 (멱등 — NULL일 때만 NOW())
+      if (m?.is_free_trial && !m?.trial_unlocked && !m?.trial_results_seen_at) {
+        supabase.rpc('touch_trial_results_seen', { p_mission_id: selected }).then(({ data: seenRes }) => {
+          if (seenRes?.success && seenRes.seen_at) {
+            setMissions(ms => ms.map(mx => mx.id === selected ? { ...mx, trial_results_seen_at: seenRes.seen_at } : mx));
+          }
+        });
+      }
 
       const approvedPanelIds = (fbs || []).map(f => f.panel_id).filter(Boolean);
 
@@ -1245,6 +1256,20 @@ export default function Results() {
     }
   };
 
+  // 할인 카운트다운 1초 틱 — 무료 체험 미언락 미션 열람 중일 때만 (조기 return 앞 = Rules of Hooks 준수)
+  useEffect(() => {
+    const m = missions.find(mx => mx.id === selected);
+    if (!m?.is_free_trial || m?.trial_unlocked) return;
+    const endMs = m.trial_results_seen_at
+      ? new Date(m.trial_results_seen_at).getTime() + TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS * 3600 * 1000
+      : null;
+    const t = setInterval(() => {
+      setNowTick(Date.now());
+      if (endMs !== null && Date.now() >= endMs) clearInterval(t); // 마감 후 틱 중단
+    }, 1000);
+    return () => clearInterval(t);
+  }, [selected, missions]);
+
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
   );
@@ -1253,25 +1278,71 @@ export default function Results() {
   const isSubMission  = mission && ['preference', 'pricing', 'email'].includes(mission.type);
   const hasImages     = mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0 && !isSubMission;
 
-  // 무료 체험 부분 잠금: 미언락이면 전문가 우선 2명만 상세 공개(점수 집계는 전체 공개)
+  // 무료 체험 부분 잠금: 미언락이면 호평(점수 상위) 2명만 상세 공개(점수 집계는 전체 공개)
   const trialLocked = !!mission?.is_free_trial && !mission?.trial_unlocked;
+  // 패널별 평균 점수(5축) — 공개 선별 정렬·티저 집계용. 서버 AVG((coalesce..)/5.0)와 동일 공식 (D-121)
+  const panelAvgScore = (() => {
+    const acc = {};
+    feedbacks.forEach(f => {
+      if (!f.panel_id) return;
+      const s = ((f.clarity_score || 0) + (f.relevance_score || 0) + (f.value_score || 0)
+                 + (f.differentiation_score || 0) + (f.trust_score || 0)) / 5;
+      (acc[f.panel_id] ||= []).push(s);
+    });
+    const out = {};
+    Object.entries(acc).forEach(([pid, arr]) => { out[pid] = arr.reduce((a, b) => a + b, 0) / arr.length; });
+    return out;
+  })();
   const unlockedPanelIds = (() => {
     const ids = [...new Set(feedbacks.map(f => f.panel_id).filter(Boolean))];
     if (!trialLocked) return new Set(ids);
-    // 어드민이 공개 패널을 직접 지정했으면 그 값을 우선 사용 (없으면 자동 상위 2명 폴백)
+    // 어드민이 공개 패널을 직접 지정했으면 그 값을 우선 사용 (없으면 점수 상위 2명 자동 선별)
     const adminPublic = mission?.trial_public_panel_ids;
     if (Array.isArray(adminPublic) && adminPublic.length > 0) return new Set(adminPublic);
-    const sorted = ids.sort((a, b) => {
-      const pa = panelProfiles[a] || {}, pb = panelProfiles[b] || {};
-      const ea = pa.is_expert ? 1 : 0, eb = pb.is_expert ? 1 : 0;
-      if (eb !== ea) return eb - ea;
-      return getExperienceMultiplier(pb.experience || '') - getExperienceMultiplier(pa.experience || '');
+    // 공개 = 호평 상위 2명. 정렬: 평균점수 DESC, panel_id ASC tiebreaker (서버 ROW_NUMBER와 1:1 정합)
+    const sorted = [...ids].sort((a, b) => {
+      const sa = panelAvgScore[a] ?? 0, sb = panelAvgScore[b] ?? 0;
+      if (sb !== sa) return sb - sa;
+      return a < b ? -1 : 1;
     });
     return new Set(sorted.slice(0, 2));
   })();
-  // 언락 비용 = 잠긴 패널(상위 2명 무료 제외)의 경력 크레딧 합 (실제 참여 경력 기준)
+  // 언락 정가 = 잠긴 패널(공개 2명 제외)의 경력 크레딧 합 (실제 참여 경력 기준)
   const lockedPanelIds = [...new Set(feedbacks.map(f => f.panel_id).filter(Boolean))].filter(pid => !unlockedPanelIds.has(pid));
-  const unlockCost = lockedPanelIds.reduce((s, pid) => s + getCareerUnlockCredit(panelProfiles[pid]?.experience || ''), 0);
+  const unlockBaseCost = lockedPanelIds.reduce((s, pid) => s + getCareerUnlockCredit(panelProfiles[pid]?.experience || ''), 0);
+
+  // 30% 첫 언락 할인 + 48h 마감 — 결과 최초 열람(trial_results_seen_at)부터 카운트다운
+  const seenAtMs = mission?.trial_results_seen_at ? new Date(mission.trial_results_seen_at).getTime() : null;
+  const discountEndMs = seenAtMs ? seenAtMs + TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS * 3600 * 1000 : null;
+  const withinDiscount = trialLocked && (discountEndMs === null || nowTick < discountEndMs);
+  const unlockCost = applyUnlockDiscount(unlockBaseCost, withinDiscount); // 표시가 = 서버 결제가 (D-121)
+  const discountRemainMs = discountEndMs ? Math.max(0, discountEndMs - nowTick) : null;
+
+  // 잠긴 쪽 티저 — 잠긴 패널 중 "치명적 지적"(어느 한 축이라도 ≤2점) 수 + 가장 약한 축
+  const trialTeaser = (() => {
+    if (!trialLocked || lockedPanelIds.length === 0) return null;
+    let criticalCount = 0;
+    const axisSum = { clarity_score: 0, relevance_score: 0, value_score: 0, differentiation_score: 0, trust_score: 0 };
+    let axisN = 0;
+    lockedPanelIds.forEach(pid => {
+      const fbs = feedbacks.filter(f => f.panel_id === pid);
+      const isCritical = fbs.some(f => Math.min(
+        f.clarity_score ?? 5, f.relevance_score ?? 5, f.value_score ?? 5,
+        f.differentiation_score ?? 5, f.trust_score ?? 5,
+      ) <= 2);
+      if (isCritical) criticalCount++;
+      fbs.forEach(f => {
+        DIMS.forEach(d => { const k = DIM_META[d].key; if (f[k] != null) axisSum[k] += f[k]; });
+        axisN++;
+      });
+    });
+    let weakest = null, weakestAvg = Infinity;
+    if (axisN > 0) DIMS.forEach(d => {
+      const avg = axisSum[DIM_META[d].key] / axisN;
+      if (avg < weakestAvg) { weakestAvg = avg; weakest = DIM_META[d].label; }
+    });
+    return { criticalCount, lockedCount: lockedPanelIds.length, weakestAxis: weakest };
+  })();
 
   const handleUnlock = async () => {
     if (!mission) return;
@@ -1457,7 +1528,7 @@ export default function Results() {
               </div>
             ) : (
               <>
-                {/* 무료 체험 부분 잠금 배너 */}
+                {/* 무료 체험 부분 잠금 배너 — 호평 2명 공개 + 잠긴 쪽 티저 + 30%/48h 할인 */}
                 {trialLocked && (
                   <div style={{
                     padding: '18px 20px', marginBottom: 20, borderRadius: 'var(--radius-lg)',
@@ -1466,15 +1537,50 @@ export default function Results() {
                   }}>
                     <div style={{ minWidth: 200, flex: 1 }}>
                       <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--accent)', marginBottom: 4 }}>
-                        🔒 무료 체험 결과 — 패널 2명 피드백 공개 중
+                        🔒 무료 체험 결과 — 호평 패널 2명 공개 중
                       </div>
+                      {/* 잠긴 쪽 티저: 치명적 지적 수 (궁금증 유발) */}
+                      {trialTeaser && trialTeaser.criticalCount > 0 && (
+                        <div style={{ fontSize: 13.5, color: '#b91c1c', fontWeight: 700, lineHeight: 1.6, marginBottom: 4 }}>
+                          ⚠️ 잠긴 {trialTeaser.lockedCount}명 중 <strong>{trialTeaser.criticalCount}명</strong>이
+                          {trialTeaser.weakestAxis ? <> ‘<strong>{trialTeaser.weakestAxis}</strong>’을(를) 포함해</> : null} 심각한 문제(1~2점)를 지적했습니다.
+                        </div>
+                      )}
                       <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                        5축 점수는 전체 패널 기준으로 집계됩니다. 전체 피드백·어노테이션을 보려면 <strong>{unlockCost}크레딧</strong>으로 잠금을 해제하세요.
+                        5축 점수는 전체 패널 기준으로 집계됩니다. 누가, 무엇을 지적했는지 전체 피드백·어노테이션을 보려면 잠금을 해제하세요.
+                        {/* 가격 — 할인창이면 정가 취소선 + 할인가 + 카운트다운 */}
+                        {unlockBaseCost > 0 && (
+                          <span style={{ display: 'block', marginTop: 6 }}>
+                            {withinDiscount ? (
+                              <>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--text-3)' }}>{unlockBaseCost}cr</span>
+                                {' → '}
+                                <strong style={{ color: 'var(--accent)', fontSize: 15 }}>{unlockCost}크레딧</strong>
+                                <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 6, background: '#fee2e2', color: '#b91c1c', fontWeight: 800, fontSize: 12 }}>
+                                  첫 언락 {Math.round(TRIAL_FIRST_UNLOCK_DISCOUNT * 100)}% 할인
+                                </span>
+                                {discountRemainMs != null && (
+                                  <span style={{ display: 'block', marginTop: 3, fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>
+                                    ⏳ 할인 마감까지 {(() => {
+                                      const sec = Math.floor(discountRemainMs / 1000);
+                                      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+                                      return `${h}시간 ${String(m).padStart(2, '0')}분 ${String(s).padStart(2, '0')}초`;
+                                    })()}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <><strong>{unlockCost}크레딧</strong>으로 잠금을 해제하세요.</>
+                            )}
+                          </span>
+                        )}
                         {unlockError && <span style={{ display: 'block', color: '#ef4444', marginTop: 4 }}>{unlockError}</span>}
                       </div>
                     </div>
                     <Btn onClick={handleUnlock} disabled={unlocking} style={{ flexShrink: 0 }}>
-                      {unlocking ? '처리 중...' : `전체 잠금 해제 (${unlockCost}cr)`}
+                      {unlocking ? '처리 중...' : withinDiscount && unlockBaseCost > 0
+                        ? `${Math.round(TRIAL_FIRST_UNLOCK_DISCOUNT * 100)}% 할인가로 잠금 해제 (${unlockCost}cr)`
+                        : `전체 잠금 해제 (${unlockCost}cr)`}
                     </Btn>
                   </div>
                 )}

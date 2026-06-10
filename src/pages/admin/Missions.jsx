@@ -449,11 +449,17 @@ export default function AdminMissions() {
         });
       }
     } else {
-      const { error: updateErr } = await supabase.from('missions').update({ status: newStatus }).eq('id', id);
-      if (updateErr) { setStatusError('상태 변경 실패: ' + updateErr.message); return; }
+      const foundM = missions.find(m => m.id === id);
+      // 무료 체험 의뢰의 취소/재개는 free_trial_used 복구(취소)·재소진(재개)을 한 트랜잭션으로 처리 (093)
+      if (foundM?.is_free_trial && (newStatus === 'cancelled' || newStatus === 'active')) {
+        const { data, error } = await supabase.rpc('admin_set_trial_mission_status', { p_mission_id: id, p_new_status: newStatus });
+        if (error || !data?.success) { setStatusError('상태 변경 실패: ' + (error?.message || data?.error || '알 수 없는 오류')); return; }
+      } else {
+        const { error: updateErr } = await supabase.from('missions').update({ status: newStatus }).eq('id', id);
+        if (updateErr) { setStatusError('상태 변경 실패: ' + updateErr.message); return; }
+      }
       setMissions(ms => ms.map(m => m.id === id ? { ...m, status: newStatus } : m));
       setSelectedMission(prev => prev?.id === id ? { ...prev, status: newStatus } : prev);
-      const foundM = missions.find(m => m.id === id);
       if (foundM?.companies?.user_id) {
         if (newStatus === 'cancelled') {
           sendNotification(foundM.companies.user_id, { type: 'warning', icon: '🚫', title: '의뢰 취소 처리', body: `[${foundM.title}] 의뢰가 취소 처리되었습니다.`, actionUrl: '/company', targetRole: 'company', prefKey: 'missionStatusChange' });

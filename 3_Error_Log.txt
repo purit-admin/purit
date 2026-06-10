@@ -1662,7 +1662,7 @@ D-123. 듀얼(2핸들) 레인지 슬라이더를 native <input type=range>로 �
 D-124. 1회성 "소진 플래그"를 set하는 경로만 있고 reset 경로가 없으면, 관련 리소스를 삭제했을 때 플래그가 남아 기회가 영구 소진되는 패턴 ✅ 해결
      -> 증상: 어드민이 무료 체험 의뢰를 삭제하면 의뢰 row는 사라지는데 companies.free_trial_used=true가 남아, 기업이 plan='free_trial'(크레딧 0)인 채 새 무료 의뢰도 못 만들고 유료 전환 외 길이 막힘.
      -> 원인: create_free_trial_mission이 free_trial_used=true로 set하는 경로만 존재(085), false로 되돌리는 경로가 코드 전체에 없음. 삭제·취소 어느 핸들러도 플래그를 안 건드림.
-     -> 해결: 영구 제거(삭제)를 "이 소진은 없던 일"로 보고 admin_delete_trial_mission RPC가 미션 DELETE + is_free_trial이면 free_trial_used=false 복구(091). 취소(재개 가능)는 복구 안 함 — 터미널 액션(삭제)에서만 복구.
+     -> 해결: 영구 제거(삭제)를 "이 소진은 없던 일"로 보고 admin_delete_trial_mission RPC가 미션 DELETE + is_free_trial이면 free_trial_used=false 복구(091). 취소(재개 가능)는 복구 안 함 — 터미널 액션(삭제)에서만 복구. ★ 단 093 제품 결정으로 어드민 '취소'도 복구 추가(admin_set_trial_mission_status: 취소→free_trial_used=false 복구·재개→true 재소진). 기업 직접 조기 종료는 여전히 미복구(farming 방지).
      -> 원칙: "1계정 1회" 같은 소진 플래그를 둘 때, set 경로를 만들면 그 자격을 발생시킨 리소스가 사라지는 경로(삭제)에서 reset(복구)도 함께 설계할 것. set만 있고 reset이 없으면 운영자의 정리 행위가 사용자 자격을 영구 박탈한다(set/reset 대칭성).
 
 D-125. 테이블에 UPDATE RLS 정책·활성화가 없으면 authenticated가 그 테이블의 "아무 컬럼이나" 직접 UPDATE할 수 있어, 결제/권한 컬럼이 클라에서 조작되는 패턴 ✅ 해결

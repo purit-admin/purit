@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_admin.txt — Purity MVP 어드민(Admin) 포털 상세 정의
-최종 업데이트: 2026-06-13 (체험 의뢰 관리 고도화 089~092 — 일괄 승인/반려 + 공개 2건 직접 지정(admin_set_trial_public) + 검색·재진행·재개·삭제(admin_delete_trial_mission, free_trial_used 복구) + 완료 차단 게이트 + Sidebar 운영 그룹 맨 위 이동) / 2026-06-12 (체험 의뢰 관리 /admin/trials 신규 — 무료 체험 모니터링+승인/반려+완료/취소 통합 / 미션·피드백 관리 체험 뱃지 / 무료 첫 의뢰 🔥 강한 알림 / 심사 거절→재제출→영구차단 플로우 + 거절 사유 입력 + 버그답변 딥링크)
+최종 업데이트: 2026-06-13 (093 무료 체험 의뢰 '취소'·'재개' 시 free_trial_used 토글 — 취소→복구(재등록 가능)/재개→재소진, admin_set_trial_mission_status RPC 라우팅, 삭제까지 안 가도 무료 기회 복구) / 2026-06-13 (체험 의뢰 관리 고도화 089~092 — 일괄 승인/반려 + 공개 2건 직접 지정(admin_set_trial_public) + 검색·재진행·재개·삭제(admin_delete_trial_mission, free_trial_used 복구) + 완료 차단 게이트 + Sidebar 운영 그룹 맨 위 이동) / 2026-06-12 (체험 의뢰 관리 /admin/trials 신규 — 무료 체험 모니터링+승인/반려+완료/취소 통합 / 미션·피드백 관리 체험 뱃지 / 무료 첫 의뢰 🔥 강한 알림 / 심사 거절→재제출→영구차단 플로우 + 거절 사유 입력 + 버그답변 딥링크)
 ================================================================
 
 인증 후 /admin 하위 라우트 접근 가능.
@@ -129,8 +129,9 @@ completeBlocked = allFbs.length === 0 || reviewing.length > 0
 - 완료 후: "기업 공개됨" 초록 Badge
 
 완료 탭 '재진행': reactivate_mission_and_reclaim RPC (환불 크레딧 회수)
-취소 탭 '재개': updateStatus('active') (크레딧 처리 없음)
-취소 탭 '영구 삭제': ConfirmModal → missions DELETE
+취소 탭 '재개': updateStatus('active') (크레딧 처리 없음 / ★ 무료 체험이면 admin_set_trial_mission_status로 라우팅 → free_trial_used=true 재소진, 093)
+취소 탭 '영구 삭제': ConfirmModal → missions DELETE (admin_delete_trial_mission)
+★ 무료 체험 의뢰 '취소'(updateStatus('cancelled')): 무료 체험이면 admin_set_trial_mission_status로 라우팅 → free_trial_used=false 복구 → 기업 재등록 가능 (삭제까지 안 가도 됨, 093/D-124 확장). 일반 의뢰 취소는 직접 UPDATE 유지(동작 불변).
 ★ 무료 체험 의뢰는 미션 카드에 "🎁 체험" 뱃지 표시 (is_free_trial) — 일반 의뢰와 함께 뜨되 구분 (085)
 
 ================================================================
