@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
+최종 업데이트: 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / 085 free_trial freemium 진행 중 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -178,7 +178,7 @@ purit/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, OAuthCallback.jsx (/oauth/callback 공개) ★
 │       ├── company/  (14개 — 라우트 목록 참조)
 │       ├── panel/    (5개 — 라우트 목록 참조)
-│       └── admin/    (7개 — 라우트 목록 참조)
+│       └── admin/    (8개 — 라우트 목록 참조)
 │   ※ 페이지·컴포넌트별 state/헬퍼/패턴 구현 상세는 5_CodeMap.txt로 분리됨
 │     (특정 파일 수정·디버깅 시에만 Read — CLAUDE.md 조건부 로드 규칙)
 ├── scripts/   (개발·테스트 전용 Node.js 유틸리티 — 배포 대상 아님)
@@ -341,6 +341,16 @@ purit/
 │                  panel_update_own_docs: FOR UPDATE USING/WITH CHECK (bucket_id='panel-verification-docs' AND auth.uid()=split_part(name,'/',1)) — INSERT 정책과 동일 조건(본인 경로)
 │                  auth_update_mission_assets: FOR UPDATE USING/WITH CHECK (bucket_id='mission-assets' AND auth.role()='authenticated') — INSERT 정책과 동일 조건
 │                  ※ BugReportModal(bug-screenshots, `{uid}/{timestamp}.{ext}`)·NewMission(mission-assets, randomUUID 경로)은 경로 유니크 → 충돌 없음(영향 없음)
+│                085(free_trial_freemium: 기업 무료 체험 + 부분 언락 Freemium 시스템) ※ 진행 중 기능
+│                  companies.free_trial_used / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert 컬럼 추가
+│                  companies.plan DEFAULT 'starter' → 'free_trial' 변경 + 가입 경로(handle_new_user·create_oauth_user_profile) plan='free_trial' 삽입
+│                  admin_change_plan·grant_plan_credits에 'free_trial'(크레딧 0) 반영 / create_free_trial_mission·unlock_free_trial_mission RPC 신규
+│                086(fix_companies_plan_check: 가입 전면 실패 긴급 수정 — 085 free_trial 도입 시 DB CHECK 미동기화) ★ 신규
+│                  문제: 운영 DB의 companies_plan_check 제약(대시보드 수동 생성 — 어느 마이그레이션 파일에도 없음)이 구 값('free'/starter/pro/enterprise)만 허용.
+│                    085가 신규 가입 plan을 'free_trial'로 바꾸자 companies INSERT가 제약 위반 → 구글·이메일 가입 전면 실패(D-117).
+│                    구글: create_oauth_user_profile RPC 400 → OAuthCallback 오류화면 → 회사 미생성 → 재로그인 시 "초대 수락이 필요합니다" 오표시.
+│                  해결: ① companies_plan_check DROP ② 구 'free' 행 → 'free_trial' 정규화 UPDATE(미선행 시 "violated by some row") ③ 4종 CHECK 재생성('free_trial','starter','pro','enterprise')
+│                  ※ OAuthCallback.jsx 코드는 정상(무수정). 제약 1건 교체로 구글·이메일 가입·어드민 플랜 변경 3경로 동시 해소.
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)
@@ -359,7 +369,7 @@ purit/
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (38개)
+## 라우트 전체 목록 (39개)
 ================================================================
 
 [공개]
@@ -402,6 +412,7 @@ purit/
   /admin/panels              → PanelManagement.jsx
   /admin/companies           → CompanyManagement.jsx ★ 신규
   /admin/missions            → Missions.jsx
+  /admin/trials              → TrialMissions.jsx    ★ 신규 (무료 체험 의뢰 모니터링·언락 추적)
   /admin/purity              → PurityFilter.jsx
   /admin/revenue             → Revenue.jsx
   /admin/reports             → BugReports.jsx
