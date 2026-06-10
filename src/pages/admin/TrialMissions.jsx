@@ -4,7 +4,7 @@ import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
-import { getPanelReward, getExperienceMultiplier } from '../../lib/honorLevels';
+import { getPanelReward, getExperienceMultiplier, getCareerUnlockCredit } from '../../lib/honorLevels';
 
 // 무료 체험 의뢰 통합 관리 — 미션 모니터링 + 피드백 승인/반려 + 미션 완료/취소
 // (PurityFilter·Missions와 동일 RPC 시퀀스를 자체 구현 — 두 페이지 회귀 차단)
@@ -264,11 +264,11 @@ export default function TrialMissions() {
     setConfirmResume(null); setActing(false);
   };
 
-  // ── 미션 삭제 ──
+  // ── 미션 삭제 (어드민 RPC: 삭제 + 무료 체험 기회 복구) ──
   const deleteMission = async (m) => {
     setActing(true); setDeleteError('');
-    const { error } = await supabase.from('missions').delete().eq('id', m.id);
-    if (error) { setDeleteError('삭제 실패: ' + error.message); setActing(false); return; }
+    const { data, error } = await supabase.rpc('admin_delete_trial_mission', { p_mission_id: m.id });
+    if (error || !data?.success) { setDeleteError('삭제 실패: ' + (error?.message || data?.error || '알 수 없는 오류')); setActing(false); return; }
     setMissions(ms => ms.filter(x => x.id !== m.id));
     if (selected === m.id) setSelected(null);
     setConfirmDelete(null); setActing(false);
@@ -352,8 +352,9 @@ export default function TrialMissions() {
     if (publicSel.size !== 2 || savingPublic) return;
     setSavingPublic(true); setStatusError('');
     const ids = [...publicSel];
-    const { error } = await supabase.from('missions').update({ trial_public_panel_ids: ids }).eq('id', selected);
-    if (error) { setStatusError('공개 설정 저장 실패: ' + error.message); setSavingPublic(false); return; }
+    // 보호 컬럼이라 직접 UPDATE 불가(092 트리거) → 어드민 전용 RPC
+    const { data, error } = await supabase.rpc('admin_set_trial_public', { p_mission_id: selected, p_panel_ids: ids });
+    if (error || !data?.success) { setStatusError('공개 설정 저장 실패: ' + (error?.message || data?.error || '알 수 없는 오류')); setSavingPublic(false); return; }
     setMissions(ms => ms.map(m => m.id === selected ? { ...m, trial_public_panel_ids: ids } : m));
     setSavingPublic(false); setPublicSaved(true);
   };
@@ -362,6 +363,27 @@ export default function TrialMissions() {
     .filter(TABS.find(t => t.key === tab).match)
     .filter(m => !searchQuery.trim() || (m.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()));
   const pendingCount = detailFbs.filter(f => f.status === 'submitted' && !f.purity_passed).length;
+
+  // 헤더 표시용: 승인 피드백 기준 실시간 상태 (등록 추정치 unlock_cost 대신 실제 잠긴 패널 경력 합)
+  const approvedPanels = (() => {
+    const seen = new Set(); const arr = [];
+    detailFbs.forEach(f => { if (f.purity_passed && f.panel_id && !seen.has(f.panel_id)) { seen.add(f.panel_id); arr.push(f); } });
+    return arr;
+  })();
+  const publicSaved2 = !!(selMission && Array.isArray(selMission.trial_public_panel_ids) && selMission.trial_public_panel_ids.length === 2);
+  const effectivePublicSet = (() => {
+    if (publicSaved2) return new Set(selMission.trial_public_panel_ids);
+    const sorted = [...approvedPanels].sort((a, b) => {
+      const ea = a.panels?.is_expert ? 1 : 0, eb = b.panels?.is_expert ? 1 : 0;
+      if (eb !== ea) return eb - ea;
+      return getExperienceMultiplier(b.panels?.experience || '') - getExperienceMultiplier(a.panels?.experience || '');
+    });
+    return new Set(sorted.slice(0, 2).map(f => f.panel_id));
+  })();
+  const liveLockedCost = approvedPanels.filter(f => !effectivePublicSet.has(f.panel_id))
+    .reduce((s, f) => s + getCareerUnlockCredit(f.panels?.experience || ''), 0);
+  // 완료 차단: 미언락 + 잠길 피드백 존재(승인 3명+)인데 공개 2건 미저장 → 완료 불가
+  const trialCompleteBlocked = !!(selMission && !selMission.trial_unlocked && approvedPanels.length > 2 && !publicSaved2);
 
   if (loading) return <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>;
 
@@ -446,16 +468,27 @@ export default function TrialMissions() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 18, fontWeight: 800 }}>{selMission.title}</span>
                       <Badge type={STATUS_TYPE[selMission.status] || 'gray'}>{STATUS_LABEL[selMission.status] || selMission.status}</Badge>
-                      {selMission.trial_unlocked ? <Badge type="green">언락됨</Badge> : <Badge type="gold">2건 공개 중</Badge>}
+                      {selMission.trial_unlocked
+                        ? <Badge type="green">언락됨</Badge>
+                        : publicSaved2
+                          ? <Badge type="gold">2건 공개 설정됨</Badge>
+                          : <Badge type="gray">공개 대기</Badge>}
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-                      {selMission.companies?.name || '—'} · 슬롯 {selMission.filled_count || 0}/{selMission.panel_count || 0} · {selMission.trial_unlocked ? `언락 비용 ${Math.ceil(selMission.unlock_cost || 0)}cr` : `예상 언락 비용 ~${Math.ceil(selMission.unlock_cost || 0)}cr (참여 경력 따라 변동)`}
+                      {selMission.companies?.name || '—'} · 슬롯 {selMission.filled_count || 0}/{selMission.panel_count || 0} · {
+                        selMission.trial_unlocked
+                          ? `언락 비용 ${Math.ceil(selMission.unlock_cost || 0)}cr`
+                          : approvedPanels.length === 0
+                            ? '언락 비용: 피드백 승인 후 확정'
+                            : `예상 언락 비용 ${Math.ceil(liveLockedCost)}cr (잠긴 패널 경력 합)`
+                      }
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {(selMission.status === 'active' || selMission.status === 'in_review') && (
                       <>
-                        <Btn size="sm" onClick={() => setConfirmComplete(selMission)} disabled={acting}>완료 처리</Btn>
+                        <Btn size="sm" onClick={() => setConfirmComplete(selMission)} disabled={acting || trialCompleteBlocked}>완료 처리</Btn>
                         <Btn size="sm" variant="danger" onClick={() => setConfirmCancel(selMission)} disabled={acting}>취소</Btn>
                       </>
                     )}
@@ -467,6 +500,12 @@ export default function TrialMissions() {
                         <Btn size="sm" onClick={() => setConfirmResume(selMission)} disabled={acting}>재개</Btn>
                         <Btn size="sm" variant="danger" onClick={() => setConfirmDelete(selMission)} disabled={acting}>삭제</Btn>
                       </>
+                    )}
+                    </div>
+                    {(selMission.status === 'active' || selMission.status === 'in_review') && trialCompleteBlocked && (
+                      <div style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600, textAlign: 'right' }}>
+                        공개 2건을 저장해야 완료할 수 있습니다
+                      </div>
                     )}
                   </div>
                 </div>
@@ -690,7 +729,7 @@ export default function TrialMissions() {
       {confirmDelete && (
         <ConfirmModal
           title="의뢰를 삭제할까요?"
-          desc="이 무료 체험 의뢰를 영구 삭제합니다. 되돌릴 수 없습니다."
+          desc="이 무료 체험 의뢰를 영구 삭제합니다. 되돌릴 수 없습니다. 기업의 무료 체험 기회가 복구되어 다시 무료 의뢰를 등록할 수 있게 됩니다."
           confirmLabel={acting ? '처리 중…' : '삭제'}
           cancelLabel="취소"
           danger

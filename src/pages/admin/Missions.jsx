@@ -487,9 +487,10 @@ export default function AdminMissions() {
   };
 
   const deleteMission = async (id) => {
-    const { error } = await supabase.from('missions').delete().eq('id', id);
-    if (error) {
-      setDeleteError('삭제 중 오류가 발생했습니다: ' + error.message);
+    // admin_delete_trial_mission: 무료 체험 의뢰면 삭제 + free_trial_used 복구, 일반 의뢰면 단순 삭제 (동작 불변)
+    const { data, error } = await supabase.rpc('admin_delete_trial_mission', { p_mission_id: id });
+    if (error || !data?.success) {
+      setDeleteError('삭제 중 오류가 발생했습니다: ' + (error?.message || data?.error || '알 수 없는 오류'));
       return;
     }
     setDeleteError('');

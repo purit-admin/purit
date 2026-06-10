@@ -294,7 +294,7 @@ function ExpandableText({ text, limit = EXPAND_LIMIT }) {
 }
 
 /* ─── 커스텀 질문 결과 섹션 (아코디언) ─── */
-function CustomQuestionsSection({ questions, responses }) {
+function CustomQuestionsSection({ questions, responses, locked = false, onUnlock = null }) {
   const [expanded, setExpanded] = useState({});
   if (!questions?.length) return null;
   const allAnswers = (responses || []).flatMap(r => r.custom_answers || []);
@@ -304,6 +304,45 @@ function CustomQuestionsSection({ questions, responses }) {
   const typeLabelMap = { radio: '옵션형', scale: '점수형', text: '서술형' };
   const typeColorMap = { radio: 'var(--text-2)', scale: 'var(--text-2)', text: '#34C759' };
   const typeBg = { radio: 'rgba(16,54,125,0.12)', scale: 'rgba(99,102,241,0.15)', text: 'rgba(52,199,89,0.15)' };
+
+  // 무료 체험 미언락: 질문(텍스트)은 공개, 응답(answer)만 잠금
+  if (locked) {
+    return (
+      <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>추가 질문 응답</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {questions.map((q, qi) => {
+            const answers = allAnswers.filter(a => a.questionId === q.id);
+            if (!answers.length) return null;
+            return (
+              <div key={q.id || qi} style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                {/* 질문 — 공개 */}
+                <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', background: 'var(--surface)', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, flexShrink: 0, background: typeBg[q.type] || typeBg.text, color: typeColorMap[q.type] || typeColorMap.text }}>
+                      {typeLabelMap[q.type] || '서술'}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.4 }}>
+                      {qi + 1}. {q.text}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>응답 {answers.length}건</span>
+                </div>
+                {/* 응답 — 잠금 */}
+                <div style={{ position: 'relative', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ filter: 'blur(6px)', userSelect: 'none', pointerEvents: 'none', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ height: 12, width: '80%', background: 'var(--bg-2)', borderRadius: 4 }} />
+                    <div style={{ height: 12, width: '55%', background: 'var(--bg-2)', borderRadius: 4 }} />
+                  </div>
+                  <LockOverlay onUnlock={onUnlock} label="🔒 잠금 해제 후 응답 열람" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
@@ -564,7 +603,12 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
   const [annPage, setAnnPage] = useState(1);
   const meta = DIM_META[dim];
   const imgAnns = allAnnotations.filter(a => a.dimension === dim && a.image_index === currentImageIdx);
-  const allDimAnns = allAnnotations.filter(a => a.dimension === dim);
+  const allDimAnns = (() => {
+    const base = allAnnotations.filter(a => a.dimension === dim);
+    if (!locked || !unlockedPanelIds) return base;
+    // 무료 체험: 잠금 해제된 코멘트를 앞 페이지로, 잠긴 코멘트는 뒷 페이지로 정렬 (궁금증 유발)
+    return [...base].sort((a, b) => (isAnnLocked(a.panel_id) ? 1 : 0) - (isAnnLocked(b.panel_id) ? 1 : 0));
+  })();
   const pagedAnns = allDimAnns.slice((annPage - 1) * PAGE_SIZE, annPage * PAGE_SIZE);
 
   // dim 변경 시 페이지 초기화
@@ -692,6 +736,12 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
   const overallComments = feedbacks
     .map((fb, i) => ({ panel: i + 1, panelId: fb.panel_id, fbId: fb.id, text: extractOverallComment(fb.suggestions), passed: fb.purity_passed }))
     .filter(c => c.text);
+  if (locked && unlockedPanelIds) {
+    // 무료 체험: 공개 총평을 앞 페이지로, 잠긴 총평은 뒷 페이지로 정렬 (궁금증 유발)
+    overallComments.sort((a, b) => (isPanelLocked(a.panelId) ? 1 : 0) - (isPanelLocked(b.panelId) ? 1 : 0));
+    // 정렬 후 표시 순서대로 패널 번호 재부여 (#1 #3 #2 처럼 비연속으로 보이지 않도록)
+    overallComments.forEach((c, idx) => { c.panel = idx + 1; });
+  }
   const pagedComments = overallComments.slice((commentPage - 1) * PAGE_SIZE, commentPage * PAGE_SIZE);
 
   return (
@@ -743,7 +793,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
               <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
             </div>
-            <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
+            <CustomQuestionsSection questions={lpQs} responses={feedbacks} locked={locked} onUnlock={onUnlock} />
           </>
         );
       })()}
@@ -801,11 +851,16 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
 }
 
 /* ─── 텍스트 미션 결과 (이미지 없는 구형 미션) ─── */
-function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
-  const [activeFb, setActiveFb] = useState(feedbacks[0]?.id || null);
+function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated, locked = false, unlockedPanelIds = null, onUnlock = null }) {
+  const isPanelLocked = (panelId) => locked && unlockedPanelIds && !unlockedPanelIds.has(panelId);
+  // 무료 체험: 공개 패널을 앞으로, 잠긴 패널은 뒤로 정렬 (궁금증 유발)
+  const orderedFeedbacks = (locked && unlockedPanelIds)
+    ? [...feedbacks].sort((a, b) => (isPanelLocked(a.panel_id) ? 1 : 0) - (isPanelLocked(b.panel_id) ? 1 : 0))
+    : feedbacks;
+  const [activeFb, setActiveFb] = useState(orderedFeedbacks[0]?.id || null);
   const [panelPage, setPanelPage] = useState(1);
-  const fb = feedbacks.find(f => f.id === activeFb) || null;
-  const pagedFeedbacks = feedbacks.slice((panelPage - 1) * PAGE_SIZE, panelPage * PAGE_SIZE);
+  const fb = orderedFeedbacks.find(f => f.id === activeFb) || null;
+  const pagedFeedbacks = orderedFeedbacks.slice((panelPage - 1) * PAGE_SIZE, panelPage * PAGE_SIZE);
 
   return (
     <div>
@@ -816,6 +871,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
         {pagedFeedbacks.map((f, i) => {
           const globalIdx = (panelPage - 1) * PAGE_SIZE + i;
           const overallAvg = DIMS.reduce((s, d) => s + (f[DIM_META[d].key] || 0), 0) / DIMS.length;
+          const pLocked = isPanelLocked(f.panel_id);
           return (
             <div key={f.id} onClick={() => setActiveFb(f.id)} style={{
               padding: '12px', background: activeFb === f.id ? 'var(--surface-2)' : 'var(--surface)',
@@ -826,10 +882,13 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>패널 #{globalIdx + 1}</span>
                   <PanelBadges panelId={f.panel_id} profiles={panelProfiles} />
+                  {pLocked && <span style={{ fontSize: 11 }}>🔒</span>}
                 </div>
                 <Badge type={f.purity_passed ? 'green' : 'gray'}>{f.purity_passed ? '통과' : '검토 중'}</Badge>
               </div>
-              <ScoreBar score={Math.round(overallAvg)} />
+              <div style={pLocked ? { filter: 'blur(4px)', userSelect: 'none', pointerEvents: 'none' } : undefined}>
+                <ScoreBar score={Math.round(overallAvg)} />
+              </div>
             </div>
           );
         })}
@@ -838,7 +897,31 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
 
       {/* 상세 */}
       {fb && (
-        fb.purity_passed ? (
+        isPanelLocked(fb.panel_id) ? (
+          <Card style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>피드백 상세</div>
+              <Badge type="green">Purit 통과</Badge>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <div style={{ filter: 'blur(6px)', userSelect: 'none', pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {DIMS.map(dim => {
+                  const score = fb[DIM_META[dim].key] || 0;
+                  return (
+                    <div key={dim} style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', textTransform: 'uppercase' }}>{DIM_META[dim].label}</span>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-sans)' }}>{score || '—'}</span>
+                      </div>
+                      {score > 0 && <ScoreBar score={score} color="var(--accent)" />}
+                    </div>
+                  );
+                })}
+              </div>
+              <LockOverlay onUnlock={onUnlock} label={`🔒 ${getCareerUnlockCredit(panelProfiles[fb.panel_id]?.experience || '')}크레딧으로 잠금 해제`} />
+            </div>
+          </Card>
+        ) : fb.purity_passed ? (
           <Card style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ fontWeight: 700, fontSize: 16 }}>피드백 상세</div>
@@ -894,7 +977,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
             <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
-          <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
+          <CustomQuestionsSection questions={lpQs} responses={feedbacks} locked={locked} onUnlock={onUnlock} />
         </div>
       );
     })()}
@@ -1465,7 +1548,7 @@ export default function Results() {
 
                 {/* 텍스트 미션 (이미지 없는 구형) */}
                 {!isSubMission && !hasImages && feedbacks.length > 0 && (
-                  <TextMissionResults key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} locked={trialLocked} unlockedPanelIds={unlockedPanelIds} />
+                  <TextMissionResults key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} locked={trialLocked} unlockedPanelIds={unlockedPanelIds} onUnlock={handleUnlock} />
                 )}
               </>
             )}

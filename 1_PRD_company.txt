@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_company.txt — Purity MVP 기업(Company) 포털 상세 정의
-최종 업데이트: 2026-06-12 (무료 체험 Freemium — 첫 의뢰 1회 무료·부분 언락·ChargeOptionsModal 플랜구독+충전·ExitIntentModal 이탈 리텐션·Dashboard 무료 배너) / 2026-06-10 (등록폼 임시저장→이어쓰기 시 인라인 커스텀 질문 재분리 복원 D-119 / QuestionTemplates 커스텀 탭 기본 뱃지 lp로 변경) / 2026-06-12 (버그/건의 답변 딥링크 라우팅 추가)
+최종 업데이트: 2026-06-13 (무료 체험 결과 부분 공개 고도화 089~092 — 어드민 지정 공개 2명(trial_public_panel_ids)·언락비용 메인 1.5배(주1.5/미3/시4.5/C6)·공개 우선 정렬·추가 질문 응답만 잠금·텍스트 미션 잠금 동등 적용·결제 컬럼 직접조작 차단 트리거) / 2026-06-12 (무료 체험 Freemium — 첫 의뢰 1회 무료·부분 언락·ChargeOptionsModal 플랜구독+충전·ExitIntentModal 이탈 리텐션·Dashboard 무료 배너) / 2026-06-10 (등록폼 임시저장→이어쓰기 시 인라인 커스텀 질문 재분리 복원 D-119 / QuestionTemplates 커스텀 탭 기본 뱃지 lp로 변경)
 ※ 워딩 규칙: 기업 포털 UI = "의뢰" / 코드·DB·패널·어드민 = "미션/mission"
 ================================================================
 
@@ -66,12 +66,16 @@
 
 ### 결과 부분 공개 (Results.jsx)
 - trialLocked = is_free_trial && !trial_unlocked. 5축 점수(레이더·바)는 10명 전체 집계로 항상 공개.
-- 개별 코멘트/어노테이션은 "공개 2명"(is_expert 우선 → 경력 multiplier 내림차순)만 노출, 나머지는 블러+🔒.
-  · 잠긴 각 총평 카드에 패널 경력별 크레딧 칩 표시(주니어 1·미들 2·시니어 3·C레벨 4 = getCareerUnlockCredit).
+- 공개 2명 결정: ★ 어드민이 지정한 mission.trial_public_panel_ids(089)가 있으면 그 2명, 없으면 자동(is_expert 우선 → 경력 multiplier 내림차순 상위 2명) 폴백. 나머지는 블러+🔒.
+  · ★ 잠금 해제된 코멘트/총평을 앞 페이지로 정렬(잠긴 건 뒷 페이지 → 궁금증 유발). 총평 패널 번호는 정렬 후 표시 순서대로 재부여.
+  · 잠긴 각 총평 카드에 패널 경력별 크레딧 칩 표시(★ 메인 1.5배 적용 — 주니어 1.5·미들 3·시니어 4.5·C레벨 6 = getCareerUnlockCredit, 090).
   · 상단 잠금 배너에 총 언락 비용(= 잠긴 패널 크레딧 합) 표시 + "전체 잠금 해제" CTA.
   · 어노테이션은 잠긴 패널 comment를 ''로 치환해 ImageAnnotator 툴팁 누출 차단.
+  · ★ 추가 질문 응답(CustomQuestionsSection): 질문 텍스트·응답 건수는 공개, 응답 내용만 블러+🔒(질문은 보이고 응답만 잠금).
+  · ★ 텍스트 미션(이미지 없는 메인, TextMissionResults): 잠긴 패널 좌측목록 🔒+점수바 블러, 상세 5축 블러+언락 오버레이, 추가 질문 응답 잠금 — 이미지 미션과 동일하게 적용.
 - 미언락 미션은 공유 UI 숨김(get_shared_mission도 서버에서 차단) — 페이월 우회 방지.
-- 언락 = 충전/구독 후 unlock_free_trial_mission RPC → 잠긴 패널 경력 크레딧 합을 차감(서버 권위, 087).
+- 언락 = 충전/구독 후 unlock_free_trial_mission RPC → 잠긴 패널 경력 크레딧 합(메인 1.5배)을 차감(서버 권위, 090). 어드민 지정 공개 2건 제외하고 합산.
+- ★ 보안(092): missions에 UPDATE RLS가 없어 결제/언락 컬럼(trial_unlocked·trial_public_panel_ids·credits_*·unlock_cost·is_free_trial)을 기업이 직접 UPDATE해 무료 언락하는 구멍을 BEFORE UPDATE 트리거(current_user 가드)로 차단. 정상 변경은 SECURITY DEFINER RPC만 허용.
 
 ### 충전/구독 선택 (ChargeOptionsModal.jsx) — 언락 CTA에서 호출
 - 크레딧 단건 충전만이 아니라 Starter/Pro 플랜 구독 선택지 동시 제공.

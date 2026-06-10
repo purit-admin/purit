@@ -63,8 +63,9 @@ export function getExperienceCareerKey(experience = '') {
   return 'junior';
 }
 
-// 무료 체험 언락: 패널 1인당 잠금 해제 크레딧 (경력 기준 — 주니어1·미들2·시니어3·C레벨4)
-export const CAREER_UNLOCK_CREDIT = { junior: 1, middle: 2, senior: 3, clevel: 4 };
+// 무료 체험 언락: 패널 1인당 잠금 해제 크레딧 (경력 기준 × 메인 1.5배 — 주니어1.5·미들3·시니어4.5·C레벨6)
+// ※ 체험 의뢰는 항상 메인(landing_page)이므로 메인 1.5배(calcCredits 'main')를 경력 크레딧에도 동일 반영
+export const CAREER_UNLOCK_CREDIT = { junior: 1.5, middle: 3, senior: 4.5, clevel: 6 };
 export function getCareerUnlockCredit(experience = '') {
   return CAREER_UNLOCK_CREDIT[getExperienceCareerKey(experience)] || 1;
 }

@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log.txt — 개발 효율화 원칙 & 공통 실수 방지 규칙
-최종 업데이트: 2026-06-12 (D-123 듀얼 핸들 슬라이더는 native input 2개 겹침 금지 — 클릭독점·양끝삐져나옴 quirk → 커스텀 div핸들+pointer드래그+inset% 공식 / D-121 클라/서버 동적가격 정렬·dedup·동점 불일치로 표시가≠결제가 / D-122 공유 회계 RPC가 무료 미션 격리 깨뜨림) / 2026-06-10 (D-118 Storage 버킷 UPDATE 정책 누락 upsert 재업로드 무음 실패 / D-119 draft 병합저장 후 복원 시 재분리 누락으로 편집 UI 소실) / 2026-06-12 (D-120 — auth.users 직접참조 FK가 CASCADE여도 2차 사슬 자식 FK가 NO ACTION이면 유저 삭제 차단 / D-117 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴 + 086 가입 전면 실패 사례로 D-117 보강: 대시보드 수동 제약·enum 개명 시 기존행 선행 정규화)
+최종 업데이트: 2026-06-13 (D-124 1회성 소진 플래그(free_trial_used) set만 있고 삭제 시 reset 없어 무료 기회 영구 소진 → admin_delete_trial_mission 복구 / D-125 missions UPDATE RLS 부재로 결제 컬럼 클라 직접조작 가능 → current_user 가드 트리거 + SECURITY DEFINER RPC 이중 방어) / 2026-06-12 (D-123 듀얼 핸들 슬라이더는 native input 2개 겹침 금지 — 클릭독점·양끝삐져나옴 quirk → 커스텀 div핸들+pointer드래그+inset% 공식 / D-121 클라/서버 동적가격 정렬·dedup·동점 불일치로 표시가≠결제가 / D-122 공유 회계 RPC가 무료 미션 격리 깨뜨림) / 2026-06-10 (D-118 Storage 버킷 UPDATE 정책 누락 upsert 재업로드 무음 실패 / D-119 draft 병합저장 후 복원 시 재분리 누락으로 편집 UI 소실) / 2026-06-12 (D-120 — auth.users 직접참조 FK가 CASCADE여도 2차 사슬 자식 FK가 NO ACTION이면 유저 삭제 차단 / D-117 — UI enum 옵션 추가 시 DB CHECK 제약 미갱신으로 INSERT 실패 패턴 + 086 가입 전면 실패 사례로 D-117 보강: 대시보드 수동 제약·enum 개명 시 기존행 선행 정규화)
 ================================================================
 
 ## 핵심 원칙
@@ -1658,3 +1658,15 @@ D-123. 듀얼(2핸들) 레인지 슬라이더를 native <input type=range>로 �
      -> 시도했다 실패한 우회: pointer-events:none(트랙)+all(thumb)로 클릭 독점은 풀리나, 투명 native thumb와 별도 시각 div의 위치가 어긋나(native는 inset, div는 순수 %) "핸들 오른쪽만 눌림"이 발생. native thumb을 직접 보이게 해도 증상 2는 그대로.
      -> 해결: native input을 폐기하고 커스텀 div 핸들 + 직접 pointer 드래그로 재구현(DualRangeSlider). 핸들 중심을 inset 보정 공식 calc(frac*100% + (1-2*frac)*R px)(R=핸들 반지름)로 배치 → 0%=R·100%=(100%-R)로 항상 트랙 안에 머묾. 채움 막대도 동일 공식이라 핸들 중심과 정확히 일치. 드래그는 trackRef.setPointerCapture + valueFromX(clientX) step 스냅.
      -> 원칙: 듀얼 핸들 슬라이더는 native input 2개 겹침으로 만들지 말 것. 브라우저별 thumb inset/이벤트 독점 quirk에 끝없이 부딪힌다. 커스텀 div 핸들 + pointer 이벤트 + inset 보정 % 공식이 유일하게 결정론적이며 브라우저 독립적이다.
+
+D-124. 1회성 "소진 플래그"를 set하는 경로만 있고 reset 경로가 없으면, 관련 리소스를 삭제했을 때 플래그가 남아 기회가 영구 소진되는 패턴 ✅ 해결
+     -> 증상: 어드민이 무료 체험 의뢰를 삭제하면 의뢰 row는 사라지는데 companies.free_trial_used=true가 남아, 기업이 plan='free_trial'(크레딧 0)인 채 새 무료 의뢰도 못 만들고 유료 전환 외 길이 막힘.
+     -> 원인: create_free_trial_mission이 free_trial_used=true로 set하는 경로만 존재(085), false로 되돌리는 경로가 코드 전체에 없음. 삭제·취소 어느 핸들러도 플래그를 안 건드림.
+     -> 해결: 영구 제거(삭제)를 "이 소진은 없던 일"로 보고 admin_delete_trial_mission RPC가 미션 DELETE + is_free_trial이면 free_trial_used=false 복구(091). 취소(재개 가능)는 복구 안 함 — 터미널 액션(삭제)에서만 복구.
+     -> 원칙: "1계정 1회" 같은 소진 플래그를 둘 때, set 경로를 만들면 그 자격을 발생시킨 리소스가 사라지는 경로(삭제)에서 reset(복구)도 함께 설계할 것. set만 있고 reset이 없으면 운영자의 정리 행위가 사용자 자격을 영구 박탈한다(set/reset 대칭성).
+
+D-125. 테이블에 UPDATE RLS 정책·활성화가 없으면 authenticated가 그 테이블의 "아무 컬럼이나" 직접 UPDATE할 수 있어, 결제/권한 컬럼이 클라에서 조작되는 패턴 ✅ 해결
+     -> 증상: 기업(authenticated)이 브라우저 콘솔에서 supabase.from('missions').update({trial_unlocked:true}) 또는 {trial_public_panel_ids:[전체]}로 무료 체험을 결제 없이 언락 가능. missions에 UPDATE RLS가 없어(인증된 전체 UPDATE 허용) 모든 컬럼이 무방비.
+     -> 원인: missions는 마이그레이션에 RLS 활성화·정책이 없음(대시보드 설정도 'UPDATE=인증된 전체'). 결제 컬럼(trial_unlocked·trial_public_panel_ids·credits_*·unlock_cost·is_free_trial)이 SECURITY DEFINER RPC로만 써야 하는데, 클라 직접 UPDATE도 그대로 통과.
+     -> 해결: BEFORE UPDATE 트리거(guard_mission_freemium_columns, 092) — 보호 컬럼이 변경 + current_user IN('authenticated','anon')이면 RAISE EXCEPTION. SECURITY DEFINER RPC는 소유자(postgres) 컨텍스트라 current_user가 달라 통과 → 정상 경로 보존. 어드민 지정 저장은 admin_set_trial_public RPC로 이전.
+     -> 원칙: 컬럼-레벨 권한이 필요한 곳에서 "그 컬럼은 RPC로만 쓰니 안전하겠지"는 틀림 — RLS가 없거나 USING(true)면 클라가 직접 그 컬럼을 UPDATE한다. 결제·권한 컬럼은 (a)SECURITY DEFINER RPC로만 변경 + (b)current_user 가드 트리거로 클라 직접 변경 차단을 함께 둬야 진짜로 막힌다. current_user(=실행 역할, 정의자 컨텍스트면 postgres)와 auth.uid()(=JWT 유저, 정의자여도 호출자 유지)의 차이를 이용해 "RPC 경유 vs 클라 직접"을 구분할 수 있다.
