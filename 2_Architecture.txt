@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / 085 free_trial freemium 진행 중 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
+최종 업데이트: 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / 085 free_trial freemium 진행 중 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -186,7 +186,8 @@ purit/
 │   ├── create-test-main-mission.mjs   (어드민 계정으로 테스트 메인 의뢰 생성 — SVG 이미지 5장 Storage 업로드 포함)
 │   ├── submit-greencart-feedbacks.mjs         (GreenCart 미션 전용 피드백·어노테이션 자동 제출)
 │   ├── submit-active-mission-feedbacks.mjs    (최신 활성 메인 의뢰에 패널 1~10 완전한 피드백 자동 제출 — 어노테이션·custom_answers·honor_points 포함)
-│   └── update-panel-profiles.mjs              (panel1~10 직군·경력 업데이트 — .env.local 필요)
+│   ├── update-panel-profiles.mjs              (panel1~10 직군·경력 업데이트 — .env.local 필요)
+│   └── delete-penguin-account.mjs            (service role로 테스트 계정 삭제 + 차단 자식행 진단 — 이름 '펭귄' 포함만 대상, NEEDLE 변경해 재활용. 088 미적용 환경의 수동 정리 폴백)
 ├── supabase/
 │   ├── migrations/  001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
 │   │                006(annotations) 007(subtest) 008(templates) 009(gamification)
@@ -351,6 +352,13 @@ purit/
 │                    구글: create_oauth_user_profile RPC 400 → OAuthCallback 오류화면 → 회사 미생성 → 재로그인 시 "초대 수락이 필요합니다" 오표시.
 │                  해결: ① companies_plan_check DROP ② 구 'free' 행 → 'free_trial' 정규화 UPDATE(미선행 시 "violated by some row") ③ 4종 CHECK 재생성('free_trial','starter','pro','enterprise')
 │                  ※ OAuthCallback.jsx 코드는 정상(무수정). 제약 1건 교체로 구글·이메일 가입·어드민 플랜 변경 3경로 동시 해소.
+│                088(cascade_user_delete: 유저 삭제 시 "Database error deleting user"(500) 해소 — D-120) ★ 신규
+│                  원인: auth.users 직접 참조 FK는 모두 CASCADE였으나, 그 아래 2차 사슬(companies/panels/missions → 자식)이
+│                    NO ACTION/SET NULL → 회사/패널/의뢰 row를 자식이 붙잡아 cascade 삭제 트랜잭션 전체 실패. GoTrue가 generic 500으로 뭉뚱그림.
+│                  처리: 회사·패널·의뢰가 소유한 하위 FK 20개를 ON DELETE CASCADE 전환
+│                    (companies 자식 9 + panels 자식 4 + missions 자식 7[ai_reports NO ACTION→CASCADE, 서브미션 응답/설정 6 SET NULL→CASCADE])
+│                  미변경: *_template_id_fkey(→question_templates) 3개는 의도된 SET NULL 유지 / feedbacks·feedback_annotations는 기존부터 CASCADE
+│                  ※ 087은 옆 작업(free_trial_unlock_by_career)이 선점 → 이 마이그레이션은 088로 부여 (번호 충돌 회피)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)
