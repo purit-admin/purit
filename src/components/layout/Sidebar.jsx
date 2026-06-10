@@ -622,6 +622,20 @@ export default function Layout({ role, children }) {
                 )}
               </div>
             )
+            : role === 'panel' && panelStatus === 'suspended' && !['/panel', '/panel/notifications', '/panel/bug-reports', '/panel/history'].includes(location.pathname)
+            ? (
+              <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+                <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+                  <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 정지되었습니다</h2>
+                  <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+                    관리자에 의해 계정 활동이 정지되었습니다.<br />
+                    정산 내역은 계속 확인하실 수 있습니다.
+                  </p>
+                  <Btn onClick={() => navigate('/panel/history')}>정산 내역 보기 →</Btn>
+                </Card>
+              </div>
+            )
             : children
           }
         </main>

@@ -358,3 +358,4 @@
 [니체-RJ-A] admin/Dashboard.jsx — 최근 패널 상태 배지가 rejected/banned를 "활성"으로 오표시. PanelManagement와 동일하게 rejected→'반려'/banned→'영구정지' 분기 추가 (D-35 형제 페이지 누락)  ✅
 [니체-RJ-B] panel/VerifyDocs.jsx — save_panel_verification_docs RPC가 FALSE 반환(082 상태 가드) 시 조용한 실패를 성공으로 처리. 반환값 캡처 + data===false 시 에러 표시·navigate 차단 추가 (D-37/규칙7)  ✅
 [니체-RJ-D] panel/Missions.jsx·ActiveMission.jsx — 페이지 자체 상태 게이트에 rejected/banned 미포함(방어 깊이). Missions 렌더에 rejected(사유+재제출)/banned 게이트 추가, ActiveMission load() 차단 조건을 비활성 전체(status!=='active')로 확장 + 렌더 상태별 분기  ✅
+[니체-RJ-E] Sidebar.jsx 패널 상태 게이트 — suspended(정지) 분기 누락으로 정지 패널이 /panel/profile·/panel/history URL 직접 접근 시 무방비 노출(들쭉날쭉 동작). rejected/banned 추가 시 수평전개 누락(078부터 잔존). Sidebar 게이트에 suspended 분기 추가 — 정산내역(/panel/history)·알림·버그신고만 허용, 나머지(프로필 포함)는 정지카드(정산 내역 보기 버튼)로 통일. 제품 결정: 정지 중에도 본인 정산내역은 열람 가능 (사용자 승인). History.jsx 무수정(Sidebar 허용 경로로 통과) / Profile.jsx 무수정(Sidebar가 자동 차단)  ✅

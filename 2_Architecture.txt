@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-12 (083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
+최종 업데이트: 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -83,7 +83,7 @@ purit/
 │   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   │              showBugReport state + "버그/불편 신고" 버튼(로그아웃 버튼 위, 전 포털 공통) + BugReportModal 렌더
 │   │   │              어드민 NAV '운영' 그룹 순서: 기업 관리 → 패널 관리 → 미션 관리 → 피드백 관리(구 'Purit Filter') → 수익 & 정산 → 버그 리포트 ★
-│   │   │              ★ 패널 상태 게이트 (Layout <main> 블록) ★ pending/rejected/banned (082 확장):
+│   │   │              ★ 패널 상태 게이트 (Layout <main> 블록) ★ pending/rejected/banned/suspended (082 확장 + RJ-E):
 │   │   │                허용(게이트 통과) 경로 공통: /panel · /panel/notifications · /panel/bug-reports
 │   │   │                  (거절/차단 패널도 거절 알림 확인 + 버그/이의신청 답변 열람 가능하도록 082에서 추가)
 │   │   │                panelStatusLoaded=false + (허용+/panel/verify-docs) 외 경로 → null 렌더 (로딩 대기)
@@ -92,6 +92,10 @@ purit/
 │   │   │                panelStatus==='rejected' + (허용+/panel/verify-docs) 외 경로 → 📝 반려 Card + rejectionReason + "서류 재제출하기 →"
 │   │   │                  (대시보드 panel/Dashboard.jsx 반려 블록과 동일 마크업 — page-wrap maxWidth 900, Card padding 48px 24px)
 │   │   │                panelStatus==='banned' + (허용) 외 경로 → 🚫 영구 정지 Card (재제출 버튼 없음, verify-docs도 차단)
+│   │   │                panelStatus==='suspended' + (허용 + /panel/history) 외 경로 → 🚫 정지 Card + "정산 내역 보기 →" Btn ★ RJ-E
+│   │   │                  제품 결정: 정지 패널도 본인 정산내역(/panel/history)은 열람 가능 → suspended 전용 허용 경로에 /panel/history 추가
+│   │   │                  /panel(대시보드)는 허용 → panel/Dashboard.jsx 자체 suspended 화면(suspend_until D-day) 표시 / 프로필·미션·미션수행·verify-docs는 정지 Card로 차단
+│   │   │                  History.jsx·Profile.jsx는 개별 상태 게이트 없음 — 전자는 Sidebar 허용 경로로 통과, 후자는 Sidebar가 자동 차단 (단일 파일 수정)
 │   │   │                panelRejectionReason state: 패널 status 로더 select에 rejection_reason 포함
 │   │   │                ※ 개별 페이지(Missions.jsx·ActiveMission.jsx)의 상태 게이트와 다중 방어 구조
 │   │   │                  Sidebar 레벨이 1차 차단, 개별 페이지 게이트가 URL 직접 접근 방어(2차)
