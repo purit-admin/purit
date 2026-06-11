@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-13 (096/097 구독 결제 재설계 — 플랜 변경 누적(grant += / 다운그레이드 가드 / 결제일 앵커) + 월 갱신 renew_due_subscriptions(매월 리셋·구매분 LEAST 보존, pg_cron) + companies 4컬럼(addon_credits·plan_started_at·next_billing_at·plan_billing_cycle) / 단일지갑+addon 트래커 파생분리로 월간/추가 구분표시·확인모달(credits.js·Dashboard·Pricing·PanelTargetStep·등록4폼) / PaymentModal billingCycle·"추가 적립" 문구 / Pricing 다운그레이드 버튼 차단·누적 미러 / 097 핫픽스: admin_change_plan addon=0·renew 원자화 / D-129 / NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스) / 2026-06-13 (095 패널 최상위 등급 "C레벨/임원" → "헤드" 개명 + 연차 구간 전면 재정의 — 주니어2~4(1.0×)·미들5~7(1.5×)·시니어8~14(2.0×)·헤드15+(3.0×) / 헤드는 어드민 수동(is_executive 체크박스) 폐지·연차 15+ 자동 부여(experience_years≥15) / 정산 배율·언락 크레딧은 구 C레벨과 동일 유지(3.0×·언락6) / 내부 key 'clevel' 유지·한국어 라벨만 '헤드' / experience TEXT는 헤드도 'N년'으로 저장(구 '임원' 특수텍스트 폐지)·배율/크레딧 연차 숫자 기반 통일 / RPC 5개 재정의(admin_confirm 2-param·auto_increment·complete_mission_and_refund·recalc_mission_consumed·unlock_free_trial_mission) + 기존 임원<15 강등 백필 / honorLevels·PanelTargetStep·CAREER_LABEL 4파일·Pricing·ChargeOptionsModal·PanelManagement·Profile / 연차→배율 밴드 4중복(클라+서버 3RPC) 동시 변경 필수 D-127) / 2026-06-13 (094 무료 체험 전환 3종 — ①자동 공개 2명을 점수(호평) 상위로 선별(서버 unlock RPC·Results·admin/TrialMissions 통일, D-35) ②30% 첫 언락 할인+48h 마감(trial_results_seen_at 앵커·touch_trial_results_seen·정가 취소선+카운트다운, D-121) ③잠긴쪽 티저(잠긴 N명 중 M명 ≤2점 치명적 지적·약점 축 지목, 클라 표시) / honorLevels 할인 상수·missions 보호컬럼에 seen_at 추가) / 2026-06-13 (093 무료 체험 의뢰 '취소' 복구 — admin_set_trial_mission_status: 취소→free_trial_used 복구·재개→재소진(어드민 경로 전용, 기업 조기종료는 미복구) / 메인 의뢰 검증 포커스에 'A/B 소재 비교' 추가 + 패널 미션 브리핑·이미지 피드백 화면에 검증 포커스(assets) 뱃지 노출 / 기업 포털 무료 첫 의뢰 '🎁 체험 의뢰' 뱃지 — Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (체험 의뢰 관리 고도화 089~092 — trial_public_panel_ids 어드민 지정 공개·언락 메인1.5배(090)·admin_delete_trial_mission 무료기회 복구(091,D-124)·결제컬럼 보호 트리거+admin_set_trial_public(092,D-125)·어드민 운영그룹 체험관리 맨 위 / Results 추가질문 응답만 잠금·텍스트미션 잠금 동등·공개 우선 정렬) / 2026-06-12 (기업 사이드바 '자산' 그룹 순서 변경 — 피드백 결과 최상단 / submit-penguin-trial-feedbacks.mjs 테스트 스크립트 추가) / 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
+최종 업데이트: 2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff_purit_landing 이식 / src/pages/landing.css 신규(purit.css를 .purit-landing 하위로 전면 스코프 — index.css :root 토큰 --bg-2·--accent-dim 등 + .expert-tag·.mono 클래스 충돌 방지, 키프레임 pl-* 리네임 D-131) / index.html Pretendard CDN 추가 / Landing.jsx 재작성: 내부 컴포넌트 Radar(선언형 SVG)·Counter·ExpertCloud(rAF) + nav scrolled·모바일 메뉴·reveal IO / "작동 방식(#how)" 섹션만 기존 StepAnimations 유지(새 파일의 "신청부터 결과까지 3단계"는 미채택) / ExpertPanelCloud.jsx는 Landing에서 미사용 전환(파일 유지) / 카피 기업고객 관점 정리: 시간 48시간 통일·시니어/헤드급·숫자밴드 전환율40%·광고비800만원·후기 수치·CTA 안심 라인) / 2026-06-13 (096/097 구독 결제 재설계 — 플랜 변경 누적(grant += / 다운그레이드 가드 / 결제일 앵커) + 월 갱신 renew_due_subscriptions(매월 리셋·구매분 LEAST 보존, pg_cron) + companies 4컬럼(addon_credits·plan_started_at·next_billing_at·plan_billing_cycle) / 단일지갑+addon 트래커 파생분리로 월간/추가 구분표시·확인모달(credits.js·Dashboard·Pricing·PanelTargetStep·등록4폼) / PaymentModal billingCycle·"추가 적립" 문구 / Pricing 다운그레이드 버튼 차단·누적 미러 / 097 핫픽스: admin_change_plan addon=0·renew 원자화 / D-129 / NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스) / 2026-06-13 (095 패널 최상위 등급 "C레벨/임원" → "헤드" 개명 + 연차 구간 전면 재정의 — 주니어2~4(1.0×)·미들5~7(1.5×)·시니어8~14(2.0×)·헤드15+(3.0×) / 헤드는 어드민 수동(is_executive 체크박스) 폐지·연차 15+ 자동 부여(experience_years≥15) / 정산 배율·언락 크레딧은 구 C레벨과 동일 유지(3.0×·언락6) / 내부 key 'clevel' 유지·한국어 라벨만 '헤드' / experience TEXT는 헤드도 'N년'으로 저장(구 '임원' 특수텍스트 폐지)·배율/크레딧 연차 숫자 기반 통일 / RPC 5개 재정의(admin_confirm 2-param·auto_increment·complete_mission_and_refund·recalc_mission_consumed·unlock_free_trial_mission) + 기존 임원<15 강등 백필 / honorLevels·PanelTargetStep·CAREER_LABEL 4파일·Pricing·ChargeOptionsModal·PanelManagement·Profile / 연차→배율 밴드 4중복(클라+서버 3RPC) 동시 변경 필수 D-127) / 2026-06-13 (094 무료 체험 전환 3종 — ①자동 공개 2명을 점수(호평) 상위로 선별(서버 unlock RPC·Results·admin/TrialMissions 통일, D-35) ②30% 첫 언락 할인+48h 마감(trial_results_seen_at 앵커·touch_trial_results_seen·정가 취소선+카운트다운, D-121) ③잠긴쪽 티저(잠긴 N명 중 M명 ≤2점 치명적 지적·약점 축 지목, 클라 표시) / honorLevels 할인 상수·missions 보호컬럼에 seen_at 추가) / 2026-06-13 (093 무료 체험 의뢰 '취소' 복구 — admin_set_trial_mission_status: 취소→free_trial_used 복구·재개→재소진(어드민 경로 전용, 기업 조기종료는 미복구) / 메인 의뢰 검증 포커스에 'A/B 소재 비교' 추가 + 패널 미션 브리핑·이미지 피드백 화면에 검증 포커스(assets) 뱃지 노출 / 기업 포털 무료 첫 의뢰 '🎁 체험 의뢰' 뱃지 — Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (체험 의뢰 관리 고도화 089~092 — trial_public_panel_ids 어드민 지정 공개·언락 메인1.5배(090)·admin_delete_trial_mission 무료기회 복구(091,D-124)·결제컬럼 보호 트리거+admin_set_trial_public(092,D-125)·어드민 운영그룹 체험관리 맨 위 / Results 추가질문 응답만 잠금·텍스트미션 잠금 동등·공개 우선 정렬) / 2026-06-12 (기업 사이드바 '자산' 그룹 순서 변경 — 피드백 결과 최상단 / submit-penguin-trial-feedbacks.mjs 테스트 스크립트 추가) / 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -180,9 +180,9 @@ purit/
 │   │                    - 무한루프 없음: 필터 후 재실행 시 hasProLevels=false → return early
 │   │                  ★ 환불 안내 배너(초록 강조 박스): 의뢰 등록 시 최댓값 선차감 → 차액 환불 흐름 명시
 │   │                    exports: default PanelTargetStep, calcCredits, calcMinCredits(미export), calcPanelPayout, CAREER_LEVELS, MAIN_BASE_PAYOUT, SUB_BASE_PAYOUT
-│   │                ExpertPanelCloud.jsx (Landing.jsx 섹션 6.5 전용 — 전문가 경력 플로팅 애니메이션) ★ 신규
+│   │                ExpertPanelCloud.jsx (구 Landing 전문가 클라우드 — 2026-06-13 랜딩 재설계 후 Landing.jsx에서 미사용, 파일은 유지)
 │   ├── landing/
-│   │                StepAnimations.jsx (Landing.jsx 작동방식 섹션 6 전용 — Step1/2/3 루핑 CSS 애니메이션)
+│   │                StepAnimations.jsx (Landing.jsx "작동 방식(#how)" 섹션 전용 — Step1/2/3 루핑 CSS 애니메이션, 재설계 후에도 유지)
 │   │                  exports: Step1Animation(의뢰 등록 폼 목업) / Step2Animation(패널 매칭) / Step3Animation(결과 대시보드)
 │   │                  구현: usePhases(durations) 커스텀 훅 — setTimeout 체인 기반 페이즈 상태머신 (D1 8단계/D2 10단계/D3 7단계)
 │   │                  CSS keyframes: s1_chipPop·s1_fadeIn·s1_blink·s1_btnPulse / s2_slideIn·s2_checkPop·s2_counterPop / s3_fillBar·s3_drawR·s3_slideUp·s3_fadeIn
@@ -197,6 +197,12 @@ purit/
 │   │                       모바일 ≤640px: font-size:12px, height:240px
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, OAuthCallback.jsx (/oauth/callback 공개) ★
+│       │   ★ Landing.jsx (2026-06-13 디자인 전면 교체): design_handoff_purit_landing 이식. 전용 src/pages/landing.css import.
+│       │     landing.css = purit.css를 .purit-landing 하위로 전면 스코프(전역 :root 토큰/클래스 충돌 방지 — D-131), 키프레임 pl-* 리네임.
+│       │     index.html에 Pretendard CDN 추가(랜딩 전용). 페이지 루트 <div className="purit-landing"> 래퍼로 모든 토큰/스타일 격리.
+│       │     내부 컴포넌트: Radar(선언형 SVG, purit.js buildRadar 포팅) / Counter(스크롤 카운트업, runCounter 포팅) /
+│       │       ExpertCloud(rAF 플로팅 태그 20개, 호버 일시정지) / useFadeIn·reveal IntersectionObserver / nav scrolled·모바일 메뉴 state.
+│       │     "작동 방식(#how)" 섹션만 기존 코드 그대로 유지(StepAnimations.jsx 사용) — 새 파일의 "신청부터 결과까지 3단계"는 미채택.
 │       ├── company/  (14개 — 라우트 목록 참조)
 │       ├── panel/    (5개 — 라우트 목록 참조)
 │       └── admin/    (8개 — 라우트 목록 참조)
@@ -540,6 +546,9 @@ purit/
   ※ Sidebar.jsx: isMobile state(matchMedia), mobileOpen state, Menu/X 아이콘 (lucide-react)
 
   ### 랜딩 그리드 (Landing.jsx)
+  ※ 2026-06-13 랜딩 디자인 전면 교체 이후: 새 Landing.jsx는 src/pages/landing.css(.purit-landing 스코프)의 자체 클래스(.nav·.hero·.num-grid·.feat-grid·.cloud 등)를 사용.
+    아래 index.css의 .landing-* 유틸 중 현재 Landing이 직접 쓰는 것은 "작동 방식(#how)" 섹션의 .landing-section·.landing-grid-3-steps뿐(기존 섹션 유지분).
+    나머지 .landing-grid-4·.landing-hero·.landing-nav-inner 등은 레거시(미사용)이나 제거하지 않고 보존.
   .landing-nav-inner    — 네비 내부 max-width 컨테이너
   .landing-hero         — 히어로 섹션 패딩 (모바일: 56px 16px)
   .landing-section      — 일반 섹션 패딩 (모바일: 56px 16px)

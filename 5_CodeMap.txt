@@ -1,6 +1,6 @@
 ================================================================
 5_CodeMap.txt — Purity MVP 페이지·컴포넌트별 구현 상세 (CodeMap)
-최종 업데이트: 2026-06-13 (등록 4폼 새로고침 대비 localStorage 자동저장+확인 후 복원[B안] — draftKey 회사별 격리·신규작성만 저장·restorable 배너(restore/discardLocalDraft)·clearLocalDraft 4경로(제출/DB저장/저장없이나가기/새로시작)·실패 시 보존 D-130 / 제출 확인 모달도 creditsChargedOnSubmit 분기 — isActiveEdit이면 소모액 표 대신 "추가 차감 없음" 안내+"수정 완료" D-128 보강) / 2026-06-13 (096 NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스(INCOME_STOPS·fmtIncomeRange·restoreIncome·incomeOverride) / 결제 재설계 — 등록 4폼(NewMission·Preference·Pricing·ColdEmail) 제출 확인 모달에 '추가 크레딧 사용 안내'(needsAddonConfirm·splitCredits·creditAddon state, 월간_잔여<cost≤총잔액 시 표시) + PanelTargetStep addonBalance prop·Dashboard 잔여크레딧 카드 '월간·추가' 분리, D-129) / 2026-06-13 (active 의뢰 수정 크레딧 재차감 방지 D-128 — 메인 isDraftMode/서브 editIsDraft로 draft·active 구분, creditsChargedOnSubmit로 제출 reserve 스킵·게이트·notEnough·PanelTargetStep chargeOnSubmit·saveDraft 가드 / PanelTargetStep freeTrialAvailable·chargeOnSubmit prop / 무료체험 뱃지 freeTrialAvailable 게이트로 소진 후 소멸) / 2026-06-13 (Results 무료 체험 094 — 점수기반 공개 2명 자동 선별·잠긴쪽 티저(criticalCount·weakestAxis)·30% 첫 언락 할인+48h 카운트다운(nowTick·touch_trial_results_seen)) / 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
+최종 업데이트: 2026-06-13 (Landing.jsx 디자인 전면 교체 — design_handoff 이식 / 전용 landing.css(.purit-landing 스코프 D-131)·Pretendard / 내부 컴포넌트 Radar·Counter·ExpertCloud + nav scrolled·모바일메뉴·reveal IO / "작동 방식(#how)"만 StepAnimations 기존 유지 / 구 ExpertPanelCloud 미사용) / 2026-06-13 (등록 4폼 새로고침 대비 localStorage 자동저장+확인 후 복원[B안] — draftKey 회사별 격리·신규작성만 저장·restorable 배너(restore/discardLocalDraft)·clearLocalDraft 4경로(제출/DB저장/저장없이나가기/새로시작)·실패 시 보존 D-130 / 제출 확인 모달도 creditsChargedOnSubmit 분기 — isActiveEdit이면 소모액 표 대신 "추가 차감 없음" 안내+"수정 완료" D-128 보강) / 2026-06-13 (096 NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스(INCOME_STOPS·fmtIncomeRange·restoreIncome·incomeOverride) / 결제 재설계 — 등록 4폼(NewMission·Preference·Pricing·ColdEmail) 제출 확인 모달에 '추가 크레딧 사용 안내'(needsAddonConfirm·splitCredits·creditAddon state, 월간_잔여<cost≤총잔액 시 표시) + PanelTargetStep addonBalance prop·Dashboard 잔여크레딧 카드 '월간·추가' 분리, D-129) / 2026-06-13 (active 의뢰 수정 크레딧 재차감 방지 D-128 — 메인 isDraftMode/서브 editIsDraft로 draft·active 구분, creditsChargedOnSubmit로 제출 reserve 스킵·게이트·notEnough·PanelTargetStep chargeOnSubmit·saveDraft 가드 / PanelTargetStep freeTrialAvailable·chargeOnSubmit prop / 무료체험 뱃지 freeTrialAvailable 게이트로 소진 후 소멸) / 2026-06-13 (Results 무료 체험 094 — 점수기반 공개 2명 자동 선별·잠긴쪽 티저(criticalCount·weakestAxis)·30% 첫 언락 할인+48h 카운트다운(nowTick·touch_trial_results_seen)) / 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
 ================================================================
 
 ※ 조건부 로드 문서. 특정 페이지/컴포넌트 파일을 수정·디버깅하기 전에만 Read 도구로
@@ -481,12 +481,27 @@
 - 이유: File 객체 sessionStorage 직렬화 불가(D-95) + OAuth 리다이렉트 시 React state 소실
 
 ================================================================
-## Landing.jsx
+## Landing.jsx  ★ 2026-06-13 디자인 전면 교체 (design_handoff_purit_landing 이식)
 ================================================================
 
+- 전용 스타일: import './landing.css' (purit.css를 .purit-landing 하위로 전면 스코프 — D-131). 루트 <div className="purit-landing">로 모든 토큰/스타일 격리.
+  Pretendard 폰트는 index.html CDN. 클래스 기반 마크업(.nav·.hero·.num-grid·.feat-grid·.filter·.cloud·.dims·.compare·.plan-grid·.cta·.footer 등) 사용.
 - useAuth() user·role 로드 → DASH_PATH({ company:'/company', panel:'/panel', admin:'/admin' }) 매핑
 - 네비 우측 버튼: 비로그인 → "로그인"+"무료로 시작하기" / 로그인 → "대시보드" 단일 버튼
-- 히어로·하단CTA 버튼: 비로그인 → navigate('/signup?role=company') / 로그인 → navigate(dashPath)
+  · nav 링크(이용 방법#how / Purit Filter#filter / 참여 전문가#panel / 요금#pricing): goTo(id)로 앵커 스무스 스크롤
+  · navScrolled state(scroll>8 → .scrolled 클래스) / mobileOpen state(햄버거 .mobile-menu 토글)
+- 히어로·CTA·요금 버튼: startFree() = navigate(user ? dashPath : '/signup?role=company') / 로그인 시 라벨 "대시보드로 이동"
+- 내부 컴포넌트(파일 상단 정의):
+  · Radar({large}) — 선언형 SVG 레이더(RADAR_DIMS 5축 명4.2/관3.8/가4.1/차3.5/신3.9). purit.js buildRadar 포팅. large=true면 축 라벨 표시(dims 섹션), false면 히어로 카드용.
+  · Counter({to}) — 스크롤 진입(IntersectionObserver) 시 0→to 카운트업(rAF, ease-out cubic). purit.js runCounter 포팅. reduce-motion 시 즉시 표시.
+    숫자밴드 4칸: 40% 평균 전환율 개선 / 100% 사람이 직접 평가 / 48시간 평균 결과 도착 / 800만원 평균 광고비 절감 (수치 placeholder)
+  · ExpertCloud — CREDS 20개 직함 태그를 .cloud 박스에 5×4 격자+jitter(CLOUD_POS) 배치, rAF 단일 루프로 페이드(T_CYCLE=20s·STAGGER=1s·T_IN/HOLD/OUT). 호버 시 해당 태그 누적 정지(paused/pauseStart). tagsRef 배열로 DOM 직접 조작(React state 미사용). purit.js expert cloud 포팅.
+  · useFadeIn(delay) — "작동 방식" 섹션 전용 기존 페이드인 훅(유지).
+- reveal: 루트 내 .reveal 요소를 IntersectionObserver로 .in 토글(히어로 .accent 밑줄 드로잉 포함). IO 미지원 시 전체 .in 폴백.
+- "작동 방식(#how)" 섹션만 기존 코드 그대로 유지 — landing-section·landing-grid-3-steps 클래스 + StepAnimations(Step1/2/3Animation) 사용.
+  새 핸드오프의 "신청부터 결과까지 3단계"(정적 목업)는 미채택(제품 결정). 색상은 이 섹션 전용 인라인 상수(BG/BG3/PRIMARY/TEXT/TEXT2) 유지.
+- 푸터 링크: 기업으로 가입→/signup?role=company / 전문가로 참여→/signup?role=panel / 로그인→/login / 제품·회사 링크는 goTo 앵커. (구 법적고지 모달 제거됨)
+- 구 ExpertPanelCloud.jsx import 제거(파일은 유지·미사용).
 
 ================================================================
 ## ShareResult.jsx (/share/:token 공개)

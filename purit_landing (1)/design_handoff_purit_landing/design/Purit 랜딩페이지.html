@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Purit — 진짜 전문가가 당신의 광고를 직접 봐주는 서비스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="assets/purit.css" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#top" aria-label="Purit 홈">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <path d="M16 2.5 28.5 16 16 29.5 3.5 16 16 2.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M16 9 23 16 16 23 9 16 16 9Z" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="brand-name">Purit</span>
+    </a>
+    <nav class="nav-links" aria-label="주요 메뉴">
+      <a href="#how">이용 방법</a>
+      <a href="#filter">사람이 직접</a>
+      <a href="#panel">참여 전문가</a>
+      <a href="#pricing">요금</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-ghost">로그인</a>
+      <a href="#" class="btn btn-primary">무료로 시작하기</a>
+    </div>
+    <button class="nav-burger" id="burger" aria-label="메뉴 열기" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobileMenu" hidden>
+    <a href="#how">이용 방법</a>
+    <a href="#filter">사람이 직접</a>
+    <a href="#panel">참여 전문가</a>
+    <a href="#pricing">요금</a>
+    <a href="#" class="btn btn-primary btn-block">무료로 시작하기</a>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-grid container">
+    <div class="hero-copy">
+      <span class="eyebrow reveal">AI 말고, 사람이 평가해요</span>
+      <h1 class="hero-title reveal">고객의 뒤로가기,<br />
+<em class="accent">진짜 전문가</em>가<br />
+<span class="nowrap">짚어줍니다</span></h1>
+      <p class="hero-sub reveal">현직 마케팅 전문가들이 당신의 광고·페이지를 직접 봅니다.<br />
+AI가 아닌, 진짜 사람들입니다.</p>
+      <div class="hero-actions reveal">
+        <a href="#" class="btn btn-primary btn-lg">무료로 시작하기</a>
+        <a href="#how" class="btn btn-line btn-lg">이용 방법 보기</a>
+      </div>
+      <p class="hero-foot reveal">신용카드 없이 시작
+·
+24시간 안에 결과
+·
+100% 사람이 직접</p>
+    </div>
+
+    <!-- LIVE PRODUCT MOCKUP -->
+    <div class="hero-visual reveal">
+      <div class="result-card">
+        <div class="rc-head">
+          <div>
+            <span class="rc-tag mono">페이지 평가</span>
+            <h3 class="rc-title">PricePilot</h3>
+          </div>
+          <span class="rc-pass"><span class="dot-check"></span>전문가 10명 평가</span>
+        </div>
+        <div class="rc-body">
+          <div class="rc-radar">
+            <div class="radar-host" data-radar></div>
+            <span class="rc-overall"><strong>3.9</strong><small>/ 5.0</small></span>
+          </div>
+          <div class="rc-bars">
+            <div class="bar-row"><span>명확성</span><div class="bar"><i style="--w:84%"></i></div><b>4.2</b></div>
+            <div class="bar-row"><span>관련성</span><div class="bar"><i style="--w:76%"></i></div><b>3.8</b></div>
+            <div class="bar-row"><span>가치</span><div class="bar"><i style="--w:82%"></i></div><b>4.1</b></div>
+            <div class="bar-row"><span>차별화</span><div class="bar"><i style="--w:70%"></i></div><b>3.5</b></div>
+            <div class="bar-row"><span>신뢰</span><div class="bar"><i style="--w:78%"></i></div><b>3.9</b></div>
+          </div>
+        </div>
+        <div class="rc-comment">
+          <div class="rc-avatar mono">전문</div>
+          <div>
+            <p class="rc-q">"첫 화면 메시지는 힘있는데, 구매 버튼 근처에 믿음을 주는 요소가 없어서 고객이 망설일 것 같아요."</p>
+            <span class="rc-meta mono">10년차 마케팅 전문가</span>
+          </div>
+        </div>
+      </div>
+      <div class="float-chip chip-1">
+        <span class="dot-check"></span> 사람이 직접 본 평가
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NUMBERS ============ -->
+<section class="numbers">
+  <div class="container num-grid">
+    <div class="num reveal">
+      <span class="num-val"><b data-count="48">0</b><i>시간</i></span>
+      <p>평균 결과 도착 시간</p>
+    </div>
+    <div class="num reveal">
+      <span class="num-val"><b data-count="100">0</b><i>%</i></span>
+      <p>사람이 직접 평가</p>
+    </div>
+    <div class="num reveal">
+      <span class="num-val"><b data-count="5">0</b><i>가지</i></span>
+      <p>평가 기준</p>
+    </div>
+    <div class="num reveal">
+      <span class="num-val"><b>0</b><i>% AI</i></span>
+      <p>AI가 쓴 답변</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROBLEM ============ -->
+<section class="problem container" id="problem">
+  <div class="sec-head reveal">
+    <span class="eyebrow">왜 Purit인가</span>
+    <h2 class="sec-title">"이 광고, 괜찮은 걸까?"<br />그 고민, 사람이 풀어줍니다.</h2>
+    <p class="sec-lead">감과 AI로 정하기엔, 진짜 사람의 목소리가 빠져 있죠.</p>
+  </div>
+  <div class="prob-grid">
+    <div class="prob-card reveal">
+      <span class="prob-x">×</span>
+      <h3>우리 회사 내 의견</h3>
+      <p>이미 편견이 생겼어요. 모두 좋다고 했는데, 실제 결과는 좋지 않아요.</p>
+    </div>
+    <div class="prob-card reveal">
+      <span class="prob-x">×</span>
+      <h3>아무나 설문</h3>
+      <p>우리 고객도 전문가도 아닌 답변.<br />알맹이가 없어요.</p>
+    </div>
+    <div class="prob-card reveal">
+      <span class="prob-x">×</span>
+      <h3>직접 비교 테스트</h3>
+      <p>방문자도, 몇 주의 시간도 필요해요.<br />그동안 고객은 계속 떠나고요.</p>
+    </div>
+    <div class="prob-card prob-card--win reveal">
+      <span class="dot-check big"></span>
+      <h3>Purit</h3>
+      <p>우리 분야의 진짜 전문가가,<br />진짜 사람의 눈으로 이틀 안에.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES (4 test types) ============ -->
+<section class="features container" id="features">
+  <div class="sec-head reveal">
+    <span class="eyebrow">무엇을 평가하나요</span>
+    <h2 class="sec-title">한 곳에서, 네 가지를 평가해요</h2>
+    <p class="sec-lead">무엇을 올리든, 점수로 결과를 보여드려요.</p>
+  </div>
+  <div class="feat-grid">
+    <article class="feat-card reveal">
+      <span class="feat-no mono">01</span>
+      <h3>홍보 페이지 종합 평가</h3>
+      <p>홍보 페이지를 다섯 가지 기준으로 꼼꼼히. 전문가가 화면에 직접 의견을 남겨요.</p>
+      <div class="feat-mock">
+        <div class="mock-shot">
+          <span class="ann ann-1 mono">1</span>
+          <span class="ann ann-2 mono">2</span>
+          <span class="ann ann-3 mono">3</span>
+          <div class="mock-line w70"></div>
+          <div class="mock-line w40"></div>
+          <div class="mock-btn"></div>
+          <div class="mock-line w55"></div>
+          <div class="mock-line w35"></div>
+        </div>
+        <ul class="feat-dims">
+          <li>명확성</li><li>관련성</li><li>가치</li><li>차별화</li><li>신뢰</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="feat-card reveal">
+      <span class="feat-no mono">02</span>
+      <h3>두 가지 안 비교</h3>
+      <p>두 버전 중 이기는 쪽을, 이유까지 함께.</p>
+      <div class="ab-mock">
+        <div class="ab-side"><span class="mono">A</span><i style="--h:52%"></i><b>38%</b></div>
+        <div class="ab-side ab-win"><span class="mono">B</span><i style="--h:90%"></i><b>62%</b></div>
+      </div>
+    </article>
+
+    <article class="feat-card reveal">
+      <span class="feat-no mono">03</span>
+      <h3>가격 페이지 평가</h3>
+      <p>가격이 적당하게 느껴지는지 알아봐요.</p>
+      <div class="mini-stat">
+        <div><span class="mono">너무 비싸요</span><div class="bar sm"><i style="--w:72%"></i></div></div>
+        <div><span class="mono">구매 버튼 누르고 싶어요</span><div class="bar sm"><i style="--w:64%"></i></div></div>
+      </div>
+    </article>
+
+    <article class="feat-card reveal">
+      <span class="feat-no mono">04</span>
+      <h3>이메일 평가</h3>
+      <p>보내기 전에, 답장하고 싶은 이메일인지 확인해요.</p>
+      <div class="mail-mock">
+        <div class="mail-line w80"></div>
+        <div class="mail-line w60"></div>
+        <div class="mail-line w90"></div>
+        <span class="mail-reply"><span class="dot-check"></span> 답장하고 싶어요 68%</span>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section class="how" id="how">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="eyebrow">이용 방법</span>
+      <h2 class="sec-title">신청부터 결과까지, 3단계</h2>
+      <p class="sec-lead">복잡한 설정 없이. 올리고, 기다리고, 받으세요.</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-step reveal">
+        <span class="how-no mono">STEP 1</span>
+        <h3>신청하기</h3>
+        <p>광고나 페이지를 올리고, 원하는 고객만 정하면 끝이에요.</p>
+        <div class="how-mock how-mock-1">
+          <span class="hm-chip">소프트웨어</span>
+          <div class="hm-field"><span class="mono">서비스명</span><div class="hm-input">PricePilot<i class="caret"></i></div></div>
+          <div class="hm-persona">
+            <span>20~40세</span><span>월 300만원+</span><span>마케터</span>
+          </div>
+        </div>
+      </div>
+      <div class="how-step reveal">
+        <span class="how-no mono">STEP 2</span>
+        <h3>전문가 연결</h3>
+        <p>조건에 맞는 전문가가 자동으로 연결돼요.</p>
+        <div class="how-mock how-mock-2">
+          <div class="match-row"><span class="m-av mono">광고</span><span class="m-name">광고 전문가</span><span class="dot-check"></span></div>
+          <div class="match-row"><span class="m-av mono">마케</span><span class="m-name">마케팅 전문가</span><span class="dot-check"></span></div>
+          <div class="match-row"><span class="m-av mono">분석</span><span class="m-name">데이터 분석가</span><span class="dot-check"></span></div>
+          <span class="match-count mono">10 / 10명 연결 완료</span>
+        </div>
+      </div>
+      <div class="how-step reveal">
+        <span class="how-no mono">STEP 3</span>
+        <h3>결과 받기</h3>
+        <p>사람이 직접 고른 평가만 모아 한눈에. 개선 방법까지 함께 드려요.</p>
+        <div class="how-mock how-mock-3">
+          <div class="hm-tabs"><span class="active">종합</span><span>명확성</span><span>가치</span></div>
+          <div class="hm-result">
+            <div class="bar"><i style="--w:84%"></i></div>
+            <div class="bar"><i style="--w:70%"></i></div>
+            <div class="bar"><i style="--w:78%"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PURIT FILTER (dark) ============ -->
+<section class="filter" id="filter">
+  <div class="container filter-inner">
+    <div class="filter-copy reveal">
+      <span class="eyebrow eyebrow-on-dark">왜 믿을 수 있나</span>
+      <h2 class="sec-title on-dark">AI가 쏟아지는 시대,<br />사람이 직접 걸러내요</h2>
+      <p class="sec-lead on-dark">성의 없는 답변, AI가 쓴 듯한 답변은 걸러내요. 진짜 사람이 남긴 평가만 전달되죠. 이 장치를 Purit Filter라고 불러요.</p>
+      <ul class="filter-list on-dark">
+        <li><span class="dot-check"></span> AI가 쓴 것 같은 답변은 자동으로 걸러요</li>
+        <li><span class="dot-check"></span> 구체적이고 도움 되는 답변인지 점검해요</li>
+        <li><span class="dot-check"></span> 진짜 사람이 남긴 평가만 통과해요</li>
+      </ul>
+    </div>
+    <div class="filter-visual reveal" aria-hidden="true">
+      <div class="gate">
+        <div class="gate-in mono">들어온 평가</div>
+        <div class="gate-rows">
+          <div class="gate-row pass"><span class="dot-check"></span><i>구체적이고 도움돼요</i><b class="mono">82</b></div>
+          <div class="gate-row pass"><span class="dot-check"></span><i>꼼꼼하게 평가했어요</i><b class="mono">71</b></div>
+          <div class="gate-row fail"><span class="x">×</span><i>AI가 쓴 것 같아요</i><b class="mono">38</b></div>
+          <div class="gate-row pass"><span class="dot-check"></span><i>골고루 평가했어요</i><b class="mono">69</b></div>
+          <div class="gate-row fail"><span class="x">×</span><i>너무 짧아요</i><b class="mono">41</b></div>
+        </div>
+        <div class="gate-out"><span class="dot-check"></span> 통과한 평가만 전달돼요</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EXPERT PANEL ============ -->
+<section class="panel" id="panel">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="eyebrow">참여 전문가</span>
+      <h2 class="sec-title">어떤 분들이 평가하나요?</h2>
+      <p class="sec-lead">명함과 링크드인으로 신원을 100% 확인했어요. 딱 맞는 분만 연결해드려요.</p>
+    </div>
+    <div class="cloud reveal" id="cloud" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- ============ 5 DIMENSIONS ============ -->
+<section class="dims container">
+  <div class="dims-grid">
+    <div class="dims-copy reveal">
+      <span class="eyebrow">5가지 기준</span>
+      <h2 class="sec-title">감이 아니라, 5가지 기준으로</h2>
+      <p class="sec-lead">다섯 가지 기준으로 점수를 매겨요. 잘한 점, 부족한 점이 숫자로 보이죠.</p>
+      <ul class="dims-list">
+        <li><b>명확성</b><span>한눈에 이해되나요</span></li>
+        <li><b>관련성</b><span>우리 고객에게 맞나요</span></li>
+        <li><b>가치</b><span>살 만하다고 느껴지나요</span></li>
+        <li><b>차별화</b><span>다른 곳과 다른가요</span></li>
+        <li><b>신뢰</b><span>믿음이 가나요</span></li>
+      </ul>
+    </div>
+    <div class="dims-radar reveal">
+      <div class="radar-host radar-lg" data-radar></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARISON ============ -->
+<section class="compare container">
+  <div class="sec-head reveal">
+    <span class="eyebrow">왜 다른가</span>
+    <h2 class="sec-title">기존 방법과 비교하면</h2>
+  </div>
+  <div class="compare-wrap reveal">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="col-hl">Purit</th>
+          <th>지인에게</th>
+          <th>일반 설문</th>
+          <th>직접 테스트</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>진짜 고객 같은 전문가</td>
+          <td class="col-hl"><span class="dot-check"></span></td>
+          <td><span class="x">×</span></td>
+          <td><span class="tilde">△</span></td>
+          <td><span class="dot-check"></span></td>
+        </tr>
+        <tr>
+          <td>점수로 보는 결과</td>
+          <td class="col-hl"><span class="dot-check"></span></td>
+          <td><span class="x">×</span></td>
+          <td><span class="dot-check"></span></td>
+          <td><span class="tilde">△</span></td>
+        </tr>
+        <tr>
+          <td>AI 답변 걸러내기</td>
+          <td class="col-hl"><span class="dot-check"></span></td>
+          <td><span class="x">×</span></td>
+          <td><span class="x">×</span></td>
+          <td><span class="x">×</span></td>
+        </tr>
+        <tr>
+          <td>걸리는 시간</td>
+          <td class="col-hl"><strong>48시간</strong></td>
+          <td>즉시~며칠</td>
+          <td>며칠</td>
+          <td>몇 주</td>
+        </tr>
+        <tr>
+          <td>방문자 필요</td>
+          <td class="col-hl"><span class="dot-check none">필요 없음</span></td>
+          <td>필요 없음</td>
+          <td>필요 없음</td>
+          <td><span class="x">많이 필요</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ TESTIMONIALS ============ -->
+<section class="quotes container">
+  <div class="sec-head reveal">
+    <span class="eyebrow">고객의 목소리</span>
+    <h2 class="sec-title">출시 전에 알 수 있었던 것들</h2>
+  </div>
+  <div class="quote-grid">
+    <figure class="quote-card reveal">
+      <blockquote>"우리 눈엔 완벽한 문구, 고객에겐 애매했대요. 미리 고치니 매출이 확 올랐죠."</blockquote>
+      <figcaption><span class="q-av mono">K</span><span><b>김지원</b><i>마케팅 담당 · 핀테크 스타트업</i></span></figcaption>
+    </figure>
+    <figure class="quote-card reveal">
+      <blockquote>"팀 의견이 갈릴 때, 전문가 평가가 답이 됐어요. 결정이 빨라졌죠."</blockquote>
+      <figcaption><span class="q-av mono">L</span><span><b>이서연</b><i>마케터 · 온라인 쇼핑몰</i></span></figcaption>
+    </figure>
+    <figure class="quote-card reveal">
+      <blockquote>"버릴 평가가 없었어요. 받는 의견마다 바로 써먹었거든요."</blockquote>
+      <figcaption><span class="q-av mono">P</span><span><b>박준호</b><i>대표 · 소프트웨어 회사</i></span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="eyebrow">요금</span>
+      <h2 class="sec-title">팀 규모에 맞게 시작하세요</h2>
+      <p class="sec-lead">크레딧으로 이용해요. 쓴 만큼만 빠지고, 남으면 자동으로 돌려드려요.</p>
+    </div>
+    <div class="plan-grid">
+      <article class="plan reveal">
+        <h3 class="plan-name">Starter</h3>
+        <p class="plan-price"><b>50</b><span>크레딧 / 월</span></p>
+        <p class="plan-desc">처음 시작하는 작은 팀에게</p>
+        <ul class="plan-feats">
+          <li><span class="dot-check"></span> 전문가 10~15명</li>
+          <li><span class="dot-check"></span> 실무 전문가</li>
+          <li><span class="dot-check"></span> 네 가지 평가 모두 이용</li>
+          <li><span class="dot-check"></span> 점수 결과 · 공유 링크</li>
+        </ul>
+        <a href="#" class="btn btn-line btn-block">시작하기</a>
+      </article>
+
+      <article class="plan plan--hl reveal">
+        <span class="plan-badge mono">가장 인기</span>
+        <h3 class="plan-name">Pro</h3>
+        <p class="plan-price"><b>165</b><span>크레딧 / 월</span></p>
+        <p class="plan-desc">성장하는 팀을 위한 플랜</p>
+        <ul class="plan-feats">
+          <li><span class="dot-check"></span> 전문가 10~30명</li>
+          <li><span class="dot-check"></span> 경력 많은 전문가 · 임원급</li>
+          <li><span class="dot-check"></span> AI 요약 결과 · 상세 분석</li>
+          <li><span class="dot-check"></span> 팀 함께 쓰기 · 여러 신청 비교</li>
+        </ul>
+        <a href="#" class="btn btn-primary btn-block">Pro로 시작하기</a>
+      </article>
+
+      <article class="plan reveal">
+        <h3 class="plan-name">Enterprise</h3>
+        <p class="plan-price"><b>400+</b><span>크레딧 / 월</span></p>
+        <p class="plan-desc">대규모로, 전담 지원이 필요한 곳</p>
+        <ul class="plan-feats">
+          <li><span class="dot-check"></span> 전문가 무제한</li>
+          <li><span class="dot-check"></span> 딱 맞는 고객만 골라 연결</li>
+          <li><span class="dot-check"></span> 전담 담당자 지원</li>
+          <li><span class="dot-check"></span> 맞춤 결제 · 우선 연결</li>
+        </ul>
+        <a href="#" class="btn btn-line btn-block">영업팀 문의</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <div class="container">
+    <div class="cta-inner reveal">
+      <h2>첫 신청은 무료예요</h2>
+      <p>신용카드 없이 시작하세요. 진짜 사람의 평가를 이틀 안에.</p>
+      <div class="cta-actions">
+        <a href="#" class="btn btn-primary btn-lg">무료로 시작하기</a>
+        <a href="#how" class="btn btn-line-on-dark btn-lg">이용 방법 다시 보기</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="container foot-inner">
+    <div class="foot-brand">
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M16 2.5 28.5 16 16 29.5 3.5 16 16 2.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M16 9 23 16 16 23 9 16 16 9Z" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-name">Purit</span>
+      </a>
+      <p>진짜 전문가가 당신의 광고와 페이지를 직접 보고 평가해드려요.</p>
+    </div>
+    <div class="foot-cols">
+      <div>
+        <h4>제품</h4>
+        <a href="#features">페이지 종합 평가</a>
+        <a href="#features">두 가지 안 비교</a>
+        <a href="#features">가격 페이지 평가</a>
+        <a href="#features">이메일 평가</a>
+      </div>
+      <div>
+        <h4>회사</h4>
+        <a href="#filter">평가 걸러내기</a>
+        <a href="#panel">참여 전문가</a>
+        <a href="#pricing">요금</a>
+      </div>
+      <div>
+        <h4>시작하기</h4>
+        <a href="#">기업으로 가입</a>
+        <a href="#">전문가로 참여</a>
+        <a href="#">로그인</a>
+      </div>
+    </div>
+  </div>
+  <div class="container foot-bottom">
+    <span>© 2026 Purit. All rights reserved.</span>
+    <span class="mono">감으로 일하기 싫은 분들을 위해.</span>
+  </div>
+</footer>
+
+<script src="assets/purit.js"></script>
+</body>
+</html>
