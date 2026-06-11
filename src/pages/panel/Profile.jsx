@@ -115,10 +115,11 @@ function BadgeTag({ badge, earned, isSelected, onSelect }) {
 const lbl    = { display: 'flex', flexDirection: 'column', gap: 8 };
 const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
-// 1-3년: 1.0×(gray), 4-7년: 1.5×(navy), 8-10년: 2.0×(amber)
+// 2-4년: 1.0×(gray), 5-7년: 1.5×(navy), 8-14년: 2.0×(amber), 15년+: 3.0×(헤드)
 function getYearTier(y) {
-  if (y >= 8) return { color: '#D97706', bg: '#FEF3C7', mult: '2.0×' };
-  if (y >= 4) return { color: 'var(--accent)', bg: 'var(--accent-dim)', mult: '1.5×' };
+  if (y >= 15) return { color: '#92400E', bg: '#FDE68A', mult: '3.0×' };
+  if (y >= 8)  return { color: '#D97706', bg: '#FEF3C7', mult: '2.0×' };
+  if (y >= 5)  return { color: 'var(--accent)', bg: 'var(--accent-dim)', mult: '1.5×' };
   return { color: 'var(--text-3)', bg: 'var(--bg-3)', mult: '1.0×' };
 }
 
@@ -492,8 +493,8 @@ export default function PanelProfile() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
                   <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-                    {panel?.is_executive
-                      ? 'C레벨 / 임원진'
+                    {(panel?.experience_years ?? 0) >= 15
+                      ? '헤드'
                       : (panel?.experience_years != null
                           ? `${panel.experience_years}년차`
                           : (experience || '미입력'))}

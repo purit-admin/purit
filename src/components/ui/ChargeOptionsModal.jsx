@@ -13,7 +13,7 @@ import ExitIntentModal from './ExitIntentModal';
  */
 const PLANS = [
   { id: 'starter', name: 'Starter', credits: 50,  priceKrw: 820000,  desc: '월 50 크레딧 · 최대 15명 · 주니어·미들' },
-  { id: 'pro',     name: 'Pro',     credits: 165, priceKrw: 2380000, desc: '월 165 크레딧 · 시니어·C레벨 · 추가 충전 14% 할인' },
+  { id: 'pro',     name: 'Pro',     credits: 165, priceKrw: 2380000, desc: '월 165 크레딧 · 시니어·헤드 · 추가 충전 14% 할인' },
 ];
 const BUNDLES = [10, 30, 50, 100];
 const UNIT = 25000; // 1cr (정가)

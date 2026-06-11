@@ -40,15 +40,18 @@ export function getProgressPct(points = 0) {
 }
 
 export function getExperienceMultiplier(experience = '') {
+  // 연차 구간: 주니어 2~4(1.0×) / 미들 5~7(1.5×) / 시니어 8~14(2.0×) / 헤드 15+(3.0×)
+  // ※ 헤드는 experience 텍스트가 'N년'으로 저장됨(숫자 분기에서 ≥15 처리). 키워드 분기는 레거시 텍스트 안전망.
   const s = (experience || '').toLowerCase().trim();
   if (!s) return 1.0;
-  if (/c레벨|팀장|임원|ceo|cto|coo|cfo|vp|대표|이사/.test(s)) return 3.0;
+  if (/헤드|c레벨|팀장|임원|ceo|cto|coo|cfo|vp|대표|이사/.test(s)) return 3.0;
   if (/시니어/.test(s)) return 2.0;
   const match = s.match(/(\d+)/);
   if (match) {
     const years = parseInt(match[1], 10);
+    if (years >= 15) return 3.0;
     if (years >= 8) return 2.0;
-    if (years >= 4) return 1.5;
+    if (years >= 5) return 1.5;
     return 1.0;
   }
   if (/미들/.test(s)) return 1.5;
@@ -63,7 +66,7 @@ export function getExperienceCareerKey(experience = '') {
   return 'junior';
 }
 
-// 무료 체험 언락: 패널 1인당 잠금 해제 크레딧 (경력 기준 × 메인 1.5배 — 주니어1.5·미들3·시니어4.5·C레벨6)
+// 무료 체험 언락: 패널 1인당 잠금 해제 크레딧 (경력 기준 × 메인 1.5배 — 주니어1.5·미들3·시니어4.5·헤드6)
 // ※ 체험 의뢰는 항상 메인(landing_page)이므로 메인 1.5배(calcCredits 'main')를 경력 크레딧에도 동일 반영
 export const CAREER_UNLOCK_CREDIT = { junior: 1.5, middle: 3, senior: 4.5, clevel: 6 };
 export function getCareerUnlockCredit(experience = '') {

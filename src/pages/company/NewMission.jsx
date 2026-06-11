@@ -754,6 +754,9 @@ export default function NewMission() {
 
   // 무료 체험 자격: free_trial 플랜 + 아직 미사용 (메인 의뢰 한정)
   const freeTrialAvailable = companyPlan === 'free_trial' && !companyFreeTrialUsed;
+  // active 의뢰 수정은 등록 시 이미 크레딧이 예약(차감)돼 있어 제출 시 추가 차감이 없음
+  // → 크레딧 부족 게이트·경고 비활성 (신규 등록·draft 활성화 경로에서만 차감 발생)
+  const creditsChargedOnSubmit = !effectiveEditMode || isDraftMode;
 
   const handleSubmit = async () => {
     if (teamRole === 'viewer') return;
@@ -1767,6 +1770,7 @@ export default function NewMission() {
                 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
                 onSaveDraft={saveDraft}
                 freeTrialAvailable={freeTrialAvailable}
+                chargeOnSubmit={creditsChargedOnSubmit}
               />
             )}
 
@@ -1838,14 +1842,14 @@ export default function NewMission() {
             )}
             <Btn
               onClick={() => {
-                if (!freeTrialAvailable && step === STEPS.length - 2 && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance) {
+                if (!freeTrialAvailable && creditsChargedOnSubmit && step === STEPS.length - 2 && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance) {
                   panelStepRef.current?.openCreditModal();
                   return;
                 }
                 step < STEPS.length - 1 ? setStep(s => s + 1) : setShowSubmitConfirm(true);
               }}
               size="md"
-              disabled={teamRole === 'viewer' || submitting || uploading || !stepValid || (!freeTrialAvailable && step === STEPS.length - 1 && !effectiveEditMode && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
+              disabled={teamRole === 'viewer' || submitting || uploading || !stepValid || (!freeTrialAvailable && creditsChargedOnSubmit && step === STEPS.length - 1 && creditBalance != null && calcCredits(form.panels, careerLevels, 'main') > creditBalance)}
             >
               {step === STEPS.length - 1 ? (submitting ? '처리 중...' : effectiveEditMode ? '수정 완료 →' : '의뢰 제출 →') : '다음 →'}
             </Btn>

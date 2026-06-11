@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-13 (094 — missions.trial_results_seen_at(할인 48h 앵커, 보호컬럼) / unlock_free_trial_mission 재정의: 자동 공개 2명을 avg_score(5축 평균) 상위로 + 30% 첫 언락 할인(seen_at부터 48h, ROUND(정가×0.70,2)) / touch_trial_results_seen RPC / guard_mission_freemium_columns에 seen_at 추가 / D-126) / 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
+최종 업데이트: 2026-06-13 (095 패널 "C레벨/임원"→"헤드" + 연차 구간 재정의(주2~4·미5~7·시8~14·헤드15+) — admin_confirm_panel_experience 2-param 재정의(is_executive=years>=15 자동)·auto_increment·complete_mission_and_refund·recalc_mission_consumed(배율 ≥15→3.0/≥8→2.0/≥5→1.5)·unlock_free_trial_mission(크레딧 ≥15→6/≥8→4.5/≥5→3) 재정의 + 기존 임원<15 강등 백필 / experience 'N년' 통일·is_executive 파생 플래그화 / D-127) / 2026-06-13 (094 — missions.trial_results_seen_at(할인 48h 앵커, 보호컬럼) / unlock_free_trial_mission 재정의: 자동 공개 2명을 avg_score(5축 평균) 상위로 + 30% 첫 언락 할인(seen_at부터 48h, ROUND(정가×0.70,2)) / touch_trial_results_seen RPC / guard_mission_freemium_columns에 seen_at 추가 / D-126) / 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -74,12 +74,15 @@
   portfolio_file_url     TEXT        DEFAULT NULL           ← 080 추가 (포트폴리오/이력서 파일 Storage path — 링크와 분리)
   experience_years        INTEGER     DEFAULT NULL          ← 081 추가 (확정 연차; 가입 시 자가입력 → 어드민 확정·조정 대상)
   experience_confirmed_at TIMESTAMPTZ DEFAULT NULL          ← 081 추가 (어드민 확정일; NULL=미확정 · 자동 +1 기준점)
-  is_executive            BOOLEAN     DEFAULT FALSE         ← 081 추가 (어드민 지정 C레벨/임원 — experience='임원' 동기화, 3.0배)
+  is_executive            BOOLEAN     DEFAULT FALSE         ← 081 추가 / 095부터 '헤드' 파생 플래그 = (experience_years>=15) 자동 (구: 어드민 수동 C레벨/임원). 3.0배·언락6
+                                                              ※ 095: 수동 지정 폐지 — admin_confirm_panel_experience/auto_increment가 연차로 자동 set. 표시 전용(로직 분기 없음)
   is_expert               BOOLEAN     NOT NULL DEFAULT FALSE ← 085 추가 (무료 체험 선점용 전문가 패널 — 결과 "공개 2건" 우선순위 / get_panel_public_profiles 반환, scripts/create-expert-panels.mjs로 세팅)
   rejection_count         INTEGER     DEFAULT 0             ← 082 추가 (누적 심사 거절 횟수; 3 도달 시 banned)
   rejection_reason        TEXT                              ← 082 추가 (최근 거절 사유; 패널에게 표시, 재제출 시 NULL 클리어)
-  ※ experience(TEXT)는 파생 필드로 유지: 확정/조정/자동증가 시 (is_executive ? '임원' : 'N년')로 동기화
-     → getExperienceMultiplier/CareerKey·보상·미션필터·기업타겟팅 등 다운스트림 코드 불변
+  ※ experience(TEXT)는 파생 필드로 유지: 095부터 헤드 포함 항상 'N년'으로 동기화(구 '임원' 특수텍스트 폐지)
+     → 배율/크레딧을 연차 숫자 기반으로 통일. getExperienceMultiplier/CareerKey·보상·미션필터·기업타겟팅 등 다운스트림 코드 불변
+     → 연차 밴드(095): 주니어 2~4(1.0×) / 미들 5~7(1.5×) / 시니어 8~14(2.0×) / 헤드 15+(3.0×). 내부 key 'clevel'(헤드) 유지
+     → 미확정 레거시 '임원'/'시니어'/'미들' 텍스트는 키워드 정규식 안전망으로 계속 해석(어드민 재확정 전까지)
   ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
   ※ 012_panel_phone_public_profiles.sql 에서 phone / phone_verified 컬럼 추가
   ※ 015_honor_level_system.sql 에서 honor_points / honor_decay_applied_at 컬럼 추가
@@ -90,6 +93,7 @@
   ※ 080_portfolio_file_url.sql 에서 portfolio_file_url 컬럼 추가 (포트폴리오 링크/파일 분리)
   ※ 081_panel_experience_confirmation.sql 에서 experience_years / experience_confirmed_at / is_executive 컬럼 추가 + 기존 패널 백필
   ※ 082_panel_rejection_flow.sql 에서 rejection_count / rejection_reason 컬럼 추가 (심사 거절·재제출·영구차단 플로우)
+  ※ 095_panel_head_by_years.sql: is_executive=(years>=15) 자동 파생 + experience='N년' 정규화 백필 (헤드 개명·연차 구간 재정의·기존 임원<15 강등)
   suspend_until          TIMESTAMPTZ DEFAULT NULL              ← 078 추가 (기간제 정지 만료 시각; NULL=영구 정지 또는 비정지)
   ※ 신규 패널 status: handle_new_user 트리거(이메일)·create_oauth_user_profile RPC(OAuth) 모두 'pending'으로 생성
   ※ RLS UPDATE 정책 2개:
@@ -516,18 +520,18 @@
     → NewMission.jsx 무료 분기에서 호출 (missions INSERT(draft) 직후) / GRANT authenticated
     → 파일: supabase/migrations/085_free_trial_freemium.sql
 
-  unlock_free_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 087→089→090→094 재정의 (최신 094)
+  unlock_free_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 087→089→090→094→095 재정의 (최신 095)
     → 잠긴 피드백 전체 언락 — 정가 = 잠긴 패널(공개분 제외)의 경력 크레딧 합
       공개분 ★094 점수기반: missions.trial_public_panel_ids 있으면 그 2명(089), 없으면 자동 ROW_NUMBER(avg_score DESC, panel_id ASC) rn≤2
         avg_score = 패널별 AVG((coalesce 5축)/5.0) — 호평(점수 상위) 2명 공개, 저점(치명적) 패널은 잠겨 티저 유발
-      경력→크레딧 ★메인 1.5배(090): 주니어1.5 / 미들3 / 시니어4.5(8년+ 포함) / C레벨6 (honorLevels.CAREER_UNLOCK_CREDIT와 일치, D-121)
+      경력→크레딧 ★095 연차 밴드(메인 1.5배): ≥15→6(헤드) / ≥8→4.5(시니어) / ≥5→3(미들) / else 1.5(주니어) (honorLevels.CAREER_UNLOCK_CREDIT와 일치, D-121)
       GROUP BY panel_id + WHERE (v_public 있으면 panel_id<>ALL(v_public), 없으면 rn>2) → 클라(Results) 표시와 합계 일치
     → ★094 30% 첫 언락 할인: trial_results_seen_at(NULL이면 방금 연 것)부터 48h 이내면 v_cost = ROUND(정가 × 0.70, 2), 이후 정가
       (honorLevels.TRIAL_FIRST_UNLOCK_DISCOUNT=0.30 / TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS=48 — 클라 applyUnlockDiscount와 1:1 정합, D-121)
     → 소유권: companies.user_id=auth.uid()(오너만, 팀원 미지원) → credit_balance FOR UPDATE → 부족 시 INSUFFICIENT_CREDITS
     → 성공 시 credit_balance -= v_cost, missions.trial_unlocked=true·credits_consumed=v_cost·unlock_cost=v_cost
     → 반환: { success, cost, original_cost, discount, new_balance } / Results.jsx 충전·구독 후 호출 / GRANT authenticated
-    → 파일: 094_trial_score_public_and_discount.sql (점수기반 공개 선별 + 30%/48h 할인 최종)
+    → 파일: 095_panel_head_by_years.sql (094 본문 유지 + 연차 밴드 ≥15→6 추가). 점수공개·할인·정렬은 094 그대로
 
   touch_trial_results_seen(p_mission_id UUID) RETURNS jsonb ★ 신규 (094) SECURITY DEFINER
     → 기업 오너(companies.user_id=auth.uid()) 검증 → is_free_trial & 미언락 & trial_results_seen_at IS NULL일 때만 NOW()로 1회 세팅(멱등)
@@ -577,12 +581,14 @@
     → 의뢰 등록 4개 페이지(NewMission/PreferenceTest/PricingTest/ColdEmailTest)에서 missions INSERT 직후 호출
     → 파일: supabase/migrations/018_credits_numeric.sql (016 버전 대체)
 
-  recalc_mission_consumed(p_mission_id UUID) RETURNS NUMERIC
-    → 어드민 전용 (role='admin' 검사)
+  recalc_mission_consumed(p_mission_id UUID) RETURNS NUMERIC ★ 095 재정의 (연차 밴드 교체)
+    → 어드민 전용 (role='admin' 검사) / 무료 미션이면 재계산 제외 조기반환(085 격리 가드 유지, D-122)
     → purity_passed=true 패널의 experience 기반 소비 크레딧 합산 (CEIL 없음, 소수 그대로)
+      연차 배율 밴드(095): ≥15→3.0 / ≥8→2.0 / ≥5→1.5 / else 1.0 (키워드 정규식 레거시 안전망 유지)
     → missions.credits_consumed = 합산값으로 즉시 갱신
     → PurityFilter 승인/반려/초기화 직후 자동 호출 + admin/Missions.jsx ↺ 버튼에서 수동 호출
-    → 파일: supabase/migrations/018_credits_numeric.sql (017 버전 대체)
+    → 파일: 095_panel_head_by_years.sql (085/018 버전 대체)
+    ※ complete_mission_and_refund(p_mission_id) — 동일 연차 밴드(095)로 소비 합산 후 status='completed'·환불. 무료 미션 회계 격리 불변(D-122)
 
   complete_mission_and_refund(p_mission_id UUID) RETURNS jsonb
     → 어드민 전용 (role='admin' 검사)
@@ -757,19 +763,20 @@
              + 081_panel_experience_confirmation.sql (p_experience_years 추가, 기존 5-param DROP 후 6-param 재생성)
              + 082_panel_rejection_flow.sql (status 가드 + pending flip + rejection_reason 클리어, 동일 6-param CREATE OR REPLACE) ★ 현재 최신
 
-  admin_confirm_panel_experience(p_panel_id UUID, p_years INT, p_is_executive BOOLEAN DEFAULT FALSE) RETURNS BOOLEAN
-    → SECURITY DEFINER — 어드민 경력 확정·조정(최초 확정 / 수동 상·하향 / C레벨 지정 모두 이 함수)
+  admin_confirm_panel_experience(p_panel_id UUID, p_years INT) RETURNS BOOLEAN ★ 095 재정의 (3-param DROP → 2-param)
+    → SECURITY DEFINER — 어드민 경력 확정·조정(최초 확정 / 수동 상·하향). 095부터 헤드는 연차 자동(p_is_executive 파라미터 폐지)
     → 어드민 전용: (auth.jwt()->'app_metadata'->>'role') != 'admin' 이면 RETURN FALSE (D-58)
     → p_years NULL 또는 < 0 이면 RETURN FALSE
-    → experience_years=p_years, is_executive=p_is_executive, experience_confirmed_at=NOW(),
-      experience=(is_executive ? '임원' : 'N년') 동기화 — 확정 시점이 자동 +1 앵커 리셋
-    → PanelManagement.jsx confirmExperience()에서 호출 / 파일: 081_panel_experience_confirmation.sql
+    → experience_years=p_years, is_executive=(p_years>=15), experience_confirmed_at=NOW(),
+      experience=p_years::text||'년' (헤드도 'N년') — 확정 시점이 자동 +1 앵커 리셋
+    → PanelManagement.jsx confirmExperience(id, years) 2-param 호출 / 파일: 095_panel_head_by_years.sql (081 3-param 대체)
 
-  auto_increment_panel_experience() RETURNS INTEGER
+  auto_increment_panel_experience() RETURNS INTEGER ★ 095 재정의
     → SECURITY DEFINER (GRANT service_role) — pg_cron 일 1회 호출
-    → experience_confirmed_at + 1년 경과 패널: 경과 만년 수(AGE)만큼 experience_years +N, 앵커 +N년, experience 재동기화
+    → experience_confirmed_at + 1년 경과 패널: 경과 만년 수(AGE)만큼 experience_years +N, 앵커 +N년
+    → experience='N년' 재동기화 + is_executive=((years+N)>=15) (14→15 자동 헤드 승급)
     → 다년 누락도 한 번에 보정 (GET DIAGNOSTICS ROW_COUNT 반환)
-    → pg_cron 스케줄은 SQL Editor 수동 실행 필요 / 파일: 081_panel_experience_confirmation.sql
+    → pg_cron 스케줄은 SQL Editor 수동 실행 필요 / 파일: 095_panel_head_by_years.sql (081 대체)
 
   accept_team_invite(p_token UUID) RETURNS JSONB
     → SECURITY DEFINER — 비로그인 상태에서도 토큰으로 호출 가능 (RLS 우회)

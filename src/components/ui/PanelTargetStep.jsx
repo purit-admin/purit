@@ -7,10 +7,10 @@ import ExitIntentModal from './ExitIntentModal';
 import { CAREER_UNLOCK_CREDIT } from '../../lib/honorLevels';
 
 export const CAREER_LEVELS = [
-  { key: 'junior', label: '주니어',       sub: '1–3년차',    multiplier: 1.0, proOnly: false },
-  { key: 'middle', label: '미들',         sub: '4–7년차',    multiplier: 1.5, proOnly: false },
-  { key: 'senior', label: '시니어',       sub: '8년차 이상', multiplier: 2.0, proOnly: true  },
-  { key: 'clevel', label: 'C레벨/임원진', sub: '',           multiplier: 3.0, proOnly: true  },
+  { key: 'junior', label: '주니어',  sub: '2–4년차',    multiplier: 1.0, proOnly: false },
+  { key: 'middle', label: '미들',    sub: '5–7년차',    multiplier: 1.5, proOnly: false },
+  { key: 'senior', label: '시니어',  sub: '8–14년차',   multiplier: 2.0, proOnly: true  },
+  { key: 'clevel', label: '헤드',    sub: '15년차 이상', multiplier: 3.0, proOnly: true  },
 ];
 
 export const MAIN_BASE_PAYOUT = 8000;
@@ -68,6 +68,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   onCreditBalanceUpdate = null,
   onSaveDraft = null,
   freeTrialAvailable = false,
+  chargeOnSubmit = true,
 }, ref) {
   const navigate = useNavigate();
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -110,7 +111,8 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   const minCredits = Math.round(panelCount * getMinWeight(careerLevels) * missionFactor * 100) / 100;
   const isRange    = fmtCr(minCredits) !== fmtCr(credits);
   // 무료체험 자격 보유 시 등록이 무료이므로 부족 경고 숨김
-  const isShort    = freeTrialAvailable ? false : (creditBalance != null && credits > creditBalance);
+  // chargeOnSubmit=false(이미 크레딧 예약된 active 의뢰 수정): 추가 차감 없으므로 부족 경고 숨김
+  const isShort    = (freeTrialAvailable || !chargeOnSubmit) ? false : (creditBalance != null && credits > creditBalance);
   // 무료체험 예상 잠금 해제 비용 = 잠긴 패널(전체-2명) × 선택 경력 크레딧(주1·미들2…) 범위
   const ftLockedCount  = Math.max(0, panelCount - 2);
   const ftSelCredits   = (careerLevels.length ? careerLevels : ['junior']).map(k => CAREER_UNLOCK_CREDIT[k] ?? 1);
@@ -119,10 +121,10 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
 
   useImperativeHandle(ref, () => ({ openCreditModal }));
 
-  // 복원된 직급 자동 정리: 스타터는 proOnly 전부 제거 / 무료체험은 C레벨만 제거(시니어 허용)
+  // 복원된 직급 자동 정리: 스타터는 proOnly 전부 제거 / 무료체험은 헤드만 제거(시니어 허용)
   useEffect(() => {
     if (isStarter || isFreeTrial) {
-      // 스타터·무료체험: proOnly(시니어·C레벨) 제거 → 주니어·미들만
+      // 스타터·무료체험: proOnly(시니어·헤드) 제거 → 주니어·미들만
       const hasProLevels = careerLevels.some(k => CAREER_LEVELS.find(c => c.key === k)?.proOnly);
       if (!hasProLevels) return;
       const allowed = careerLevels.filter(k => !CAREER_LEVELS.find(c => c.key === k)?.proOnly);
@@ -143,7 +145,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   };
 
   const toggleCareer = (key, proOnly) => {
-    if (proOnly && (isStarter || isFreeTrial)) { setShowUpgrade(true); return; }  // 스타터·무료체험: 시니어·C레벨 차단
+    if (proOnly && (isStarter || isFreeTrial)) { setShowUpgrade(true); return; }  // 스타터·무료체험: 시니어·헤드 차단
     const next = careerLevels.includes(key)
       ? careerLevels.filter(k => k !== key)
       : [...careerLevels, key];
@@ -221,17 +223,17 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
       {/* ── 경력/직급 선택 ── */}
       <div>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>패널 경력/직급</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: isFreeTrial ? 10 : 16, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: freeTrialAvailable ? 10 : 16, lineHeight: 1.6 }}>
           원하는 경력대를 중복 선택할 수 있습니다. 높은 직급일수록 크레딧 소모가 늘어납니다.
         </p>
-        {isFreeTrial && (
+        {freeTrialAvailable && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16,
             padding: '10px 14px', borderRadius: 'var(--radius)',
             background: 'rgba(16,54,125,0.06)', border: '1px solid var(--accent)',
             fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600,
           }}>
-            🎁 무료 체험은 <strong style={{ color: 'var(--accent)' }}>주니어·미들 패널</strong>만 선택할 수 있습니다. (시니어·C레벨은 Pro 플랜)
+            🎁 무료 체험은 <strong style={{ color: 'var(--accent)' }}>주니어·미들 패널</strong>만 선택할 수 있습니다. (시니어·헤드는 Pro 플랜)
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -488,7 +490,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.8 }}>
               더 정확한 데이터와 의사결정권자의 피드백이 필요하신가요?<br />
-              <strong>Pro 플랜</strong>으로 업그레이드하면 시니어·C레벨 패널과<br />
+              <strong>Pro 플랜</strong>으로 업그레이드하면 시니어·헤드 패널과<br />
               최대 30명 슬롯을 사용할 수 있습니다.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -576,7 +578,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
                           </>
                         ) : (
                           <>
-                            <li>시니어·C레벨 패널 매칭 오픈</li>
+                            <li>시니어·헤드 패널 매칭 오픈</li>
                             <li>최대 30명 패널 슬롯</li>
                             <li>추가 크레딧 14% 할인 (1cr = 21,600원)</li>
                             <li>월 165 크레딧 제공</li>

@@ -255,19 +255,19 @@ export default function AdminPanels() {
     return true;
   }
 
-  async function confirmExperience(id, years, isExec) {
+  async function confirmExperience(id, years) {
+    // 헤드(구 C레벨/임원)는 연차 15년차 이상 자동 부여 — 어드민 수동 지정 폐지
     const { data, error } = await supabase.rpc('admin_confirm_panel_experience', {
       p_panel_id: id,
       p_years: years,
-      p_is_executive: isExec,
     });
     if (error || data === false) {
       console.warn('[confirmExperience]', error?.message || '권한 또는 입력 오류');
       return false;
     }
-    const experience = isExec ? '임원' : `${years}년`;
+    const isHead = years >= 15;
     setPanels(ps => ps.map(p => p.id === id
-      ? { ...p, experience_years: years, is_executive: isExec, experience, experience_confirmed_at: new Date().toISOString() }
+      ? { ...p, experience_years: years, is_executive: isHead, experience: `${years}년`, experience_confirmed_at: new Date().toISOString() }
       : p));
     return true;
   }
@@ -705,7 +705,6 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
   const [rejectReason, setRejectReason]   = useState('');
   const willBan = (panel.rejection_count ?? 0) >= 2; // 누적 2회 → 이번 거절이 3번째 = 영구 차단
   const [expYearsInput, setExpYearsInput] = useState(panel.experience_years != null ? String(panel.experience_years) : '');
-  const [isExecInput, setIsExecInput]     = useState(!!panel.is_executive);
   const [expSaving, setExpSaving]         = useState(false);
   const [expMsg, setExpMsg]               = useState('');
   const suspendUntil = panel.suspend_until ? new Date(panel.suspend_until) : null;
@@ -1030,7 +1029,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           <div>
             <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>현재 적용 경력</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-              {panel.is_executive ? 'C레벨 / 임원진' : (panel.experience_years != null ? `${panel.experience_years}년차` : (panel.experience || '미입력'))}
+              {(panel.experience_years ?? 0) >= 15 ? '헤드' : (panel.experience_years != null ? `${panel.experience_years}년차` : (panel.experience || '미입력'))}
             </div>
           </div>
           {panel.experience_confirmed_at ? (
@@ -1043,21 +1042,19 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           )}
         </div>
 
-        {/* 연차 입력 + C레벨 토글 */}
+        {/* 연차 입력 (자격득실 확인서 기준) — 15년차 이상은 헤드로 자동 분류 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <input
             type="number" min={0} max={50}
             value={expYearsInput}
             onChange={e => setExpYearsInput(e.target.value)}
-            disabled={isExecInput}
             placeholder="연차"
-            style={{ width: 90, padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', background: isExecInput ? 'var(--bg-2)' : '#fff', outline: 'none' }}
+            style={{ width: 90, padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', background: '#fff', outline: 'none' }}
           />
           <span style={{ fontSize: 13, color: 'var(--text-2)' }}>년차</span>
-          <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={isExecInput} onChange={e => setIsExecInput(e.target.checked)} />
-            C레벨 / 임원
-          </label>
+          {parseInt(expYearsInput, 10) >= 15 && (
+            <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#92400E' }}>→ 헤드 (15년차 이상)</span>
+          )}
         </div>
 
         {expMsg && (
@@ -1070,20 +1067,20 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           onClick={async () => {
             setExpMsg('');
             const parsed = parseInt(expYearsInput, 10);
-            if (!isExecInput && (Number.isNaN(parsed) || parsed < 0 || parsed > 50)) {
+            if (Number.isNaN(parsed) || parsed < 0 || parsed > 50) {
               setExpMsg('연차를 0~50 사이 숫자로 입력하세요.');
               return;
             }
-            const finalYears = Number.isNaN(parsed) ? (panel.experience_years ?? 0) : Math.max(0, Math.min(50, parsed));
+            const finalYears = Math.max(0, Math.min(50, parsed));
             setExpSaving(true);
-            const ok = await onConfirmExperience(panel.id, finalYears, isExecInput);
+            const ok = await onConfirmExperience(panel.id, finalYears);
             setExpSaving(false);
             setExpMsg(ok ? '경력이 확정되었습니다.' : '확정 실패: 권한 또는 입력을 확인하세요.');
           }}>
           {expSaving ? '확정 중...' : (panel.experience_confirmed_at ? '경력 재확정 / 조정' : '경력 확정')}
         </Btn>
         <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.5 }}>
-          확정 시점 기준 매년 자동으로 +1 증가합니다. 필요 시 위 값을 직접 올리거나 내려 재확정할 수 있습니다.
+          확정 시점 기준 매년 자동으로 +1 증가합니다. 15년차 이상은 헤드로 자동 분류되어 정산 3.0배가 적용됩니다. 필요 시 위 값을 직접 올리거나 내려 재확정할 수 있습니다.
         </div>
       </Card>
 

@@ -193,7 +193,7 @@ function MissionDetail({ mission, onFeedbackClick }) {
   );
 }
 
-const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', clevel: 'C레벨' };
+const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', clevel: '헤드' };
 
 function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, onCompleteMission, onReactivateMission, onEarlyComplete, isHighlighted, isSelected, onSelect }) {
   let careerLevels = [];
