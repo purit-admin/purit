@@ -1,6 +1,6 @@
 ================================================================
 5_CodeMap.txt — Purity MVP 페이지·컴포넌트별 구현 상세 (CodeMap)
-최종 업데이트: 2026-06-13 (096 NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스(INCOME_STOPS·fmtIncomeRange·restoreIncome·incomeOverride) / 결제 재설계 — 등록 4폼(NewMission·Preference·Pricing·ColdEmail) 제출 확인 모달에 '추가 크레딧 사용 안내'(needsAddonConfirm·splitCredits·creditAddon state, 월간_잔여<cost≤총잔액 시 표시) + PanelTargetStep addonBalance prop·Dashboard 잔여크레딧 카드 '월간·추가' 분리, D-129) / 2026-06-13 (active 의뢰 수정 크레딧 재차감 방지 D-128 — 메인 isDraftMode/서브 editIsDraft로 draft·active 구분, creditsChargedOnSubmit로 제출 reserve 스킵·게이트·notEnough·PanelTargetStep chargeOnSubmit·saveDraft 가드 / PanelTargetStep freeTrialAvailable·chargeOnSubmit prop / 무료체험 뱃지 freeTrialAvailable 게이트로 소진 후 소멸) / 2026-06-13 (Results 무료 체험 094 — 점수기반 공개 2명 자동 선별·잠긴쪽 티저(criticalCount·weakestAxis)·30% 첫 언락 할인+48h 카운트다운(nowTick·touch_trial_results_seen)) / 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
+최종 업데이트: 2026-06-13 (등록 4폼 새로고침 대비 localStorage 자동저장+확인 후 복원[B안] — draftKey 회사별 격리·신규작성만 저장·restorable 배너(restore/discardLocalDraft)·clearLocalDraft 4경로(제출/DB저장/저장없이나가기/새로시작)·실패 시 보존 D-130 / 제출 확인 모달도 creditsChargedOnSubmit 분기 — isActiveEdit이면 소모액 표 대신 "추가 차감 없음" 안내+"수정 완료" D-128 보강) / 2026-06-13 (096 NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스(INCOME_STOPS·fmtIncomeRange·restoreIncome·incomeOverride) / 결제 재설계 — 등록 4폼(NewMission·Preference·Pricing·ColdEmail) 제출 확인 모달에 '추가 크레딧 사용 안내'(needsAddonConfirm·splitCredits·creditAddon state, 월간_잔여<cost≤총잔액 시 표시) + PanelTargetStep addonBalance prop·Dashboard 잔여크레딧 카드 '월간·추가' 분리, D-129) / 2026-06-13 (active 의뢰 수정 크레딧 재차감 방지 D-128 — 메인 isDraftMode/서브 editIsDraft로 draft·active 구분, creditsChargedOnSubmit로 제출 reserve 스킵·게이트·notEnough·PanelTargetStep chargeOnSubmit·saveDraft 가드 / PanelTargetStep freeTrialAvailable·chargeOnSubmit prop / 무료체험 뱃지 freeTrialAvailable 게이트로 소진 후 소멸) / 2026-06-13 (Results 무료 체험 094 — 점수기반 공개 2명 자동 선별·잠긴쪽 티저(criticalCount·weakestAxis)·30% 첫 언락 할인+48h 카운트다운(nowTick·touch_trial_results_seen)) / 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
 ================================================================
 
 ※ 조건부 로드 문서. 특정 페이지/컴포넌트 파일을 수정·디버깅하기 전에만 Read 도구로
@@ -103,6 +103,18 @@
   · 적용 4곳: ①제출 핸들러 reserve_mission_credits를 if(차감여부)로 감쌈(active 수정=재예약 스킵, UPDATE만) ②"다음" 게이트(openCreditModal) ③제출버튼 disabled / 검토 notEnough ④PanelTargetStep chargeOnSubmit prop
   · saveDraft 상단 가드: 메인 if(effectiveEditMode && !isDraftMode) return / 서브 if(draftId && !editIsDraft) return — active 수정 중 임시저장이 status:'draft'로 강등하는 것 방지
   · reserve_mission_credits는 "예약=절대값 차감" 1회성 RPC라 재호출이 곧 추가 차감 (migration 018)
+  · ★ 제출 확인 모달도 creditsChargedOnSubmit로 분기 (D-128 보강, 4폼 공통): isActiveEdit = !creditsChargedOnSubmit (메인은 && !freeTrialAvailable)
+    - isActiveEdit이면 "예상 소모/제출 후 잔여 크레딧" 표 대신 "✏️ 진행 중인 의뢰 수정 — 추가로 차감되지 않습니다" 안내 + 제목 "수정 내용을 저장할까요?" + 버튼 "수정 완료"
+    - 그 외(신규·draft 활성화)는 기존 크레딧 표 + "의뢰를 제출할까요?"/"제출하기" (실제 차감 없는데 소모액 표시하던 혼란 해소)
+- ★ 새로고침/크래시 대비 localStorage 자동저장 + 확인 후 복원 (4폼 공통, B안, D-130)
+  · draftKey = companyId ? `purit_form_draft_{main|preference|pricing|email}_${companyId}` : null (회사별 격리)
+  · 자동저장 useEffect: 신규 작성(create) + 내용 있을 때만 setItem(JSON: 폼필드 전체+step+careerLevels+selectedQuestions+localCustomQs+missionUuid)
+    - 가드: 메인 !effectiveEditMode·서브 !draftId / view==='form'(메인)·'create'(서브) — 수정·draft 이어쓰기는 DB가 진실 원천이라 제외
+  · 복원 감지 useEffect(dep [draftKey]): isEditMode/location.state.editMode·initTemplateId 아닐 때만 getItem → restorable state 세팅
+  · restorable state + 목록 뷰 상단 배너(✏️ "작성 중이던 …가 있습니다"): restoreLocalDraft()(필드 set + setView form/create) / discardLocalDraft()(clearLocalDraft + restorable=null)
+    - 서브 3폼은 목록 ternary를 <>로 감싸 빈·비빈 양쪽 위에 배너 배치
+  · clearLocalDraft() 호출 4곳(파일당 grep 카운트 4 일치): 제출 성공 / saveDraft insert(else 분기) / "저장 없이 나가기"(자발적 폐기) / 배너 "새로 시작"
+    - 제출·임시저장 '실패' 경로엔 미호출 → 보존(재시도). 비자발적 손실(새로고침·크래시)만 배너 노출 (D-130)
 - ★ 질문 복원 시 재분리 (4개 폼 공통, D-119, 2026-06-10): 저장은 selectedQuestions+localCustomQs를 allLPSelected로 병합 직렬화.
   복원 2곳(초기 load useEffect + openDraftOrActiveForEdit)에서 병합 배열을 local- 접두사 기준으로 재분리:
     const isLocal = q => typeof q.id==='string' && q.id.startsWith('local-')

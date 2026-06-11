@@ -382,6 +382,8 @@ export default function NewMission() {
   const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
   const [currentEditId, setCurrentEditId] = useState(null);
+  // 새로고침/크래시 대비 localStorage 자동저장 → 재진입 시 "이어서 작성" 배너로 복원
+  const [restorable, setRestorable] = useState(null);
 
   // 질문 설정 state
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -685,6 +687,52 @@ export default function NewMission() {
     return () => navigationGuard.unregister();
   }, [shouldBlockNav]);
 
+  // ── 새로고침 대비 localStorage 자동저장 / 복원 ──
+  // beforeunload 안에서는 DB 비동기 저장이 보장되지 않으므로, 작성 중 폼을 브라우저에 동기 저장해 둔다.
+  const draftKey = companyId ? `purit_form_draft_main_${companyId}` : null;
+  const clearLocalDraft = () => { if (draftKey) { try { localStorage.removeItem(draftKey); } catch {} } };
+
+  // 자동저장: 신규 작성(create) 모드에서 내용이 있을 때만 (수정 모드는 DB가 진실 원천이라 제외)
+  useEffect(() => {
+    if (!draftKey || effectiveEditMode || view !== 'form') return;
+    const hasContent = Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0
+      || form.industry || form.personaRole || form.personaContext);
+    if (!hasContent) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        form, step, careerLevels, selectedQuestions, localCustomQs, missionUuid, savedAt: Date.now(),
+      }));
+    } catch {}
+  }, [draftKey, effectiveEditMode, view, form, step, careerLevels, selectedQuestions, localCustomQs, missionUuid]);
+
+  // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
+  useEffect(() => {
+    if (!draftKey || isEditMode || initTemplateId) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) { const parsed = JSON.parse(raw); if (parsed?.form) setRestorable(parsed); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  function restoreLocalDraft() {
+    const d = restorable;
+    if (!d) return;
+    if (d.form) setForm(f => ({ ...f, ...d.form }));
+    if (typeof d.step === 'number') setStep(d.step);
+    if (Array.isArray(d.careerLevels)) setCareerLevels(d.careerLevels);
+    if (Array.isArray(d.selectedQuestions)) setSelectedQuestions(d.selectedQuestions);
+    if (Array.isArray(d.localCustomQs)) setLocalCustomQs(d.localCustomQs);
+    if (d.missionUuid) setMissionUuid(d.missionUuid);
+    setIsDraftMode(false); setCurrentEditId(null);
+    setRestorable(null);
+    setView('form');
+  }
+  function discardLocalDraft() {
+    clearLocalDraft();
+    setRestorable(null);
+  }
+
   function openDraftOrActiveForEdit(missionId) {
     setCurrentEditId(missionId);
     supabase.from('missions').select('*').eq('id', missionId).single().then(({ data: ms }) => {
@@ -779,6 +827,7 @@ export default function NewMission() {
         await supabase.from('missions').update(payload).eq('id', effectiveEditId);
       } else {
         await supabase.from('missions').insert({ id: missionUuid, ...payload });
+        clearLocalDraft();  // DB draft가 진실 원천이 되므로 localStorage 자동저장본 제거 (배너 중복 방지)
       }
     } catch (e) {
       console.error('[NewMission] 임시 저장 실패:', e.message);
@@ -935,6 +984,7 @@ export default function NewMission() {
           }
         }
       }
+      clearLocalDraft();
       navigate('/company');
     } catch (err) {
       setSubmitError(err.message);
@@ -978,6 +1028,23 @@ export default function NewMission() {
               ))}
             </div>
           </Card>
+
+          {/* 작성 중이던 의뢰 복원 배너 (새로고침/크래시 후) */}
+          {restorable && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '14px 18px', marginBottom: 16, background: 'rgba(16,54,125,0.06)', border: '1px solid rgba(16,54,125,0.25)', borderRadius: 10 }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✏️</span>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>작성 중이던 의뢰가 있습니다</div>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                  {restorable.form?.product ? `“${restorable.form.product}” ` : ''}이어서 작성하거나 새로 시작할 수 있습니다.
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn size="sm" onClick={restoreLocalDraft}>이어서 작성 →</Btn>
+                <Btn size="sm" variant="secondary" onClick={discardLocalDraft}>새로 시작</Btn>
+              </div>
+            </div>
+          )}
 
           {/* 버튼 + 탭 */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
@@ -2077,6 +2144,7 @@ export default function NewMission() {
             </Btn>
             <Btn variant="secondary" onClick={() => {
               navigationGuard.unregister();
+              clearLocalDraft();  // 자발적 폐기 → localStorage 자동저장본도 제거 (배너 재등장 방지)
               setShowDraftModal(false);
               const dest = pendingNavPath;
               setPendingNavPath(null);

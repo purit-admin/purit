@@ -125,6 +125,8 @@ export default function PricingTest() {
   const [activeToast, setActiveToast] = useState(null);
   const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
+  // 새로고침/크래시 대비 localStorage 자동저장 → 재진입 시 "이어서 작성" 배너로 복원
+  const [restorable, setRestorable] = useState(null);
 
   const fileInputRef = useRef(null);
 
@@ -239,6 +241,57 @@ export default function PricingTest() {
     return () => navigationGuard.unregister();
   }, [shouldBlockNav]);
 
+  // ── 새로고침 대비 localStorage 자동저장 / 복원 ──
+  // beforeunload 안에서는 DB 비동기 저장이 보장되지 않으므로, 작성 중 폼을 브라우저에 동기 저장해 둔다.
+  const draftKey = companyId ? `purit_form_draft_pricing_${companyId}` : null;
+  const clearLocalDraft = () => { if (draftKey) { try { localStorage.removeItem(draftKey); } catch {} } };
+
+  // 자동저장: 신규 작성(create) 모드에서 내용이 있을 때만 (draft 이어쓰기·active 수정은 DB가 진실 원천이라 제외)
+  useEffect(() => {
+    if (!draftKey || draftId || view !== 'create') return;
+    if (!(missionTitle || pricingDesc || productDescription || industry)) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        missionTitle, pricingDesc, pricingImage, productDescription, industry,
+        panelSize, selectedQuestions, localCustomQs, careerLevels, createStep, missionUuid, savedAt: Date.now(),
+      }));
+    } catch {}
+  }, [draftKey, draftId, view, missionTitle, pricingDesc, pricingImage, productDescription, industry,
+      panelSize, selectedQuestions, localCustomQs, careerLevels, createStep, missionUuid]);
+
+  // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
+  useEffect(() => {
+    if (!draftKey || location.state?.editMode || initTemplateId) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) { const parsed = JSON.parse(raw); if (parsed?.missionTitle != null || parsed?.pricingDesc != null) setRestorable(parsed); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  function restoreLocalDraft() {
+    const d = restorable;
+    if (!d) return;
+    if (d.missionTitle != null) setMissionTitle(d.missionTitle);
+    if (d.pricingDesc != null) setPricingDesc(d.pricingDesc);
+    if (d.pricingImage !== undefined) setPricingImage(d.pricingImage);
+    if (d.productDescription != null) setProductDescription(d.productDescription);
+    if (d.industry != null) setIndustry(d.industry);
+    if (d.panelSize != null) setPanelSize(d.panelSize);
+    if (Array.isArray(d.selectedQuestions)) setSelectedQuestions(d.selectedQuestions);
+    if (Array.isArray(d.localCustomQs)) setLocalCustomQs(d.localCustomQs);
+    if (Array.isArray(d.careerLevels)) setCareerLevels(d.careerLevels);
+    if (typeof d.createStep === 'number') setCreateStep(d.createStep);
+    if (d.missionUuid) setMissionUuid(d.missionUuid);
+    setDraftId(null); setEditIsDraft(true);
+    setRestorable(null);
+    setView('create');
+  }
+  function discardLocalDraft() {
+    clearLocalDraft();
+    setRestorable(null);
+  }
+
   async function handleDeleteMission() {
     if (!deleteTarget) return;
     const { error } = await supabase.from('missions').update({ dismissed: true }).eq('id', deleteTarget);
@@ -290,6 +343,7 @@ export default function PricingTest() {
       } else {
         await supabase.from('missions').insert({ id: missionUuid, ...payload });
         setDraftId(missionUuid);
+        clearLocalDraft();  // DB draft가 진실 원천이 되므로 localStorage 자동저장본 제거 (배너 중복 방지)
       }
     } catch (e) {
       console.error('[PricingTest] 임시 저장 실패:', e.message);
@@ -487,6 +541,7 @@ export default function PricingTest() {
       });
       if (tErr) console.warn('[PricingTest] 서브테이블 등록 실패:', tErr.message);
 
+      clearLocalDraft();
       setMissionUuid(crypto.randomUUID());
       navigate('/company');
       return true;
@@ -1037,7 +1092,23 @@ export default function PricingTest() {
 
       {/* ── 목록 ── */}
       {view === 'list' && (
-        missions.length === 0 ? (
+        <>
+        {restorable && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '14px 18px', marginBottom: 16, background: 'rgba(16,54,125,0.06)', border: '1px solid rgba(16,54,125,0.25)', borderRadius: 10 }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>✏️</span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>작성 중이던 가격 검증이 있습니다</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                {restorable.missionTitle ? `“${restorable.missionTitle}” ` : ''}이어서 작성하거나 새로 시작할 수 있습니다.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn size="sm" onClick={restoreLocalDraft}>이어서 작성 →</Btn>
+              <Btn size="sm" variant="secondary" onClick={discardLocalDraft}>새로 시작</Btn>
+            </div>
+          </div>
+        )}
+        {missions.length === 0 ? (
           <Card style={{ padding: '60px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>₩</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 테스트가 없습니다</div>
@@ -1144,7 +1215,8 @@ export default function PricingTest() {
               </>);
             })()}
           </div>
-        )
+        )}
+        </>
       )}
 
       {showSubmitConfirm && (() => {
@@ -1278,6 +1350,7 @@ export default function PricingTest() {
             </Btn>
             <Btn variant="secondary" onClick={() => {
               navigationGuard.unregister();
+              clearLocalDraft();  // 자발적 폐기 → localStorage 자동저장본도 제거 (배너 재등장 방지)
               setShowDraftModal(false);
               const dest = pendingNavPath;
               setPendingNavPath(null);
