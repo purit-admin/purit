@@ -1542,46 +1542,40 @@ export default function Results() {
                       {/* 잠긴 쪽 티저: 치명적 지적 수 (궁금증 유발) */}
                       {trialTeaser && trialTeaser.criticalCount > 0 && (
                         <div style={{ fontSize: 13.5, color: '#b91c1c', fontWeight: 700, lineHeight: 1.6, marginBottom: 4 }}>
-                          ⚠️ 잠긴 {trialTeaser.lockedCount}명 중 <strong>{trialTeaser.criticalCount}명</strong>이
-                          {trialTeaser.weakestAxis ? <> ‘<strong>{trialTeaser.weakestAxis}</strong>’을(를) 포함해</> : null} 심각한 문제(1~2점)를 지적했습니다.
+                          ⚠️ 잠긴 {trialTeaser.lockedCount}명 중 <strong>{trialTeaser.criticalCount}명</strong>이 심각한 문제(1~2점)를 지적했습니다.
                         </div>
                       )}
                       <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
                         5축 점수는 전체 패널 기준으로 집계됩니다. 누가, 무엇을 지적했는지 전체 피드백·어노테이션을 보려면 잠금을 해제하세요.
-                        {/* 가격 — 할인창이면 정가 취소선 + 할인가 + 카운트다운 */}
-                        {unlockBaseCost > 0 && (
-                          <span style={{ display: 'block', marginTop: 6 }}>
-                            {withinDiscount ? (
-                              <>
-                                <span style={{ textDecoration: 'line-through', color: 'var(--text-3)' }}>{unlockBaseCost}cr</span>
-                                {' → '}
-                                <strong style={{ color: 'var(--accent)', fontSize: 15 }}>{unlockCost}크레딧</strong>
-                                <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 6, background: '#fee2e2', color: '#b91c1c', fontWeight: 800, fontSize: 12 }}>
-                                  첫 언락 {Math.round(TRIAL_FIRST_UNLOCK_DISCOUNT * 100)}% 할인
-                                </span>
-                                {discountRemainMs != null && (
-                                  <span style={{ display: 'block', marginTop: 3, fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>
-                                    ⏳ 할인 마감까지 {(() => {
-                                      const sec = Math.floor(discountRemainMs / 1000);
-                                      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-                                      return `${h}시간 ${String(m).padStart(2, '0')}분 ${String(s).padStart(2, '0')}초`;
-                                    })()}
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <><strong>{unlockCost}크레딧</strong>으로 잠금을 해제하세요.</>
-                            )}
-                          </span>
-                        )}
-                        {unlockError && <span style={{ display: 'block', color: '#ef4444', marginTop: 4 }}>{unlockError}</span>}
                       </div>
                     </div>
-                    <Btn onClick={handleUnlock} disabled={unlocking} style={{ flexShrink: 0 }}>
-                      {unlocking ? '처리 중...' : withinDiscount && unlockBaseCost > 0
-                        ? `${Math.round(TRIAL_FIRST_UNLOCK_DISCOUNT * 100)}% 할인가로 잠금 해제 (${unlockCost}cr)`
-                        : `전체 잠금 해제 (${unlockCost}cr)`}
-                    </Btn>
+                    {/* 우측: 가격·할인을 버튼에 녹임 + 카운트다운·에러는 버튼 아래 */}
+                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, minWidth: 180 }}>
+                      <Btn onClick={handleUnlock} disabled={unlocking} style={{ height: 'auto', padding: '16px 20px', lineHeight: 1.4 }}>
+                        {unlocking ? '처리 중...' : withinDiscount && unlockBaseCost > 0 ? (
+                          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                            <span style={{ padding: '2px 8px', borderRadius: 5, background: 'rgba(255,255,255,0.22)', fontSize: 11, fontWeight: 800 }}>
+                              첫 언락 {Math.round(TRIAL_FIRST_UNLOCK_DISCOUNT * 100)}%↓
+                            </span>
+                            <span style={{ fontWeight: 800 }}>
+                              <span style={{ textDecoration: 'line-through', opacity: 0.7, fontWeight: 600 }}>{unlockBaseCost}cr</span> → {unlockCost}크레딧으로 잠금 해제
+                            </span>
+                          </span>
+                        ) : `전체 잠금 해제 (${unlockCost}cr)`}
+                      </Btn>
+                      {withinDiscount && discountRemainMs != null && (
+                        <div style={{ fontSize: 11.5, color: '#b91c1c', fontWeight: 700, textAlign: 'center' }}>
+                          ⏳ 할인 마감까지 {(() => {
+                            const sec = Math.floor(discountRemainMs / 1000);
+                            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+                            return `${h}시간 ${String(m).padStart(2, '0')}분 ${String(s).padStart(2, '0')}초`;
+                          })()}
+                        </div>
+                      )}
+                      {unlockError && (
+                        <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, textAlign: 'center' }}>{unlockError}</div>
+                      )}
+                    </div>
                   </div>
                 )}
                 {showUnlockPay && companyId && (

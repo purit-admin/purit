@@ -221,8 +221,8 @@
     unlockCost = applyUnlockDiscount(unlockBaseCost, withinDiscount)(정가×0.70 ROUND2). discountRemainMs로 카운트다운.
   · nowTick state + useEffect(1초 setInterval, deps [selected,missions], end 경과 시 clearInterval) — ★ if(loading) return 앞에 배치(Rules of Hooks).
   · touch_trial_results_seen RPC: loadFeedback에서 무료 미언락 첫 열람 시 호출 → seen_at 세팅 후 missions state 패치(할인 앵커 시작).
-  · trialTeaser: 잠긴 패널 중 어느 한 축이라도 ≤2점이면 criticalCount++, 5축 중 최저평균 축 = weakestAxis(한국어 라벨). 배너에 "잠긴 N명 중 M명 치명적 지적" 노출.
-  · 배너: 정가 취소선 → 할인가 + '첫 언락 30% 할인' 뱃지 + ⏳ 카운트다운. 버튼 라벨도 할인 여부 분기.
+  · trialTeaser: 잠긴 패널 중 어느 한 축이라도 ≤2점이면 criticalCount++, 5축 최저평균 축 = weakestAxis(계산만, 배너 미노출). 배너에 "잠긴 N명 중 M명 심각한 문제(1~2점) 지적"만 노출(간결화).
+  · 배너 우측: 가격·할인을 Btn 안에 통합(2줄 — '첫 언락 30%↓' 뱃지 / 정가 취소선→할인가 크레딧으로 잠금 해제, padding 16px로 세로 확대). 카운트다운(⏳)·unlockError는 버튼 아래 우측 컬럼에 표시. 비할인 시 단일 라벨 '전체 잠금 해제 (Ncr)'.
 
 ================================================================
 ## company/Diagnosis.jsx
