@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_company.txt — Purity MVP 기업(Company) 포털 상세 정의
-최종 업데이트: 2026-06-13 (095 경력 등급 "C레벨"→"헤드" + 연차 구간 재정의 — 타겟 선택 주니어2~4(1.0×)·미들5~7(1.5×)·시니어8~14(2.0×,PRO)·헤드15+(3.0×,PRO) / 언락 크레딧 헤드 6 유지 / Pricing·플랜 카피 '헤드') / 2026-06-13 (094 무료 체험 전환 — Results 결과 공개 2명을 호평(점수) 상위 자동 선별 + 잠긴쪽 티저("잠긴 N명 중 M명 ≤2점 치명적 지적"·약점 축 지목) + 30% 첫 언락 할인·48h 카운트다운(trial_results_seen_at 앵커, 정가 취소선+할인가)) / 2026-06-13 (093 무료 체험 의뢰 '취소' 시 무료 기회 복구(어드민 취소만, 기업 조기종료 제외) / 메인 의뢰 검증 포커스 'A/B 소재 비교' 추가 + 패널이 브리핑·피드백 화면에서 포커스 뱃지 확인 / 기업 포털 '🎁 체험 의뢰' 뱃지 Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (무료 체험 결과 부분 공개 고도화 089~092 — 어드민 지정 공개 2명(trial_public_panel_ids)·언락비용 메인 1.5배(주1.5/미3/시4.5/C6)·공개 우선 정렬·추가 질문 응답만 잠금·텍스트 미션 잠금 동등 적용·결제 컬럼 직접조작 차단 트리거) / 2026-06-12 (무료 체험 Freemium — 첫 의뢰 1회 무료·부분 언락·ChargeOptionsModal 플랜구독+충전·ExitIntentModal 이탈 리텐션·Dashboard 무료 배너) / 2026-06-10 (등록폼 임시저장→이어쓰기 시 인라인 커스텀 질문 재분리 복원 D-119 / QuestionTemplates 커스텀 탭 기본 뱃지 lp로 변경)
+최종 업데이트: 2026-06-13 (096/097 구독 결제 재설계 — 플랜 변경 누적(잔여+신규, 덮어쓰기 폐지)·월 갱신 매월 리셋하되 충전분 보존·다운그레이드 차단·월간/추가 크레딧 구분 표시·의뢰 등록 시 추가 크레딧 사용 확인 모달 / 월소득 입력을 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스로 교체 / D-129) / 2026-06-13 (095 경력 등급 "C레벨"→"헤드" + 연차 구간 재정의 — 타겟 선택 주니어2~4(1.0×)·미들5~7(1.5×)·시니어8~14(2.0×,PRO)·헤드15+(3.0×,PRO) / 언락 크레딧 헤드 6 유지 / Pricing·플랜 카피 '헤드') / 2026-06-13 (094 무료 체험 전환 — Results 결과 공개 2명을 호평(점수) 상위 자동 선별 + 잠긴쪽 티저("잠긴 N명 중 M명 ≤2점 치명적 지적"·약점 축 지목) + 30% 첫 언락 할인·48h 카운트다운(trial_results_seen_at 앵커, 정가 취소선+할인가)) / 2026-06-13 (093 무료 체험 의뢰 '취소' 시 무료 기회 복구(어드민 취소만, 기업 조기종료 제외) / 메인 의뢰 검증 포커스 'A/B 소재 비교' 추가 + 패널이 브리핑·피드백 화면에서 포커스 뱃지 확인 / 기업 포털 '🎁 체험 의뢰' 뱃지 Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (무료 체험 결과 부분 공개 고도화 089~092 — 어드민 지정 공개 2명(trial_public_panel_ids)·언락비용 메인 1.5배(주1.5/미3/시4.5/C6)·공개 우선 정렬·추가 질문 응답만 잠금·텍스트 미션 잠금 동등 적용·결제 컬럼 직접조작 차단 트리거) / 2026-06-12 (무료 체험 Freemium — 첫 의뢰 1회 무료·부분 언락·ChargeOptionsModal 플랜구독+충전·ExitIntentModal 이탈 리텐션·Dashboard 무료 배너) / 2026-06-10 (등록폼 임시저장→이어쓰기 시 인라인 커스텀 질문 재분리 복원 D-119 / QuestionTemplates 커스텀 탭 기본 뱃지 lp로 변경)
 ※ 워딩 규칙: 기업 포털 UI = "의뢰" / 코드·DB·패널·어드민 = "미션/mission"
 ================================================================
 
@@ -114,7 +114,11 @@
   · 연령대: 듀얼 핸들 슬라이더 (10~70세, step 5)
     state: personaAgeMin(기본 20) / personaAgeMax(기본 40)
     저장: `${min}~${max}세` / 복원: /(\d+)[~\-](\d+)/ 정규식
-  · 월 소득 수준: 드롭다운 9개 옵션 (필수)
+  · 월 소득 수준: 듀얼 핸들 슬라이더(100/200/300/400/500/700/1,000만원 임계값, 마지막=이상) ★ 096 드롭다운 폐지
+    state: personaIncomeMin(기본 300만)/personaIncomeMax(기본 500만) 인덱스
+    슬라이더 아래 체크박스 2개 '1억 이상'·'기업 고객' → 체크 시 슬라이더 리셋·비활성, 소득 표기를 라벨로 대체(personaIncomeStr)
+    저장: persona '소득: {범위/라벨}' (전체 선택 시 생략=소득 무관) / 복원: restoreIncome (구 드롭다운 값·신 범위 모두 호환)
+    ※ 패널 브리핑·부카피(missions.persona)에 자동 반영 (별도 수정 불필요)
   · 직군/역할, 타겟 상세: 자유 입력 (선택)
 - Step 1 소재 업로드:
   · 이미지 업로드(최대 3장, 20MB, 자동 압축) + FOCUS 선택 + 브리핑
@@ -317,9 +321,15 @@
 ================================================================
 
 - companies.plan → 현재 플랜 "현재 플랜" 배지 표시
-- ★ 결제 3가지 Flow (PaymentModal 공용 컴포넌트 경유, 2026-06-12):
-  · Flow 1 플랜 구매: CTA → PaymentModal(type='plan') → mock 결제 → grant_plan_credits RPC(p_amount_krw)
-    → invoices INSERT(payment_type='plan') → companies.plan + credit_balance 갱신
+- ★★ 구독 결제 규칙 (096/097 재설계) — 사용자 자연스러움 보장:
+  · 플랜 변경 = 누적: 기존 잔여 크레딧에 새 플랜 크레딧을 더함(덮어쓰기 아님). 예: Starter 잔여 30 → Pro 전환 = 30+165=195. 결제일 기준 월 갱신 주기 새로 시작.
+  · 월 갱신 = 매월 리셋, 단 추가 구매(충전) 크레딧은 보존: 구독(월간) 크레딧만 플랜 기본값으로 리셋, 충전분(addon_credits)은 살림. renew_due_subscriptions(pg_cron) 처리.
+  · 다운그레이드 차단: 상위 플랜 사용 중 하위 플랜 결제 불가(버튼 "더 낮은 플랜 (변경 불가)" 비활성 + 서버 grant_plan_credits 'downgrade_not_allowed' 가드). free_trial→상위는 허용.
+  · 월간/추가 크레딧 구분 표시: Dashboard 잔여크레딧 카드·Pricing 잔여·PanelTargetStep '보유 크레딧'에 "월간 Ncr · 추가 Mcr"(splitCredits 파생). 소비는 '월간 먼저' 규약.
+  · 추가 크레딧 사용 확인: 의뢰 등록(4폼) 제출 시 비용이 월간 잔여를 넘고 총잔액 이내면, 제출 확인 모달에 "월간 Ncr 부족 → 추가 크레딧 Mcr 함께 사용" 안내(needsAddonConfirm). 무료체험 첫 의뢰는 우회.
+- ★ 결제 3가지 Flow (PaymentModal 공용 컴포넌트 경유, 2026-06-12 / billingCycle 096):
+  · Flow 1 플랜 구매: CTA → PaymentModal(type='plan', billingCycle) → mock 결제 → grant_plan_credits RPC(p_amount_krw, p_billing_cycle)
+    → invoices INSERT(payment_type='plan') → companies.plan + credit_balance += (누적) + 결제일 앵커
   · Flow 2 추가 크레딧 충전: 번들(10/30/50/100cr) → PaymentModal(type='credits') → purchase_credits RPC
     → invoices INSERT(payment_type='credits') → credit_balance += 충전량 즉시 반영
   · Flow 3 의뢰 등록 중 인라인 충전: PanelTargetStep isShort → 충전하기 → 번들 → PaymentModal

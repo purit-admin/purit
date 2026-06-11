@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-13 (095 패널 최상위 등급 "C레벨/임원" → "헤드" 개명 + 연차 구간 전면 재정의 — 주니어2~4(1.0×)·미들5~7(1.5×)·시니어8~14(2.0×)·헤드15+(3.0×) / 헤드는 어드민 수동(is_executive 체크박스) 폐지·연차 15+ 자동 부여(experience_years≥15) / 정산 배율·언락 크레딧은 구 C레벨과 동일 유지(3.0×·언락6) / 내부 key 'clevel' 유지·한국어 라벨만 '헤드' / experience TEXT는 헤드도 'N년'으로 저장(구 '임원' 특수텍스트 폐지)·배율/크레딧 연차 숫자 기반 통일 / RPC 5개 재정의(admin_confirm 2-param·auto_increment·complete_mission_and_refund·recalc_mission_consumed·unlock_free_trial_mission) + 기존 임원<15 강등 백필 / honorLevels·PanelTargetStep·CAREER_LABEL 4파일·Pricing·ChargeOptionsModal·PanelManagement·Profile / 연차→배율 밴드 4중복(클라+서버 3RPC) 동시 변경 필수 D-127) / 2026-06-13 (094 무료 체험 전환 3종 — ①자동 공개 2명을 점수(호평) 상위로 선별(서버 unlock RPC·Results·admin/TrialMissions 통일, D-35) ②30% 첫 언락 할인+48h 마감(trial_results_seen_at 앵커·touch_trial_results_seen·정가 취소선+카운트다운, D-121) ③잠긴쪽 티저(잠긴 N명 중 M명 ≤2점 치명적 지적·약점 축 지목, 클라 표시) / honorLevels 할인 상수·missions 보호컬럼에 seen_at 추가) / 2026-06-13 (093 무료 체험 의뢰 '취소' 복구 — admin_set_trial_mission_status: 취소→free_trial_used 복구·재개→재소진(어드민 경로 전용, 기업 조기종료는 미복구) / 메인 의뢰 검증 포커스에 'A/B 소재 비교' 추가 + 패널 미션 브리핑·이미지 피드백 화면에 검증 포커스(assets) 뱃지 노출 / 기업 포털 무료 첫 의뢰 '🎁 체험 의뢰' 뱃지 — Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (체험 의뢰 관리 고도화 089~092 — trial_public_panel_ids 어드민 지정 공개·언락 메인1.5배(090)·admin_delete_trial_mission 무료기회 복구(091,D-124)·결제컬럼 보호 트리거+admin_set_trial_public(092,D-125)·어드민 운영그룹 체험관리 맨 위 / Results 추가질문 응답만 잠금·텍스트미션 잠금 동등·공개 우선 정렬) / 2026-06-12 (기업 사이드바 '자산' 그룹 순서 변경 — 피드백 결과 최상단 / submit-penguin-trial-feedbacks.mjs 테스트 스크립트 추가) / 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
+최종 업데이트: 2026-06-13 (096/097 구독 결제 재설계 — 플랜 변경 누적(grant += / 다운그레이드 가드 / 결제일 앵커) + 월 갱신 renew_due_subscriptions(매월 리셋·구매분 LEAST 보존, pg_cron) + companies 4컬럼(addon_credits·plan_started_at·next_billing_at·plan_billing_cycle) / 단일지갑+addon 트래커 파생분리로 월간/추가 구분표시·확인모달(credits.js·Dashboard·Pricing·PanelTargetStep·등록4폼) / PaymentModal billingCycle·"추가 적립" 문구 / Pricing 다운그레이드 버튼 차단·누적 미러 / 097 핫픽스: admin_change_plan addon=0·renew 원자화 / D-129 / NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스) / 2026-06-13 (095 패널 최상위 등급 "C레벨/임원" → "헤드" 개명 + 연차 구간 전면 재정의 — 주니어2~4(1.0×)·미들5~7(1.5×)·시니어8~14(2.0×)·헤드15+(3.0×) / 헤드는 어드민 수동(is_executive 체크박스) 폐지·연차 15+ 자동 부여(experience_years≥15) / 정산 배율·언락 크레딧은 구 C레벨과 동일 유지(3.0×·언락6) / 내부 key 'clevel' 유지·한국어 라벨만 '헤드' / experience TEXT는 헤드도 'N년'으로 저장(구 '임원' 특수텍스트 폐지)·배율/크레딧 연차 숫자 기반 통일 / RPC 5개 재정의(admin_confirm 2-param·auto_increment·complete_mission_and_refund·recalc_mission_consumed·unlock_free_trial_mission) + 기존 임원<15 강등 백필 / honorLevels·PanelTargetStep·CAREER_LABEL 4파일·Pricing·ChargeOptionsModal·PanelManagement·Profile / 연차→배율 밴드 4중복(클라+서버 3RPC) 동시 변경 필수 D-127) / 2026-06-13 (094 무료 체험 전환 3종 — ①자동 공개 2명을 점수(호평) 상위로 선별(서버 unlock RPC·Results·admin/TrialMissions 통일, D-35) ②30% 첫 언락 할인+48h 마감(trial_results_seen_at 앵커·touch_trial_results_seen·정가 취소선+카운트다운, D-121) ③잠긴쪽 티저(잠긴 N명 중 M명 ≤2점 치명적 지적·약점 축 지목, 클라 표시) / honorLevels 할인 상수·missions 보호컬럼에 seen_at 추가) / 2026-06-13 (093 무료 체험 의뢰 '취소' 복구 — admin_set_trial_mission_status: 취소→free_trial_used 복구·재개→재소진(어드민 경로 전용, 기업 조기종료는 미복구) / 메인 의뢰 검증 포커스에 'A/B 소재 비교' 추가 + 패널 미션 브리핑·이미지 피드백 화면에 검증 포커스(assets) 뱃지 노출 / 기업 포털 무료 첫 의뢰 '🎁 체험 의뢰' 뱃지 — Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (체험 의뢰 관리 고도화 089~092 — trial_public_panel_ids 어드민 지정 공개·언락 메인1.5배(090)·admin_delete_trial_mission 무료기회 복구(091,D-124)·결제컬럼 보호 트리거+admin_set_trial_public(092,D-125)·어드민 운영그룹 체험관리 맨 위 / Results 추가질문 응답만 잠금·텍스트미션 잠금 동등·공개 우선 정렬) / 2026-06-12 (기업 사이드바 '자산' 그룹 순서 변경 — 피드백 결과 최상단 / submit-penguin-trial-feedbacks.mjs 테스트 스크립트 추가) / 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -33,6 +33,11 @@ purit/
 │   │                  2순위: team_members.user_id = userId + status='active' → { company, teamRole: 'editor'|'viewer' } (팀원)
 │   │                  미매칭: { company: null, teamRole: null }
 │   │                canEdit = teamRole === null || teamRole === 'editor' 패턴으로 권한 분기
+│   │              credits.js (월간(구독)/추가(구매) 크레딧 구분 헬퍼 — 096 단일지갑+addon 트래커 파생, D-129) ★ 신규
+│   │                splitCredits(balance, addon): { monthly:max(0,balance-addon), addon:min(addon,balance), total } / fmtSplit
+│   │                needsAddonConfirm(cost, balance, addon): 월간_잔여<cost≤총잔액이면 true(추가 크레딧 사용 확인 모달 트리거)
+│   │                addonUsageFor(cost, balance, addon): 추가 크레딧에서 끌어 쓰는 금액(모달 문구용)
+│   │                사용: Dashboard·Pricing·PanelTargetStep(구분 표시) / NewMission·PreferenceTest·PricingTest·ColdEmailTest(제출 확인 모달)
 │   │              imageUtils.js (compressImage 유틸리티 — canvas API 기반 이미지 자동 압축) ★ 신규
 │   │                compressImage(file, maxWidth=1920, quality=0.88): Promise<File>
 │   │                  PNG → PNG(투명도 보존) / 그 외 → JPEG 변환
@@ -130,7 +135,8 @@ purit/
 │   │                  REPORT_TYPES 6개 배열 — key:'appeal', label:'⚖️ 이의 신청' 포함
 │   │                  제목 + 상세 + 스크린샷 업로드(bug-screenshots 버킷, 5MB)
 │   │                PaymentModal.jsx (결제 모달 — ReactDOM.createPortal, 기업 포털 공통) ★ 신규 (2026-06-12)
-│   │                  props: type('plan'|'credits'), plan, credits, amountKrw, companyId, onSuccess(newBalance), onClose
+│   │                  props: type('plan'|'credits'), plan, credits, amountKrw, companyId, billingCycle('monthly'|'annual', 096), onSuccess(newBalance), onClose
+│   │                  ★ 096: type='plan'은 grant_plan_credits에 p_billing_cycle 전달 / 주문요약 문구 "기존 잔액에 N cr 추가 적립"(구 "초기화" 폐지 — 누적)
 │   │                  결제 수단 탭: 카드(즉시 처리) / 가상계좌(PG 연동 후 지원, 현재 비활성)
 │   │                  Mock 배너: "🧪 테스트 모드 · 실제 결제 없이 즉시 처리됩니다" (amber)
 │   │                  handlePay(): type='plan'→grant_plan_credits RPC / type='credits'→purchase_credits RPC
@@ -151,6 +157,7 @@ purit/
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
 │   │                  ★ CAREER_LEVELS(095): junior 주니어 2–4년차(1.0×) / middle 미들 5–7년차(1.5×) / senior 시니어 8–14년차(2.0×,proOnly) / clevel '헤드' 15년차 이상(3.0×,proOnly)
 │   │                    내부 key 'clevel' 유지(미션 description.careerLevels 호환), 한국어 라벨만 '헤드'. CAREER_LABEL(4파일)도 clevel:'헤드'
+│   │                  ★ 096: addonBalance prop(기본 0) — '보유 크레딧' 아래 "월간 Ncr · 추가 Mcr"(splitCredits) 분리 표기. 4개 등록 폼이 creditAddon 전달
 │   │                  ★ forwardRef + useImperativeHandle 적용 — 부모 폼에서 ref={panelStepRef}로 openCreditModal() 호출 가능
 │   │                  크레딧 부족 시 "다음" 버튼에서 panelStepRef.current?.openCreditModal() 트리거 → 업그레이드 모달 표시
 │   │                  ★ onSaveDraft prop (optional): "Pro 플랜 전환하기" → /company/plans 이동 전 임시저장 확인 모달 표시
@@ -422,6 +429,14 @@ purit/
 │                  세 RPC·클라 모두 키워드 정규식 분기('헤드|c레벨|임원|시니어|미들'…) 레거시 안전망 유지(숫자 'N년' 우선).
 │                  백필: 확정 패널 is_executive=(years>=15) 재계산 + experience='N년' 정규화 → 기존 임원<15 강등(과거 정산 payout_amount 스냅샷 불변). 미확정 '임원' 텍스트는 미변경(재확정 전 키워드 3.0× 유지).
 │                  ※ 연차→배율 밴드 4중복(클라 honorLevels + 서버 3RPC) 동시 변경 필수 — D-127.
+│                096(subscription_billing: 구독 결제 재설계 — 플랜 변경 누적 / 월 갱신(매월 리셋·구매분 보존) / 다운그레이드 차단 / pg_cron 월 갱신) ★ 신규
+│                  companies +addon_credits(보존 구매분 트래커)·plan_started_at·next_billing_at·plan_billing_cycle('monthly'|'annual') + 기존 starter/pro 백필
+│                  grant_plan_credits 5-param 재정의(+p_billing_cycle): credit_balance += (누적, 덮어쓰기 폐기) + 다운그레이드 가드(랭크 비교 'downgrade_not_allowed') + 결제일 앵커
+│                  purchase_credits: addon_credits += 누적(월 리셋에도 보존) / admin_change_plan: 절대값 SET 유지 + 앵커 세팅
+│                  renew_due_subscriptions() 신규: starter/pro·next_billing_at 도래분 → 구독분 플랜기본값 리셋 + 구매분 LEAST 보존 / pg_cron 등록 SQL Editor 수동(081 패턴)
+│                  ※ 설계: 지갑 분리 없이 단일 credit_balance(소비 RPC 무수정) + addon_credits 트래커, 파생식(월간=balance-addon)으로 구분표시·확인모달 — D-129
+│                097(fix_subscription_billing: 096 핫픽스 2건 — CREATE OR REPLACE로 시그니처·GRANT 보존) ★ 신규
+│                  ① admin_change_plan: 강제 리셋 시 addon_credits=0(유령 크레딧 부활 방지) ② renew_due_subscriptions: UPDATE문 내 컬럼 직접참조로 원자화(동시 충전 유실 race 방지) — D-129
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

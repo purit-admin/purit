@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import ReactDOM from 'react-dom';
 import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
+import { splitCredits, needsAddonConfirm, addonUsageFor } from '../../lib/credits';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
@@ -194,10 +195,45 @@ const DEFAULT_PLACEHOLDERS = {
 };
 
 const AGE_MIN = 10, AGE_MAX = 70;
-const INCOME_OPTIONS = [
-  '100만원 이하', '100~200만원', '200~300만원', '300~400만원',
-  '400~500만원', '500~700만원', '700~1,000만원', '1,000만원 이상', '1억 이상',
-];
+
+// 월 소득 수준 — 연령대처럼 듀얼 슬라이더로 선택 (만원/월 임계값, 마지막 인덱스는 '이상')
+const INCOME_STOPS = [100, 200, 300, 400, 500, 700, 1000];
+const INCOME_MIN_IDX = 0, INCOME_MAX_IDX = INCOME_STOPS.length - 1;
+const fmtMan = (v) => v.toLocaleString();
+const incomeHandleLabel = (i) => i >= INCOME_MAX_IDX ? `${fmtMan(INCOME_STOPS[i])}만원+` : `${fmtMan(INCOME_STOPS[i])}만원`;
+// 인덱스 범위 → 사람이 읽는 소득 문자열 (전체 범위면 '' 반환 → 페르소나에서 생략)
+function fmtIncomeRange(lo, hi) {
+  const top = hi >= INCOME_MAX_IDX;
+  if (lo <= INCOME_MIN_IDX && top) return '';                              // 소득 무관
+  if (top)                  return `${fmtMan(INCOME_STOPS[lo])}만원 이상`;
+  if (lo <= INCOME_MIN_IDX) return `${fmtMan(INCOME_STOPS[hi])}만원 이하`;
+  return `${fmtMan(INCOME_STOPS[lo])}~${fmtMan(INCOME_STOPS[hi])}만원`;
+}
+// 저장된 소득 문자열 → 슬라이더 인덱스 복원 (구 드롭다운/신 범위 포맷 모두 지원)
+function parseIncomeToIdx(str) {
+  if (!str || /무관/.test(str)) return { min: INCOME_MIN_IDX, max: INCOME_MAX_IDX };
+  if (/억/.test(str))           return { min: INCOME_MAX_IDX, max: INCOME_MAX_IDX };
+  const nums = (str.replace(/,/g, '').match(/\d+/g) || []).map(Number);
+  const nearest = (n) => {
+    let bi = 0, bd = Infinity;
+    INCOME_STOPS.forEach((s, i) => { const d = Math.abs(s - n); if (d < bd) { bd = d; bi = i; } });
+    return bi;
+  };
+  if (/이상/.test(str) && nums.length) return { min: nearest(nums[0]), max: INCOME_MAX_IDX };
+  if (/이하/.test(str) && nums.length) return { min: INCOME_MIN_IDX, max: nearest(nums[0]) };
+  if (nums.length >= 2) { const a = nearest(nums[0]), b = nearest(nums[1]); return { min: Math.min(a, b), max: Math.max(a, b) }; }
+  if (nums.length === 1) { const a = nearest(nums[0]); return { min: a, max: a }; }
+  return { min: 2, max: 4 };
+}
+// 저장된 소득 문자열 → 슬라이더 인덱스 + 특수 타겟 체크박스(1억 이상/기업 고객) 복원
+function restoreIncome(str) {
+  const s = str || '';
+  const high = /억/.test(s);
+  const biz  = /기업\s*고객/.test(s);
+  if (high || biz) return { personaIncomeMin: 2, personaIncomeMax: 4, personaIncomeHigh: high, personaIncomeBiz: biz };
+  const r = parseIncomeToIdx(s);
+  return { personaIncomeMin: r.min, personaIncomeMax: r.max, personaIncomeHigh: false, personaIncomeBiz: false };
+}
 
 // 듀얼 레인지 슬라이더 — 커스텀 div 핸들 + pointer 드래그 (브라우저 기본 핸들의 양끝 삐져나옴 문제 제거)
 function DualRangeSlider({ min, max, step, valueMin, valueMax, onChangeMin, onChangeMax }) {
@@ -306,7 +342,8 @@ export default function NewMission() {
   const [missionUuid, setMissionUuid] = useState(() => editMissionId || crypto.randomUUID());
   const [form, setForm] = useState({
     product: '', lpUrl: '',
-    personaAgeMin: 20, personaAgeMax: 40, personaIncome: '', personaRole: '', personaContext: '',
+    personaAgeMin: 20, personaAgeMax: 40, personaIncomeMin: 2, personaIncomeMax: 4,
+    personaIncomeHigh: false, personaIncomeBiz: false, personaRole: '', personaContext: '',
     industry: '',
     panels: 10, briefText: '', focusAreas: [],
     imageUrls: [],
@@ -326,6 +363,7 @@ export default function NewMission() {
   const [companyFreeTrialUsed, setCompanyFreeTrialUsed] = useState(false);
   const [companyId, setCompanyId]         = useState(null);
   const [creditBalance, setCreditBalance] = useState(null);
+  const [creditAddon, setCreditAddon]     = useState(0);
   const [teamRole, setTeamRole]           = useState(null);
   const [careerLevels, setCareerLevels]   = useState(['junior']);
   const [missions, setMissions]           = useState([]);
@@ -368,7 +406,7 @@ export default function NewMission() {
       setCompanyPlan(data?.plan?.toLowerCase() || 'free_trial');
       setCompanyFreeTrialUsed(data?.free_trial_used ?? false);
       if (data?.id) setCompanyId(data.id);
-      if (data != null) setCreditBalance(data.credit_balance ?? 0);
+      if (data != null) { setCreditBalance(data.credit_balance ?? 0); setCreditAddon(data.addon_credits ?? 0); }
       setTeamRole(tr);
     }
     fetchPlan();
@@ -443,7 +481,7 @@ export default function NewMission() {
   function resetForm() {
     setMissionUuid(crypto.randomUUID());
     setStep(0);
-    setForm({ product: '', lpUrl: '', personaAgeMin: 20, personaAgeMax: 40, personaIncome: '', personaRole: '', personaContext: '', industry: '', panels: 10, briefText: '', focusAreas: [], imageUrls: [], estimatedMinutes: 5 });
+    setForm({ product: '', lpUrl: '', personaAgeMin: 20, personaAgeMax: 40, personaIncomeMin: 2, personaIncomeMax: 4, personaIncomeHigh: false, personaIncomeBiz: false, personaRole: '', personaContext: '', industry: '', panels: 10, briefText: '', focusAreas: [], imageUrls: [], estimatedMinutes: 5 });
     setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
     setFocusCustomMode(false); setFocusCustomInput('');
     setCareerLevels(['junior']);
@@ -471,7 +509,7 @@ export default function NewMission() {
         imageUrls:      ms.image_urls || [],
         industry:       parsed.industry || '',
         ...(() => { const m = (parsed.personaAge || '').match(/(\d+)[~\-](\d+)/); return { personaAgeMin: m ? +m[1] : 20, personaAgeMax: m ? +m[2] : 40 }; })(),
-        personaIncome:  parsed.personaIncome || '',
+        ...restoreIncome(parsed.personaIncome || ''),
         personaRole:    parsed.personaRole || '',
         personaContext: parsed.personaContext || '',
       }));
@@ -491,12 +529,24 @@ export default function NewMission() {
   const FOCUS = ['첫인상 / 가독성', 'CTA 전환율', '가격 및 가치 전달', 'A/B 소재 비교', '신뢰 요소', '모바일 최적화', '핵심 메시지 명확성', '비주얼 완성도', '타겟 일치도'];
 
   const stepValid = (() => {
-    if (step === 0) return !!form.industry && !!form.product.trim() && !!form.personaIncome && !!form.personaRole.trim();
+    if (step === 0) return !!form.industry && !!form.product.trim() && !!form.personaRole.trim();
     if (step === 1) return form.imageUrls.length > 0 && form.focusAreas.length > 0 && !!form.briefText.trim();
     return true;
   })();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const incomeFlagLabels = [];
+  if (form.personaIncomeHigh) incomeFlagLabels.push('1억 이상');
+  if (form.personaIncomeBiz)  incomeFlagLabels.push('기업 고객');
+  const incomeOverride = incomeFlagLabels.length > 0;
+  // 체크박스(1억 이상/기업 고객)가 켜지면 슬라이더 범위 대신 그 라벨이 소득 표기를 대체
+  const personaIncomeStr = incomeOverride
+    ? incomeFlagLabels.join(' · ')
+    : fmtIncomeRange(form.personaIncomeMin, form.personaIncomeMax);
+  // 체크 시 슬라이더를 기본값으로 리셋(체크박스가 소득을 결정), 해제 시 슬라이더 재활성
+  const toggleIncomeFlag = (key) => setForm(f => f[key]
+    ? { ...f, [key]: false }
+    : { ...f, [key]: true, personaIncomeMin: 2, personaIncomeMax: 4 });
   const toggleFocus = (f) => setForm(prev => ({
     ...prev,
     focusAreas: prev.focusAreas.includes(f) ? prev.focusAreas.filter(x => x !== f) : [...prev.focusAreas, f],
@@ -615,7 +665,7 @@ export default function NewMission() {
   const shouldBlockNav = view === 'form'
     && (!effectiveEditMode || isDraftMode)
     && Boolean(form.product || form.lpUrl || form.briefText || form.imageUrls.length > 0
-      || form.industry || form.personaIncome || form.personaRole || form.personaContext);
+      || form.industry || form.personaRole || form.personaContext);
 
 
   useEffect(() => {
@@ -652,7 +702,7 @@ export default function NewMission() {
         imageUrls:      ms.image_urls || [],
         industry:       parsed.industry || '',
         ...(() => { const m = (parsed.personaAge || '').match(/(\d+)[~\-](\d+)/); return { personaAgeMin: m ? +m[1] : 20, personaAgeMax: m ? +m[2] : 40 }; })(),
-        personaIncome:  parsed.personaIncome || '',
+        ...restoreIncome(parsed.personaIncome || ''),
         personaRole:    parsed.personaRole || '',
         personaContext: parsed.personaContext || '',
       }));
@@ -707,7 +757,7 @@ export default function NewMission() {
       const personaAgeStr = `${form.personaAgeMin}~${form.personaAgeMax}세`;
       const persona = [
         `연령: ${personaAgeStr}`,
-        form.personaIncome && `소득: ${form.personaIncome}`,
+        personaIncomeStr && `소득: ${personaIncomeStr}`,
         form.personaRole && `직군: ${form.personaRole}`,
         form.industry && `산업군: ${form.industry}`,
         form.personaContext && form.personaContext,
@@ -715,7 +765,7 @@ export default function NewMission() {
       const desc = JSON.stringify({
         briefText: form.briefText, careerLevels, selectedQuestions: allLPSelected,
         industry: form.industry, product: form.product,
-        personaAge: personaAgeStr, personaIncome: form.personaIncome,
+        personaAge: personaAgeStr, personaIncome: personaIncomeStr,
         personaRole: form.personaRole, personaContext: form.personaContext,
         focusAreas: form.focusAreas, panels: form.panels, step,
       });
@@ -746,7 +796,7 @@ export default function NewMission() {
     if (form.lpUrl)                  base.lpUrl             = form.lpUrl;
     if (form.focusAreas?.length > 0) base.focusAreas        = form.focusAreas;
     base.personaAge = `${form.personaAgeMin}~${form.personaAgeMax}세`;
-    if (form.personaIncome)          base.personaIncome     = form.personaIncome;
+    if (personaIncomeStr)            base.personaIncome     = personaIncomeStr;
     if (form.personaRole)            base.personaRole       = form.personaRole;
     if (form.personaContext)         base.personaContext    = form.personaContext;
     return JSON.stringify(base);
@@ -771,7 +821,7 @@ export default function NewMission() {
 
       const persona = [
         `연령: ${form.personaAgeMin}~${form.personaAgeMax}세`,
-        form.personaIncome && `소득: ${form.personaIncome}`,
+        personaIncomeStr && `소득: ${personaIncomeStr}`,
         form.personaRole && `직군: ${form.personaRole}`,
         form.industry && `산업군: ${form.industry}`,
         form.personaContext && form.personaContext,
@@ -1234,16 +1284,44 @@ export default function NewMission() {
                         </div>
                       </div>
                     </div>
-                    {/* 월 소득 수준 드롭다운 */}
-                    <label style={lbl}>
+                    {/* 월 소득 수준 듀얼 슬라이더 + 특수 타겟 체크박스 */}
+                    <div style={lbl}>
                       <span style={lblTxt}>월 소득 수준</span>
-                      <select value={form.personaIncome} onChange={e => set('personaIncome', e.target.value)}
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)',
-                          background: 'var(--surface-2)', fontSize: 14, color: form.personaIncome ? 'var(--text)' : 'var(--text-3)', cursor: 'pointer' }}>
-                        <option value="" disabled>선택하세요</option>
-                        {INCOME_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </label>
+                      <div style={{ marginTop: 8, padding: '14px 16px 12px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 6, marginBottom: 14 }}>
+                          {incomeOverride ? (
+                            <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{personaIncomeStr}</span>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{incomeHandleLabel(form.personaIncomeMin)}</span>
+                              <span style={{ fontSize: 13, color: 'var(--text-3)' }}>~</span>
+                              <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{incomeHandleLabel(form.personaIncomeMax)}</span>
+                            </>
+                          )}
+                        </div>
+                        <div style={{ opacity: incomeOverride ? 0.4 : 1, pointerEvents: incomeOverride ? 'none' : 'auto', transition: 'opacity 0.15s' }}>
+                          <DualRangeSlider min={INCOME_MIN_IDX} max={INCOME_MAX_IDX} step={1}
+                            valueMin={form.personaIncomeMin} valueMax={form.personaIncomeMax}
+                            onChangeMin={(v) => set('personaIncomeMin', v)} onChangeMax={(v) => set('personaIncomeMax', v)} />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-3)' }}>
+                            <span>100만</span><span>500만</span><span>1,000만+</span>
+                          </div>
+                        </div>
+                        {/* 특수 타겟 체크박스 — 선택 시 슬라이더 리셋·비활성 */}
+                        <div style={{ display: 'flex', gap: 18, marginTop: 14, paddingTop: 12, borderTop: '1px dashed var(--border)' }}>
+                          {[{ key: 'personaIncomeHigh', label: '1억 이상' }, { key: 'personaIncomeBiz', label: '기업 고객' }].map(({ key, label }) => (
+                            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontSize: 13, color: 'var(--text-2)', userSelect: 'none' }}>
+                              <input type="checkbox" checked={form[key]} onChange={() => toggleIncomeFlag(key)}
+                                style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-2)', textAlign: 'center' }}>
+                          {incomeOverride ? personaIncomeStr : (personaIncomeStr ? `월 ${personaIncomeStr}` : '소득 무관 (전체)')}
+                        </div>
+                      </div>
+                    </div>
                     <label style={lbl}>
                       <span style={lblTxt}>직군/역할</span>
                       <input value={form.personaRole} onChange={e => set('personaRole', e.target.value)} placeholder={ph.personaRole} />
@@ -1766,8 +1844,9 @@ export default function NewMission() {
                 onCareerLevels={setCareerLevels}
                 missionType="main"
                 creditBalance={creditBalance}
+                addonBalance={creditAddon}
                 companyId={companyId}
-                onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
+                onCreditBalanceUpdate={(newBal) => { setCreditAddon(a => a + Math.max(0, newBal - (creditBalance || 0))); setCreditBalance(newBal); }}
                 onSaveDraft={saveDraft}
                 freeTrialAvailable={freeTrialAvailable}
                 chargeOnSubmit={creditsChargedOnSubmit}
@@ -1781,7 +1860,7 @@ export default function NewMission() {
                 {[
                   ['제품/서비스', form.product || '—'],
                   ['LP URL', form.lpUrl || '—'],
-                  ['타겟 페르소나', `${form.personaAgeMin}~${form.personaAgeMax}세, ${form.personaIncome || '—'}, ${form.personaRole || '—'}`],
+                  ['타겟 페르소나', `${form.personaAgeMin}~${form.personaAgeMax}세, ${personaIncomeStr || '소득 무관'}, ${form.personaRole || '—'}`],
                   ['패널 수', `${form.panels}명`],
                   ['커리어 레벨', careerLevels.map(k => CAREER_LEVELS.find(c => c.key === k)?.label).filter(Boolean).join(', ') || '—'],
                   ['예상 크레딧', `${calcCredits(form.panels, careerLevels, 'main')} 크레딧`],
@@ -1871,9 +1950,11 @@ export default function NewMission() {
       {showSubmitConfirm && (() => {
         const credits = calcCredits(form.panels, careerLevels, 'main');
         const remaining = creditBalance != null ? creditBalance - credits : null;
+        // active 의뢰 수정: 등록 시 이미 크레딧이 예약돼 제출 시 추가 차감 없음 (D-128)
+        const isActiveEdit = !creditsChargedOnSubmit && !freeTrialAvailable;
         return (
           <ConfirmModal
-            title="의뢰를 제출할까요?"
+            title={isActiveEdit ? '수정 내용을 저장할까요?' : '의뢰를 제출할까요?'}
             desc={
               <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75 }}>
                 {freeTrialAvailable ? (
@@ -1883,6 +1964,14 @@ export default function NewMission() {
                       <li><strong>최초 1회</strong> 의뢰 등록 무료 체험 중입니다.</li>
                       <li>결과는 패널 <strong>10명 중 2명 분만 공개</strong> 되고,<br /><strong>나머지 8명은 잠금</strong>됩니다.</li>
                       <li>전체 피드백은 <strong>크레딧 충전이나 구독 후</strong> 잠금 해제할 수 있습니다.</li>
+                    </ul>
+                  </div>
+                ) : isActiveEdit ? (
+                  <div style={{ padding: '14px 16px', background: 'rgba(16,54,125,0.06)', border: '1px solid rgba(16,54,125,0.22)', borderRadius: 8, marginBottom: 12, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--accent)', marginBottom: 6 }}>✏️ 진행 중인 의뢰 수정</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8 }}>
+                      <li>등록 시 크레딧이 이미 예약되어 <strong>추가로 차감되지 않습니다.</strong></li>
+                      <li>수정한 내용으로 의뢰가 갱신됩니다.</li>
                     </ul>
                   </div>
                 ) : (
@@ -1897,6 +1986,20 @@ export default function NewMission() {
                         <strong style={{ color: remaining < 0 ? '#ef4444' : 'var(--text)' }}>{Math.floor(remaining)} cr</strong>
                       </div>
                     )}
+                    {needsAddonConfirm(credits, creditBalance, creditAddon) && (() => {
+                      const sp = splitCredits(creditBalance, creditAddon);
+                      const useAddon = addonUsageFor(credits, creditBalance, creditAddon);
+                      return (
+                        <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, marginBottom: 12, textAlign: 'left' }}>
+                          <div style={{ fontWeight: 800, color: '#B45309', marginBottom: 6 }}>💳 추가 크레딧 사용 안내</div>
+                          <div style={{ lineHeight: 1.7 }}>
+                            이번 의뢰는 <strong>{Math.ceil(credits)}cr</strong>이 필요합니다.<br />
+                            월간 크레딧 <strong>{sp.monthly}cr</strong>로는 부족해 <strong style={{ color: '#B45309' }}>추가(충전) 크레딧 {Math.ceil(useAddon)}cr</strong>이 함께 사용됩니다.<br />
+                            계속 진행하시겠습니까?
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
                 <div style={{ padding: '10px 14px', background: 'rgba(16,54,125,0.06)', borderRadius: 8, marginBottom: 12, textAlign: 'left' }}>
@@ -1908,7 +2011,7 @@ export default function NewMission() {
                 </div>
               </div>
             }
-            confirmLabel="제출하기"
+            confirmLabel={isActiveEdit ? '수정 완료' : '제출하기'}
             cancelLabel="다시 확인"
             onConfirm={() => { setShowSubmitConfirm(false); handleSubmit(); }}
             onCancel={() => setShowSubmitConfirm(false)}

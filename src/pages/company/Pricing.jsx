@@ -3,6 +3,10 @@ import { Card, Badge, Btn } from '../../components/ui';
 import PaymentModal from '../../components/ui/PaymentModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
+import { splitCredits } from '../../lib/credits';
+
+// 티어 랭크 — 하위 플랜 다운그레이드 차단용 (free_trial 0 < starter 1 < pro 2 < enterprise 3)
+const TIER_RANK = { free_trial: 0, starter: 1, pro: 2, enterprise: 3 };
 
 const PLANS = [
   {
@@ -96,6 +100,7 @@ export default function PricingPage() {
   const [contactDone, setContactDone] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState(null); // { type, plan?, credits?, amountKrw }
   const [creditBalance, setCreditBalance] = useState(null);
+  const [creditAddon, setCreditAddon] = useState(0);
   const [addonBundle, setAddonBundle] = useState(null);
 
   useEffect(() => {
@@ -104,7 +109,7 @@ export default function PricingPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         const { company: co, teamRole: tr } = await resolveCompany(user.id);
-        if (co) { setCompany(co); setCreditBalance(co.credit_balance ?? 0); }
+        if (co) { setCompany(co); setCreditBalance(co.credit_balance ?? 0); setCreditAddon(co.addon_credits ?? 0); }
         setTeamRole(tr);
       } catch (err) {
         console.error('[Pricing load]', err);
@@ -117,20 +122,33 @@ export default function PricingPage() {
     if (teamRole !== null) { setMsg('플랜 변경은 계정 오너만 가능합니다.'); return; }
     if (planId === 'enterprise') { setShowEnterpriseModal(true); return; }
     if (!company) return;
+    // 다운그레이드 차단 — 상위 플랜 사용 중 하위 플랜으로 변경 불가
+    if (TIER_RANK[planId] < (TIER_RANK[currentPlan] ?? 0)) {
+      setMsg('하위 플랜으로는 변경할 수 없습니다.');
+      setTimeout(() => setMsg(''), 3500);
+      return;
+    }
     const planObj = PLANS.find(p => p.id === planId);
     const price = billing === 'annual' ? planObj.price.annual : planObj.price.monthly;
-    setPaymentTarget({ type: 'plan', plan: planId, amountKrw: price * 10000 });
+    setPaymentTarget({ type: 'plan', plan: planId, amountKrw: price * 10000, billingCycle: billing === 'annual' ? 'annual' : 'monthly' });
   }
 
   function handlePaymentSuccess(newBalance) {
     if (paymentTarget?.type === 'plan') {
       const planCredits = { starter: 50, pro: 165, enterprise: 400 };
       const credits = planCredits[paymentTarget.plan] ?? 0;
-      setCompany(c => ({ ...c, plan: paymentTarget.plan, credit_balance: credits }));
-      setCreditBalance(credits);
-      setMsg('플랜이 변경됐습니다. 크레딧이 지급됐습니다.');
+      // 누적 지급 — 기존 잔액에 새 플랜 크레딧을 더함(덮어쓰기 아님, 서버 grant_plan_credits와 일치)
+      setCompany(c => ({ ...c, plan: paymentTarget.plan, credit_balance: (c?.credit_balance || 0) + credits }));
+      setCreditBalance(prev => (prev || 0) + credits);
+      setMsg('플랜이 변경됐습니다. 크레딧이 추가 지급됐습니다.');
     } else {
-      if (newBalance != null) setCreditBalance(newBalance);
+      if (newBalance != null) {
+        setCreditBalance(newBalance);
+        // 구매 충전분은 addon 트래커에도 누적 (서버 purchase_credits와 일치)
+        const added = paymentTarget?.credits || 0;
+        setCreditAddon(prev => (prev || 0) + added);
+        setCompany(c => ({ ...c, credit_balance: newBalance, addon_credits: (c?.addon_credits || 0) + added }));
+      }
       setMsg(`크레딧이 충전됐습니다. 잔여 ${newBalance}cr`);
     }
     setAddonBundle(null);
@@ -270,14 +288,21 @@ export default function PricingPage() {
               ))}
             </div>
 
-            <Btn
-              variant={currentPlan === plan.id ? 'secondary' : plan.highlight ? 'primary' : 'secondary'}
-              style={{ width: '100%', justifyContent: 'center' }}
-              disabled={currentPlan === plan.id || !!changing || teamRole !== null}
-              onClick={() => handleSelectPlan(plan.id)}
-            >
-              {currentPlan === plan.id ? '사용 중' : changing === plan.id ? '변경 중...' : plan.cta}
-            </Btn>
+            {(() => {
+              const isDowngrade = plan.id !== 'enterprise' && TIER_RANK[plan.id] < (TIER_RANK[currentPlan] ?? 0);
+              return (
+                <Btn
+                  variant={currentPlan === plan.id ? 'secondary' : plan.highlight ? 'primary' : 'secondary'}
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  disabled={currentPlan === plan.id || isDowngrade || !!changing || teamRole !== null}
+                  onClick={() => handleSelectPlan(plan.id)}
+                >
+                  {currentPlan === plan.id ? '사용 중'
+                    : isDowngrade ? '더 낮은 플랜 (변경 불가)'
+                    : changing === plan.id ? '변경 중...' : plan.cta}
+                </Btn>
+              );
+            })()}
           </Card>
         ))}
       </div>
@@ -301,11 +326,15 @@ export default function PricingPage() {
                     {discountLabel && <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 600 }}>{discountLabel}</span>}
                   </div>
                 </div>
-                {creditBalance != null && (
-                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                    잔여 <strong style={{ color: 'var(--text)' }}>{creditBalance}cr</strong>
-                  </div>
-                )}
+                {creditBalance != null && (() => {
+                  const s = splitCredits(creditBalance, creditAddon);
+                  return (
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'right' }}>
+                      잔여 <strong style={{ color: 'var(--text)' }}>{creditBalance}cr</strong>
+                      <div style={{ fontSize: 11, marginTop: 2 }}>월간 {s.monthly}cr · 추가 {s.addon}cr</div>
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
                 {BUNDLES.map(amount => {
@@ -395,6 +424,7 @@ export default function PricingPage() {
           credits={paymentTarget.credits}
           amountKrw={paymentTarget.amountKrw}
           companyId={company.id}
+          billingCycle={paymentTarget.billingCycle || 'monthly'}
           onSuccess={handlePaymentSuccess}
           onClose={() => setPaymentTarget(null)}
         />
@@ -404,12 +434,13 @@ export default function PricingPage() {
       <div style={{ marginTop: 48, padding: '28px', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>자주 묻는 질문</div>
         {[
-          ['크레딧이란 무엇인가요?', '크레딧은 패널 피드백 1건 단위로 차감되는 통화입니다. 패널 직급에 따라 가중치가 다르게 적용되며(주니어 1×, 미들 1.5×, 시니어 2×, 헤드 3×), 실제 매칭된 직급 비율에 따라 소모량이 달라집니다. 월간 크레딧은 다음 달로 이월되지 않습니다.'],
+          ['크레딧이란 무엇인가요?', '크레딧은 패널 피드백 1건 단위로 차감되는 통화입니다. 패널 직급에 따라 가중치가 다르게 적용되며(주니어 1×, 미들 1.5×, 시니어 2×, 헤드 3×), 실제 매칭된 직급 비율에 따라 소모량이 달라집니다. 월간(구독) 크레딧은 매월 결제일에 플랜 기본값으로 리셋되어 다음 달로 이월되지 않지만, 추가 구매(충전)한 크레딧은 리셋과 무관하게 보존됩니다. 의뢰 시 월간 크레딧이 먼저 차감되며, 부족할 경우 추가 크레딧 사용 여부를 확인받습니다.'],
+          ['플랜을 업그레이드하면 기존 크레딧은 어떻게 되나요?', '사라지지 않고 누적됩니다. 예를 들어 Starter 잔여 크레딧이 있는 상태에서 Pro로 전환하면 기존 잔여분에 Pro 크레딧(165cr)이 더해지고, 결제 시점 기준으로 월 갱신 주기가 새로 시작됩니다. 단, 상위 플랜 사용 중에는 하위 플랜으로 다운그레이드할 수 없습니다.'],
           ['의뢰 종류마다 크레딧 소모량이 다른가요?', '네, 의뢰 종류에 따라 배수가 다르게 적용됩니다. 마케팅 소재 종합 진단(메인 의뢰)은 1.5배, 소재 비교·가격 검증·이메일 검증(서브 의뢰)은 1.0배입니다. 예를 들어 주니어 패널 10명 기준으로 메인 의뢰는 15크레딧, 서브 의뢰는 10크레딧이 최대 소모됩니다.'],
           ['추가 크레딧 가격이 어떻게 되나요?', 'Starter 플랜은 추가 충전 시 1크레딧당 25,000원(정가)이 적용됩니다. Pro 플랜은 14% 할인된 1크레딧당 21,600원에 충전할 수 있습니다.'],
           ['결과는 얼마 만에 나오나요?', '패널 매칭 후 평균 24~48시간 내에 피드백이 취합됩니다. Enterprise는 전담 CSM이 일정을 조율합니다.'],
-        ].map(([q, a], i) => (
-          <div key={i} style={{ padding: '14px 0', borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>
+        ].map(([q, a], i, arr) => (
+          <div key={i} style={{ padding: '14px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{q}</div>
             <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{a}</div>
           </div>

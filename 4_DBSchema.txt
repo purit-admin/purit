@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-13 (095 패널 "C레벨/임원"→"헤드" + 연차 구간 재정의(주2~4·미5~7·시8~14·헤드15+) — admin_confirm_panel_experience 2-param 재정의(is_executive=years>=15 자동)·auto_increment·complete_mission_and_refund·recalc_mission_consumed(배율 ≥15→3.0/≥8→2.0/≥5→1.5)·unlock_free_trial_mission(크레딧 ≥15→6/≥8→4.5/≥5→3) 재정의 + 기존 임원<15 강등 백필 / experience 'N년' 통일·is_executive 파생 플래그화 / D-127) / 2026-06-13 (094 — missions.trial_results_seen_at(할인 48h 앵커, 보호컬럼) / unlock_free_trial_mission 재정의: 자동 공개 2명을 avg_score(5축 평균) 상위로 + 30% 첫 언락 할인(seen_at부터 48h, ROUND(정가×0.70,2)) / touch_trial_results_seen RPC / guard_mission_freemium_columns에 seen_at 추가 / D-126) / 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
+최종 업데이트: 2026-06-13 (096/097 구독 결제 재설계 — companies +addon_credits·plan_started_at·next_billing_at·plan_billing_cycle / grant_plan_credits 5-param 재정의(누적 +=·다운그레이드 가드·앵커) / purchase_credits addon 누적 / admin_change_plan 앵커+addon_credits=0(097) / renew_due_subscriptions 신규(구독분 리셋·구매분 LEAST 보존·097 원자화) / 단일지갑+트래커 파생분리 D-129) / 2026-06-13 (095 패널 "C레벨/임원"→"헤드" + 연차 구간 재정의(주2~4·미5~7·시8~14·헤드15+) — admin_confirm_panel_experience 2-param 재정의(is_executive=years>=15 자동)·auto_increment·complete_mission_and_refund·recalc_mission_consumed(배율 ≥15→3.0/≥8→2.0/≥5→1.5)·unlock_free_trial_mission(크레딧 ≥15→6/≥8→4.5/≥5→3) 재정의 + 기존 임원<15 강등 백필 / experience 'N년' 통일·is_executive 파생 플래그화 / D-127) / 2026-06-13 (094 — missions.trial_results_seen_at(할인 48h 앵커, 보호컬럼) / unlock_free_trial_mission 재정의: 자동 공개 2명을 avg_score(5축 평균) 상위로 + 30% 첫 언락 할인(seen_at부터 48h, ROUND(정가×0.70,2)) / touch_trial_results_seen RPC / guard_mission_freemium_columns에 seen_at 추가 / D-126) / 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
@@ -37,7 +37,13 @@
   phone           TEXT            DEFAULT NULL        ← 040 추가 (알림톡 수신용 전화번호)
   notif_prefs     JSONB           NOT NULL DEFAULT '{}' ← 042 추가 (알림 수신 설정: 키 미설정=수신, false=차단)
   free_trial_used BOOLEAN         NOT NULL DEFAULT false ← 085 추가 (무료 체험 1회 소진 플래그 — create_free_trial_mission이 set, 1계정1회 게이트)
+  addon_credits      NUMERIC(10,2) NOT NULL DEFAULT 0 ← 096 추가 (보존 구매분 트래커 — purchase_credits로 누적, 월 갱신에도 리셋되지 않음)
+                     · 소비는 항상 "구독분 먼저" 규약 → 파생: 월간_잔여=GREATEST(0,credit_balance-addon_credits) / 추가_잔여=LEAST(addon_credits,credit_balance) (D-129)
+  plan_started_at    TIMESTAMPTZ DEFAULT NULL ← 096 추가 (현 플랜 결제 시작일=월 갱신 앵커, grant/admin_change 시 NOW())
+  next_billing_at    TIMESTAMPTZ DEFAULT NULL ← 096 추가 (다음 월 갱신/재지급일, +1개월. renew_due_subscriptions 대상 판별)
+  plan_billing_cycle TEXT DEFAULT 'monthly' CHECK IN('monthly','annual') ← 096 추가 (월간=정기청구·매월 크레딧 / 연간=선결제·크레딧만 드립)
   ※ plan DEFAULT 'free_trial' (085) — 신규 가입은 무료체험으로 시작 / CHECK('free_trial','starter','pro','enterprise') (086, 구 'free'→'free_trial' 이관)
+  ※ 096 백필: 기존 starter/pro 중 next_billing_at NULL인 회사 → plan_started_at=NOW()·next_billing_at=NOW()+1개월·cycle='monthly'
 
 ---
 
@@ -495,15 +501,16 @@
     → 기업 Results.jsx handleRate()에서 호출
     → 파일: supabase/migrations/015_honor_level_system.sql
 
-  grant_plan_credits(p_company_id UUID, p_plan TEXT, p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card') RETURNS void
-    → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(free_trial 0 / starter 50 / pro 165 / enterprise 400)으로 갱신 ← 085에서 free_trial 분기 추가
+  grant_plan_credits(p_company_id UUID, p_plan TEXT, p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card', p_billing_cycle TEXT DEFAULT 'monthly') RETURNS void
+    → ★ 096 재정의: companies.credit_balance += 플랜 월 크레딧(free_trial 0/starter 50/pro 165/enterprise 400) — '누적'(구 '절대값 덮어쓰기' 폐기, 업그레이드 시 잔여 보존, D-129)
+    → ★ 다운그레이드 가드: 티어 랭크(free_trial 0<starter 1<pro 2<enterprise 3), new_rank < cur_rank이면 'downgrade_not_allowed' 예외
+    → ★ 결제일 앵커 세팅: plan·plan_started_at=NOW()·next_billing_at=NOW()+1개월·plan_billing_cycle=p_billing_cycle
     → p_amount_krw > 0 이면 invoices INSERT(payment_type='plan') / 0이면 미기록
-    → PaymentModal(type='plan') 경유 시 호출 (기업 본인만 — user_id = auth.uid() 조건)
-    → 구 2-param 시그니처 하위 호환 유지 (DEFAULT 값으로 기존 호출 정상 작동)
-    → ★ 파일: supabase/migrations/079_payment_system.sql (재정의)
+    → PaymentModal(type='plan', billingCycle) 경유 호출 (기업 본인만 — user_id = auth.uid()). 구 4-param 호출도 5-param 디폴트로 정상 작동
+    → ★ 파일: supabase/migrations/096_subscription_billing.sql (079 시그니처 +p_billing_cycle, DROP 후 재생성)
 
   purchase_credits(p_company_id UUID, p_credits NUMERIC, p_amount_krw NUMERIC, p_method TEXT DEFAULT 'card') RETURNS jsonb
-    → credit_balance += p_credits + invoices INSERT(payment_type='credits')
+    → credit_balance += p_credits, ★ addon_credits += p_credits(096 — 구매 충전분은 월 갱신에도 보존) + invoices INSERT(payment_type='credits')
     → 소유권: companies.user_id = auth.uid() 검증 / p_credits <= 0 → invalid_amount 예외
     → 반환: { success: true, new_balance: NUMERIC }
     → PaymentModal(type='credits') 경유 시 호출 (기업 본인만)
@@ -570,9 +577,18 @@
 
   admin_change_plan(p_company_id UUID, p_plan TEXT) RETURNS void
     → 어드민 전용 (app_metadata.role='admin' 또는 raw_user_meta_data.role='admin' 검사)
-    → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(50/165/400)으로 갱신 (덮어쓰기)
+    → 어드민 강제 = 절대값 SET 유지(누적 아님·다운그레이드 가드 미적용): companies.credit_balance = 플랜 월 크레딧(0/50/165/400)
+    → ★ 096/097: 앵커도 함께 세팅(plan_started_at=NOW()·next_billing_at=NOW()+1개월) + ★ addon_credits=0(097 — 강제 리셋 시 구매분 트래커도 초기화, 유령 크레딧 부활 방지, D-129)
     → CompanyManagement.jsx 관리 액션 카드 '플랜 변경' 버튼에서 호출 (grant_plan_credits는 기업 본인 전용이라 어드민 불가)
-    → 파일: supabase/migrations/025_admin_change_plan.sql
+    → 파일: supabase/migrations/025_admin_change_plan.sql → 096(앵커) → 097(addon_credits=0)
+
+  renew_due_subscriptions() RETURNS INTEGER ← ★ 096 신규 / 097 원자화
+    → pg_cron 월 1회: plan IN('starter','pro') & next_billing_at <= NOW() 회사 순회 (free_trial·enterprise 제외=수동/CSM)
+    → 구독분 리셋 + 구매분 보존: credit_balance = 플랜크레딧 + LEAST(addon_credits, credit_balance), addon_credits = LEAST(addon_credits, credit_balance)
+    → ★ 097: 위 계산을 UPDATE문 내 컬럼 직접 참조로 원자화(스냅샷 변수 폐기) → 동시 purchase_credits 커밋분 유실 방지(read-then-write race)
+    → next_billing_at을 미래까지 +1개월(밀린 달 보정·리셋 멱등) / cycle='monthly'면 invoices INSERT(amount=0, 'plan', 'manual') / 'annual'은 청구 생략(크레딧만 드립)
+    → GRANT service_role. pg_cron 등록은 SQL Editor 수동(파일 하단 주석 081 패턴) / 반환=처리 건수
+    → 파일: supabase/migrations/096_subscription_billing.sql → 097_fix_subscription_billing.sql(원자화)
 
   reserve_mission_credits(p_mission_id UUID, p_company_id UUID, p_credits NUMERIC) RETURNS jsonb
     → 018에서 p_credits INTEGER → NUMERIC 변경 (소수 크레딧 지원)

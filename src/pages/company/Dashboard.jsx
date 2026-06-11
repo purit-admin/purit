@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
+import { splitCredits } from '../../lib/credits';
 import { motion } from 'framer-motion';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -553,7 +554,7 @@ export default function CompanyDashboard() {
         className="dash-stat-grid-5"
       >
         {[
-          { label: '잔여 크레딧', value: String(company?.credit_balance ?? 0), sub: company?.plan === 'free_trial' ? '무료체험' : (company?.plan || '플랜 미선택').toUpperCase(), accent: (company?.credit_balance ?? 0) > 0 },
+          { label: '잔여 크레딧', value: String(company?.credit_balance ?? 0), sub: company?.plan === 'free_trial' ? '무료체험' : (() => { const sp = splitCredits(company?.credit_balance ?? 0, company?.addon_credits ?? 0); return `${(company?.plan || '플랜 미선택').toUpperCase()} · 월간 ${sp.monthly}·추가 ${sp.addon}`; })(), accent: (company?.credit_balance ?? 0) > 0 },
           { label: '전체 의뢰',  value: String(missions.length),                                        sub: '누적' },
           { label: '진행 중',    value: String(missions.filter(m => m.status === 'active').length),    sub: '현재 활성' },
           { label: '완료',       value: String(missions.filter(m => m.status === 'completed').length), sub: '검증 완료' },

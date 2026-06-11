@@ -29,7 +29,7 @@ const METHODS = [
  * PG 연동 포인트:
  *   handlePay() 내 TODO 블록을 토스페이먼츠 SDK 호출로 교체하면 됩니다.
  */
-export default function PaymentModal({ type, plan, credits, amountKrw, companyId, onSuccess, onClose }) {
+export default function PaymentModal({ type, plan, credits, amountKrw, companyId, billingCycle = 'monthly', onSuccess, onClose }) {
   const [payMethod, setPayMethod] = useState('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -60,10 +60,11 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
 
       if (type === 'plan') {
         const { error: rpcErr } = await supabase.rpc('grant_plan_credits', {
-          p_company_id: companyId,
-          p_plan:       plan,
-          p_amount_krw: amountKrw,
-          p_method:     payMethod,
+          p_company_id:    companyId,
+          p_plan:          plan,
+          p_amount_krw:    amountKrw,
+          p_method:        payMethod,
+          p_billing_cycle: billingCycle,
         });
         if (rpcErr) throw rpcErr;
         setDone(true);
@@ -161,7 +162,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
               )}
               {type === 'plan' && (
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
-                  {PLAN_CREDITS[plan]}cr 지급 · 기존 잔액 초기화
+                  {PLAN_CREDITS[plan]}cr 지급 · 기존 잔액에 추가 적립
                 </div>
               )}
             </div>

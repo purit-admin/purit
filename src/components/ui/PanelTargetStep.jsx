@@ -5,6 +5,7 @@ import { Btn } from './index';
 import PaymentModal from './PaymentModal';
 import ExitIntentModal from './ExitIntentModal';
 import { CAREER_UNLOCK_CREDIT } from '../../lib/honorLevels';
+import { splitCredits } from '../../lib/credits';
 
 export const CAREER_LEVELS = [
   { key: 'junior', label: '주니어',  sub: '2–4년차',    multiplier: 1.0, proOnly: false },
@@ -64,6 +65,7 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
   onCareerLevels,
   missionType = 'sub',
   creditBalance = null,
+  addonBalance = 0,
   companyId = null,
   onCreditBalanceUpdate = null,
   onSaveDraft = null,
@@ -293,9 +295,19 @@ const PanelTargetStep = forwardRef(function PanelTargetStep({
             <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               보유 크레딧
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 20, color: isShort ? '#ef4444' : 'var(--text-1)' }}>
-              {creditBalance}
-              <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 4, fontWeight: 400 }}>크레딧</span>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 20, color: isShort ? '#ef4444' : 'var(--text-1)' }}>
+                {creditBalance}
+                <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 4, fontWeight: 400 }}>크레딧</span>
+              </div>
+              {addonBalance > 0 && (() => {
+                const sp = splitCredits(creditBalance, addonBalance);
+                return (
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                    월간 {sp.monthly}cr · 추가 {sp.addon}cr
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
