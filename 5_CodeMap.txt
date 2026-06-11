@@ -1,6 +1,6 @@
 ================================================================
 5_CodeMap.txt — Purity MVP 페이지·컴포넌트별 구현 상세 (CodeMap)
-최종 업데이트: 2026-06-13 (Results 무료 체험 094 — 점수기반 공개 2명 자동 선별·잠긴쪽 티저(criticalCount·weakestAxis)·30% 첫 언락 할인+48h 카운트다운(nowTick·touch_trial_results_seen)) / 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
+최종 업데이트: 2026-06-13 (active 의뢰 수정 크레딧 재차감 방지 D-128 — 메인 isDraftMode/서브 editIsDraft로 draft·active 구분, creditsChargedOnSubmit로 제출 reserve 스킵·게이트·notEnough·PanelTargetStep chargeOnSubmit·saveDraft 가드 / PanelTargetStep freeTrialAvailable·chargeOnSubmit prop / 무료체험 뱃지 freeTrialAvailable 게이트로 소진 후 소멸) / 2026-06-13 (Results 무료 체험 094 — 점수기반 공개 2명 자동 선별·잠긴쪽 티저(criticalCount·weakestAxis)·30% 첫 언락 할인+48h 카운트다운(nowTick·touch_trial_results_seen)) / 2026-06-12 (NewMission 연령대 슬라이더 커스텀 DualRangeSlider 교체 — 핸들 클릭불가·양끝 삐져나옴 해결 D-123) / 2026-06-10 (등록폼 질문 복원 재분리 D-119 / QuestionTemplates customCategory 기본 'lp')
 ================================================================
 
 ※ 조건부 로드 문서. 특정 페이지/컴포넌트 파일을 수정·디버깅하기 전에만 Read 도구로
@@ -86,6 +86,13 @@
 - 메인·서브 의뢰 모두: 목록 뷰 draft/active 이어하기·수정 버튼은 navigate 불사용
   · openDraftOrActiveForEdit(missionId) 헬퍼로 직접 DB 로드 후 필드 복원 + setView('form'/'create') 호출
     (같은 경로 navigate는 컴포넌트 리마운트 미실행으로 useEffect 미재실행 — D-43)
+- ★ active 의뢰 수정 시 크레딧 재차감 방지 (D-128): draft 이어쓰기와 active 수정을 구분해야 함
+  · 메인 NewMission: isDraftMode (수정 진입 시 ms.status==='draft')
+  · 서브 3폼(Preference/Pricing/ColdEmail): editIsDraft state — openDraftOrActiveForEdit·editMode 로드 .then에서 setEditIsDraft(ms.status==='draft'), resetForm에서 true 리셋
+  · creditsChargedOnSubmit = 메인 (!effectiveEditMode||isDraftMode) / 서브 (!draftId||editIsDraft) — "이번 제출에서 크레딧이 실제 차감되는가"
+  · 적용 4곳: ①제출 핸들러 reserve_mission_credits를 if(차감여부)로 감쌈(active 수정=재예약 스킵, UPDATE만) ②"다음" 게이트(openCreditModal) ③제출버튼 disabled / 검토 notEnough ④PanelTargetStep chargeOnSubmit prop
+  · saveDraft 상단 가드: 메인 if(effectiveEditMode && !isDraftMode) return / 서브 if(draftId && !editIsDraft) return — active 수정 중 임시저장이 status:'draft'로 강등하는 것 방지
+  · reserve_mission_credits는 "예약=절대값 차감" 1회성 RPC라 재호출이 곧 추가 차감 (migration 018)
 - ★ 질문 복원 시 재분리 (4개 폼 공통, D-119, 2026-06-10): 저장은 selectedQuestions+localCustomQs를 allLPSelected로 병합 직렬화.
   복원 2곳(초기 load useEffect + openDraftOrActiveForEdit)에서 병합 배열을 local- 접두사 기준으로 재분리:
     const isLocal = q => typeof q.id==='string' && q.id.startsWith('local-')
@@ -150,7 +157,10 @@
 ================================================================
 
 - exports: default PanelTargetStep, calcCredits(panelCount, careerLevels, missionType), calcPanelPayout(careerLevels, missionType), CAREER_LEVELS, MAIN_BASE_PAYOUT(8000), SUB_BASE_PAYOUT(4500)
-- props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels, missionType('main'|'sub', 기본 'sub'), creditBalance(number|null, optional), onSaveDraft(optional)
+- props: plan('starter'|'pro'|'free_trial'|null), panelCount, onPanelCount, careerLevels, onCareerLevels, missionType('main'|'sub', 기본 'sub'), creditBalance(number|null, optional), onSaveDraft(optional), freeTrialAvailable(기본 false), chargeOnSubmit(기본 true)
+- freeTrialAvailable prop: 무료체험 자격 보유 시(plan='free_trial' && !free_trial_used) 부족 경고 숨김 + "🎁 무료 체험 주니어·미들만" 뱃지·"등록 시 차감 없음" 안내 표시
+  · ★ 뱃지는 freeTrialAvailable로 게이트(isFreeTrial=plan==='free_trial' 아님) — 자격 소진 후엔 plan이 free_trial로 남아도 뱃지 자동 소멸 (D-128 동행 수정)
+- chargeOnSubmit prop(기본 true): false면 isShort=(freeTrialAvailable||!chargeOnSubmit)?false 로 부족 경고·충전 모달 강제 숨김 — active 의뢰 수정처럼 제출 시 추가 차감이 없을 때 부모가 creditsChargedOnSubmit를 전달 (D-128)
 - 크레딧 배수: 주니어 1.0× / 미들 1.5× / 시니어 2.0×(Pro) / C레벨 3.0×(Pro)
 - calcCredits 공식: 패널수 × 최종가중치 × 의뢰배수 (소수 그대로, CEIL 없음) — 1~2직급=최고값, 3~4직급=1.8상한, 메인×1.5/서브×1.0
 - calcPanelPayout 공식: round(BASE × 최종가중치) — 패널 1인당 정산금, reward_amount DB 저장용

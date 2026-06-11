@@ -99,6 +99,7 @@ export default function ColdEmailTest() {
   const [creditBalance, setCreditBalance] = useState(null);
   const [teamRole, setTeamRole] = useState(null);
   const [draftId, setDraftId] = useState(null);
+  const [editIsDraft, setEditIsDraft] = useState(true);  // 수정 대상이 draft(true)면 제출 시 크레딧 예약, active(false)면 이미 예약돼 재차감 금지
   const [listFilter, setListFilter] = useState('active');
   const [listPage, setListPage] = useState(1);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -134,6 +135,7 @@ export default function ColdEmailTest() {
       setView('create');
       supabase.from('missions').select('*').eq('id', mid).single().then(({ data: ms }) => {
         if (!ms) return;
+        setEditIsDraft(ms.status === 'draft');
         let parsed = {};
         try { parsed = JSON.parse(ms.description || '{}'); } catch {}
         if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
@@ -162,6 +164,7 @@ export default function ColdEmailTest() {
     setSelectedQuestions([]); setLocalCustomQs([]); setExpandedTmpl({});
     setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
     setDraftId(null);
+    setEditIsDraft(true);
   }
 
   async function load() {
@@ -200,6 +203,8 @@ export default function ColdEmailTest() {
   }
 
   const shouldBlockNav = view === 'create' && Boolean(missionTitle || emailText || productDescription || industry);
+  // 신규 등록·draft 활성화에서만 크레딧 차감 → active 의뢰 수정은 부족 게이트/경고 비활성
+  const creditsChargedOnSubmit = !draftId || editIsDraft;
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -248,6 +253,7 @@ export default function ColdEmailTest() {
 
   async function saveDraft() {
     if (!companyId) return;
+    if (draftId && !editIsDraft) return;  // active 의뢰 수정 중에는 임시저장(=status를 draft로 되돌림) 금지
     setSavingDraft(true);
     try {
       const desc = JSON.stringify({
@@ -280,6 +286,7 @@ export default function ColdEmailTest() {
     setDraftId(missionId);
     supabase.from('missions').select('*').eq('id', missionId).single().then(({ data: ms }) => {
       if (!ms) return;
+      setEditIsDraft(ms.status === 'draft');
       let parsed = {};
       try { parsed = JSON.parse(ms.description || '{}'); } catch {}
       if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
@@ -387,16 +394,19 @@ export default function ColdEmailTest() {
       // 크레딧 예약 먼저 — 성공 후에만 status='active' DB 반영 (트리거 조기 발화 방지)
       const requiredCredits = calcCredits(panelSize, careerLevels, 'sub');
       if (draftId) {
-        const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
-          p_mission_id: draftId, p_company_id: companyId, p_credits: requiredCredits,
-        });
-        if (creditErr) throw creditErr;
-        if (!creditData?.success) {
-          throw new Error(
-            creditData?.error === 'INSUFFICIENT_CREDITS'
-              ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
-              : '크레딧 처리 중 오류가 발생했습니다.'
-          );
+        // active 의뢰 수정은 이미 크레딧이 예약돼 있어 재예약 금지 (draft 활성화일 때만 예약)
+        if (editIsDraft) {
+          const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+            p_mission_id: draftId, p_company_id: companyId, p_credits: requiredCredits,
+          });
+          if (creditErr) throw creditErr;
+          if (!creditData?.success) {
+            throw new Error(
+              creditData?.error === 'INSUFFICIENT_CREDITS'
+                ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+                : '크레딧 처리 중 오류가 발생했습니다.'
+            );
+          }
         }
         const { error: mErr } = await supabase.from('missions').update({
           title: finalTitle, description: descJson,
@@ -875,6 +885,7 @@ export default function ColdEmailTest() {
                 companyId={companyId}
                 onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
                 onSaveDraft={saveDraft}
+                chargeOnSubmit={creditsChargedOnSubmit}
               />
             )}
 
@@ -882,7 +893,7 @@ export default function ColdEmailTest() {
             {createStep === 3 && (() => {
               const allQs = [...selectedQuestions, ...localCustomQs];
               const reqCredits = calcCredits(panelSize, careerLevels, 'sub');
-              const notEnough = creditBalance != null && reqCredits > creditBalance;
+              const notEnough = creditsChargedOnSubmit && creditBalance != null && reqCredits > creditBalance;
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div>
@@ -944,7 +955,7 @@ export default function ColdEmailTest() {
             </Btn>
             {createStep < STEPS.length - 1 ? (
               <Btn onClick={() => {
-                if (createStep === STEPS.length - 2 && creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance) {
+                if (creditsChargedOnSubmit && createStep === STEPS.length - 2 && creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance) {
                   panelStepRef.current?.openCreditModal();
                   return;
                 }
@@ -953,7 +964,7 @@ export default function ColdEmailTest() {
                 다음 →
               </Btn>
             ) : (
-              <Btn onClick={() => setShowSubmitConfirm(true)} disabled={teamRole === 'viewer' || submitting || !emailText.trim() || (creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
+              <Btn onClick={() => setShowSubmitConfirm(true)} disabled={teamRole === 'viewer' || submitting || !emailText.trim() || (creditsChargedOnSubmit && creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
                 {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}
