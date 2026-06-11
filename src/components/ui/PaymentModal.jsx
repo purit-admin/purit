@@ -1,5 +1,5 @@
 import ReactDOM from 'react-dom';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, CreditCard, Landmark, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Btn } from './index';
@@ -35,6 +35,9 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [showExit, setShowExit] = useState(false);
+  // 연타 방어: setState는 비동기라 disabled가 반영되기 전 2번째 클릭이 통과 → 결제 RPC 이중 호출.
+  // 동기 ref로 즉시 차단 (D-22). 성공 시엔 done 화면 + onSuccess로 모달이 닫혀 재진입 없음 → ref 유지.
+  const submittingRef = useRef(false);
 
   // 이탈 시도: 처리 중·완료 후엔 바로 닫고, 그 외엔 리텐션 모달
   function handleCloseAttempt() {
@@ -48,6 +51,8 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
 
   async function handlePay() {
     if (payMethod === 'virtual_account') return; // 가상계좌는 PG 연동 후 지원
+    if (submittingRef.current) return;           // 연타 방어 — 동기 차단(D-22)
+    submittingRef.current = true;
     setIsProcessing(true);
     setError('');
 
@@ -82,6 +87,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
         setTimeout(() => { onSuccess(data?.new_balance ?? null); }, 1800);
       }
     } catch (e) {
+      submittingRef.current = false;  // 실패 시 롤백 → 재시도 허용
       setError(e.message || '결제 처리 중 오류가 발생했습니다.');
       setIsProcessing(false);
     }
