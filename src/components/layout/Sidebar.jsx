@@ -222,10 +222,12 @@ export default function Layout({ role, children }) {
     }
 
     loadPending();
+    // pending 패널 이벤트만 구독 — 무필터 시 패널 전원의 honor_points 등 모든 변경마다 재쿼리 발생
     sub = supabase
       .channel(`sidebar-pending-panels-${user.id}-${Date.now()}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'panels',
+        filter: 'status=eq.pending',
       }, loadPending)
       .subscribe();
 

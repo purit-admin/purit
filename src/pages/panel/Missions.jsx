@@ -284,23 +284,32 @@ export default function MissionList() {
       // 만료된 draft/rejected 정리 (fire-and-forget 아님 — feedbacks 로드 전 완료 필요)
       await supabase.rpc('expire_panel_drafts').then(({ error: e }) => { if (e) console.warn('[expire_drafts]', e.message); });
 
-      const [{ data: myFeedbacks }, { data: ms }] = await Promise.all([
-        supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline, submission_deadline, dismissed').eq('panel_id', p.id),
-        supabase.from('missions').select('id, title, type, status, persona, target_url, panel_count, filled_count, description, image_urls, estimated_minutes, difficulty, created_at').neq('status', 'draft').order('created_at', { ascending: false }),
-      ]);
+      const { data: myFeedbacks } = await supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline, submission_deadline, dismissed').eq('panel_id', p.id);
 
       const map = {};
       (myFeedbacks || []).forEach(f => {
         map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline, submission_deadline: f.submission_deadline, dismissed: f.dismissed };
       });
       setFeedbackMap(map);
+
+      // active 미션만 로드 (전체 missions 로드 시 PostgREST 1000행 절단 + 페이로드 폭발)
+      // 단, 이어하기(draft)·수정 필요(rejected) 탭은 종료된 미션도 표시해야 하므로 해당 미션은 id로 함께 조회
+      const inFlightIds = (myFeedbacks || []).filter(f => f.status === 'draft' || f.status === 'rejected').map(f => f.mission_id);
+      let missionQuery = supabase.from('missions').select('id, title, type, status, persona, target_url, panel_count, filled_count, description, image_urls, estimated_minutes, difficulty, created_at');
+      missionQuery = inFlightIds.length > 0
+        ? missionQuery.or(`status.eq.active,id.in.(${inFlightIds.join(',')})`)
+        : missionQuery.eq('status', 'active');
+      const { data: ms } = await missionQuery.order('created_at', { ascending: false });
       setMissions(ms || []);
       setLoading(false);
 
+      // active 미션만 구독 — 무필터 전 테이블 구독은 접속 패널 전원에게 모든 UPDATE 브로드캐스트 (Realtime 할당량 폭발)
+      // 트레이드오프: active→completed 전환은 수신 못 함(필터 불통과) → 새로고침 시 반영, ActiveMission load()가 비active 차단으로 방어
       sub = supabase
         .channel(`panel-missions-realtime-${p.id}-${Date.now()}`)
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'missions',
+          filter: 'status=eq.active',
         }, (payload) => {
           setMissions(prev => prev.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
         })
