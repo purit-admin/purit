@@ -476,10 +476,6 @@ export default function ActiveMission() {
       supabase.rpc('notify_admin_on_feedback_submitted', { p_mission_id: mission.id, p_is_resubmit: resubmitMode })
         .then(({ error }) => { if (error) console.warn('[notify_admin_feedback]', error.message); });
     }
-    if (resubmitMode && mission?.id) {
-      supabase.rpc('recalc_mission_consumed', { p_mission_id: mission.id })
-        .then(({ error }) => { if (error) console.warn('[recalc_consumed]', error.message); });
-    }
   };
 
   const handleCancelAccept = async () => {

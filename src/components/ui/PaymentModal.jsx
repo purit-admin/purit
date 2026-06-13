@@ -74,6 +74,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
       }
     } catch (e) {
       setError(e.message || '결제 처리 중 오류가 발생했습니다.');
+    } finally {
       setIsProcessing(false);
     }
   }

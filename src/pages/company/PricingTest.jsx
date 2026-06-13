@@ -247,8 +247,6 @@ export default function PricingTest() {
       return;
     }
     setMissions(prev => prev.map(m => m.id === terminateTarget.id ? { ...m, status: 'cancelled' } : m));
-    supabase.rpc('recalc_mission_consumed', { p_mission_id: terminateTarget.id })
-      .then(({ error: re }) => { if (re) console.warn('[recalc]', re.message); });
     supabase.rpc('notify_early_termination', { p_mission_id: terminateTarget.id })
       .then(({ error: ne }) => { if (ne) console.warn('[notify_early_termination]', ne.message); });
     setTerminateError('');

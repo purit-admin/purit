@@ -48,7 +48,7 @@ export default function AccountSettings() {
         setNotifPrefs(co.notif_prefs || {});
         const [membersRes, invRes] = await Promise.all([
           supabase.from('team_members').select('*').eq('company_id', co.id).neq('status', 'inactive').order('joined_at'),
-          supabase.from('invoices').select('*').eq('company_id', co.id).order('invoice_date', { ascending: false }).limit(6),
+          supabase.from('invoices').select('*').eq('company_id', co.id).order('invoice_date', { ascending: false }),
         ]);
         if (!membersRes.error) setMembers(membersRes.data);
         if (!invRes.error) setInvoices(invRes.data);

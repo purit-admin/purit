@@ -88,7 +88,7 @@ export default function PricingPage() {
   const [billing, setBilling] = useState('annual');
   const [company, setCompany] = useState(null);
   const [teamRole, setTeamRole] = useState(null);
-  const [changing] = useState('');
+  const [changing, setChanging] = useState('');
   const [msg, setMsg] = useState('');
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
   const [contactMsg, setContactMsg] = useState('');
@@ -119,6 +119,7 @@ export default function PricingPage() {
     if (!company) return;
     const planObj = PLANS.find(p => p.id === planId);
     const price = billing === 'annual' ? planObj.price.annual : planObj.price.monthly;
+    setChanging(planId);
     setPaymentTarget({ type: 'plan', plan: planId, amountKrw: price * 10000 });
   }
 
@@ -133,6 +134,7 @@ export default function PricingPage() {
       if (newBalance != null) setCreditBalance(newBalance);
       setMsg(`크레딧이 충전됐습니다. 잔여 ${newBalance}cr`);
     }
+    setChanging('');
     setAddonBundle(null);
     setPaymentTarget(null);
     setTimeout(() => setMsg(''), 3500);
@@ -396,7 +398,7 @@ export default function PricingPage() {
           amountKrw={paymentTarget.amountKrw}
           companyId={company.id}
           onSuccess={handlePaymentSuccess}
-          onClose={() => setPaymentTarget(null)}
+          onClose={() => { setPaymentTarget(null); setChanging(''); }}
         />
       )}
 
