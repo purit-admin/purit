@@ -448,6 +448,15 @@ purit/
 │                  ※ 설계: 지갑 분리 없이 단일 credit_balance(소비 RPC 무수정) + addon_credits 트래커, 파생식(월간=balance-addon)으로 구분표시·확인모달 — D-129
 │                097(fix_subscription_billing: 096 핫픽스 2건 — CREATE OR REPLACE로 시그니처·GRANT 보존) ★ 신규
 │                  ① admin_change_plan: 강제 리셋 시 addon_credits=0(유령 크레딧 부활 방지) ② renew_due_subscriptions: UPDATE문 내 컬럼 직접참조로 원자화(동시 충전 유실 race 방지) — D-129
+│                098(fix_admin_rpc_app_metadata_security: 어드민 RPC 7종 권한 게이트 raw_user_meta_data→raw_app_meta_data 전환) ★ 신규 (보안)
+│                  대상: admin_add_credits·complete_mission_and_refund·recalc_mission_consumed·admin_change_plan·admin_delete_trial_mission·admin_set_trial_public·admin_set_trial_mission_status
+│                  user_metadata(본인 위조 가능)로 admin 판별 시 일반 사용자가 role='admin' 위조 → 어드민 RPC 직접 호출 권한상승 (D-58)
+│                  ★ NULL 안전: NOT EXISTS(... app_metadata='admin') 형태 — `<> 'admin'`/`NOT(...=)`은 app_metadata NULL이 통과(새 구멍)되므로 금지 (D-134)
+│                  각 함수 최신 본문 유지(024/091/092/093/095/097) + 게이트만 교체 / 선두에 어드민 app_metadata 동기화(026 멱등) self-contained
+│                  ※ guard_mission_freemium_columns(current_user 기반)·grant_plan_credits·reserve·unlock(owner 게이트)은 D-58 무관 — 대상 아님
+│                099(reserve_credits_idempotent: reserve_mission_credits 차액(delta) 차감 멱등화) ★ 신규 (금전 정확성)
+│                  delta = p_credits − 현재 credits_reserved → 재호출 시 delta=0(추가 차감 없음). draft→active 재시도/연타 잔액 이중차감 방지 (D-128 클라 가드 미커버, D-135)
+│                  ※ 수동 실행 순서: 원격 097까지 적용 후 098 → 099 (098의 admin_change_plan은 096 컬럼 addon_credits 등 선행 필요)
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)

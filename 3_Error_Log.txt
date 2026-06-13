@@ -1723,3 +1723,16 @@ D-133. Realtime postgres_changes를 filter 없이 전 테이블 구독하면 "�
      -> 배경: panel/Missions가 missions 전 테이블 UPDATE를 무필터 구독 → 패널 수락 1번(filled_count UPDATE)마다 접속 중인 패널 전원에게 브로드캐스트. 구독자 5000명이면 변경 1건이 메시지 5000건. Sidebar 어드민 뱃지도 panels 전 테이블 구독으로 honor_points 등 무관한 UPDATE마다 재쿼리 유발.
      -> 해결: 구독에 filter 지정 (예: 'status=eq.active', `user_id=eq.${id}`). 단 filter는 "변경 후(new) 레코드" 기준이라 필터 범위를 벗어나는 전환 이벤트(active→completed)는 미수신 → 그 상태 전환을 화면이 즉시 반영해야 하는지 확인하고, 아니라면 새로고침 반영+하류 가드(예: ActiveMission의 비active 차단)로 수용할 것.
      -> 원칙: supabase.channel().on('postgres_changes', ...) 작성 시 filter 누락을 D-96(채널명 Date.now())과 함께 기본 점검 항목으로 볼 것. 본인 데이터 구독은 user_id/panel_id/company_id eq 필터, 공용 테이블 구독은 관심 상태(eq) 필터가 기본값.
+
+D-134. admin role 게이트를 user_metadata→app_metadata로 전환할 때 `<> 'admin'`/`NOT(...=)` 형태는 app_metadata NULL이 통과해 오히려 새 권한 구멍을 만든다
+     -> 증상: 보안 패치(D-58)로 user_metadata→app_metadata 교체 시, 기존 `IF (app_role) <> 'admin' THEN block` 또는 `IF NOT ((app_role)='admin') THEN block` 형태를 그대로 쓰면 일반 사용자(app_metadata.role IS NULL)가 게이트를 통과해버림.
+     -> 원인: 일반 사용자의 raw_app_meta_data->>'role'은 NULL(026은 admin 계정에만 app_metadata 세팅). SQL 3치 논리에서 `NULL <> 'admin'` = NULL(거짓 취급) → IF 미발동 → block 건너뜀 → 함수 본문 실행. user_metadata 시절엔 role이 'company'/'panel'(non-null)이라 `<> 'admin'`=true로 우연히 막혔을 뿐, app_metadata로 바꾸면 NULL이라 구멍이 됨.
+     -> 해결: 항상 positive 존재 검사 NOT EXISTS로 작성. `IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id=auth.uid() AND raw_app_meta_data->>'role'='admin') THEN block`. NULL이면 EXISTS=false → NOT EXISTS=true → 정상 차단. (IS DISTINCT FROM 'admin' / COALESCE(...,'')<>'admin'도 NULL 안전하나 NOT EXISTS가 가장 명확.)
+     -> 적용: 098_fix_admin_rpc_app_metadata_security.sql 7종 전부 NOT EXISTS. + 전환 후 어드민이 app_metadata.role을 실제 보유하는지 확인(미보유 시 어드민 잠김) — 수동 마이그레이션 대비 026 멱등 동기화 UPDATE를 같은 파일 선두에 self-contained 포함.
+     -> 원칙: role 게이트의 보안 비교는 NULL 가능 컬럼(app_metadata)에서 부정형(`<>`,`NOT(=)`)을 쓰지 말 것. "관리자가 아니면 차단"은 "관리자임이 증명되지 않으면 차단"으로 뒤집어 NOT EXISTS(=admin)로 구현. D-58과 한 세트로 점검.
+
+D-135. 구버전 함수 본문이 든 stale 마이그레이션 파일을, 그 함수를 나중 번호가 재정의한 뒤에 실행하면 최신 로직이 조용히 되돌아간다 (+ 번호 충돌)
+     -> 증상: 로컬에서 며칠 전 작성해 안 돌린 마이그레이션(예: 로컬 080)이, 원격 머지로 같은 함수를 더 늦은 번호(085/095 등)가 새 로직으로 재정의한 뒤에도 폴더에 남아있음. 이를 나중에 수동 실행하면 그 안의 옛 함수 본문이 최신 정의를 덮어써 무료체험·헤드등급 등 최근 로직이 사라짐. 게다가 원격에 이미 같은 번호(080_portfolio)가 있어 파일명 충돌.
+     -> 원인: 마이그레이션은 append-only + CREATE OR REPLACE라 "마지막 실행이 이김". stale 파일은 작성 시점(원격 신기능 도입 전) 본문을 통째로 담고 있어, 실행 순서상 최신 정의보다 뒤에 돌면 회귀시킴. 번호도 작성 당시 비어있던 번호라 머지 후 충돌.
+     -> 해결: 머지/풀로 원격 마이그레이션이 들어온 뒤에는, 미적용 로컬 마이그레이션이 건드리는 함수의 "최신 정의 위치"를 먼저 확인할 것. 의도가 보안/한 줄 수정이라면 stale 전체 본문을 버리고, 원격 최신 본문 위에 변경점만 얹은 새 마이그레이션(빈 번호)으로 재작성. (예: 로컬 080 폐기 → 보안=098, 멱등성=099 분리 재작성.)
+     -> 원칙: 안 돌린 로컬 마이그레이션이 있는 상태에서 원격을 머지하면, 그 파일은 "코드 diff"가 아니라 "DB에 적용될 전체 본문"임을 기억할 것. 같은 함수를 원격이 재정의했는지(git grep "FUNCTION 함수명") 반드시 교차 확인하고, 충돌·회귀 위험이 있으면 변경점만 추출해 최신 번호로 재작성한다.
