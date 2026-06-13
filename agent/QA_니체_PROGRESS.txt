@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-11 (결제·크레딧 전수 조사 8건 수정 — 결제-S-1~3, P2-A~C, P3-A~B)
+최종 업데이트: 2026-06-13 (스케일 전수조사 — 저비용 3건(C/D/I) 수정 완료 → DONE / 나머지는 스케일 트리거 조건부 섹션 신설 등록)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -19,7 +19,6 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ================================================================
 ## 🟡 P2 Major (2건)
 ================================================================
-
 
 [완성도-C] 경력 미설정 패널에게 careerLevels 제한 미션 전부 노출
 - 📍 위치: src/pages/panel/Missions.jsx (line 406-416)
@@ -40,9 +39,53 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 ================================================================
-## 🟢 P3 Minor (0건)
+## 🟢 P3 Minor (2건)
 ================================================================
 
+[니체-BugDeep] 버그/건의 답변 딥링크 진입 시 좌측 목록 미강조
+- 📍 위치: src/pages/company/BugReports.jsx (line 42-49), src/pages/panel/BugReports.jsx (line 42-49)
+- 🤦 현재: 💬 답변 알림(?id=)으로 진입 시 해당 리포트를 id로 직접 조회해 우측 상세에 표시(답변 열람 정상).
+           단 그 리포트가 현재 페이지(1페이지)에 없으면 좌측 목록에 선택 강조가 없어 어떤 항목인지 모름. ([신규-BugA] 형제)
+- ✨ 기대: 좌측 목록 항목 렌더에 selected?.id === r.id 강조 테두리/배경 추가. (답변 열람 목적은 이미 달성되어 영향 작음)
+
+[니체-PAY-B] ChargeOptionsModal — 상위 플랜 사용자에게 하위 플랜 구독 버튼 노출
+- 📍 위치: src/components/ui/ChargeOptionsModal.jsx (line 14-17 PLANS, line 56-67 렌더)
+- 🤦 현재: 언락 충전 모달이 현재 플랜과 무관하게 Starter/Pro 구독을 항상 둘 다 노출. Pro 사용자가 Starter 구독 클릭 시
+           서버 grant_plan_credits가 downgrade_not_allowed 예외 → PaymentModal 에러 배너로 끝남(데이터 손상 없음).
+           Pricing.jsx는 isDowngrade로 비활성화하나 이 모달엔 그 가드 없음.
+- ✨ 기대: currentPlan prop을 받아 TIER_RANK[p.id] <= TIER_RANK[current]인 플랜 버튼 숨김/비활성. (서버가 이미 막음 — UX 정리 수준)
+- ※ 2026-06-13 사용자 지시로 이번 회차 수정 보류(A만 진행). 추후 처리.
+
+================================================================
+## 🔵 스케일 트리거 조건부 (MVP에선 수정 보류 — 명시된 규모 도달 시 수정. 2026-06-13 등록)
+================================================================
+※ 공통 배경: Supabase(PostgREST)는 limit 없는 쿼리를 기본 Max Rows 1000행에서 "에러 없이" 절단함.
+  아래 항목들은 규모 도달 전까지 무증상 → 도달 시 무음으로 터지므로 트리거 시점 점검 필수.
+※ 저비용 3건(스케일-C/D/I)은 2026-06-13 선제 수정 완료 (QA_DONE.txt 참조)
+
+[스케일-A] 어드민 패널 관리 — 1000행 절단으로 오래된 패널 목록·검색 증발  ⏰ 트리거: 패널 800명
+- 📍 src/pages/admin/PanelManagement.jsx load() (line 90-93) — panels 전체 SELECT limit 없음 + 클라이언트 검색
+- ✨ 서버사이드 페이지네이션(.range()) + 검색 DB 전환(.ilike)
+
+[스케일-B] PurityFilter — 검토 대기 1000건 초과분 무음 누락 (정산 지연·돈)  ⏰ 트리거: 검토 대기 500건 상시 도달
+- 📍 src/pages/admin/PurityFilter.jsx (line 193-196) — pending 탭만 limit 없음 + select('*')에 missions(image_urls,description) 중첩으로 페이로드 폭발
+- ✨ pending 페이지네이션 + 목록 경량 컬럼 select, 상세 lazy load
+
+[스케일-E] 어드민 미션 관리·기업 관리 — 전체 missions + 중첩 feedbacks 통째 로드  ⏰ 트리거: 누적 미션 500건
+- 📍 src/pages/admin/Missions.jsx (line 354-357) select('*, companies, feedbacks(...)') limit 없음 / src/pages/admin/CompanyManagement.jsx (line 431-434) 전체 missions limit 없음(1000행 절단 시 기업별 크레딧 합계 무음 왜곡)
+- ✨ 페이지네이션 + feedbacks 중첩 제거(MissionDetail lazy 쿼리 이미 존재 — 재사용)
+
+[스케일-F] Revenue — 정산 대기 총액이 최근 500건만 합산 + invoices 1000행 절단  ⏰ 트리거: 승인 피드백 누적 400건 또는 invoices 800건
+- 📍 src/pages/admin/Revenue.jsx (line 25-32 limit(500), invoices limit 없음 / 집계 line 71-73)
+- ✨ 합계는 DB 집계(RPC/sum)로 분리, 목록은 페이지네이션
+
+[스케일-G] PanelManagement 통과율 통계 — order 없는 limit(2000)으로 임의 표본 집계  ⏰ 트리거: 누적 피드백 1500건
+- 📍 src/pages/admin/PanelManagement.jsx loadStats() (line 105-111) — 2000건 초과 시 어떤 행이 올지 미정의 → 패널별 통과율·반려수 무음 왜곡(정지/차단 판단 오염)
+- ✨ GROUP BY panel_id 집계 RPC 전환 (최소한 order 명시 + 기간 필터 기본값)
+
+[스케일-H] 알림 폭발 — 피드백 제출마다 어드민 전원 INSERT + notifications 정리 정책 부재  ⏰ 트리거: 일일 피드백 제출 100건 또는 notifications 10만 행
+- 📍 supabase/migrations/073 notify_admin_on_feedback_submitted 등 어드민 대상 트리거 전반 — 건별 알림이라 어드민 알림함 실사용 불가 + 테이블 무한 성장(삭제 cron 없음)
+- ✨ 어드민용 집계형 알림 전환 + 90일 경과 알림 삭제 pg_cron
 
 ================================================================
 ## ⚪ P4 Dead Code (0건)
@@ -82,6 +125,8 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 -- 검색 기능 --
 [검색-C] admin/Missions.jsx + PurityFilter.jsx — 검색 input 디바운스 없음.
           순수 클라이언트 필터·소규모 데이터로 성능 영향 없어 수정 보류  ⏭
+          ※ 2026-06-13 스케일 조사 재평가: 보류 근거("소규모 데이터")는 데이터 1000건 근접 시 무효 —
+            스케일-B/E 수정(서버 페이지네이션 전환) 시 함께 처리할 것 (PanelManagement은 300ms 디바운스 기적용 확인)
 
 -- 비교 모드 --
 [Diag-C2] company/Diagnosis.jsx — toggleMission 4번째 의뢰 선택 후 compareMode 해제 의심.
@@ -113,14 +158,15 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 2건
+미완료 합계: 4건 + 스케일 트리거 조건부 6건
   🔴 P1  0건
-  🟡 P2  2건
-  🟢 P3  0건
+  🟡 P2  2건 (완성도-C, 완성도-D)
+  🟢 P3  2건 (니체-BugDeep, 니체-PAY-B)
+  🔵 스케일 6건 (스케일-A/B/E/F/G/H — 트리거 규모 도달 시 수정)
   ⚪ P4  0건
 
 스킵/보류: 22건
 
-완료 항목: QA_DONE.txt 참조 (총 210건)
+완료 항목: QA_DONE.txt 참조 (총 219건)
 
 ================================================================

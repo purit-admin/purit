@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
+import { splitCredits } from '../../lib/credits';
 import { motion } from 'framer-motion';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -182,6 +183,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick,
             {m.type === 'preference' && <Badge type="blue">소재 비교</Badge>}
             {m.type === 'pricing'    && <Badge type="gold">가격 검증</Badge>}
             {m.type === 'email'      && <Badge type="blue">이메일 검증</Badge>}
+            {m.is_free_trial && <Badge type="gold">🎁 체험 의뢰</Badge>}
             <span style={{ fontSize: 11, color: C.text3 }}>
               {m.id.slice(0, 8).toUpperCase()}
             </span>
@@ -514,6 +516,34 @@ export default function CompanyDashboard() {
         )}
       </motion.div>
 
+      {/* 무료 체험 안내 배너 — 첫 의뢰 무료 자격 보유 시 */}
+      {company?.plan === 'free_trial' && !company?.free_trial_used && teamRole !== 'viewer' && (
+        <motion.div
+          {...fadeUp(0.05)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+            padding: '20px 24px', marginBottom: 24, borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(16,54,125,0.10), rgba(16,54,125,0.04))',
+            border: `1.5px solid ${C.primary}`,
+          }}
+        >
+          <div style={{ minWidth: 220, flex: 1 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: C.primary, marginBottom: 6 }}>
+              🎁 첫 의뢰는 무료입니다
+            </div>
+            <div style={{ fontSize: 13.5, color: C.text2, lineHeight: 1.6 }}>
+              크레딧 없이 전문가 패널 검증을 받아보세요. 결과에서 5축 점수와 피드백 2건이 무료로 공개됩니다.
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/company/new')}
+            style={{ flexShrink: 0, padding: '13px 26px', borderRadius: 12, background: C.primary, color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', height: 50, transition: 'opacity 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >무료로 의뢰 등록하기 →</button>
+        </motion.div>
+      )}
+
       {/* Stats */}
       <motion.div
         variants={stagger}
@@ -522,7 +552,7 @@ export default function CompanyDashboard() {
         className="dash-stat-grid-5"
       >
         {[
-          { label: '잔여 크레딧', value: String(company?.credit_balance ?? 0), sub: (company?.plan || '플랜 미선택').toUpperCase(), accent: (company?.credit_balance ?? 0) > 0 },
+          { label: '잔여 크레딧', value: String(company?.credit_balance ?? 0), sub: company?.plan === 'free_trial' ? '무료체험' : (() => { const sp = splitCredits(company?.credit_balance ?? 0, company?.addon_credits ?? 0); return `${(company?.plan || '플랜 미선택').toUpperCase()} · 월간 ${sp.monthly}·추가 ${sp.addon}`; })(), accent: (company?.credit_balance ?? 0) > 0 },
           { label: '전체 의뢰',  value: String(missions.length),                                        sub: '누적' },
           { label: '진행 중',    value: String(missions.filter(m => m.status === 'active').length),    sub: '현재 활성' },
           { label: '완료',       value: String(missions.filter(m => m.status === 'completed').length), sub: '검증 완료' },

@@ -18,7 +18,10 @@ const envVars = Object.fromEntries(
 );
 
 const SUPABASE_URL = envVars.VITE_SUPABASE_URL;
-const SERVICE_ROLE_KEY = envVars.SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE_ROLE_KEY = envVars.SUPABASE_SERVICE_ROLE_KEY || envVars.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+// 선택: 특정 미션 id 인자 (없으면 최신 활성 메인 의뢰)
+const TARGET_MISSION_ID = process.argv[2] || null;
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   console.error('❌ VITE_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 환경변수 누락');
@@ -282,23 +285,32 @@ const DIMENSIONS = ['clarity', 'relevance', 'value', 'differentiation', 'trust']
 async function main() {
   console.log('=== 최신 활성 메인 의뢰 — 패널 피드백 자동 생성 ===\n');
 
-  // 1. 최신 활성 메인 미션 조회 (landing_page 또는 type null)
-  const { data: missionRows, error: mErr } = await supabase
-    .from('missions')
-    .select('id, title, image_urls, panel_count, filled_count, description, type')
-    .eq('status', 'active')
-    .or('type.is.null,type.eq.landing_page')
-    .order('created_at', { ascending: false })
-    .limit(5);
+  // 1. 미션 조회 — TARGET_MISSION_ID 있으면 해당 미션, 없으면 최신 활성 메인 의뢰
+  let missionRows, mErr;
+  if (TARGET_MISSION_ID) {
+    ({ data: missionRows, error: mErr } = await supabase
+      .from('missions')
+      .select('id, title, image_urls, panel_count, filled_count, description, type')
+      .eq('id', TARGET_MISSION_ID)
+      .limit(1));
+  } else {
+    ({ data: missionRows, error: mErr } = await supabase
+      .from('missions')
+      .select('id, title, image_urls, panel_count, filled_count, description, type')
+      .eq('status', 'active')
+      .or('type.is.null,type.eq.landing_page')
+      .order('created_at', { ascending: false })
+      .limit(5));
+  }
 
   if (mErr) { console.error('미션 조회 오류:', mErr.message); return; }
   if (!missionRows || missionRows.length === 0) {
-    console.error('활성 메인 의뢰가 없습니다.');
+    console.error(TARGET_MISSION_ID ? `미션 ${TARGET_MISSION_ID} 없음.` : '활성 메인 의뢰가 없습니다.');
     return;
   }
 
-  // 목록 표시 후 첫 번째(최신) 선택
-  console.log('📋 활성 메인 의뢰 목록:');
+  // 목록 표시 후 첫 번째 선택
+  console.log('📋 대상 의뢰 목록:');
   missionRows.forEach((m, i) => {
     console.log(`  [${i + 1}] "${m.title}" (id: ${m.id.slice(0, 8)}..., 이미지: ${(m.image_urls || []).length}장)`);
   });

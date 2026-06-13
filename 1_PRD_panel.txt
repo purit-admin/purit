@@ -1,0 +1,222 @@
+================================================================
+1_PRD_panel.txt — Purity MVP 패널(Panel) 포털 상세 정의
+최종 업데이트: 2026-06-13 (095 프로필 경력 표시 — experience_years>=15 → '헤드'(구 'C레벨/임원진'), 연차 구간 주2~4·미5~7·시8~14·헤드15+ / VerifyDocs 연차 입력·정산 배율 영향 불변) / 2026-06-13 (메인 의뢰 검증 포커스(mission.assets) 뱃지를 미션 브리핑 + 이미지 피드백 작성 화면 상단에 노출 — 기업이 고른 중점 항목('A/B 소재 비교' 포함)을 보며 평가 / 서브 의뢰는 미표시) / 2026-06-10 (VerifyDocs 마지막 기회 경고 배너+확인 모달 / 084 서류 재제출 upsert 실패 수정 D-118) / 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 RJ-E / 심사 거절→재제출→영구차단 플로우 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
+================================================================
+
+인증 후 /panel 하위 라우트 접근 가능. 패널 상태 게이트(Layout <main> 블록):
+- 게이트 통과(상태 무관 항상 허용) 경로: /panel · /panel/notifications · /panel/bug-reports
+  · 거절/차단 패널도 거절 알림 확인 + 버그/이의신청 답변 열람 가능 (082)
+- panelStatus==='pending'  : 위 허용 + /panel/verify-docs 외 접근 불가 → "심사 대기" 콘텐츠
+- panelStatus==='rejected' : 위 허용 + /panel/verify-docs 외 접근 불가 → 📝 반려 Card(거절 사유 + "서류 재제출하기")
+- panelStatus==='banned'   : 위 허용 외 전부 차단(verify-docs 포함) → 🚫 영구 정지 Card(재제출 버튼 없음)
+- panelStatus==='suspended': 위 허용 + /panel/history(정산 내역)만 허용, 그 외(프로필·미션·미션수행·verify-docs) 차단 → 🚫 정지 Card("정산 내역 보기" Btn) ★ RJ-E
+  · 제품 결정: 정지 패널도 본인 정산내역은 열람 가능 / /panel은 Dashboard 자체 정지 화면(suspend_until D-day)
+
+================================================================
+## 대시보드 (/panel) — Dashboard.jsx
+================================================================
+
+- 명예 레벨 카드 (최상단): 10단계 HP 기반 레벨
+  · Lv.X 헤더 + 진행률 바 + "다음 레벨까지 XXX점" + 동기 문구
+  · 최고 레벨(Lv.10): "🏆 최고 레벨 달성! 현재 1회당 ₩XXX"
+  · ⓘ 호버 → HP 규칙 툴팁 (+5pts 제출 / +15pts 도움됨 / -20pts 도움안됨 / -200pts/주 30일 비활동)
+  · 마운트 시 apply_honor_decay RPC → 패널 데이터 즉시 재로드
+- 신뢰도 게이지 (trust_score %)
+- 미션 현황 (3칸): 완료 미션 / 참여 가능(filled_count < panel_count인 active 미션, limit 없음) / 이번 주 활동
+- 수익 현황 (3칸): 총 정산 확정(금액+건수) / 정산 대기 중(금액+건수) / 필터 탈락(건수)
+  · fmtWon(): 만 단위 + 나머지 천원 (₩1만 5,000)
+- 헤더 배지: Lv.X · 라벨 + XXXpts + 🔥 연속 횟수
+- 검증 서류 미제출 유도 Card:
+  · 조건: panelStatus==='pending' && !panel?.health_insurance_url && !panel?.linkedin_url && !panel?.portfolio_url
+  · "서류 제출하기 →" → /panel/verify-docs
+  · 서류 제출 완료 후 재진입 시 자동 소멸
+- 마감 임박 알림: 1시간 내 만료 draft/rejected 감지 → sendNotification
+- ★ 상태별 조기 반환(082): panelStatus가
+  · 'rejected' → 📝 반려 Card(거절 사유 + "서류 재제출하기 →" /panel/verify-docs)
+  · 'banned'   → 🚫 영구 정지 Card(재제출 버튼 없음)
+  · 'suspended'→ 🚫 계정 정지 Card (기존)
+  (Dashboard는 /panel이라 Sidebar 게이트 미적용 → Dashboard 자체 early return으로 처리)
+
+================================================================
+## 미션 관리 (/panel/missions) — Missions.jsx
+================================================================
+
+- 탭 3개: 새로운 미션 / 이어하기 / 수정 필요
+  · "수정 필요" 탭: 반려 건수 빨간 뱃지 (0건이면 미표시)
+  · 사이드바 "미션 관리" 항목에도 rejected 뱃지 실시간 표시 (Realtime 구독)
+
+[새로운 미션]
+- status='active' + 슬롯 여유(filled_count < panel_count) + 미참여 + 경력 레벨 일치
+  · description.careerLevels 배열에 패널 경력 키가 포함된 미션만 노출
+  · 패널 experience 미설정 or careerLevels 없는 레거시 → 모든 미션 노출 (하위 호환)
+- 수락 확인 모달: Purit Filter 경고 3항목 + "N시간 내 미제출 시 자동 취소" (메인 4h / 서브 2h)
+- 수락 시 accept_mission_slot RPC → filled_count +1 (원자적) + feedbacks INSERT(draft) → /panel/active?id=... 이동
+  · submission_deadline: 클라이언트에서 ISO 문자열로 RPC에 전달
+  · 슬롯 마감(RPC NULL) → "슬롯이 마감되었습니다" 에러
+- 메인/서브 섹션 분리, 5개씩 페이지네이션
+
+[이어하기]
+- status='draft' 미션 목록
+- 의뢰 종료(m.status!=='active') → "이어하기 →" 대신 "의뢰가 종료되었습니다" 텍스트
+- 수락 취소 버튼: cancel_panel_feedback RPC 호출
+
+[수정 필요]
+- feedbacks.status='rejected' && dismissed=false 미션 목록
+- rejection_deadline 만료 → 목록 자동 제외 (클라이언트 필터)
+- "탈락 사유 보기 ▼" 토글:
+  · suggestions 있으면: 원문 회색 박스 → 하단 REJECTION_GUIDE 고정 안내
+  · suggestions 없으면: REJECTION_GUIDE만
+  · REJECTION_GUIDE: "Purit Filter 검수 시스템에 의해 반려되었습니다.\n주요 반려 기준: 내용 길이 부족 / AI 생성 의심 / 구체성 부족\n해당 사유를 참고하여 재작성해 주세요."
+- "재작성 →" → resubmitTarget state → 확인 모달(RESUBMIT) → navigate('/panel/active?id=...&resubmit=<feedbackId>')
+  · 모달: 미션 제목 + rejection_deadline 남은 시간 + 경고 3개
+- missionEnded/slotsFull 항목: "재작성 불가" 텍스트 + "삭제" → dismiss_rejected_feedback RPC (dismissed=true)
+
+feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
+
+================================================================
+## 미션 수행 (/panel/active) — ActiveMission.jsx
+================================================================
+
+★ 목록 뷰 (id 없음):
+- status='draft' 미션 메인/서브 섹션 분리
+- 저장 진행 없으면 "피드백 시작하기 →" / 있으면 "이어하기 →"
+
+★ 폼 뷰 (id 있음):
+- 진입 시 deadline 체크:
+  · draft: ms.status!=='active' → missionEnded=true (화면 + "초안 삭제하기" 버튼)
+  · submission_deadline 만료 → deadlineExpired=true (화면 + "초안 삭제하기")
+  · rejection_deadline IS NOT NULL (재작성 draft) → rejection_deadline 기준 체크 (D-76 참조)
+  · 유효 → deadlineBanner state 설정 (브리핑·폼 상단 표시)
+- ★ 검증 포커스 노출(메인 의뢰): mission.assets(기업이 고른 검증 포커스, 'A/B 소재 비교' 포함)를 미션 브리핑 + 이미지 피드백 작성 화면 상단에 뱃지로 표시 → 패널이 그 관점을 중점으로 평가. 서브 의뢰는 미표시(assets=[]).
+
+[이미지 미션]
+- ImageAnnotator로 드래그 영역 지정
+- 이미지 탭: 미방문=흐리게 / 방문=accent 테두리 / 모든 탭 방문해야 제출 가능
+- 상단 5개 차원 탭 (명확성/관련성/가치/차별화/신뢰): 어노테이션 수 뱃지만
+  · 같은 차원 여러 번 드래그 → 차원1, 차원2... 번호 자동 부여
+  · "피드백할 내용이 없습니다" skip 체크박스
+- 5개 차원 모두 완료 → 총평 textarea (필수)
+- LP 추가 질문 있으면 총평 아래 TypedQuestionsBlock (미응답 시 제출 불가)
+- feedback_annotations 테이블에 실시간 저장/삭제
+- 자동저장: customAnswers·overallComment·skippedDims → strengths JSON (1.5초 debounce)
+- 드래프트 복원: fb.strengths에서 customAnswers·overallComment·skippedDims 복원
+
+[서브 미션 (preference/pricing/email)]
+- 자동저장: {__subType, ...fields, customAnswers} → feedbacks.strengths (1.5초 debounce)
+- preference: A/B 선택 + message_clarity + purchase_intent
+- pricing: price_fairness + value_perception + would_buy
+- email: open_intent + hook_score + clarity_score + curiosity_score + would_reply
+- TypedQuestionsBlock: radio/scale/text 타입별 렌더, 미응답 시 제출 불가
+- 총 평가(comment): TypedQuestionsBlock 아래 최하단 별도 Card
+- 제출: preference_responses/pricing_responses/email_responses INSERT + feedbacks UPDATE(submitted) + RPC 2개
+
+[텍스트 미션]
+- 5개 축 점수(1-5) + 텍스트 코멘트 → suggestions 통합 저장
+- LP 추가 질문 → TypedQuestionsBlock
+- 자동 저장: 1.5초 debounce
+
+★ 재작성 모드 (?resubmit=<feedbackId>):
+- reaccept_rejected_feedback RPC (원자적 슬롯 재예약)
+  · rejection_deadline 만료 or 슬롯 마감 → deadlineExpired=true
+- 이전 제출 데이터 자동 복원 (이미지: annotations+strengths / 서브: 응답 테이블 / 텍스트: parseCommentsFromSuggestions)
+- 브리핑에 "재작성 모드" 배너 + deadlineBanner
+- 재제출: 서브 미션 응답 테이블 UPDATE (INSERT 금지 — D-29)
+
+[제출 시]
+a. feedbacks UPDATE (draft → submitted, strengths: null)
+b. missions.filled_count 변동 없음 (수락 시점에 이미 +1)
+c. panels.total_missions +1 → increment_panel_mission_count RPC
+d. panels.honor_points +5 → add_panel_honor_points RPC
+e. notify_admin_on_feedback_submitted RPC fire-and-forget (어드민 알림)
+
+================================================================
+## 정산 내역 (/panel/history) — History.jsx
+================================================================
+
+- 페이지 제목: "정산 내역" (LEDGER)
+- 상단 통계 3칸: 총 정산 확정 / 정산 대기 중 / 지급 거절 (>0이면 빨간색)
+- 탭 3개: 정산 대기 / 정산 확정 / 지급 거절 (기본: 정산 대기)
+- 5개씩 페이지네이션 (탭 전환 시 page 리셋)
+- 금액 계산: payout_amount 고정값 우선 → 없으면 getPanelReward 동적 폴백 (D-70)
+  · 정산 대기 항목: 금액 아래 "(예상)" 레이블
+- [지급 거절] 항목:
+  · "탈락 사유 보기 ▼" 토글 → REJECTION_GUIDE 패턴 (Missions.jsx와 동일)
+  · "삭제" 버튼 → delete_rejected_feedback RPC → dismissed=true (숨김)
+- Purit Filter 탈락 안내 카드: 정산 확정 탭에서만 숨김
+- draft 상태 피드백 제외 (.neq('status', 'draft'))
+
+================================================================
+## 프로필 설정 (/panel/profile) — Profile.jsx
+================================================================
+
+- 탭 전환 시 isDirty 검사 → 미저장 경고 배너 ("저장하지 않고 이동 →": orig 값으로 리셋)
+- 탭 기본 정보:
+  · 개인정보 안내: 기업에게 이름·핸드폰 비공개 (직군·경력만 공개)
+  · 직군(industry): select 편집 가능 (INDUSTRIES 16종 + 기타 — 그로스/PMM/CRM/SNS·소셜/SEO/UX·UI/데이터 분석가 등 ★ 2026-06-12 7종 추가)
+  · 경력: ★ 읽기 전용 표시 (어드민 확정 항목 — 패널 직접 수정 불가, 2026-06-12)
+    · ★095 experience_years>=15 → "헤드" / 그 외 "N년차" / 없으면 experience 텍스트 폴백 (연차 구간: 주2~4·미5~7·시8~14·헤드15+)
+    · experience_confirmed_at 있으면 "✓ 확정됨"(녹색) / 없으면 "어드민 확정 대기"(amber)
+    · 안내문구: 자격득실 확인서 기반 어드민 확정 항목 — 변경 필요 시 버그/불편 신고에서 문의
+    · save() 페이로드에서 experience 제거 (잠금) — 기존 ExperienceBar 편집 UI 폐기
+  · 전문 분야: expertise 배열 토글
+  · 핸드폰 Mock OTP 인증: 800ms delay → 6자리 아무 숫자 허용 → phone·phone_verified=true
+- 탭 성과 — 뱃지 시스템 v3 (19개, 4섹션):
+  · ROOKIE(5개): 영점 조준, 유효 타격, 데이터 스캐너, 첫 발사, 삼연타
+  · ELITE(6개): 제로 데펙트, 크리티컬 샷, 트렌드 오라클, 댓글 장인, 스피드런, 듀얼 코어
+  · MASTER(5개): 절대 영도, 픽셀 아키텍트, 에이펙스 노드, 센추리, 인사이트 코어
+  · HIDDEN(3개): 마이크로스코프, 퀵 타겟팅, 블랙 스완 (미달성: 🔒 ???)
+  · TIER_STYLES: rookie=연회색 / elite=인디고 / master=순수블랙 / hidden=딥네이비
+  · ⓘ 호버 → 검은 툴팁 (left:0, wordBreak:'keep-all' — D-53/D-54)
+  · 획득 뱃지 호버 → "대표 뱃지로 설정" / 재클릭 해제
+  · 뱃지 자동 달성: check_and_award_badges RPC fire-and-forget
+- 탭 정산 계좌: bank_name·bank_account·bank_holder → panels UPDATE
+- 탭 비밀번호: signInWithPassword 검증 → updateUser({ password })
+- 탭 알림 설정: notif_prefs JSONB (feedbackApproved / feedbackRejected / deadlineWarning)
+- 프로필 헤더: 대표 뱃지 설정 시 이름 옆 tier 색상 태그 / 미설정 시 미표시
+
+================================================================
+## 검증 서류 제출 (/panel/verify-docs) — VerifyDocs.jsx
+================================================================
+
+- 접근 조건: role='panel' (단 banned·suspended는 Sidebar 게이트가 차단 — pending/rejected만 verify-docs 진입 가능, RPC도 동일 가드)
+- ★ 재제출 지원 (082): 진입 시 기존 제출 내역(panels) 로드 → LinkedIn·포트폴리오 링크·연차 프리필
+  · 파일 input은 주입 불가 → "기존 제출 파일 있음, 변경 시에만 재업로드" 안내 표시
+  · 필수 검증 완화: 건강보험·경력 최소1개 조건은 기존 제출분이 있으면 통과
+  · status==='rejected'이면 상단에 거절 사유 배너(rejection_reason) 표시 + 버튼 라벨 "서류 재제출하기 →"
+  · save RPC가 status='pending'으로 flip → notify_admin_on_panel_resubmit 트리거 → 어드민 재심사 알림
+- ★ 마지막 기회 경고 (2026-06-10): rejection_count >= 2 (이미 2회 거절 = 이번이 3번째, 또 거절 시 banned 영구 정지)인 경우
+  · 조회 쿼리에 rejection_count 포함 → isLastChance = (status==='rejected' && rejection_count>=2)
+  · 상단 빨간 경고 배너: "⚠️ 마지막 심사 기회입니다. … 또 거절되면 계정이 영구 정지되어 더 이상 제출할 수 없습니다."
+  · 제출 직전 ConfirmModal(danger): "마지막 심사 기회입니다 / 또 거절되면 영구 정지" → "네, 제출하겠습니다"·"다시 확인하기"
+  · 흐름: handleSubmit(유효성 검증) → isLastChance면 모달, 아니면 doSubmit() 즉시. 모달 확인 시에만 doSubmit() 실제 업로드·제출
+  · 일반(1·2번째) 거절 패널은 모달 없이 기존대로 바로 제출 / banned는 verify-docs 진입 자체 차단(082 게이트)이라 count>2 불가
+  · 어드민 거절 모달의 willBan(rejection_count>=2 경고)과 대칭 — 어드민·패널 양측이 마지막 단계에서 영구 정지를 경고
+- 건강보험 득실확인서 업로드 (이미지/PDF, 20MB, 필수) — 연차 인증 증빙
+- ★ 본인 연차 입력 (필수, 2~50년차, 2026-06-12): 자격득실 확인서 기준 자가 계산
+  · 안내 박스: "계산법 = 근무 연 수 + 1" (예: 4년 2개월 → 5년차 / 1년 8개월 → 2년차)
+  · 최소 2년차 (1년차는 모집하지 않음) — input min·검증·에러 메시지 일괄 2 이상
+  · save_panel_verification_docs RPC의 p_experience_years로 전달 → experience_years 저장(미확정 상태)
+- 경력 인증 (필수): LinkedIn URL / 포트폴리오 링크 / 포트폴리오 파일 중 최소 1개 ★ 다중 동시 제출 (라디오 선택 제거)
+  · 3개 필드 동시 표시 (모두 선택) — LinkedIn·포트폴리오 링크·포트폴리오 파일
+  · LinkedIn: 입력 시에만 https://linkedin.com/in/... 형식 검증 / 포트폴리오 링크: 입력 시에만 URL 형식 검증
+  · 포트폴리오 파일 경로: {user.id}/portfolio.{ext}
+- 파일 업로드: panel-verification-docs Storage 버킷, upsert:true, 20MB 제한 ★
+  · 경로: {user.id}/health_insurance.{ext}, portfolio.{ext}
+  · ★ 084: 버킷에 FOR UPDATE 정책(panel_update_own_docs) 추가 — 없으면 같은 확장자 재제출이 upsert(덮어쓰기)→RLS 400 무음 차단 (D-118)
+  · 이미지 파일(jpg/png)은 compressImage로 자동 압축 후 업로드 / PDF·DOC는 원본 업로드 (isImageFile 분기)
+- 제출: save_panel_verification_docs RPC (6-param, auth.uid()=p_user_id 본인 검증) ★ (migration 081에서 6-param 확장)
+  · p_portfolio_url=링크 / p_portfolio_file_url=파일 path (링크·파일 분리 저장, migration 080)
+  · p_experience_years=본인 연차 — experience_confirmed_at IS NULL(미확정)일 때만 반영 → 어드민 확정값 보호
+- 성공 → /panel 이동 → 서류 유도 Card 자동 소멸
+- 어드민(PanelManagement) 표시: 건강보험 파일 / LinkedIn 링크 / 포트폴리오 링크 / 포트폴리오 파일 각각 분리 표시
+  · 서류 제출 여부 감지(panelHasDocs): health_insurance_url || linkedin_url || portfolio_url || portfolio_file_url (4곳 동일 — Sidebar·Missions·Dashboard·ActiveMission)
+
+================================================================
+## 버그/건의 현황 (/panel/bug-reports) — BugReports.jsx
+================================================================
+
+- 자신이 제출한 버그/불편 신고 조회
+- 좌측 목록: 유형 뱃지 + 제목 + 날짜 + 메모 미리보기
+- 우측 상세: 메타 + 전체 설명 + 스크린샷 + 어드민 처리 상태 + 💬 관리자 답변(admin_reply)
+- ★ 답변 알림 딥링크(082): 어드민 답변 알림(💬) 클릭 → /panel/bug-reports?id=<리포트id>
+  · ?id= 쿼리를 읽어 해당 리포트를 자동 선택·열람(페이지네이션 무관, id로 직접 조회 — bug_reports SELECT RLS로 본인 것만)

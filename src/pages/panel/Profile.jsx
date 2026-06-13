@@ -2,7 +2,7 @@
 import { Card, Btn, Badge } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
-const INDUSTRIES = ['이커머스 마케터', 'B2B SaaS 세일즈', '스타트업 PM', 'B2B 영업', '퍼포먼스 마케터', '브랜드 마케터', 'CRO 전문가', '콘텐츠 마케터', '스타트업 대표', '기타'];
+const INDUSTRIES = ['이커머스 마케터', 'B2B SaaS 세일즈', '스타트업 PM', 'B2B 영업', '퍼포먼스 마케터', '브랜드 마케터', 'CRO 전문가', '콘텐츠 마케터', '스타트업 대표', '그로스 마케터', '프로덕트 마케터(PMM)', 'CRM 마케터', 'SNS·소셜 마케터', 'SEO 전문가', 'UX/UI 디자이너', '마케팅 데이터 분석가', '기타'];
 const EXPERTISE  = ['랜딩페이지 전환', '카피라이팅', '가격 전략', 'B2B 세일즈 카피', 'UX 설계', '이메일 마케팅', 'SNS 광고', '고객 인터뷰', '데이터 분석'];
 
 const BADGE_CATALOG = [
@@ -115,10 +115,11 @@ function BadgeTag({ badge, earned, isSelected, onSelect }) {
 const lbl    = { display: 'flex', flexDirection: 'column', gap: 8 };
 const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
-// 1-3년: 1.0×(gray), 4-7년: 1.5×(navy), 8-10년: 2.0×(amber)
+// 2-4년: 1.0×(gray), 5-7년: 1.5×(navy), 8-14년: 2.0×(amber), 15년+: 3.0×(헤드)
 function getYearTier(y) {
-  if (y >= 8) return { color: '#D97706', bg: '#FEF3C7', mult: '2.0×' };
-  if (y >= 4) return { color: 'var(--accent)', bg: 'var(--accent-dim)', mult: '1.5×' };
+  if (y >= 15) return { color: '#92400E', bg: '#FDE68A', mult: '3.0×' };
+  if (y >= 8)  return { color: '#D97706', bg: '#FEF3C7', mult: '2.0×' };
+  if (y >= 5)  return { color: 'var(--accent)', bg: 'var(--accent-dim)', mult: '1.5×' };
   return { color: 'var(--text-3)', bg: 'var(--bg-3)', mult: '1.0×' };
 }
 
@@ -489,7 +490,23 @@ export default function PanelProfile() {
             </div>
             <div style={lbl}>
               <span style={lblTxt}>경력</span>
-              <ExperienceBar value={experience} onChange={setExperience} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+                    {(panel?.experience_years ?? 0) >= 15
+                      ? '헤드'
+                      : (panel?.experience_years != null
+                          ? `${panel.experience_years}년차`
+                          : (experience || '미입력'))}
+                  </span>
+                  {panel?.experience_confirmed_at
+                    ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)' }}>✓ 확정됨</span>
+                    : <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706' }}>어드민 확정 대기</span>}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
+                  경력은 가입 시 제출한 자격득실 확인서를 바탕으로 어드민이 확정하는 항목으로, 직접 변경할 수 없습니다. 변경이 필요하면 버그/불편 신고에서 문의해 주세요.
+                </div>
+              </div>
             </div>
             <label style={lbl}>
               <span style={lblTxt}>자기소개 (선택)</span>
@@ -543,7 +560,7 @@ export default function PanelProfile() {
             <Btn
               style={{ alignSelf: 'flex-start' }}
               disabled={saving}
-              onClick={() => save({ name, industry, experience, bio, expertise })}
+              onClick={() => save({ name, industry, bio, expertise })}
             >
               {saving ? '저장 중...' : '저장'}
             </Btn>

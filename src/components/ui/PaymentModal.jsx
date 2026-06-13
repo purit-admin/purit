@@ -1,11 +1,12 @@
 import ReactDOM from 'react-dom';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, CreditCard, Landmark, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Btn } from './index';
+import ExitIntentModal from './ExitIntentModal';
 
-const PLAN_LABEL = { starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
-const PLAN_CREDITS = { starter: 50, pro: 165, enterprise: 400 };
+const PLAN_LABEL = { free_trial: '무료체험', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+const PLAN_CREDITS = { free_trial: 0, starter: 50, pro: 165, enterprise: 400 };
 
 // 결제 수단 탭
 const METHODS = [
@@ -28,11 +29,21 @@ const METHODS = [
  * PG 연동 포인트:
  *   handlePay() 내 TODO 블록을 토스페이먼츠 SDK 호출로 교체하면 됩니다.
  */
-export default function PaymentModal({ type, plan, credits, amountKrw, companyId, onSuccess, onClose }) {
+export default function PaymentModal({ type, plan, credits, amountKrw, companyId, billingCycle = 'monthly', onSuccess, onClose }) {
   const [payMethod, setPayMethod] = useState('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [showExit, setShowExit] = useState(false);
+  // 연타 방어: setState는 비동기라 disabled가 반영되기 전 2번째 클릭이 통과 → 결제 RPC 이중 호출.
+  // 동기 ref로 즉시 차단 (D-22). 성공 시엔 done 화면 + onSuccess로 모달이 닫혀 재진입 없음 → ref 유지.
+  const submittingRef = useRef(false);
+
+  // 이탈 시도: 처리 중·완료 후엔 바로 닫고, 그 외엔 리텐션 모달
+  function handleCloseAttempt() {
+    if (isProcessing || done) { onClose(); return; }
+    setShowExit(true);
+  }
 
   const orderName = type === 'plan'
     ? `${PLAN_LABEL[plan] ?? plan} 플랜`
@@ -40,6 +51,8 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
 
   async function handlePay() {
     if (payMethod === 'virtual_account') return; // 가상계좌는 PG 연동 후 지원
+    if (submittingRef.current) return;           // 연타 방어 — 동기 차단(D-22)
+    submittingRef.current = true;
     setIsProcessing(true);
     setError('');
 
@@ -52,10 +65,11 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
 
       if (type === 'plan') {
         const { error: rpcErr } = await supabase.rpc('grant_plan_credits', {
-          p_company_id: companyId,
-          p_plan:       plan,
-          p_amount_krw: amountKrw,
-          p_method:     payMethod,
+          p_company_id:    companyId,
+          p_plan:          plan,
+          p_amount_krw:    amountKrw,
+          p_method:        payMethod,
+          p_billing_cycle: billingCycle,
         });
         if (rpcErr) throw rpcErr;
         setDone(true);
@@ -73,6 +87,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
         setTimeout(() => { onSuccess(data?.new_balance ?? null); }, 1800);
       }
     } catch (e) {
+      submittingRef.current = false;  // 실패 시 롤백 → 재시도 허용
       setError(e.message || '결제 처리 중 오류가 발생했습니다.');
     } finally {
       setIsProcessing(false);
@@ -86,7 +101,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
         background: 'rgba(0,0,0,0.45)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget && !isProcessing && !done) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !isProcessing && !done) handleCloseAttempt(); }}
     >
       <div style={{
         background: '#fff', borderRadius: 16,
@@ -99,7 +114,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
         {/* 닫기 버튼 */}
         {!done && (
           <button
-            onClick={onClose}
+            onClick={handleCloseAttempt}
             disabled={isProcessing}
             style={{
               position: 'absolute', top: 18, right: 18,
@@ -154,7 +169,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
               )}
               {type === 'plan' && (
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
-                  {PLAN_CREDITS[plan]}cr 지급 · 기존 잔액 초기화
+                  {PLAN_CREDITS[plan]}cr 지급 · 기존 잔액에 추가 적립
                 </div>
               )}
             </div>
@@ -229,5 +244,16 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
     </div>
   );
 
-  return ReactDOM.createPortal(modal, document.body);
+  return (
+    <>
+      {ReactDOM.createPortal(modal, document.body)}
+      {showExit && (
+        <ExitIntentModal
+          context={type === 'plan' ? 'plan' : 'credit'}
+          onStay={() => setShowExit(false)}
+          onLeave={() => { setShowExit(false); onClose(); }}
+        />
+      )}
+    </>
+  );
 }

@@ -191,15 +191,15 @@ export default function PurityFilter() {
       // panels에 notif_prefs 포함 — 일괄 승인/반려 알림 시 수신 설정 필터에 사용
       const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
         supabase.from('feedbacks')
-          .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
+          .select('*, missions(title, type, image_urls, description, company_id, is_free_trial, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
           .eq('status', 'submitted').eq('purity_passed', false)
           .order('created_at', { ascending: true }),
         supabase.from('feedbacks')
-          .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
+          .select('*, missions(title, type, image_urls, description, company_id, is_free_trial, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
           .eq('purity_passed', true).neq('status', 'draft')
           .order('created_at', { ascending: false }).limit(300),
         supabase.from('feedbacks')
-          .select('*, missions(title, type, image_urls, description, company_id, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
+          .select('*, missions(title, type, image_urls, description, company_id, is_free_trial, companies(user_id)), panels(user_id, name, honor_points, experience, notif_prefs)')
           .eq('status', 'rejected').eq('purity_passed', false)
           .order('created_at', { ascending: false }).limit(300),
       ]);
@@ -787,6 +787,7 @@ export default function PurityFilter() {
                         <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14, color: scoreColor }}>{s}</span>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>
+                        {f.missions?.is_free_trial && <span style={{ color: '#B45309', fontWeight: 700 }}>🎁 체험 · </span>}
                         {f.missions?.title || '의뢰'}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>

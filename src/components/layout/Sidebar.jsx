@@ -39,8 +39,8 @@ const NAV = {
     {
       group: '자산',
       items: [
-        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
         { path: '/company/results', label: '피드백 결과', icon: BarChart2 },
+        { path: '/company/templates', label: '질문 템플릿', icon: FileText },
         { path: '/company/diagnosis', label: '5대 지표 진단', icon: Layers },
         { path: '/company/report', label: 'AI 리포트', icon: Sparkles },
       ],
@@ -89,6 +89,7 @@ const NAV = {
     {
       group: '운영',
       items: [
+        { path: '/admin/trials', label: '체험 의뢰 관리', icon: Sparkles },
         { path: '/admin/companies', label: '기업 관리', icon: Building2 },
         { path: '/admin/panels', label: '패널 관리', icon: Users },
         { path: '/admin/missions', label: '미션 관리', icon: ClipboardList },
@@ -116,10 +117,12 @@ export default function Layout({ role, children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
+  const [pendingPanelCount, setPendingPanelCount] = useState(0);
   const [panelId, setPanelId] = useState(null);
   const [panelStatus, setPanelStatus] = useState(null);
   const [panelStatusLoaded, setPanelStatusLoaded] = useState(false);
   const [panelHasDocs, setPanelHasDocs] = useState(false);
+  const [panelRejectionReason, setPanelRejectionReason] = useState('');
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
@@ -159,12 +162,13 @@ export default function Layout({ role, children }) {
   useEffect(() => {
     if (!user?.id || role !== 'panel') return;
     setPanelStatusLoaded(false);
-    supabase.from('panels').select('id, status, health_insurance_url, linkedin_url, portfolio_url').eq('user_id', user.id).single()
+    supabase.from('panels').select('id, status, rejection_reason, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url').eq('user_id', user.id).single()
       .then(({ data: p }) => {
         if (p) {
           setPanelId(p.id);
           setPanelStatus(p.status);
-          setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url));
+          setPanelRejectionReason(p.rejection_reason || '');
+          setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url || p.portfolio_file_url));
         }
         setPanelStatusLoaded(true);
       });
@@ -197,6 +201,47 @@ export default function Layout({ role, children }) {
 
     return () => { if (sub) supabase.removeChannel(sub); };
   }, [panelId]);
+
+  // 어드민: 새로 가입한(아직 안 본) 심사대기 패널 수 뱃지
+  useEffect(() => {
+    if (!user?.id || role !== 'admin') return;
+    let sub;
+    const seenKey = `purit_admin_panels_seen_${user.id}`;
+
+    async function loadPending() {
+      // 패널 관리 페이지를 보고 있는 동안은 '본 것'으로 간주 → 뱃지 0
+      if (window.location.pathname === '/admin/panels') { setPendingPanelCount(0); return; }
+      let q = supabase
+        .from('panels')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      const seenAt = localStorage.getItem(seenKey);
+      if (seenAt) q = q.gt('created_at', seenAt);
+      const { count } = await q;
+      setPendingPanelCount(count || 0);
+    }
+
+    loadPending();
+    // pending 패널 이벤트만 구독 — 무필터 시 패널 전원의 honor_points 등 모든 변경마다 재쿼리 발생
+    sub = supabase
+      .channel(`sidebar-pending-panels-${user.id}-${Date.now()}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'panels',
+        filter: 'status=eq.pending',
+      }, loadPending)
+      .subscribe();
+
+    return () => { if (sub) supabase.removeChannel(sub); };
+  }, [user?.id, role]);
+
+  // 패널 관리 페이지 방문 시 현재까지의 심사대기 패널을 '본 것'으로 표시 → 뱃지 초기화
+  useEffect(() => {
+    if (!user?.id || role !== 'admin') return;
+    if (location.pathname === '/admin/panels') {
+      localStorage.setItem(`purit_admin_panels_seen_${user.id}`, new Date().toISOString());
+      setPendingPanelCount(0);
+    }
+  }, [location.pathname, role, user?.id]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -374,7 +419,8 @@ export default function Layout({ role, children }) {
                 const active = isActive(item.path);
                 const Icon = item.icon;
                 const badgeCount = item.path === `/${role}/notifications` ? unreadCount
-                  : item.path === '/panel/missions' ? rejectedCount : 0;
+                  : item.path === '/panel/missions' ? rejectedCount
+                  : item.path === '/admin/panels' ? pendingPanelCount : 0;
                 return (
                   <button key={item.path} onClick={() => handleNav(item.path)}
                     title={!isExpanded ? item.label : undefined}
@@ -513,9 +559,44 @@ export default function Layout({ role, children }) {
           <div style={{ width: 34 }} />
         </div>
         <main style={{ flex: 1, background: '#F8FAFC' }}>
-          {role === 'panel' && !panelStatusLoaded && !['/panel', '/panel/verify-docs'].includes(location.pathname)
+          {role === 'panel' && !panelStatusLoaded && !['/panel', '/panel/verify-docs', '/panel/notifications', '/panel/bug-reports'].includes(location.pathname)
             ? null
-            : role === 'panel' && panelStatus === 'pending' && !['/panel', '/panel/verify-docs'].includes(location.pathname)
+            : role === 'panel' && panelStatus === 'rejected' && !['/panel', '/panel/verify-docs', '/panel/notifications', '/panel/bug-reports'].includes(location.pathname)
+            ? (
+              <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+                <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+                  <div style={{ fontSize: 36, marginBottom: 16 }}>📝</div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>검증 서류가 반려되었습니다</h2>
+                  {panelRejectionReason && (
+                    <div style={{
+                      fontSize: 13.5, color: '#78350F', background: '#FFFBEB', border: '1px solid #FCD34D',
+                      borderRadius: 8, padding: '12px 16px', margin: '0 auto 20px', maxWidth: 480,
+                      textAlign: 'left', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                    }}>
+                      <strong style={{ color: '#92400E' }}>거절 사유</strong><br />{panelRejectionReason}
+                    </div>
+                  )}
+                  <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+                    사유를 확인하고 서류를 보완하여 재제출해 주세요.
+                  </p>
+                  <Btn onClick={() => navigate('/panel/verify-docs')}>서류 재제출하기 →</Btn>
+                </Card>
+              </div>
+            )
+            : role === 'panel' && panelStatus === 'banned' && !['/panel', '/panel/notifications', '/panel/bug-reports'].includes(location.pathname)
+            ? (
+              <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+                <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+                  <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 영구 정지되었습니다</h2>
+                  <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
+                    누적 거절 횟수가 한도에 도달하여 이 계정으로는 더 이상 심사를 받을 수 없습니다.<br />
+                    이의가 있으시면 운영팀에 문의해 주세요.
+                  </p>
+                </Card>
+              </div>
+            )
+            : role === 'panel' && panelStatus === 'pending' && !['/panel', '/panel/verify-docs', '/panel/notifications', '/panel/bug-reports'].includes(location.pathname)
             ? (
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 24px' }}>
                 {panelHasDocs ? (
@@ -542,6 +623,20 @@ export default function Layout({ role, children }) {
                     <Btn onClick={() => navigate('/panel/verify-docs')}>서류 제출하기 →</Btn>
                   </Card>
                 )}
+              </div>
+            )
+            : role === 'panel' && panelStatus === 'suspended' && !['/panel', '/panel/notifications', '/panel/bug-reports', '/panel/history'].includes(location.pathname)
+            ? (
+              <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 900 }}>
+                <Card style={{ textAlign: 'center', padding: '48px 24px' }}>
+                  <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 정지되었습니다</h2>
+                  <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>
+                    관리자에 의해 계정 활동이 정지되었습니다.<br />
+                    정산 내역은 계속 확인하실 수 있습니다.
+                  </p>
+                  <Btn onClick={() => navigate('/panel/history')}>정산 내역 보기 →</Btn>
+                </Card>
               </div>
             )
             : children

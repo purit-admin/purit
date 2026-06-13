@@ -1,6 +1,6 @@
 ================================================================
 2_Architecture.txt — Purity MVP 기술 스택 & 아키텍처
-최종 업데이트: 2026-06-11 (AI 리포트 Mock 뱃지 + PurityFilter 슬롯 버그 수정)
+최종 업데이트: 2026-06-13 (스케일(기업100·패널5000) 사전 대응 — panel/Missions 미션 쿼리 active+진행중 id 한정(.or)·Realtime status=eq.active 필터 / Sidebar 어드민 심사대기 구독 status=eq.pending 필터 / 쿼리 최적화 원칙에 1000행 무음 절단(D-132)·Realtime 구독 필터 원칙(D-133) 추가 / 잔여 스케일 항목은 QA_니체_PROGRESS 🔵 섹션 트리거 조건부 등록) / 2026-06-13 (PaymentModal 연타 방어 — handlePay 최상단 submittingRef(동기 ref) 가드 추가: setState(isProcessing) 비동기 한계로 빠른 더블클릭 시 grant_plan_credits/purchase_credits RPC 이중 호출(크레딧 2배 적립·invoices 중복)을 막음. catch ref=false 롤백, 성공은 done화면+onSuccess 언마운트라 재진입 없음. 서버 멱등성 없어 클라 가드 필수 D-22 / 결제 단일 경유라 Pricing·ChargeOptionsModal 3경로 동시 보호) / 2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff_purit_landing 이식 / src/pages/landing.css 신규(purit.css를 .purit-landing 하위로 전면 스코프 — index.css :root 토큰 --bg-2·--accent-dim 등 + .expert-tag·.mono 클래스 충돌 방지, 키프레임 pl-* 리네임 D-131) / index.html Pretendard CDN 추가 / Landing.jsx 재작성: 내부 컴포넌트 Radar(선언형 SVG)·Counter·ExpertCloud(rAF) + nav scrolled·모바일 메뉴·reveal IO / "작동 방식(#how)" 섹션만 기존 StepAnimations 유지(새 파일의 "신청부터 결과까지 3단계"는 미채택) / ExpertPanelCloud.jsx는 Landing에서 미사용 전환(파일 유지) / 카피 기업고객 관점 정리: 시간 48시간 통일·시니어/헤드급·숫자밴드 전환율40%·광고비800만원·후기 수치·CTA 안심 라인) / 2026-06-13 (096/097 구독 결제 재설계 — 플랜 변경 누적(grant += / 다운그레이드 가드 / 결제일 앵커) + 월 갱신 renew_due_subscriptions(매월 리셋·구매분 LEAST 보존, pg_cron) + companies 4컬럼(addon_credits·plan_started_at·next_billing_at·plan_billing_cycle) / 단일지갑+addon 트래커 파생분리로 월간/추가 구분표시·확인모달(credits.js·Dashboard·Pricing·PanelTargetStep·등록4폼) / PaymentModal billingCycle·"추가 적립" 문구 / Pricing 다운그레이드 버튼 차단·누적 미러 / 097 핫픽스: admin_change_plan addon=0·renew 원자화 / D-129 / NewMission 월소득 듀얼 슬라이더+'1억 이상'·'기업 고객' 체크박스) / 2026-06-13 (095 패널 최상위 등급 "C레벨/임원" → "헤드" 개명 + 연차 구간 전면 재정의 — 주니어2~4(1.0×)·미들5~7(1.5×)·시니어8~14(2.0×)·헤드15+(3.0×) / 헤드는 어드민 수동(is_executive 체크박스) 폐지·연차 15+ 자동 부여(experience_years≥15) / 정산 배율·언락 크레딧은 구 C레벨과 동일 유지(3.0×·언락6) / 내부 key 'clevel' 유지·한국어 라벨만 '헤드' / experience TEXT는 헤드도 'N년'으로 저장(구 '임원' 특수텍스트 폐지)·배율/크레딧 연차 숫자 기반 통일 / RPC 5개 재정의(admin_confirm 2-param·auto_increment·complete_mission_and_refund·recalc_mission_consumed·unlock_free_trial_mission) + 기존 임원<15 강등 백필 / honorLevels·PanelTargetStep·CAREER_LABEL 4파일·Pricing·ChargeOptionsModal·PanelManagement·Profile / 연차→배율 밴드 4중복(클라+서버 3RPC) 동시 변경 필수 D-127) / 2026-06-13 (094 무료 체험 전환 3종 — ①자동 공개 2명을 점수(호평) 상위로 선별(서버 unlock RPC·Results·admin/TrialMissions 통일, D-35) ②30% 첫 언락 할인+48h 마감(trial_results_seen_at 앵커·touch_trial_results_seen·정가 취소선+카운트다운, D-121) ③잠긴쪽 티저(잠긴 N명 중 M명 ≤2점 치명적 지적·약점 축 지목, 클라 표시) / honorLevels 할인 상수·missions 보호컬럼에 seen_at 추가) / 2026-06-13 (093 무료 체험 의뢰 '취소' 복구 — admin_set_trial_mission_status: 취소→free_trial_used 복구·재개→재소진(어드민 경로 전용, 기업 조기종료는 미복구) / 메인 의뢰 검증 포커스에 'A/B 소재 비교' 추가 + 패널 미션 브리핑·이미지 피드백 화면에 검증 포커스(assets) 뱃지 노출 / 기업 포털 무료 첫 의뢰 '🎁 체험 의뢰' 뱃지 — Dashboard·NewMission 목록·Results 좌측) / 2026-06-13 (체험 의뢰 관리 고도화 089~092 — trial_public_panel_ids 어드민 지정 공개·언락 메인1.5배(090)·admin_delete_trial_mission 무료기회 복구(091,D-124)·결제컬럼 보호 트리거+admin_set_trial_public(092,D-125)·어드민 운영그룹 체험관리 맨 위 / Results 추가질문 응답만 잠금·텍스트미션 잠금 동등·공개 우선 정렬) / 2026-06-12 (기업 사이드바 '자산' 그룹 순서 변경 — 피드백 결과 최상단 / submit-penguin-trial-feedbacks.mjs 테스트 스크립트 추가) / 2026-06-12 (085/087 무료 체험 Freemium 완료 — 첫 의뢰 1회 무료·부분 언락(경력 기준 동적 비용)·ChargeOptionsModal·ExitIntentModal·admin/TrialMissions·D-121) / 2026-06-10 (084 Storage 버킷 UPDATE 정책 추가 — 패널 서류·소재 이미지 재업로드 실패 수정 D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE D-120 / 086 companies_plan_check 동기화 — 085 free_trial 도입 시 가입 전면 실패 긴급 수정 D-117 / Sidebar 게이트 suspended 분기 추가-정산내역만 허용 통일 RJ-E / 083 이의신청 type CHECK 수정 + 패널 상태 게이트 다중방어 / 082 패널 거절→재제출→영구차단 + 버그답변 딥링크)
 ================================================================
 
 ## 기술 스택
@@ -26,13 +26,18 @@
 purit/
 ├── src/
 │   ├── App.jsx, main.jsx, index.css
-│   ├── lib/       supabase.js | data.js | notify.js | templates.js | honorLevels.js | navigationGuard.js | resolveCompany.js ★ 신규
-│   │              resolveCompany.js — 오너/팀원 공통 회사 조회 헬퍼 (기업 포털 17개 페이지 공통 사용) ★ 신규
+│   ├── lib/       supabase.js | notify.js | templates.js | honorLevels.js | navigationGuard.js | resolveCompany.js ★ 신규
+│   │              resolveCompany.js — 오너/팀원 공통 회사 조회 헬퍼 (기업 포털 14개 페이지 공통 사용) ★ 신규
 │   │                export async function resolveCompany(userId): { company, teamRole }
 │   │                  1순위: companies.user_id = userId → { company, teamRole: null } (오너)
 │   │                  2순위: team_members.user_id = userId + status='active' → { company, teamRole: 'editor'|'viewer' } (팀원)
 │   │                  미매칭: { company: null, teamRole: null }
 │   │                canEdit = teamRole === null || teamRole === 'editor' 패턴으로 권한 분기
+│   │              credits.js (월간(구독)/추가(구매) 크레딧 구분 헬퍼 — 096 단일지갑+addon 트래커 파생, D-129) ★ 신규
+│   │                splitCredits(balance, addon): { monthly:max(0,balance-addon), addon:min(addon,balance), total } / fmtSplit
+│   │                needsAddonConfirm(cost, balance, addon): 월간_잔여<cost≤총잔액이면 true(추가 크레딧 사용 확인 모달 트리거)
+│   │                addonUsageFor(cost, balance, addon): 추가 크레딧에서 끌어 쓰는 금액(모달 문구용)
+│   │                사용: Dashboard·Pricing·PanelTargetStep(구분 표시) / NewMission·PreferenceTest·PricingTest·ColdEmailTest(제출 확인 모달)
 │   │              imageUtils.js (compressImage 유틸리티 — canvas API 기반 이미지 자동 압축) ★ 신규
 │   │                compressImage(file, maxWidth=1920, quality=0.88): Promise<File>
 │   │                  PNG → PNG(투명도 보존) / 그 외 → JPEG 변환
@@ -50,20 +55,30 @@ purit/
 │   │              lp 템플릿 sectionLabel 필드: '랜딩페이지 진단'(3종)·'광고 소재 진단'(3종)·'제품 상세 페이지 진단'(3종)·'영상/숏폼 광고 진단'(3종)
 │   │              QuestionTemplates.jsx·NewMission.jsx: sectionLabel 변경 감지 → 섹션 구분선+레이블 렌더링 (category='랜딩페이지' 유지 — 기존 필터 로직 불변)
 │   │              honorLevels.js (HONOR_LEVELS 10단계 배열, HONOR_COLOR_META 4색 티어, getHonorLevel·getNextLevel·getProgressPct·getExperienceMultiplier·getExperienceCareerKey·getPanelReward·fmtWon·fmtKRW 헬퍼)
+│   │                getCareerUnlockCredit(experience)·CAREER_UNLOCK_CREDIT({junior:1.5,middle:3,senior:4.5,clevel:6}) — 무료 체험 언락 패널 1인당 크레딧 (메인 1.5배, 085/087/090, 서버 RPC와 일치) ★
+│   │                TRIAL_FIRST_UNLOCK_DISCOUNT(0.30)·TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS(48)·applyUnlockDiscount(base,within) — 무료 체험 첫 언락 30% 할인(결과 최초 열람부터 48h), 서버 unlock RPC와 1:1 정합 (094, D-121) ★
 │   │                getExperienceCareerKey(experience): experience 문자열 → 'junior'|'middle'|'senior'|'clevel' 키 반환 (getExperienceMultiplier 래핑)
+│   │                ★ getExperienceMultiplier 연차 밴드(095): 주니어 2~4(1.0×)·미들 5~7(1.5×)·시니어 8~14(2.0×)·헤드 15+(3.0×)
+│   │                  내부 key는 'clevel' 유지(헤드=clevel). 키워드 정규식('헤드|c레벨|임원|시니어|미들'…)은 레거시 텍스트 안전망(숫자 'N년' 우선)
+│   │                  ⚠️ 이 밴드는 클라(honorLevels) + 서버 3RPC(complete_mission_and_refund·recalc_mission_consumed·unlock_free_trial_mission)에 중복 — 한 곳만 바꾸면 정산 불일치(D-127)
 │   │                getPanelReward(honorPoints, experience): 레벨 baseReward × getExperienceMultiplier(experience) → 패널 1인당 동적 미션비
 │   │                Missions.jsx MissionCard + ActiveMission.jsx(목록·브리핑·제출완료): missions.reward_amount(고정) 대신 getPanelReward로 동적 계산 표시 (서브미션 × 4500/8000 비율 스케일)
 │   │              navigationGuard.js (싱글톤 — register(config)/unregister()/intercept(path); 폼 페이지가 register, Sidebar가 intercept 호출)
 │   ├── context/   AuthContext.jsx  (useAuth: user·role·loading / signIn·signUp·signOut / dashboardPath)
 │   ├── components/
-│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(질문템플릿·피드백결과·5대 지표 진단·AI리포트)/계정)
+│   │   ├── layout/  Sidebar.jsx  (역할별 사이드바, unreadCount 실시간 구독 뱃지 — 기업 포털 그룹: 개요/메인의뢰(의뢰등록)/서브의뢰(A/B·가격·이메일)/자산(피드백결과·질문템플릿·5대 지표 진단·AI리포트)/계정)
 │   │   │              ★ Supabase Realtime 채널 명명 패턴 (D-96):
 │   │   │                모든 supabase.channel(name) 호출 시 name에 `-${Date.now()}` 접미사 필수
 │   │   │                예) 'sidebar-notif-badge-${userId}-${Date.now()}'
 │   │   │                이유: React StrictMode 이중 실행 시 supabase.channel(fixedName)이 캐시된 이미 구독된 인스턴스를 반환,
 │   │   │                      .on() 호출 시 "cannot add postgres_changes callbacks after subscribe()" 에러 발생
 │   │   │                      Date.now() 접미사로 각 마운트마다 유니크한 채널명 보장 → 에러 방지
-│   │   │                적용 파일 (5개 채널): NotificationCenter.jsx / company/Dashboard.jsx / Sidebar.jsx(2개) / panel/Missions.jsx
+│   │   │                적용 파일 (6개 채널): NotificationCenter.jsx / company/Dashboard.jsx / Sidebar.jsx(3개) / panel/Missions.jsx
+│   │   │                  ★ Sidebar 3번째 채널 sidebar-pending-panels-${userId}: 어드민 '패널 관리' 메뉴 신규 심사대기 뱃지 (panels 테이블 구독, 081)
+│   │   │                    filter:'status=eq.pending' 적용 (D-133) — 무필터 시 패널 전원의 honor_points 등 모든 UPDATE마다 재쿼리.
+│   │   │                    신규 가입 INSERT(기본 pending)·재제출(rejected→pending)은 필터 통과로 뱃지 정상, pending→active 승급은 /admin/panels(뱃지 0 고정)에서만 발생해 무영향
+│   │   │                  ★ 어드민 패널 관리 뱃지 로직: badgeCount 매핑에 item.path==='/admin/panels' → pendingPanelCount 추가
+│   │   │                    localStorage(purit_admin_panels_seen_${userId}) 마지막 방문 시각 이후 created_at인 pending 수 / 방문 시 0 초기화
 │   │   │              ★ 클릭 토글 사이드바 패턴:
 │   │   │                - 우상단 ‹/› 버튼 클릭 → 220px 펼침 ↔ 60px 접힘 토글
 │   │   │                - state: collapsed(bool, 기본 false=펼침)
@@ -76,18 +91,27 @@ purit/
 │   │   │                - 아이콘 정렬: justifyContent 고정(flex-start) + paddingLeft 전환으로 centering 효과
 │   │   │                  (paddingLeft: isExpanded ? 12 : 16 — 16 = (48-16)/2, 접힘 시 아이콘 중앙 정렬)
 │   │   │                - 어드민 포털 스위처: 두 레이아웃(세로버튼/가로pill) cross-fade (maxHeight+opacity 역전)
-│   │   │              ★ 리서치 그룹(ICP·Pulse·브랜드) 사이드바에서 제거 — 라우트·페이지 파일은 유지
 │   │   │              handleNav(path) 헬퍼: navigationGuard.intercept(path) → false면 navigate, true면 guard가 모달 트리거
 │   │   │              로그아웃은 guard 체크 제외 (의도적 이탈)
 │   │   │              showBugReport state + "버그/불편 신고" 버튼(로그아웃 버튼 위, 전 포털 공통) + BugReportModal 렌더
 │   │   │              어드민 NAV '운영' 그룹 순서: 기업 관리 → 패널 관리 → 미션 관리 → 피드백 관리(구 'Purit Filter') → 수익 & 정산 → 버그 리포트 ★
-│   │   │              ★ 패널 pending 게이트 (Layout <main> 블록) ★ 신규:
-│   │   │                panelStatusLoaded=false + /panel·/panel/verify-docs 외 경로 → null 렌더 (로딩 대기)
-│   │   │                panelStatus==='pending' + /panel·/panel/verify-docs 외 경로 → 개별 페이지 대신 pending 콘텐츠 표시
-│   │   │                  - panelHasDocs=true (서류 제출 완료): amber "심사 대기 중" 배너 표시
-│   │   │                  - panelHasDocs=false (서류 미제출): "서비스 이용을 위한 경력 인증" Card + "서류 제출하기 →" Btn
-│   │   │                ※ 개별 페이지(Missions.jsx·ActiveMission.jsx)의 pending 게이트와 이중 방어 구조
+│   │   │              ★ 패널 상태 게이트 (Layout <main> 블록) ★ pending/rejected/banned/suspended (082 확장 + RJ-E):
+│   │   │                허용(게이트 통과) 경로 공통: /panel · /panel/notifications · /panel/bug-reports
+│   │   │                  (거절/차단 패널도 거절 알림 확인 + 버그/이의신청 답변 열람 가능하도록 082에서 추가)
+│   │   │                panelStatusLoaded=false + (허용+/panel/verify-docs) 외 경로 → null 렌더 (로딩 대기)
+│   │   │                panelStatus==='pending' + (허용+/panel/verify-docs) 외 경로 → pending 콘텐츠
+│   │   │                  - panelHasDocs=true: amber "심사 대기 중" 배너 / false: "경력 인증" Card + "서류 제출하기 →" Btn
+│   │   │                panelStatus==='rejected' + (허용+/panel/verify-docs) 외 경로 → 📝 반려 Card + rejectionReason + "서류 재제출하기 →"
+│   │   │                  (대시보드 panel/Dashboard.jsx 반려 블록과 동일 마크업 — page-wrap maxWidth 900, Card padding 48px 24px)
+│   │   │                panelStatus==='banned' + (허용) 외 경로 → 🚫 영구 정지 Card (재제출 버튼 없음, verify-docs도 차단)
+│   │   │                panelStatus==='suspended' + (허용 + /panel/history) 외 경로 → 🚫 정지 Card + "정산 내역 보기 →" Btn ★ RJ-E
+│   │   │                  제품 결정: 정지 패널도 본인 정산내역(/panel/history)은 열람 가능 → suspended 전용 허용 경로에 /panel/history 추가
+│   │   │                  /panel(대시보드)는 허용 → panel/Dashboard.jsx 자체 suspended 화면(suspend_until D-day) 표시 / 프로필·미션·미션수행·verify-docs는 정지 Card로 차단
+│   │   │                  History.jsx·Profile.jsx는 개별 상태 게이트 없음 — 전자는 Sidebar 허용 경로로 통과, 후자는 Sidebar가 자동 차단 (단일 파일 수정)
+│   │   │                panelRejectionReason state: 패널 status 로더 select에 rejection_reason 포함
+│   │   │                ※ 개별 페이지(Missions.jsx·ActiveMission.jsx)의 상태 게이트와 다중 방어 구조
 │   │   │                  Sidebar 레벨이 1차 차단, 개별 페이지 게이트가 URL 직접 접근 방어(2차)
+│   │   │                  Missions.jsx: suspended/rejected/banned/pending 렌더 게이트 / ActiveMission.jsx: load()에서 status!=='active' 전체 차단 후 렌더 상태별 분기 (083 RJ-D 반영)
 │   │   └── ui/      index.jsx (Btn·Card·Stat·ScoreBar·Badge·Divider·EmptyState·ConfirmModal)
 │   │                  ConfirmModal props: title·desc·confirmLabel·cancelLabel·danger·onConfirm·onCancel + errorMsg=''(선택)
 │   │                    errorMsg 있으면 모달 내부 하단에 빨간 배너 표시 → 확인 실패 시 모달 유지 (낙관적 롤백 패턴 — D-65 참조)
@@ -113,18 +137,32 @@ purit/
 │   │                  REPORT_TYPES 6개 배열 — key:'appeal', label:'⚖️ 이의 신청' 포함
 │   │                  제목 + 상세 + 스크린샷 업로드(bug-screenshots 버킷, 5MB)
 │   │                PaymentModal.jsx (결제 모달 — ReactDOM.createPortal, 기업 포털 공통) ★ 신규 (2026-06-12)
-│   │                  props: type('plan'|'credits'), plan, credits, amountKrw, companyId, onSuccess(newBalance), onClose
+│   │                  props: type('plan'|'credits'), plan, credits, amountKrw, companyId, billingCycle('monthly'|'annual', 096), onSuccess(newBalance), onClose
+│   │                  ★ 096: type='plan'은 grant_plan_credits에 p_billing_cycle 전달 / 주문요약 문구 "기존 잔액에 N cr 추가 적립"(구 "초기화" 폐지 — 누적)
 │   │                  결제 수단 탭: 카드(즉시 처리) / 가상계좌(PG 연동 후 지원, 현재 비활성)
 │   │                  Mock 배너: "🧪 테스트 모드 · 실제 결제 없이 즉시 처리됩니다" (amber)
 │   │                  handlePay(): type='plan'→grant_plan_credits RPC / type='credits'→purchase_credits RPC
 │   │                    → setDone(true) → setTimeout 1.8s → onSuccess(new_balance)
+│   │                  ★ 연타 방어: handlePay 최상단 submittingRef(동기 ref) 가드 — setState(isProcessing) 비동기 한계로
+│   │                    빠른 더블클릭 시 결제 RPC 이중 호출(크레딧 2배 적립·invoices 중복) 방지. catch에서 ref=false 롤백(재시도 허용),
+│   │                    성공은 done화면+onSuccess 언마운트라 재진입 없음. 서버 grant/purchase 멱등성 없어 클라 가드 필수 (D-22)
 │   │                  PG 연동 포인트: handlePay() 내 TODO 블록 1곳 (토스페이먼츠 SDK 삽입 위치)
 │   │                  에러 시: setError(msg) + setIsProcessing(false) → 모달 유지
 │   │                  done=true 시: 닫기 버튼 숨김 + 배경 클릭 닫기 차단 (1.8초 자동 닫힘만 허용)
-│   │                  사용처 3곳: Pricing.jsx(Flow1 플랜구매·Flow2 크레딧충전) / PanelTargetStep.jsx(Flow3 인라인충전)
+│   │                  사용처: Pricing.jsx(플랜구매·크레딧충전) / PanelTargetStep.jsx(인라인충전) / ChargeOptionsModal(언락) ★ 085
+│   │                  ★ 085: 닫기(X·배경)에 ExitIntentModal 내장(처리중·완료 시엔 바로 닫힘) → 충전·플랜전환·언락 결제 이탈 리텐션 전반 커버
+│   │                ExitIntentModal.jsx (결제/충전/플랜전환 이탈 리텐션 모달 — ReactDOM.createPortal) ★ 신규 (085)
+│   │                  "잠깐만요, 정말 나가시겠어요?" + 마케터 고용비·A/B 테스트비·광고비 낭비 비교(COMPARE 배열, placeholder) + "이래도 안 하시려고요?"
+│   │                  props: onStay(이탈 취소)·onLeave(실제 닫기)·context('credit'|'plan') / zIndex 10000(최상단) / PaymentModal·PanelTargetStep 충전모달·ChargeOptionsModal 닫기에 연결
+│   │                ChargeOptionsModal.jsx (잠금 해제용 "플랜 구독 또는 크레딧 충전" 선택 모달) ★ 신규 (085)
+│   │                  Results 언락 CTA에서 호출 — Starter/Pro 구독(grant_plan_credits) + 크레딧 번들 충전(purchase_credits) 동시 제공
+│   │                  payTarget 선택 → PaymentModal 위임(이탈 리텐션 내장) → onSuccess → 호출측 handleUnlock(언락 진행) / 닫기에 ExitIntentModal
 │   │                  supabase.storage('bug-screenshots').upload → screenshot_url, bug_reports INSERT
 │   │                  업로드 실패 시 screenshot_url=null graceful fallback
 │   │                PanelTargetStep.jsx (패널 설정 전용 공용 컴포넌트 — 슬라이더·경력버튼·크레딧계산기·업그레이드팝업)
+│   │                  ★ CAREER_LEVELS(095): junior 주니어 2–4년차(1.0×) / middle 미들 5–7년차(1.5×) / senior 시니어 8–14년차(2.0×,proOnly) / clevel '헤드' 15년차 이상(3.0×,proOnly)
+│   │                    내부 key 'clevel' 유지(미션 description.careerLevels 호환), 한국어 라벨만 '헤드'. CAREER_LABEL(4파일)도 clevel:'헤드'
+│   │                  ★ 096: addonBalance prop(기본 0) — '보유 크레딧' 아래 "월간 Ncr · 추가 Mcr"(splitCredits) 분리 표기. 4개 등록 폼이 creditAddon 전달
 │   │                  ★ forwardRef + useImperativeHandle 적용 — 부모 폼에서 ref={panelStepRef}로 openCreditModal() 호출 가능
 │   │                  크레딧 부족 시 "다음" 버튼에서 panelStepRef.current?.openCreditModal() 트리거 → 업그레이드 모달 표시
 │   │                  ★ onSaveDraft prop (optional): "Pro 플랜 전환하기" → /company/plans 이동 전 임시저장 확인 모달 표시
@@ -147,9 +185,9 @@ purit/
 │   │                    - 무한루프 없음: 필터 후 재실행 시 hasProLevels=false → return early
 │   │                  ★ 환불 안내 배너(초록 강조 박스): 의뢰 등록 시 최댓값 선차감 → 차액 환불 흐름 명시
 │   │                    exports: default PanelTargetStep, calcCredits, calcMinCredits(미export), calcPanelPayout, CAREER_LEVELS, MAIN_BASE_PAYOUT, SUB_BASE_PAYOUT
-│   │                ExpertPanelCloud.jsx (Landing.jsx 섹션 6.5 전용 — 전문가 경력 플로팅 애니메이션) ★ 신규
+│   │                ExpertPanelCloud.jsx (구 Landing 전문가 클라우드 — 2026-06-13 랜딩 재설계 후 Landing.jsx에서 미사용, 파일은 유지)
 │   ├── landing/
-│   │                StepAnimations.jsx (Landing.jsx 작동방식 섹션 6 전용 — Step1/2/3 루핑 CSS 애니메이션)
+│   │                StepAnimations.jsx (Landing.jsx "작동 방식(#how)" 섹션 전용 — Step1/2/3 루핑 CSS 애니메이션, 재설계 후에도 유지)
 │   │                  exports: Step1Animation(의뢰 등록 폼 목업) / Step2Animation(패널 매칭) / Step3Animation(결과 대시보드)
 │   │                  구현: usePhases(durations) 커스텀 훅 — setTimeout 체인 기반 페이즈 상태머신 (D1 8단계/D2 10단계/D3 7단계)
 │   │                  CSS keyframes: s1_chipPop·s1_fadeIn·s1_blink·s1_btnPulse / s2_slideIn·s2_checkPop·s2_counterPop / s3_fillBar·s3_drawR·s3_slideUp·s3_fadeIn
@@ -162,351 +200,27 @@ purit/
 │   │                  위치: 4×5 격자 + Math.sin/cos 결정론적 jitter (POSITIONS 모듈 레벨 상수)
 │   │                  CSS: .expert-tag (font-size:17px, white-space:nowrap) / .expert-cloud-box (height:300px)
 │   │                       모바일 ≤640px: font-size:12px, height:240px
-│   │   ※ pages/company/NewMission.jsx: view state('list'|'form') — editMode 시 form 직접 진입
-│   │                list 뷰: missions .or('type.is.null,type.eq.landing_page') 로드 (cancelled 포함, .neq 제거), 탭 5개(전체/진행/완료/임시저장/취소)
-│   │                  listFilter state로 탭별 필터링, draft 카드 클릭 시 navigate(editMode) 진입
-│   │                  카드 레이아웃: mc-row/mc-right CSS 클래스 사용, 상태 뱃지(매칭대기gray/진행중green/완료blue/임시저장gold/취소red), 소재비교·가격검증·이메일검증 타입 뱃지 (LP검증 뱃지 없음)
-│   │                  active 카드: filled=0 → '수정' 버튼(navigate editMode) / filled≥1 → '조기 종료' 버튼 → terminateTarget ConfirmModal → status='cancelled' UPDATE
-│   │                  terminateTarget state + handleTerminate(): missions UPDATE(status='cancelled') + 로컬 상태 즉시 반영
-│   │                  조기 종료 ConfirmModal 본문: "조기 종료 시 사용된 크레딧은 환불되지 않습니다."
-│   │                companyId state: fetchPlan useEffect에서 select('id, plan, credit_balance') 로 함께 로드 → creditBalance state 설정
-│   │                customLPQs state: companyId 의존 useEffect → question_templates(category='랜딩페이지', is_default=false) 조회
-│   │                initTemplateId/initTemplateName: location.state에서 읽어 해당 LP 템플릿 사전 선택 + Step 2 진입
-│   │                form.industry state + industryOpen/industryCustomMode/industryCustomInput state 추가
-│   │                INDUSTRIES 상수 (20개 산업군): 파일 최상단 모듈 레벨 정의 (4개 등록 폼 공통 패턴)
-│   │                Step 0 레이블: '검증할 서비스명(의뢰명)', 산업군(필수, (선택) 없음), '랜딩페이지 URL (선택)'
-│   │                Step 2 레이블: '질문 설정' (선택 제거)
-│   │                폼 상단: ※ 조기 종료 시 사용된 크레딧은 환불되지 않습니다. (red 12px, NDA 배너 아래)
-│   │                Step 0: 산업군 선택(▼ 드롭다운) → 서비스명 → LP URL 순 배치 ★ 순서 변경 (2026-05-09), 페르소나 필드 아래, 부제 "검증할 서비스와 서비스 타겟에 대해 설정합니다."
-│   │                INDUSTRY_PLACEHOLDERS 상수 (모듈 레벨): 20개 산업군 → { product, personaAge, personaIncome, personaRole, personaContext, briefText } 매핑
-│   │                  DEFAULT_PLACEHOLDERS: 산업군 미선택 시 중립 안내 문구 / ph = INDUSTRY_PLACEHOLDERS[form.industry] || DEFAULT_PLACEHOLDERS
-│   │                  적용 범위: Step 0 서비스명·직군·타겟상세 + Step 1 브리핑 placeholder 동적 교체
-│   │                  ※ personaAge·personaIncome: 슬라이더·드롭다운 방식으로 교체되어 ph.personaAge/ph.personaIncome 미사용 (상수에 값 유지 무해)
-│   │                  산업군 드롭다운: INDUSTRIES 칩 grid + "✏️ 직접 쓰기" 토글 → 텍스트 입력 + 확인 버튼 (Enter 키 지원)
-│   │                  buildDescription(): industry 포함 → description JSON / persona 문자열에도 "산업군: XXX" 포함
-│   │                연령대 슬라이더 (Step 0) ★ 변경:
-│   │                  AGE_MIN=10, AGE_MAX=70 모듈 레벨 상수
-│   │                  form state: personaAgeMin(기본 20, Number) / personaAgeMax(기본 40, Number)
-│   │                  두 개의 투명 <input type="range"> 레이어 + 시각 트랙·썸 오버레이 패턴
-│   │                  min 핸들 zIndex: personaAgeMin >= personaAgeMax-5 ? 5 : 3 (겹침 시 min 우선)
-│   │                  max 핸들 zIndex: personaAgeMax <= personaAgeMin+5 ? 5 : 4
-│   │                  저장: personaAge = `${personaAgeMin}~${personaAgeMax}세` 문자열로 description JSON 저장
-│   │                  복원: (parsed.personaAge||'').match(/(\d+)[~\-](\d+)/) → min/max 추출, 실패 시 기본값 20/40
-│   │                  shouldBlockNav: personaAgeMin/Max 제외 (항상 숫자값이라 dirty 판별 불가)
-│   │                  validation: personaAge 조건 제거 (슬라이더는 항상 유효값 보유)
-│   │                월 소득 수준 드롭다운 (Step 0) ★ 변경:
-│   │                  INCOME_OPTIONS 모듈 레벨 상수 (9개): 100만원 이하 / 100~200만원 / … / 1억 이상
-│   │                  form state: personaIncome(기본 '', 미선택 시 validation 차단)
-│   │                  validation Step 0: !!form.personaIncome (필수 선택)
-│   │                폼 상단 배너: 🔒 NDA(accent-dim) + ✨ 매칭(rgba(16,185,129,0.07)) 2개 항상 표시
-│   │                Step 2: "내 커스텀 질문" 아코디언 (customLPQs DB 데이터) + QUESTION_TEMPLATES.lp 아코디언
-│   │                        "질문 만들기" 인라인 Card: textarea + 타입(옵션형/점수형/서술형) + "추가"(localCustomQs) + "템플릿에 저장 →"(DB INSERT, ConfirmModal)
-│   │                임시 저장 상태: isDraftMode(ms.status==='draft'), savingDraft, showDraftModal
-│   │                  shouldBlockNav: view==='form' && (!effectiveEditMode || isDraftMode) && 입력값 존재
-│   │                  useBlocker: 라우터 이탈 감지 / showDraftModal: 로컬 setView('list') 이탈 감지
-│   │                  saveDraft(): description JSON에 모든 필드(step 포함) 저장 → missions INSERT/UPDATE(status='draft')
-│   │                  draft→active 제출: reserve_mission_credits 먼저 호출 → 성공 시에만 UPDATE(status='active') (D-101 수정 완료)
-│   │                  신규 INSERT 경로: INSERT(status='draft') → reserve_mission_credits → UPDATE(status='active') 순 (트리거 조기 발화 방지)
-│   │                  editMode 복원: description JSON 전체 파싱 → 개별 필드 set (personaAgeMin/Max·personaIncome/Role/Context/industry/step 포함)
-│   │                    personaAge 복원: IIFE 정규식 파싱 → personaAgeMin/personaAgeMax, 실패 시 기본값 20/40
-│   │   ※ 임시저장 공통 패턴 (4개 등록 폼 — NewMission/PreferenceTest/PricingTest/ColdEmailTest):
-│   │                  navigationGuard (src/lib/navigationGuard.js) 싱글톤 import
-│   │                  pendingNavPath state: 사이드바 이탈 시 목적지 경로 임시 저장
-│   │                  useEffect: shouldBlockNav 변화 시 navigationGuard.register({ onAttempt: (path)=>{ setPendingNavPath(path); setShowDraftModal(true); } }) / unregister()
-│   │                  finishLeave(): navigationGuard.unregister() → navigate(pendingNavPath) or setView('list') → setPendingNavPath(null)
-│   │                    ★ dest === location.pathname 시 navigate 생략 → setView('list') 폴백 (현재 페이지 사이드바 클릭 시 리스트로 전환)
-│   │                  draftId state: draft 이어쓰기 시 대상 mission id 추적
-│   │                  DraftSaveModal: ReactDOM.createPortal(document.body) 인라인 3버튼 모달 (D-19 패턴)
-│   │                  window.beforeunload: shouldBlockNav 조건 시 e.preventDefault() + e.returnValue=''
-│   │                  deleteTarget state + handleDeleteMission(): missions DELETE + 로컬 필터 제거
-│   │                  terminateTarget state + handleTerminate(): missions UPDATE(status='cancelled') + 로컬 상태 반영 (4개 폼 공통)
-│   │                  ★ resetForm() 공통 패턴 (4개 폼): "새 테스트/새 의뢰 등록" 버튼 클릭 시 호출
-│   │                    - 초기화 대상: missionUuid(새 UUID), step/createStep, 모든 입력 필드, careerLevels(['junior']), panelSize(10)
-│   │                      selectedQuestions, localCustomQs, expandedTmpl, newQText/Type/Options/ScaleMin/Max, draftId
-│   │                    - NewMission 추가: focusCustomMode/Input, isDraftMode, currentEditId
-│   │                    - 초기화 제외: view(별도 setView 호출), missions/companyId/companyPlan/creditBalance/teamRole(DB 로드값)
-│   │                    - NewMission.jsx: missionUuid에 setter 추가 (기존 구조 변경 없이 확장)
-│   │                  메인·서브 의뢰 모두: 목록 뷰 draft/active 이어하기·수정 버튼은 navigate 불사용
-│   │                    openDraftOrActiveForEdit(missionId) 헬퍼로 직접 DB 로드 후 필드 복원 + setView('form'/'create') 호출
-│   │                    (같은 경로 navigate는 컴포넌트 리마운트 미실행으로 useEffect 미재실행 — D-43 참조)
-│   │                  ★ 리스트 뷰에서 완료 카드 클릭 → navigate('/company/results?id=...', { replace: true })
-│   │                    (history 오염 방지: 동일 폼 페이지 내 완료 카드 결과 이동이 history에 쌓이지 않도록)
-│   │                  NewMission.jsx: currentEditId state + effectiveEditMode(isEditMode||!!currentEditId) + effectiveEditId(currentEditId||editMissionId)
-│   │                    → saveDraft/handleSubmit 모두 effectiveEditMode/effectiveEditId 사용
-│   │                    → Dashboard(외부 경로)에서 진입 시 기존 isEditMode/editMissionId 경로 유지
-│   │                  메인 의뢰 목록(NewMission): cancelled 포함 5탭 (전체/진행/완료/임시저장/취소)
-│   │                    - draft 카드 클릭 / 이어 작성하기 버튼 → openDraftOrActiveForEdit(id)
-│   │                    - active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id)
-│   │                    - active 카드 클릭 → 뷰포트 좌하단 토스트 (D-80) / cancelled+company_notified_at IS NOT NULL → navigate('/company/results?id=…') / completed → navigate('/company/results?id=…')
-│   │                  서브 의뢰 목록(Preference/Pricing/Email): cancelled 포함 5탭
-│   │                    - draft 카드 클릭 / 이어 작성하기 버튼 → openDraftOrActiveForEdit(id)
-│   │                    - active+filled=0 카드 수정 버튼 → 동일 openDraftOrActiveForEdit(id)
-│   │                    - cancelled+company_notified_at IS NOT NULL 카드 클릭 → navigate('/company/results?id=…') / IS NULL → 토스트 (D-80)
-│   │                    - active 카드 클릭 → 뷰포트 좌하단 토스트 / completed 카드 클릭 → navigate('/company/results?id=…')
-│   │                  서브 의뢰 폼 단계 (4단계 공통 구조): ★ 개편
-│   │                    PreferenceTest: STEPS=['소재 입력','질문 설정','패널 설정','검토']
-│   │                      Step 0: 의뢰명(missionTitle, 선택)+소재유형+소재A/B+이미지+제품설명+산업군 통합 ★ 의뢰명 추가
-│   │                    PricingTest: STEPS=['가격 페이지','질문 설정','패널 설정','검토']
-│   │                      Step 0: 의뢰명(missionTitle, 선택)+가격내용+이미지+제품설명+산업군 통합 ★ 의뢰명 추가
-│   │                    ColdEmailTest: STEPS=['이메일 입력','질문 설정','패널 설정','검토']
-│   │                      Step 0: 의뢰명(missionTitle, 선택)+이메일원문+제품설명+산업군 통합 ★ 의뢰명 추가
-│   │                    Step 3 '검토': 의뢰명 포함 입력 내용 요약 + 패널수·직급·크레딧 표시 + 제출 버튼 (메인의뢰 Step 4와 동일 패턴) ★
-│   │                    descJson 공통 포함 필드 (3개 파일):
-│   │                      - 공통: missionTitle, productDescription, industry, selectedQuestions, careerLevels, panelSize
-│   │                      - PreferenceTest 추가: variantA, variantB, variantAImage, variantBImage, assetType
-│   │                      - PricingTest 추가: content(pricingDesc), image(pricingImage)
-│   │                      - ColdEmailTest 추가: content(emailText)
-│   │                      ※ panelSize·assetType descJson 포함 필수 — editMode 복원 시 패널 수·소재유형 소실 방지
-│   │                    missionTitle 공통 패턴 (3개 파일):
-│   │                      - state: missionTitle ('' 초기값)
-│   │                      - shouldBlockNav: missionTitle 포함 (|| missionTitle)
-│   │                      - saveDraft: description JSON에 missionTitle 포함
-│   │                      - openDraftOrActiveForEdit: parsed.missionTitle 우선 복원 + ms.title 폴백
-│   │                      - useEffect editMode 블록: parsed.missionTitle 우선 복원 + ms.title 폴백 (D-77 참조)
-│   │                      - handleSubmit: finalTitle = missionTitle.trim() || 타입별 기본값, submitError state로 에러 표시
-│   │                      - missions INSERT: title=finalTitle, description JSON에도 missionTitle 저장
-│   │                      - ConfirmModal onConfirm: async () => { const ok = await handleSubmit(); if (ok) setShowSubmitConfirm(false); } (D-69)
-│   │   ※ pages/company/QuestionTemplates.jsx: TABS 5개(LP 탭 신규 맨앞) — 마케팅 소재 종합 진단|소재 비교 A/B|가격 페이지|이메일 검증|➕ 커스텀 질문
-│   │                탭 이모지: lp/preference/pricing/email 탭은 icon: null (이모지 없음), 커스텀 탭만 icon: '➕'
-│   │                "질문 만들기" → "커스텀 질문" (탭 레이블 + 탭 콘텐츠 헤더 모두 변경)
-│   │                CUSTOM_CAT_TABS 4개(LP 포함): lp→'랜딩페이지', preference→'광고소재', pricing→'가격', email→'이메일'
-│   │                handleUse (전 탭 통일): navigate(tab.path, { state: { templateId, templateName } }) — DB 템플릿만 use_count +1
-│   │                load(): DB에 LP 기본 템플릿 없으면 QUESTION_TEMPLATES.lp 로컬 상수로 보완 (D-31)
-│   │                미리보기 패널 상단: "이 템플릿으로 의뢰 등록 →" 버튼 (전 탭 공통, handleUse 호출)
-│   │                catLabel 맵 양쪽(loadCustomQs, handleSaveCustomQ)에 lp:'랜딩페이지' 추가
-│   │                  exports: default PanelTargetStep, calcCredits(panelCount, careerLevels, missionType), calcPanelPayout(careerLevels, missionType), CAREER_LEVELS, MAIN_BASE_PAYOUT(8000), SUB_BASE_PAYOUT(4500)
-│   │                  props: plan('starter'|'pro'|null), panelCount, onPanelCount, careerLevels, onCareerLevels, missionType('main'|'sub', 기본 'sub'), creditBalance(number|null, optional)
-│   │                  크레딧 배수: 주니어 1.0× / 미들 1.5× / 시니어 2.0×(Pro) / C레벨 3.0×(Pro)
-│   │                  calcCredits 공식: 패널수 × 최종가중치 × 의뢰배수 (소수 그대로, CEIL 없음) — 1~2직급=최고값, 3~4직급=1.8상한, 메인×1.5/서브×1.0
-│   │                  calcPanelPayout 공식: round(BASE × 최종가중치) — 패널 1인당 정산금, reward_amount DB 저장용
-│   │                  sticky footer: 잔여 크레딧(creditBalance!=null 시) + "최대 예상 소모: N 크레딧" + 환불 안내문
-│   │                    → credits > creditBalance 이면 소모량 빨간색, 부족 경고 텍스트 표시
-│   │                  스타터 제한: 슬라이더 15명 snap-back, 시니어·C레벨 클릭 시 업그레이드 팝업
-│   │                  사용: NewMission(Step 3, missionType="main"), PreferenceTest(Step 2, "sub"), PricingTest(Step 2, "sub"), ColdEmailTest(Step 2, "sub")
-│   │   ※ pages/company/Results.jsx: 미션 목록 쿼리 — .or('status.eq.completed,and(status.eq.cancelled,company_notified_at.not.is.null)') ★ 변경
-│   │                  cancelled 의뢰: earlyCompleteMission → company_notified_at SET 이후에만 목록 노출 (DB 공개 게이트, migration 039)
-│   │                  loadFeedback(): purity_passed=true 피드백 표시 (completed|cancelled 공통)
-│   │                  기업이 피드백을 처음 볼 수 있는 시점: 완료→complete_mission_and_refund RPC / 취소→earlyCompleteMission(company_notified_at SET)
-│   │                  ?id param 진입 시 cancelled 미션이면 setMissionTab('cancelled') 자동 전환 ★
-│   │                좌측 패널 기간 필터 ★ 신규: period state('all'|'3m'|'1m', 기본 'all') + pill UI(전체/3개월/1개월)
-│   │                  기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
-│   │                  위치: "피드백 결과" 헤더 아래, missionTab 탭 위
-│   │                  periodMissions = cutoff ? missions.filter(m => new Date(m.created_at) >= cutoff) : missions
-│   │                  tabFiltered: periodMissions 기반 (기간 필터 → 탭 필터 순 적용)
-│   │                  setPeriod 시 setMainPage(1) + setSubPage(1) + setSelected(null) 동시 리셋 (D-74)
-│   │                  우측 패널 미션 탐색: missions.find(m => m.id === selected) — 전체 배열 사용 (기간 필터 무관)
-│   │                좌측 패널: missionTab state('all'|'completed'|'cancelled') + 탭 UI(전체/완료/취소) ★ 개편
-│   │                  tabFiltered: missionTab='all'→periodMissions 전체 / 그 외→status 일치 필터
-│   │                  mainMissions/subMissions: tabFiltered 기준 타입 분리
-│   │                  handleMissionTab(tab): setMissionTab + setMainPage(1) + setSubPage(1) 동시 호출
-│   │                  타입 뱃지는 서브 미션만 표시 (m.type && m.type !== 'landing_page' 조건), LP검증 뱃지 없음
-│   │                  빈 상태: missions.length===0 → "완료된 의뢰가 없습니다." / tabFiltered 0건 → "해당 의뢰가 없습니다." ★ 통합
-│   │                좌측 패널 페이지네이션: mainPage/subPage state, PAGE_SIZE=5, ‹ › 화살표 버튼 ★
-│   │                  URL ?id 파라미터 진입 시 해당 미션이 속한 페이지로 자동 이동 (auto-page 로직)
-│   │                ExpandableText(text, limit=200) — 텍스트 길이 초과 시 더보기/접기 토글
-│   │                TruncatedComment — 어노테이션 코멘트 1줄 표시 + DOM overflow 감지(scrollWidth>clientWidth) → 더보기/접기 토글 ★
-│   │                ScoreCardRow: display:grid repeat(N, 1fr), maxWidth=N×220px + margin:0 auto → 아이템 수에 따라 폭 제한 후 화면 가운데 정렬 ★
-│   │                CommentList: { label, actions, text } 구조, 카드 padding:14px 16px ★
-│   │                  헤더: justifyContent:space-between, gap:8, marginBottom:8
-│   │                  label: fontSize:12, fontWeight:600 (패널 번호·뱃지 포함)
-│   │                  text: fontSize:14, color:var(--text), lineHeight:1.75, fontWeight:500 ★ (메인/서브 통일)
-│   │                  HelpfulnessButtons: actions prop으로 전달 → 헤더 우측 끝 배치
-│   │                DimTabView (이미지 미션 차원 탭): .dim-tab-layout 좌우 분할 ★
-│   │                  .dim-tab-left (flex:1, sticky top:24px): 이미지 어노테이터 — 어노테이션 수 카운트 제거
-│   │                  .dim-tab-right (width:320px): 코멘트 목록 + 헤더 "코멘트 N개 · 평균 X.X점"
-│   │                  900px↓: flex-direction:column, sticky 해제 (index.css .dim-tab-* 미디어쿼리)
-│   │                SummaryTabView (종합 탭): LP 추가 질문(CustomQuestionsSection) → 패널 총평 순서 ★
-│   │                  총평 텍스트: fontSize:14, color:var(--text), lineHeight:1.75, fontWeight:500 ★
-│   │                CustomQuestionsSection: 점수형(scale) 질문 헤더에 "평균 X.X점" 인라인 뱃지 표시 (질문 텍스트 바로 옆) ★
-│   │                  scale 펼침 결과: 전체폭 ScoreCardRow 제거 → 가운데 정렬 컴팩트 카드(minWidth:140, padding:16px 32px) ★
-│   │                PreferenceResults: 소재 A/B 2열 카드(이미지+ExpandableText) → 비율 바 → 점수 카드
-│   │                PricingResults: 가격 구성(이미지+ExpandableText) → 비율 바 → 점수 카드
-│   │                EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
-│   │   ※ pages/company/Diagnosis.jsx: 전환 가이드 라디오 단일 선택 + 독립 상태 분리 (2026-06-09) ★
-│   │                  tabs: ['overview','benchmark','keywords','guide']
-│   │                  useNavigate 추가 — 전환 가이드 탭 Next Action CTA 버튼 이동에 사용
-│   │                  전환 가이드 탭 IIFE: ★ 개편
-│   │                    handleTabChange: selectedIds/compareMode/compareData 불변, autoId=selectedIds.size===1?현재:missions[0]
-│   │                    handleGuideChipClick: 라디오 단일 선택, selectedIds 미변경
-│   │                    loadGuideFeedbacks(id): guideFeedbacks + guideLoading 독립 state로 단일 의뢰 로드
-│   │                    guideFbs = guideFeedbacks + period 조건, guideScores = guideFbs 기반 단독 계산
-│   │                    합산(다중 의뢰 평균) 보기 삭제, isComparing 안내 카드 삭제
-│   │                    GUIDE_WEIGHTS: { value_score:0.30, trust_score:0.25, clarity_score:0.20, relevance_score:0.15, differentiation_score:0.10 }
-│   │                    GUIDE_LEVELS: 5단계 (최적화≥90 / 우수≥75 / 양호≥60 / 성장가능≥40 / 개선필요<40)
-│   │                    NEXT_ACTIONS: 취약 차원 → 추천 테스트 경로 1:1 매핑 5개
-│   │                    guideFbs = guideFeedbacks(독립 state) + period 조건 (rawFeedbacks 미사용)
-│   │                    비교 모드(isComparing=true) 시 안내 카드 즉시 반환 (stale scores 방지)
-│   │                    취약 차원 코멘트: calcPurityScoreLocal 정렬 후 상위 3개, dimScore 뱃지 표시
-│   │                  period state: 'all'|'3m'|'1m' (기본 'all') — 의뢰 칩 행 아래 pill 버튼
-│   │                  rawFeedbacks state: 전체 미필터 피드백 보존 (가이드 탭 미사용, 다른 탭 period 변경 시 재계산 원본)
-│   │                  필터 기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
-│   │                  cutoff 공식: period!=='all' → new Date(Date.now() - (period==='3m' ? 90 : 30) * 86400000)
-│   │                  loadFeedbacks(ids, msList) — 반드시 두 인자 필요 (D-89 참조)
-│   │                    periodFiltered: cutoff!=null → rawFeedbacks 중 msList.filter(created_at>=cutoff) ID Set 교집합
-│   │                    setHasData(periodFiltered.length > 0) — periodFiltered 기준
-│   │                  period useEffect: rawFeedbacks 재필터 → setScores/setDistributions/setBenchmarks/setKeywords/setHasData 순 갱신
-│   │                  selectedIds/compareMode useEffect: loadFeedbacks(ids, missions) — missions state 두 번째 인자 필수
-│   │                  hasData gate: period 변경으로 0건이 되면 hasData=false → 빈 상태 카드 표시 (0점 차트 미렌더)
-│   │   ※ pages/admin/PurityFilter.jsx: subResponseMap state — 초기 load() 시 서브 미션 응답 테이블 일괄 조회 ★
-│   │                  feedbacks select: panels(user_id, name, honor_points, experience) — payout 계산용 honor_points·experience 포함 ★
-│   │                  approve(id): getPanelReward(panel.honor_points, panel.experience) 계산 → feedbacks.payout_amount 저장 + rejection_penalty_applied=false 초기화
-│   │                    rejection_penalty_applied=true 인 경우 add_panel_honor_points(+5) RPC fire-and-forget (HP 복원)
-│   │                  reject(id): feedbacks.rejection_penalty_applied=true 저장
-│   │                  bulkApprove: 상태 일괄 UPDATE 후 payoutMap({[id]: amount}) 기반 개별 UPDATE + HP 복원 루프
-│   │                  bulkReject: rejection_penalty_applied=true 일괄 UPDATE 포함
-│   │                  목록 정렬: .order('created_at', { ascending: true }) — 오래된 순(먼저 낸 피드백 먼저) ★
-│   │                  typeFilter state: 'all'|'main'|'sub' — 상태 탭 아래 전체/메인/서브 pill 버튼 (각 건수 표시) ★
-│   │                    필터 파이프라인: filteredBase(상태) → filteredByType(타입) → filtered(65점 서브필터)
-│   │                    SUB_TYPES = ['preference','pricing','email']; 상태 탭 전환 시 typeFilter 초기화
-│   │                  딥링크 안정화: pendingDeeplink = location.state?.feedbackId 를 load() useEffect 최상단에서 캡처
-│   │                    pendingDeeplink 있으면 fbs[0] 자동선택 생략 → 딥링크 effect 단독으로 setSelected(X) ★
-│   │                    fb lookup: feedbacks.find(f=>f.id===selected) — filtered 아닌 전체 배열 사용 (D-56/D-57)
-│   │                  딥링크: useLocation + highlightId state — location.state.feedbackId → 탭 전환 + 페이지 이동 + setSelected + 초록 하이라이트 3초 ★
-│   │                  parseLPDesc: briefText / selectedQuestions / product / lpUrl / focusAreas / industry 추출 ★
-│   │                    LP 미션 정보 카드: hasAnyInfo 조건 (하나라도 있으면 표시) — briefText 없어도 제품명/업종/LP URL/집중영역 칩 표시 ★
-│   │                  prefIds/priceIds/emailIds 추출 → Promise.all 병렬 조회 → feedbackId 키 맵으로 저장
-│   │                  getScore(f) 헬퍼: 타입 분기 → 메인=calcPurityScore(f), 서브=calcSubPurityScore(subResponseMap[f.id]||null, type)
-│   │                  calcPurityScore: base20 + 길이(max20) + 섹션균형(max10) + 구체성키워드(×4,max25) + 실행(×5,max25) + AI패널티(×-12,min-30)
-│   │                    섹션균형 계산: 텍스트 미션 = suggestions를 \n\n으로 분리 후 본문 10자+ 섹션 수 카운트 (4개+→10, 2~3→4, 0~1→0)
-│   │                                  이미지 미션 = suggestions 라인에서 [DIM / X점] 패턴으로 고유 차원 수 카운트 (동일 기준)
-│   │                  calcSubPurityScore: base15 + 코멘트길이(100+→45/50+→30/20+→15/5+→6,max45) + 구체성키워드(×4,max20) + 지표충실도(email전용 각 항목별,max20)
-│   │                  65점 기준: 승인권장(≥65) / 검토(45~64) / 반려권장(<45) — 뱃지/색상/목록 라벨 통일
-│   │                  pendingSubFilter: 'all'|'above65'|'below65' — 검토 대기 탭 서브필터 버튼
-│   │                  checkedIds Set + bulkApprove/bulkReject/toggleCheck/toggleAll — 일괄 처리 패턴
-│   │                  bulkReject: 슬롯 차감 실패 건수 집계 → slotFailCount > 0 시 statusError 경고 표시 ★
-│   │                  confirmResetId state + resetError state — 승인 취소/반려 취소 ConfirmModal (D-65 패턴)
-│   │                    reset(id): await restore_mission_slot (isRejectReversal 조건) → 실패 시 resetError 표시 + 모달 유지
-│   │                  pendingPageIds/allPageChecked/toggleAll: pagedList 선언 이후에 배치 (D-51 참조)
-│   │                  Pagination: 슬라이딩 5-윈도우(WINDOW=5) + «/» 5페이지 점프 버튼
-│   │                    winStart=max(1, page-2), winEnd=min(totalPages, winStart+4) 계산 후 pageNums 슬라이스
-│   │   ※ pages/admin/Missions.jsx: 딥링크 수신 + 인라인 피드백 상세 패널 ★
-│   │                  쿼리: .neq('status', 'draft') + feedbacks(id, status, purity_passed, created_at, submission_deadline, panels(name)) join 확장
-│   │                  selectedMission state — 단일 컬럼 레이아웃 (우측 고정 패널 폐지, panel-mgmt-layout 그리드 제거)
-│   │                  MissionDetail: 클릭 카드 바로 아래 인라인 렌더 (borderLeft 파란 세로선 들여쓰기)
-│   │                    내부 state: fbFilter('all'|'pending'|'approved'|'rejected'|'drafting') + detailPage
-│   │                    피드백 탭 5개: 전체(N) / 작성중(N) / 검토중(N) / 승인(N) / 반려(N)
-│   │                    drafts: status='draft' + submission_deadline > now() — 만료 draft 자동 제외
-│   │                    작성중 탭 행: 패널명 / fmtTimeLeft(submission_deadline) 남은 시간(1h미만=amber) / 작성중 뱃지 (클릭 비활성)
-│   │                    미션 정보 카드 슬롯: allFbs.length + drafts.length / panel_count (작성중 N명 부가 표시)
-│   │                    미션 정보 카드 경력: description JSON 파싱 → detailCareerLevels 배열 → CAREER_LABEL 뱃지 (슬롯 아래 표시) ★
-│   │                    전체 탭 정렬: [...approved, ...rejected, ...pending] 순 (draft 미포함)
-│   │                    탭 전환 시 detailPage 자동 1 리셋 (handleTab 헬퍼)
-│   │                    DETAIL_PAGE_SIZE=5, getFeedbackStatus(f): purity_passed→green / rejected→red / else→gold
-│   │                    피드백 행 클릭: navigate('/admin/purity', { state: { feedbackId } })
-│   │                  MissionCard: description JSON 파싱 → careerLevels 배열 → CAREER_LABEL 뱃지 슬롯 카운트 하단 표시 ★
-│   │                    CAREER_LABEL = { junior:'주니어', middle:'미들', senior:'시니어', clevel:'C레벨' } (clevel — 하이픈 없음, PanelTargetStep 키와 동일)
-│   │                  MissionCard: isSelected/onSelect props + Card onClick + e.stopPropagation() on inner Btns
-│   │                    onCancelMission(id) / onCompleteMission(m) / onReactivateMission({id,label,desc}) / onEarlyComplete(m) props
-│   │                    → 각각 setConfirmCancel / setConfirmComplete / setConfirmReactivate / setConfirmEarlyComplete 연결
-│   │                  confirmCancel state: ConfirmModal(danger) → updateStatus(id, 'cancelled') + 기업 취소 알림 발송
-│   │                  confirmComplete state: ConfirmModal → 승인 건수(m.feedbacks.filter(f.purity_passed).length) 동적 표시 → complete_mission_and_refund RPC + 기업 완료 알림 발송
-│   │                  confirmEarlyComplete state: 조기 종료 미션 완료 처리 — status 유지(cancelled), 크레딧 변경 없음
-│   │                    earlyCompleteError state + earlyCompleteMission(m) 핸들러:
-│   │                      → missions.company_notified_at = now() UPDATE (기업 공개 게이트 해제, migration 039)
-│   │                      → sendNotification(기업, actionUrl='/company/results?id=...') fire-and-forget
-│   │                      → setMissions 리로드 + setSelectedMission(prev→data.find) 동기화 ★
-│   │                    "완료 처리" 버튼 표시 조건: m.status==='cancelled' && allFbs.length>0 && !m.company_notified_at
-│   │                      disabled 조건: reviewing.length>0 (검토 중 피드백 존재 시 비활성화)
-│   │                      완료 처리 후(company_notified_at SET): 버튼 대신 "기업 공개됨" 초록 Badge 표시
-│   │                  confirmReactivate state: { id, label, desc, fromStatus } — fromStatus로 completed/cancelled 분기
-│   │                    fromStatus='completed': reactivateCompleted(id) 호출 → reactivate_mission_and_reclaim RPC + 기업 재진행 알림 발송
-│   │                      INSUFFICIENT_CREDITS 에러 시 잔액/필요량 표시 + 상태 변경 없음
-│   │                      성공 시 missions/selectedMission state를 status:'active'로 동기화
-│   │                    fromStatus='cancelled': updateStatus(id, 'active') + 기업 재개 알림 발송 — 취소→재개는 크레딧 처리 없음
-│   │                  알림 발송: sendNotification(companies.user_id, ...) — updateStatus/reactivateCompleted 성공 직후
-│   │                    missions select 쿼리에 companies(name, user_id) 포함 → foundM.companies.user_id 접근 가능
-│   │                    확인 모달 desc에 "기업에게 [상태변경] 알림이 발송됩니다." 문구 포함
-│   │                  updateStatus/deleteMission 후 setSelectedMission 동기화
-│   │                  취소 탭 뱃지: cancelledPendingCount — status='cancelled' 미션 중 미처리(검토중) 피드백 있는 건수 실시간 표시
-│   │                  딥링크 2경로: location.state.missionId (내부 navigate) + ?missionId= 쿼리 파라미터 (알림 클릭)
-│   │                    쿼리 파라미터 처리: useSearchParams → 동일 setFilter + 페이지 계산 + highlight → navigate(pathname, {replace:true}) 클리어
-│   │                  isHighlighted: outline 2px solid var(--accent) 3초 후 자동 해제, window.history.replaceState로 state 클리어
-│   │   ※ pages/admin/CompanyManagement.jsx: 의뢰 내역 전체 페이지네이션 ★
-│   │                  recentMissions: 5건 제한 제거 → 전체 저장, missionPage state + DETAIL_PAGE_SIZE=5
-│   │                  onMissionClick prop: navigate('/admin/missions', { state: { missionId } })
-│   │   ※ pages/admin/PanelManagement.jsx: 제출 내역 전체 페이지네이션 ★
-│   │                  loadPanelDetail: .limit(5) 제거 → 전체 로드, feedbackDetailPage state + DETAIL_PAGE_SIZE=5
-│   │                  onFeedbackClick prop: navigate('/admin/purity', { state: { feedbackId } })
 │   └── pages/
 │       ├── Landing.jsx, Login.jsx, Signup.jsx, OAuthCallback.jsx (/oauth/callback 공개) ★
-│   ※ Landing.jsx: useAuth() user·role 로드 → DASH_PATH({ company:'/company', panel:'/panel', admin:'/admin' }) 매핑 ★ 신규
-│              네비 우측 버튼: 비로그인 → "로그인"+"무료로 시작하기" / 로그인 → "대시보드" 단일 버튼
-│              히어로·하단CTA 버튼: 비로그인 → navigate('/signup?role=company') / 로그인 → navigate(dashPath)
-│   ※ ShareResult.jsx (/share/:token 공개) ★ 어노테이션 뷰어 개편 (2026-06-06)
-│              state: activeImg(0) / activeDim('all') / highlightedId(null)
-│              ANN_DIMS: ImageAnnotator와 동일한 차원 키·색상 (clarity=#34C759 / relevance=#f59e0b / value=#6366f1 / differentiation=#ef4444 / trust=#94a3b8)
-│              annotations: RPC 반환 배열에 인덱스 기반 id 부여 → (data.annotations||[]).map((a,i)=>({...a,id:i}))
-│                id 필요 이유: ImageAnnotator의 getDimSeq·highlightedId·selectedAnn이 ann.id 사용
-│              이미지 탭: 전환 시 setActiveImg(i) + setHighlightedId(null)
-│              차원 탭 5개: 어노테이션 0건이어도 항상 표시 (숨김 금지)
-│                탭 카운트: annotations.filter(a=>a.dimension===d.key).length — 전체 이미지 합산 (activeImg 미적용)
-│                0건 차원: color='#C0C9D4' 회색 텍스트, 숫자 미표시
-│              이미지+코멘트 패널:
-│                imgAnns = annotations.filter(a=>a.image_index===activeImg)
-│                dimAnns = activeDim==='all' ? imgAnns : imgAnns.filter(a=>a.dimension===activeDim)
-│                ImageAnnotator: imageUrl / imageIndex / annotations=dimAnns / seqPool=annotations / readonly=true / highlightedId
-│                코멘트 패널(width:260): withComment(dimAnns 중 comment 있는 것) 목록
-│                  seqNum = annotations.filter(x=>x.dimension===a.dimension).findIndex(x=>x.id===a.id)+1 (seqPool 일치 계산)
-│                  클릭 → setHighlightedId(isHl ? null : a.id) 토글
-│   ※ Login.jsx: 역할 선택(기업/패널) → Google 로그인 버튼 + 이메일/비밀번호 폼 구조 ★ 개편
-│              role state + googleLoading state / handleGoogle(): signInWithGoogle(role, 'login') 호출 (D-94)
-│              GoogleIcon 인라인 SVG 컴포넌트 (Google 공식 4색)
-│   ※ OAuthCallback.jsx: OAuth 리다이렉트 처리 전용 페이지 ★ 신규
-│              handledRef = useRef(false) 컴포넌트 레벨 선언 — React.StrictMode 이중 useEffect 실행에서도 ref는 초기화 안 됨 (D-91)
-│              capturedRoleRef = useRef(undefined) 컴포넌트 레벨 선언 ★ 핵심 (D-91 확장)
-│                - undefined=미초기화 / null=읽었으나 유효 role 없음 / 'panel'|'company'=정상 값
-│                - capturedRoleRef.current===undefined 조건에서만 localStorage 읽기+삭제 (1회만 실행)
-│                - processSession 내부: capturedRoleRef.current에서 직접 읽음 (클로저 변수 사용 금지)
-│                - 이유: PKCE 코드 교환이 StrictMode 2차 useEffect 구독에서 완료될 수 있어 handledRef만으로는 차단 불충분
-│              capturedSourceRef = useRef(undefined) 컴포넌트 레벨 선언 ★ 신규 (D-94)
-│                - capturedRoleRef와 동일한 초기화 패턴 — undefined 조건에서만 localStorage 읽기+삭제
-│                - 'login' | 'signup' 값 저장 (미설정 시 'signup' 폴백)
-│                - processSession 내 신규 계정 분기 앞에서 체크: source==='login' → signOut + 에러 표시, 계정 생성 차단
-│              capturedInviteTokenRef = useRef(undefined) 컴포넌트 레벨 선언 ★ 신규 (D-103)
-│                - capturedRoleRef와 동일한 초기화 패턴 — 1회만 localStorage 읽기+삭제
-│                - 초대 링크 경유 Google 가입 시에만 값 존재 / 일반 가입·로그인 시 null
-│                - processSession 내: capturedInviteToken = capturedInviteTokenRef.current → create_oauth_user_profile RPC p_invite_token으로 전달
-│              URL ?error 파라미터 체크(D-82): Google 취소/에러 시 purit_oauth_role + purit_oauth_source + purit_oauth_invite_token 모두 정리 후 /login 즉시 복귀
-│              신규 유저: capturedPendingRole 없으면 에러 표시 (기존 ?? 'company' 위험 폴백 제거)
-│              신규 유저: updateUser(role) + create_oauth_user_profile RPC (migration 059/060/061)
-│                - trust_score: 0으로 초기화 (migration 061에서 100→0 수정, D-92 참조)
-│              신규 유저 성공 시: signOut() 후 /login?role=${savedRole}&signup=google 이동 (D-93) ★
-│                → 이메일 가입과 동일한 UX: 가입 완료 메시지 확인 후 직접 로그인 유도
-│              기존 유저: existingRole 있으면 role 충돌 체크 후 source 분기 (D-100) ★
-│                - source='signup' → signOut + "이미 가입된 계정" 에러 (자동 로그인 차단)
-│                - source='login'  → 대시보드 full reload 이동 (정상 로그인)
-│              user.user_metadata.full_name || name || email prefix → displayName으로 사용
-│   ※ Login.jsx: successMsg 감지 2경로 ★ 개편
-│              이메일 가입: location.state?.message (Signup.jsx navigate state)
-│              Google OAuth 가입: ?signup=google URL 파라미터 → 'Google 계정으로 가입이 완료되었습니다. 로그인해 주세요.' (D-93)
-│              ?role= 파라미터: 로그인 역할 탭 자동 선택 (OAuthCallback에서 savedRole 전달)
-│              ★ 자동 redirect useEffect 가드 순서 (D-97·D-103) ★ 변경:
-│                1순위: purit_pending_invite 감지 → /invite?token=xxx 이동 (successMsg 가드보다 항상 우선)
-│                2순위: successMsg truthy 시 redirect 차단 (가입 완료 직후 stale session bounce 방지)
-│                3순위: user && authRole → 대시보드 이동
-│                순서가 반전되면(successMsg 먼저) 팀원 초대 후 가입 완료 상태에서 /invite 복귀가 영구 차단됨 — D-103
-│   ※ AuthContext.jsx: signInWithGoogle(role, source='signup', inviteToken=null) ★ 시그니처 확장 (D-94·D-103)
-│              localStorage.setItem('purit_oauth_role', role) + localStorage.setItem('purit_oauth_source', source)
-│              inviteToken 있으면 localStorage.setItem('purit_oauth_invite_token', inviteToken) / 없으면 removeItem
-│              signUp({ email, password, name, role, inviteToken }) ★ inviteToken 파라미터 추가
-│                inviteToken 있으면 user_metadata.invite_token = inviteToken 포함 → handle_new_user 트리거가 감지
-│              → signInWithOAuth({ provider:'google', redirectTo: origin+'/oauth/callback', queryParams:{prompt:'select_account'} })
-│              source: 'login'(로그인 페이지) | 'signup'(회원가입 페이지, 기본값)
-│              context value에 signInWithGoogle 노출
-│   ※ Signup.jsx: invite_token URL 파라미터 처리 ★ 신규
-│              inviteToken = useMemo(() => new URLSearchParams(location.search).get('invite_token') || undefined)
-│              handleSubmit: signUp({ email, password, name, role, inviteToken }) — 이메일 가입 경로
-│              handleGoogle: signInWithGoogle(role, 'signup', inviteToken || null) — Google OAuth 경로
-│              loginMsg: inviteToken 있으면 "로그인하면 초대 수락 페이지로 이동합니다." 커스텀 메시지 ★
-│       ├── company/  (17개 — 라우트 목록 참조)
+│       │   ★ Landing.jsx (2026-06-13 디자인 전면 교체): design_handoff_purit_landing 이식. 전용 src/pages/landing.css import.
+│       │     landing.css = purit.css를 .purit-landing 하위로 전면 스코프(전역 :root 토큰/클래스 충돌 방지 — D-131), 키프레임 pl-* 리네임.
+│       │     index.html에 Pretendard CDN 추가(랜딩 전용). 페이지 루트 <div className="purit-landing"> 래퍼로 모든 토큰/스타일 격리.
+│       │     내부 컴포넌트: Radar(선언형 SVG, purit.js buildRadar 포팅) / Counter(스크롤 카운트업, runCounter 포팅) /
+│       │       ExpertCloud(rAF 플로팅 태그 20개, 호버 일시정지) / useFadeIn·reveal IntersectionObserver / nav scrolled·모바일 메뉴 state.
+│       │     "작동 방식(#how)" 섹션만 기존 코드 그대로 유지(StepAnimations.jsx 사용) — 새 파일의 "신청부터 결과까지 3단계"는 미채택.
+│       ├── company/  (14개 — 라우트 목록 참조)
 │       ├── panel/    (5개 — 라우트 목록 참조)
-│       └── admin/    (7개 — 라우트 목록 참조)
+│       └── admin/    (8개 — 라우트 목록 참조)
+│   ※ 페이지·컴포넌트별 state/헬퍼/패턴 구현 상세는 5_CodeMap.txt로 분리됨
+│     (특정 파일 수정·디버깅 시에만 Read — CLAUDE.md 조건부 로드 규칙)
 ├── scripts/   (개발·테스트 전용 Node.js 유틸리티 — 배포 대상 아님)
 │   ├── create-panel-accounts.mjs      (Supabase Admin API로 테스트 패널 계정 일괄 생성)
 │   ├── create-test-main-mission.mjs   (어드민 계정으로 테스트 메인 의뢰 생성 — SVG 이미지 5장 Storage 업로드 포함)
 │   ├── submit-greencart-feedbacks.mjs         (GreenCart 미션 전용 피드백·어노테이션 자동 제출)
 │   ├── submit-active-mission-feedbacks.mjs    (최신 활성 메인 의뢰에 패널 1~10 완전한 피드백 자동 제출 — 어노테이션·custom_answers·honor_points 포함)
-│   └── update-panel-profiles.mjs              (panel1~10 직군·경력 업데이트 — .env.local 필요)
+│   ├── submit-penguin-trial-feedbacks.mjs     (미스터펭귄 무료 체험 의뢰에 패널 1~9 완전한 피드백 자동 제출 — 실제 제출 포맷 suggestions·custom_answers / filled_count·honor_points·total_missions service role 직접 UPDATE. 미션 id 인자로 재사용 가능)
+│   ├── update-panel-profiles.mjs              (panel1~10 직군·경력 업데이트 — .env.local 필요)
+│   └── delete-penguin-account.mjs            (service role로 테스트 계정 삭제 + 차단 자식행 진단 — 이름 '펭귄' 포함만 대상, NEEDLE 변경해 재활용. 088 미적용 환경의 수동 정리 폴백)
 ├── supabase/
 │   ├── migrations/  001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
 │   │                006(annotations) 007(subtest) 008(templates) 009(gamification)
@@ -612,6 +326,10 @@ purit/
 │                    FOR LOOP로 만료 패널 순회 → UPDATE(active, suspend_until=NULL) + notifications INSERT
 │                    GRANT EXECUTE TO service_role
 │                  pg_cron 스케줄: SQL Editor 수동 실행 필요 (파일 내 주석 참조)
+│                080(portfolio_file_url: 패널 검증 서류 포트폴리오 링크/파일 분리)
+│                  panels.portfolio_file_url TEXT 컬럼 추가 (portfolio_url=링크 / portfolio_file_url=파일)
+│                  save_panel_verification_docs RPC 4→5 param 재정의 (DROP 후 CREATE, p_portfolio_file_url 추가)
+│                  GRANT EXECUTE TO authenticated / VerifyDocs 다중 인증 동시 제출 대응
 │                079(payment_system: 결제 시스템 골격 — Mock → 토스페이먼츠 PG 연동 대비) ★ 신규 (2026-06-12)
 │                  invoices 테이블 컬럼 3개 추가:
 │                    payment_type TEXT DEFAULT 'plan' CHECK ('plan'|'credits')
@@ -625,71 +343,111 @@ purit/
 │                    p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card' 파라미터 추가
 │                    p_amount_krw > 0 이면 invoices INSERT, 0이면 생략 (admin_change_plan 호환)
 │                    GRANT EXECUTE TO authenticated
-│   │   ※ pages/panel/Missions.jsx: pending 게이트 추가 ★ — panelStatus==='pending' 시 "심사 대기 중" 전체 화면 (suspended 게이트 직후, 미션 목록 미렌더)
-│   │   ※ pages/panel/ActiveMission.jsx: pending 게이트 추가 ★ — load() 내 panelPending=true → "심사 대기 중" 화면 (폼 미렌더, URL 직접 접근 방어)
-│   │   ※ pages/panel/Dashboard.jsx: pending 배너 + 검증 서류 유도 Card 추가 ★ (2026-05-28)
-│   │                  amber 배너: panelStatus==='pending' 시 상단 경고 (하드 게이트 아님, 대시보드 자체 접근 가능)
-│   │                  검증 서류 유도 Card: panelStatus==='pending' && !panel?.health_insurance_url && !panel?.linkedin_url && !panel?.portfolio_url 조건 시 배너 아래 표시
-│   │                    "서류 제출하기 →" Btn → navigate('/panel/verify-docs')
-│   │                    서류 제출 완료 후 재진입 시 Card 자동 소멸 (DB 컬럼 유무 기반)
-│   │   ※ pages/panel/VerifyDocs.jsx: 패널 검증 서류 제출 전용 페이지 ★ 신규 (2026-05-28)
-│   │                  접근 조건: 인증된 패널(role='panel')이면 언제나 접근 가능 (pending/active 무관)
-│   │                  파일 업로드 UI: 드래그&드롭 + 클릭 UploadZone (이미지/PDF, 5MB, accept=".jpg,.jpeg,.png,.pdf")
-│   │                  건강보험 자격득실 확인서(certFile) — 연차 인증, 필수, Storage 경로: {user.id}/health_insurance.{ext}
-│   │                  직무 인증(careerChoice) — 필수, linkedin / portfolio 중 하나 선택
-│   │                    linkedin 선택 시: LinkedIn URL(linkedinUrl) 입력 필수, https://linkedin.com 정규식 검증
-│   │                    portfolio 선택 시: 포트폴리오 파일(portfolioFile) 또는 URL(portfolioText) 중 하나 필수
-│   │                    포트폴리오 파일 Storage 경로: {user.id}/portfolio.{ext}
-│   │                  제출 시: supabase.storage.from('panel-verification-docs').upload(..., { upsert: true })
-│   │                           → supabase.rpc('save_panel_verification_docs', { p_user_id, p_health_insurance_url, p_linkedin_url, p_portfolio_url })
-│   │                  제출 성공 → navigate('/panel') 대시보드 이동
-│   │   ※ pages/admin/PanelManagement.jsx: PanelDetail에 검증 서류 Card 추가 ★
-│   │                  건강보험 자격득실 확인서: createSignedUrl(panel.health_insurance_url, 600) — 클릭 시 signed URL 생성 후 새 탭
-│   │                  LinkedIn URL: 외부 링크 직접 연결
-│   │                  포트폴리오: http로 시작하면 외부 링크, 아니면 createSignedUrl (Storage path)
-│   │                  관리 액션 Card ★ 기간제 정지 시스템 (2026-06-08):
-│   │                    - pending: 심사 승인(→active) / 심사 거절(→suspended)
-│   │                    - active: 기간제 정지 2×2 그리드(1일·3일·7일·30일) + 영구 정지 버튼
-│   │                      makeSuspendAction(days): { status:'suspended', suspend_until: now+N일 ISO, label, desc } 반환
-│   │                    - suspended: 정지 해제(→active, suspend_until=null)
-│   │                  PanelDetail 기본 정보 Card:
-│   │                    - suspendUntil = panel.suspend_until ? new Date() : null
-│   │                    - isTempSuspend = status==='suspended' && suspendUntil != null
-│   │                    - 계정 상태 셀: isTempSuspend→'🕐 임시 정지' / else→'🚫 영구 정지'
-│   │                    - isTempSuspend 시 황색 배너: "정지 해제 예정 N월 N일 HH:MM"
-│   │                  onConfirm: confirmAction.suspend_until → fields에 포함 / status==='active' → suspend_until=null 세트
-│   │                  updatePanel 알림 분기: isPendingRejection / isTimed(suspend_until 유무) / 영구 정지 3방향 분기
-│   │                  panels SELECT 쿼리: suspend_until 컬럼 포함 (load() line 91)
-│   │                  loadPanelDetail: { data, error } 모두 캡처 — error 발생 시 console.error(message·details·hint) ★
-│   │   ※ pages/Signup.jsx: CREDS 스텝(검증 서류 첨부 UI) 제거 ★ (2026-05-28)
-│   │                  STEP = { CHOOSE, EMAIL } — CREDS 스텝 완전 제거 (구 STEP.CREDS 없음)
-│   │                  제거된 것: UploadZone, PanelCredsStep 컴포넌트, certFile·careerChoice·linkedinUrl·portfolioFile·portfolioText state
-│   │                  handleSubmit(): signUp() → signOut() → navigate('/login', { state: { message } }) — 파일 업로드 없음
-│   │                  handleGoogle(): handleVerifyAndProceed() 호출 제거 → signInWithGoogle(role, 'signup') 직접 호출
-│   │                  검증 서류 제출은 가입 후 /panel/verify-docs에서 처리 (이메일·Google 가입 공통 흐름)
-│   │                  이유: File 객체 sessionStorage 직렬화 불가(D-95) + OAuth 리다이렉트 시 React state 소실
-│   │   ※ pages/panel/Missions.jsx: feedbackMap = { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
-│   │                  rejection_deadline 만료 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외
-│   │                  dismissed=true 항목 → [수정 필요] 탭 클라이언트 필터로 자동 제외 + rejectedCount 카운트 제외 ★
-│   │                  [수정 필요] 탭 탈락 사유: REJECTION_GUIDE 고정 상수 + suggestions 조건부 표시 ★ 개편 (2026-06-09)
-│   │                    - suggestions 있으면: 원문 회색 박스(pre-wrap) → 하단 REJECTION_GUIDE(bg-2 박스)
-│   │                    - suggestions 없으면: REJECTION_GUIDE 단독 표시
-│   │                    - getImprovementTip() 키워드 분석 함수 제거 (History.jsx도 동일 패턴)
-│   │                  [수정 필요] 탭 "재작성 →": resubmitTarget state 설정 → 확인 모달(RESUBMIT 포털) 경유 후 navigate ★
-│   │                    resubmitTarget: { missionId, feedbackId, rejectionDeadline, missionTitle }
-│   │                    모달: 미션 제목 + rejection_deadline 남은 시간(isExpiring=1h미만 → red) + 경고 3개
-│   │                  [수정 필요] 탭 missionEnded/slotsFull 항목: 재작성 불가 텍스트 + '삭제' 버튼 → dismiss_rejected_feedback RPC (dismissed=true, 숨김)
-│   │                  [이어하기] 탭 missionEnded 항목(ms.status!=='active'): '이어하기 →' 대신 '의뢰가 종료되었습니다' 텍스트 표시 ★
-│   │                  수락 핸들러: isSubM = type in ['preference','pricing','email'] → subDl = now + (isSubM?2:4)h → accept_mission_slot RPC(p_submission_deadline=subDl) 호출
-│   │   ※ pages/panel/ActiveMission.jsx: 폼 뷰 진입 시 deadline 처리
-│   │                  missionEnded state: draft 진입 시 ms.status !== 'active' → true → "의뢰가 종료되었습니다" 화면 (폼 미렌더) ★
-│   │                    missionEnded 화면: "초안 삭제하기" 버튼 → cancel_panel_feedback RPC → /panel/missions 이동
-│   │                  deadlineBanner state: { label: '제출 마감'|'재제출 마감', value: Date } → 브리핑·폼 상단 배너 표시
-│   │                  deadlineExpired state: true 시 "제출 기간이 만료되었습니다" 화면 (폼 미렌더)
-│   │                    deadlineExpired 화면: "초안 삭제하기" 버튼 → cancel_panel_feedback RPC ★
-│   │                  최초 draft 진입: ms.status!=='active' → missionEnded=true / fb.submission_deadline < now → deadlineExpired=true / 유효 → deadlineBanner 설정
-│   │                  재작성 모드 진입: fb.rejection_deadline < now(클라이언트 사전 체크) → deadlineExpired=true, RPC 미호출
-│   │                    체크 통과 → reaccept_rejected_feedback RPC(원자적 슬롯 재예약, 슬롯 마감 or 서버 만료 시 false 반환) → 실패 시 deadlineExpired=true
+│                081(panel_experience_confirmation: 패널 경력(연차) 어드민 확정·잠금 시스템) ★ 신규 (2026-06-12)
+│                  panels 컬럼 3개 추가: experience_years INTEGER / experience_confirmed_at TIMESTAMPTZ / is_executive BOOLEAN
+│                    기존 패널 백필: experience 텍스트에서 연차 숫자 파싱 + C레벨 키워드 매칭(is_executive)
+│                  ★ 핵심: experience(TEXT)는 파생 필드 유지 — 확정/조정/자동증가 시 (is_executive ? '임원' : 'N년')로 동기화
+│                    → getExperienceMultiplier/CareerKey·보상·미션필터·기업타겟팅 등 다운스트림 코드 일절 불변
+│                  save_panel_verification_docs 5→6 param 재정의 (DROP 후 CREATE, p_experience_years 추가)
+│                    experience_confirmed_at IS NULL(미확정)일 때만 자가입력 반영 → 어드민 확정값 보호 / GRANT authenticated
+│                  RPC admin_confirm_panel_experience(p_panel_id UUID, p_years INT, p_is_executive BOOLEAN DEFAULT FALSE)
+│                    어드민(app_metadata role) 검증 → experience_years·is_executive·experience_confirmed_at=NOW()·experience 동기화
+│                    최초 확정 / 수동 상·하향 / C레벨 지정 모두 이 RPC (확정 시점이 자동 +1 앵커 리셋) / GRANT authenticated
+│                  RPC auto_increment_panel_experience() — pg_cron 일 1회, 확정 후 경과 만년 수만큼 +N (AGE 기반 다년 보정) / GRANT service_role
+│                    pg_cron 스케줄: SQL Editor 수동 실행 필요 (파일 내 주석)
+│                082(panel_rejection_flow: 패널 심사 거절→재제출→영구차단 플로우) ★ 신규 (2026-06-12)
+│                  panels 컬럼 2개 추가: rejection_count INTEGER DEFAULT 0 / rejection_reason TEXT
+│                  status 모델 분리: 심사 거절 = 'rejected'(재제출 가능) / 누적 3회 거절 = 'banned'(영구 차단, 재제출 불가)
+│                    → 기존 'suspended'는 활성 계정 정지 전용으로 분리 ("정지 해제"가 거절 패널을 잘못 활성화하던 버그 해소)
+│                  save_panel_verification_docs 재정의(동일 6-param CREATE OR REPLACE):
+│                    status가 pending/rejected일 때만 (재)제출 허용(우회 차단) + 제출 시 status='pending' flip + 재제출 시 rejection_reason 클리어
+│                  notify_admin_on_panel_resubmit() 트리거(AFTER UPDATE OF status): rejected→pending 시 어드민 🔁 알림 (062 패턴)
+│                  ※ 어드민 측: PanelManagement.jsx 거절 사유 입력 모달(RejectModal) + 3번째 거절 시 영구차단 경고 + banned "차단 해제"(→rejected, count 0)
+│                  ※ 버그/건의 답변 알림 라우팅: admin/BugReports actionUrl /panel·/company/notifications → /panel·/company/bug-reports?id= (해당 리포트 자동 열림 딥링크)
+│                083(bug_reports_appeal_type: 이의 신청 제출 실패 수정) ★ 신규 (2026-06-12)
+│                  bug_reports.type CHECK 제약에 'appeal' 추가 ('bug'|'ux'|'data'|'feature'|'appeal'|'other') — BugReportModal에 있었으나 제약 누락으로 INSERT 실패하던 버그 수정
+│                  notify_admin_on_bug_report 트리거 재정의: type_label CASE에 '⚖️ 이의 신청' 분기 추가 (기존 '기타'로 표기되던 부수 문제)
+│                084(panel_docs_update_policy: Storage 버킷 UPDATE 정책 누락 → 파일 재업로드 실패 수정) ★ 신규 (2026-06-10)
+│                  문제: panel-verification-docs·mission-assets 버킷에 INSERT/SELECT 정책만 있고 UPDATE 정책 없음.
+│                    업로드 코드가 고정 경로 + upsert:true → 같은 확장자/파일명 재업로드 시 경로 충돌 → upsert가 UPDATE로 동작 → 정책 없어 RLS가 400 무음 차단 (D-118)
+│                    · panel-verification-docs: VerifyDocs.jsx `{uid}/health_insurance.{ext}` — 패널 서류 재제출 실패
+│                    · mission-assets: PreferenceTest(`va|vb.{ext}`)·PricingTest(`pricing.{ext}`) — 기업 A/B·가격 이미지 교체 재업로드 실패(catch가 console.error만 → 화면 무반응)
+│                  panel_update_own_docs: FOR UPDATE USING/WITH CHECK (bucket_id='panel-verification-docs' AND auth.uid()=split_part(name,'/',1)) — INSERT 정책과 동일 조건(본인 경로)
+│                  auth_update_mission_assets: FOR UPDATE USING/WITH CHECK (bucket_id='mission-assets' AND auth.role()='authenticated') — INSERT 정책과 동일 조건
+│                  ※ BugReportModal(bug-screenshots, `{uid}/{timestamp}.{ext}`)·NewMission(mission-assets, randomUUID 경로)은 경로 유니크 → 충돌 없음(영향 없음)
+│                085(free_trial_freemium: 기업 무료 체험 + 부분 언락 Freemium 시스템) ★ 신규
+│                  companies.free_trial_used / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert 컬럼 추가
+│                  companies.plan DEFAULT 'starter' → 'free_trial' 변경 + 가입 경로(handle_new_user·create_oauth_user_profile) plan='free_trial' 삽입
+│                  admin_change_plan·grant_plan_credits에 'free_trial'(크레딧 0) 반영 / create_free_trial_mission·unlock_free_trial_mission RPC 신규
+│                  재정의: notify_admin_on_mission(무료 첫 의뢰 전 어드민 🔥 강한 알림) / complete_mission_and_refund·recalc_mission_consumed(무료 미션 회계 격리) / get_panel_public_profiles(is_expert 추가) / get_shared_mission(미언락 공유 차단)
+│                  프론트: NewMission(무료 등록·예상 언락 범위) / Results(부분 잠금·per-panel 크레딧·언락) / Dashboard(무료 배너) / PanelTargetStep(주니어·미들·캡10) / admin/TrialMissions(통합 관리) / ChargeOptionsModal·ExitIntentModal 신규 / Missions·PurityFilter 체험 뱃지
+│                087(free_trial_unlock_by_career: 무료 언락 비용을 실제 참여 패널 경력 기준 동적 산정) ★ 신규
+│                  unlock_free_trial_mission 재정의 — 비용 = 잠긴 패널(전문가/경력 상위 2명 = 무료 공개분 제외)의 경력 크레딧 합(주니어1·미들2·시니어3·C레벨4)
+│                  DISTINCT ON(panel_id) + ROW_NUMBER(is_expert DESC, credit DESC, panel_id ASC) WHERE rn>2 → 클라(Results getCareerUnlockCredit) 표시와 합계 일치(서버 권위) / 미언락 시 missions.unlock_cost는 등록 추정치, 언락 시 실차감액으로 갱신
+│                086(fix_companies_plan_check: 가입 전면 실패 긴급 수정 — 085 free_trial 도입 시 DB CHECK 미동기화) ★ 신규
+│                  문제: 운영 DB의 companies_plan_check 제약(대시보드 수동 생성 — 어느 마이그레이션 파일에도 없음)이 구 값('free'/starter/pro/enterprise)만 허용.
+│                    085가 신규 가입 plan을 'free_trial'로 바꾸자 companies INSERT가 제약 위반 → 구글·이메일 가입 전면 실패(D-117).
+│                    구글: create_oauth_user_profile RPC 400 → OAuthCallback 오류화면 → 회사 미생성 → 재로그인 시 "초대 수락이 필요합니다" 오표시.
+│                  해결: ① companies_plan_check DROP ② 구 'free' 행 → 'free_trial' 정규화 UPDATE(미선행 시 "violated by some row") ③ 4종 CHECK 재생성('free_trial','starter','pro','enterprise')
+│                  ※ OAuthCallback.jsx 코드는 정상(무수정). 제약 1건 교체로 구글·이메일 가입·어드민 플랜 변경 3경로 동시 해소.
+│                088(cascade_user_delete: 유저 삭제 시 "Database error deleting user"(500) 해소 — D-120) ★ 신규
+│                  원인: auth.users 직접 참조 FK는 모두 CASCADE였으나, 그 아래 2차 사슬(companies/panels/missions → 자식)이
+│                    NO ACTION/SET NULL → 회사/패널/의뢰 row를 자식이 붙잡아 cascade 삭제 트랜잭션 전체 실패. GoTrue가 generic 500으로 뭉뚱그림.
+│                  처리: 회사·패널·의뢰가 소유한 하위 FK 20개를 ON DELETE CASCADE 전환
+│                    (companies 자식 9 + panels 자식 4 + missions 자식 7[ai_reports NO ACTION→CASCADE, 서브미션 응답/설정 6 SET NULL→CASCADE])
+│                  미변경: *_template_id_fkey(→question_templates) 3개는 의도된 SET NULL 유지 / feedbacks·feedback_annotations는 기존부터 CASCADE
+│                  ※ 087은 옆 작업(free_trial_unlock_by_career)이 선점 → 이 마이그레이션은 088로 부여 (번호 충돌 회피)
+│                089(trial_admin_public_select: 무료 체험 "공개 2건"을 어드민이 직접 지정) ★ 신규
+│                  missions.trial_public_panel_ids UUID[] DEFAULT NULL 컬럼 추가 (어드민 지정 공개 패널 2명)
+│                  unlock_free_trial_mission 재정의: 값 있으면 그 패널 제외(잠김) 합, NULL이면 자동 rn>2 폴백 (하위호환)
+│                  ※ 어드민 저장은 직접 missions UPDATE였으나 092에서 admin_set_trial_public RPC로 교체(보안)
+│                090(trial_unlock_main_factor: 언락 비용에 메인 의뢰 1.5배 반영) ★ 신규
+│                  unlock_free_trial_mission 재정의: 경력 CASE ×1.5 (주1.5/미3/시4.5/C6). 089 공개 지정 로직 유지.
+│                  클라 honorLevels.CAREER_UNLOCK_CREDIT도 {junior:1.5,middle:3,senior:4.5,clevel:6}로 동기(D-121 일치)
+│                091(admin_delete_trial_restore: 체험 의뢰 삭제 시 무료 체험 기회 복구) ★ 신규 (D-124)
+│                  admin_delete_trial_mission(p_mission_id) SECURITY DEFINER: 어드민 검증 → 미션 DELETE(자식 CASCADE) →
+│                  is_free_trial이면 companies.free_trial_used=false 복구. TrialMissions·admin/Missions 삭제 모두 이 RPC 사용.
+│                092(protect_mission_freemium_columns: 결제/언락 컬럼 직접조작 차단) ★ 신규 (D-125)
+│                  missions에 UPDATE RLS 부재 → authenticated가 trial_unlocked·trial_public_panel_ids·credits_*·unlock_cost·is_free_trial
+│                  직접 UPDATE해 무료 언락 가능. guard_mission_freemium_columns() BEFORE UPDATE 트리거:
+│                  보호 컬럼 변경 + current_user IN('authenticated','anon')이면 RAISE EXCEPTION. SECURITY DEFINER RPC(postgres)는 통과.
+│                  admin_set_trial_public(mission_id, panel_ids[]) 어드민 전용 RPC 추가(공개 2건 고정 검증) → 트리거 우회 정상 저장 경로.
+│                093(admin_cancel_trial_restore: 무료 체험 의뢰 '취소'만 해도 무료 기회 복구) ★ 신규
+│                  admin_set_trial_mission_status(p_mission_id, p_new_status) SECURITY DEFINER: 어드민 검증 → status 전환 +
+│                  is_free_trial이면 free_trial_used 토글(취소→false 복구 / 재개→true 재소진). admin/Missions updateStatus의 무료 체험 취소·재개만 라우팅(일반 의뢰는 직접 UPDATE 유지).
+│                  ※ 기업 직접 조기 종료(company Dashboard)는 이 RPC 미사용 → 복구 안 됨(farming 방지). 091/D-124 'set/reset 대칭'을 cancel 경로로 확장.
+│                  ※ 동반 UI 변경(마이그레이션 아님): NewMission FOCUS 4번째에 'A/B 소재 비교' 추가(강조 없는 일반 칩) /
+│                    패널 ActiveMission 브리핑·이미지 피드백 화면에 mission.assets(검증 포커스) 뱃지 노출 /
+│                    기업 포털 '🎁 체험 의뢰' 뱃지 — company Dashboard·NewMission 목록·Results 좌측(어드민 🎁 체험과 동일 패턴, NewMission 목록 select에 is_free_trial 추가).
+│                094(trial_score_public_and_discount: 무료 체험 전환 3종 — 호평 공개 자동선별 + 30%/48h 첫 언락 할인 + 잠긴쪽 티저) ★ 신규
+│                  missions.trial_results_seen_at TIMESTAMPTZ 추가(할인 48h 앵커, 092 보호컬럼 목록에 추가 — guard 재정의).
+│                  ① 자동 공개 2명: unlock RPC ROW_NUMBER 정렬을 (is_expert,credit) → avg_score(5축 평균) DESC, panel_id ASC로 교체.
+│                    호평 상위 2명 공개 / 저점(치명적) 패널 잠금 → 빈틈(궁금증) 유발. 서버·Results·admin/TrialMissions 3곳 점수기반 통일(D-35).
+│                  ② 30% 첫 언락 할인 + 48h 마감: unlock RPC가 trial_results_seen_at부터 48h 이내면 ROUND(정가×0.70,2) 차감, 이후 정가.
+│                    touch_trial_results_seen RPC: 결과 최초 열람 시 seen_at 1회 세팅(멱등, SECURITY DEFINER). 반환 { cost, original_cost, discount }.
+│                  ③ 잠긴쪽 티저(클라 표시 전용): Results.jsx가 잠긴 패널 점수로 "잠긴 N명 중 M명이 '약점축' 포함 심각(≤2점) 지적" 집계 + 약점 축 지목.
+│                  프론트: Results(점수기반 공개·티저·정가 취소선+할인가+실시간 카운트다운·touch RPC) / honorLevels(TRIAL_FIRST_UNLOCK_DISCOUNT=0.30·
+│                    TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS=48·applyUnlockDiscount — 서버 1:1 정합 D-121) / admin/TrialMissions(공개 자동선별 점수기반·panelScoreAvgMap).
+│                095(panel_head_by_years: "C레벨/임원" → "헤드" 개명 + 연차 구간 전면 재정의 + 자동 부여) ★ 신규
+│                  연차 구간: 주니어 2~4(1.0×) / 미들 5~7(1.5×) / 시니어 8~14(2.0×) / 헤드 15+(3.0×). 정산 배율·언락 크레딧(6)은 구 C레벨과 동일 유지.
+│                  헤드 부여 = experience_years>=15 자동(어드민 수동 is_executive 체크박스 폐지). is_executive는 (years>=15) 동기화 표시용 파생 플래그.
+│                  experience TEXT는 헤드도 'N년'으로 저장(구 '임원' 특수텍스트 폐지) → 배율/크레딧 연차 숫자 기반 통일. 내부 key 'clevel' 유지.
+│                  RPC 5개 재정의:
+│                    · admin_confirm_panel_experience: 3-param(UUID,INT,BOOLEAN) DROP → 2-param(UUID,INT). is_executive=(p_years>=15), experience='N년'
+│                    · auto_increment_panel_experience: experience 항상 'N년' + is_executive=((years+yrs)>=15) (14→15 자동 헤드 승급)
+│                    · complete_mission_and_refund / recalc_mission_consumed: 숫자 분기 ≥15→3.0/≥8→2.0/≥5→1.5/else 1.0 (085 본문 유지, 회계 격리 불변 D-122)
+│                    · unlock_free_trial_mission: 경력 크레딧 ≥15→6/≥8→4.5/≥5→3/else 1.5 (094 본문·점수공개·할인·정렬 유지)
+│                  세 RPC·클라 모두 키워드 정규식 분기('헤드|c레벨|임원|시니어|미들'…) 레거시 안전망 유지(숫자 'N년' 우선).
+│                  백필: 확정 패널 is_executive=(years>=15) 재계산 + experience='N년' 정규화 → 기존 임원<15 강등(과거 정산 payout_amount 스냅샷 불변). 미확정 '임원' 텍스트는 미변경(재확정 전 키워드 3.0× 유지).
+│                  ※ 연차→배율 밴드 4중복(클라 honorLevels + 서버 3RPC) 동시 변경 필수 — D-127.
+│                096(subscription_billing: 구독 결제 재설계 — 플랜 변경 누적 / 월 갱신(매월 리셋·구매분 보존) / 다운그레이드 차단 / pg_cron 월 갱신) ★ 신규
+│                  companies +addon_credits(보존 구매분 트래커)·plan_started_at·next_billing_at·plan_billing_cycle('monthly'|'annual') + 기존 starter/pro 백필
+│                  grant_plan_credits 5-param 재정의(+p_billing_cycle): credit_balance += (누적, 덮어쓰기 폐기) + 다운그레이드 가드(랭크 비교 'downgrade_not_allowed') + 결제일 앵커
+│                  purchase_credits: addon_credits += 누적(월 리셋에도 보존) / admin_change_plan: 절대값 SET 유지 + 앵커 세팅
+│                  renew_due_subscriptions() 신규: starter/pro·next_billing_at 도래분 → 구독분 플랜기본값 리셋 + 구매분 LEAST 보존 / pg_cron 등록 SQL Editor 수동(081 패턴)
+│                  ※ 설계: 지갑 분리 없이 단일 credit_balance(소비 RPC 무수정) + addon_credits 트래커, 파생식(월간=balance-addon)으로 구분표시·확인모달 — D-129
+│                097(fix_subscription_billing: 096 핫픽스 2건 — CREATE OR REPLACE로 시그니처·GRANT 보존) ★ 신규
+│                  ① admin_change_plan: 강제 리셋 시 addon_credits=0(유령 크레딧 부활 방지) ② renew_due_subscriptions: UPDATE문 내 컬럼 직접참조로 원자화(동시 충전 유실 race 방지) — D-129
 │   └── functions/   generate-ai-report/index.ts  (Deno, Anthropic API → ai_reports INSERT)
 │                    send-alimtalk/index.ts  (Deno, notifications INSERT 웹훅 → Solapi 알림톡 발송)
 │                      notifications.title → TITLE_TO_TPL 맵으로 템플릿 ID 결정 (7개 이벤트)
@@ -708,7 +466,7 @@ purit/
 ├── MORNING_REPORT.md, index.html, vite.config.js, vercel.json, package.json
 
 ================================================================
-## 라우트 전체 목록 (41개)
+## 라우트 전체 목록 (39개)
 ================================================================
 
 [공개]
@@ -729,9 +487,6 @@ purit/
   /company/pricing-test      → PricingTest.jsx
   /company/email-test        → ColdEmailTest.jsx
   /company/templates         → QuestionTemplates.jsx
-  /company/icp               → ICPResearch.jsx
-  /company/icp-pulse         → ICPPulse.jsx
-  /company/brand             → BrandTracking.jsx
   /company/report            → AIReport.jsx
   /company/account           → Account.jsx          ★ 신규
   /company/settings          → Settings.jsx
@@ -754,6 +509,7 @@ purit/
   /admin/panels              → PanelManagement.jsx
   /admin/companies           → CompanyManagement.jsx ★ 신규
   /admin/missions            → Missions.jsx
+  /admin/trials              → TrialMissions.jsx    ★ 신규 (무료 체험 의뢰 모니터링·언락 추적)
   /admin/purity              → PurityFilter.jsx
   /admin/revenue             → Revenue.jsx
   /admin/reports             → BugReports.jsx
@@ -795,6 +551,9 @@ purit/
   ※ Sidebar.jsx: isMobile state(matchMedia), mobileOpen state, Menu/X 아이콘 (lucide-react)
 
   ### 랜딩 그리드 (Landing.jsx)
+  ※ 2026-06-13 랜딩 디자인 전면 교체 이후: 새 Landing.jsx는 src/pages/landing.css(.purit-landing 스코프)의 자체 클래스(.nav·.hero·.num-grid·.feat-grid·.cloud 등)를 사용.
+    아래 index.css의 .landing-* 유틸 중 현재 Landing이 직접 쓰는 것은 "작동 방식(#how)" 섹션의 .landing-section·.landing-grid-3-steps뿐(기존 섹션 유지분).
+    나머지 .landing-grid-4·.landing-hero·.landing-nav-inner 등은 레거시(미사용)이나 제거하지 않고 보존.
   .landing-nav-inner    — 네비 내부 max-width 컨테이너
   .landing-hero         — 히어로 섹션 패딩 (모바일: 56px 16px)
   .landing-section      — 일반 섹션 패딩 (모바일: 56px 16px)
@@ -886,10 +645,21 @@ purit/
 
   ### 전체 테이블 무제한 로드 금지 원칙
   아래 쿼리는 기업/패널 수가 늘어나면 응답 크기 폭발 → 반드시 limit 또는 필터 적용:
+  ※ Supabase(PostgREST)는 limit 없는 쿼리를 기본 Max Rows 1000행에서 "에러 없이" 절단함 (D-132) —
+    무한 성장 테이블(panels·missions·feedbacks·invoices)의 limit 없는 쿼리는 규모 도달 시 무음으로 데이터가 증발.
+    잔여 스케일 항목·수정 트리거 규모는 agent/QA_니체_PROGRESS.txt 🔵 스케일 섹션 참조 (스케일-A/B/E/F/G/H).
   - feedbacks 전체: limit(300~500) 또는 탭별 status 필터 (PurityFilter, Revenue)
   - notifications 전체: limit(200) (NotificationCenter)
   - panels 전체: 명시적 컬럼 select (select('*') 금지) (PanelManagement)
-  - missions 전체(패널 뷰): 명시적 컬럼 select, description·image_urls 포함해야 하면 유지 (Missions.jsx)
+  - missions(패널 뷰, Missions.jsx): .eq('status','active') 기본 + 본인 진행중(draft/rejected) 미션 id만 .or()로 추가 조회 ★ 2026-06-13
+    (이어하기·수정 필요 탭이 종료 미션도 표시해야 하므로 단순 active 단독 필터는 회귀 — 5_CodeMap 참조)
+
+  ### Realtime 구독 필터 원칙 (D-133) ★ 2026-06-13
+  postgres_changes 구독은 반드시 filter를 지정할 것 — 무필터 전 테이블 구독은
+  "테이블 변경 1건 × 동시 접속 구독자 전원" 브로드캐스트로 Realtime 메시지 할당량·비용이 곱셈 증가.
+  - panel/Missions: missions 구독 filter:'status=eq.active'
+  - Sidebar(어드민 심사대기): panels 구독 filter:'status=eq.pending'
+  - 나머지 채널(NotificationCenter·company/Dashboard·Sidebar 알림/반려 뱃지): user_id/company_id/panel_id 필터 기적용
 
   ### 중첩 JOIN 축소 원칙
   missions → feedbacks → panels 3중 중첩은 응답이 기하급수적으로 커짐:

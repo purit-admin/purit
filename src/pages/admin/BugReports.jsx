@@ -182,7 +182,7 @@ export default function BugReports() {
         r.id === selected.id ? { ...r, admin_reply: adminReply.trim(), replied_at: now } : r
       ));
       setSelected(s => ({ ...s, admin_reply: adminReply.trim(), replied_at: now }));
-      const actionUrl = selected.role === 'company' ? '/company/notifications' : selected.role === 'admin' ? '/admin/notifications' : '/panel/notifications';
+      const actionUrl = selected.role === 'company' ? `/company/bug-reports?id=${selected.id}` : selected.role === 'admin' ? '/admin/reports' : `/panel/bug-reports?id=${selected.id}`;
       sendNotification(selected.user_id, {
         type: 'info', icon: '💬',
         title: '버그/건의 답변이 도착했습니다',

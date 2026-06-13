@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -69,7 +70,7 @@ export default function AdminPanels() {
   const [levelFilter, setLevelFilter]   = useState('all');
   const [periodFilter, setPeriodFilter] = useState('all');
   const [riskFilter, setRiskFilter]     = useState('all');
-  const [sortBy, setSortBy]             = useState('recent');
+  const [sortBy, setSortBy]             = useState('joined_desc');
 
   useEffect(() => { load(); }, []);
   useEffect(() => { loadStats(periodFilter); }, [periodFilter]);
@@ -88,7 +89,7 @@ export default function AdminPanels() {
     try {
       const { data, error } = await supabase
         .from('panels')
-        .select('id, user_id, name, email, industry, experience, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, created_at')
+        .select('id, user_id, name, email, industry, experience, experience_years, experience_confirmed_at, is_executive, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, rejection_count, rejection_reason, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
         .order('created_at', { ascending: false });
       if (!error) setPanels(data || []);
       setLoading(false);
@@ -175,15 +176,50 @@ export default function AdminPanels() {
           targetRole: 'panel',
         }).catch(err => console.warn('[updatePanel] 승인 알림 실패:', err));
       }
-      // 계정 정지 (심사 거절: pending→suspended / 임시 정지 / 영구 정지)
+      // 심사 반려 (pending → rejected) — 사유 안내 + 재제출 가능
+      if (fields.status === 'rejected' && targetPanel.status === 'pending') {
+        const reasonLine = fields.rejection_reason
+          ? `\n\n[거절 사유] ${fields.rejection_reason}`
+          : '';
+        sendNotification(targetPanel.user_id, {
+          type: 'warning',
+          icon: '📝',
+          title: '검증 서류가 반려되었습니다',
+          body: `심사 서류가 반려되었습니다. 아래 사유를 확인하고 서류를 보완하여 재제출해 주세요.${reasonLine}`,
+          actionUrl: '/panel',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 반려 알림 실패:', err));
+      }
+      // 영구 차단 (누적 3회 거절 → banned)
+      if (fields.status === 'banned') {
+        const reasonLine = fields.rejection_reason
+          ? `\n\n[거절 사유] ${fields.rejection_reason}`
+          : '';
+        sendNotification(targetPanel.user_id, {
+          type: 'warning',
+          icon: '🚫',
+          title: '계정이 영구 정지되었습니다',
+          body: `누적 거절 횟수가 한도에 도달하여 이 계정으로는 더 이상 심사를 받을 수 없습니다. 이의가 있으시면 버그/불편 신고에서 문의해 주세요.${reasonLine}`,
+          actionUrl: '/panel',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 영구 차단 알림 실패:', err));
+      }
+      // 차단 해제 (banned → rejected) — 재심사 기회 부여
+      if (fields.status === 'rejected' && targetPanel.status === 'banned') {
+        sendNotification(targetPanel.user_id, {
+          type: 'info',
+          icon: '🔓',
+          title: '재심사 기회가 부여되었습니다',
+          body: '관리자가 계정 차단을 해제했습니다. 검증 서류를 다시 제출하면 재심사를 받을 수 있습니다.',
+          actionUrl: '/panel/verify-docs',
+          targetRole: 'panel',
+        }).catch(err => console.warn('[updatePanel] 차단 해제 알림 실패:', err));
+      }
+      // 계정 정지 (활성 계정의 임시 정지 / 영구 정지)
       if (fields.status === 'suspended') {
-        const isPendingRejection = targetPanel.status === 'pending';
         const isTimed = !!fields.suspend_until;
         let title, body;
-        if (isPendingRejection) {
-          title = '심사에서 탈락하였습니다';
-          body  = '아쉽게도 이번 심사에서 탈락하였습니다. 문의사항이 있으시면 고객센터에 연락해 주세요.';
-        } else if (isTimed) {
+        if (isTimed) {
           const until = new Date(fields.suspend_until);
           const daysLeft = Math.round((until.getTime() - Date.now()) / 86400000);
           const untilStr = until.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
@@ -191,11 +227,11 @@ export default function AdminPanels() {
           body  = `계정이 ${daysLeft}일간 임시 정지되었습니다. ${untilStr}에 자동으로 해제됩니다.`;
         } else {
           title = '계정이 영구 정지되었습니다';
-          body  = '계정 이용이 영구 정지되었습니다. 사유가 있으시면 고객센터에 문의해 주세요.';
+          body  = '계정 이용이 영구 정지되었습니다. 사유가 있으시면 버그/불편 신고에서 문의해 주세요.';
         }
         sendNotification(targetPanel.user_id, {
           type: 'warning',
-          icon: isPendingRejection ? '❌' : '🚫',
+          icon: '🚫',
           title,
           body,
           actionUrl: '/panel',
@@ -216,6 +252,23 @@ export default function AdminPanels() {
     }
     setPanels(ps => ps.map(p => p.id === id ? { ...p, ...fields } : p));
     setActing(false);
+    return true;
+  }
+
+  async function confirmExperience(id, years) {
+    // 헤드(구 C레벨/임원)는 연차 15년차 이상 자동 부여 — 어드민 수동 지정 폐지
+    const { data, error } = await supabase.rpc('admin_confirm_panel_experience', {
+      p_panel_id: id,
+      p_years: years,
+    });
+    if (error || data === false) {
+      console.warn('[confirmExperience]', error?.message || '권한 또는 입력 오류');
+      return false;
+    }
+    const isHead = years >= 15;
+    setPanels(ps => ps.map(p => p.id === id
+      ? { ...p, experience_years: years, is_executive: isHead, experience: `${years}년`, experience_confirmed_at: new Date().toISOString() }
+      : p));
     return true;
   }
 
@@ -243,6 +296,7 @@ export default function AdminPanels() {
     .sort((a, b) => {
       const sa = feedbackStats[a.id] || { total: 0, passRate: 0, lastAt: null };
       const sb = feedbackStats[b.id] || { total: 0, passRate: 0, lastAt: null };
+      if (sortBy === 'joined_desc')  return (b.created_at || '') > (a.created_at || '') ? 1 : -1;
       if (sortBy === 'recent')       return (sb.lastAt || '') > (sa.lastAt || '') ? 1 : -1;
       if (sortBy === 'most')         return sb.total - sa.total;
       if (sortBy === 'least')        return sa.total - sb.total;
@@ -257,6 +311,7 @@ export default function AdminPanels() {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const panel = selected ? panels.find(p => p.id === selected) : null;
 
+  const pendingCount = panels.filter(p => (p.status || 'active') === 'pending').length;
   const activeCount  = panels.filter(p => (p.status || 'active') === 'active').length;
   const dangerCount  = panels.filter(p => getFlag(p, feedbackStats) === 'danger').length;
   const starCount    = panels.filter(p => getFlag(p, feedbackStats) === 'star').length;
@@ -314,9 +369,10 @@ export default function AdminPanels() {
         />
         {/* 상태 */}
         <FilterGroup
-          options={[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['suspended', '정지']]}
+          options={[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['rejected', '반려'], ['suspended', '정지'], ['banned', '영구정지']]}
           value={statusFilter}
           onChange={v => { setStatusFilter(v); setPage(1); }}
+          badges={{ pending: pendingCount }}
         />
 
         {/* 기간 */}
@@ -372,6 +428,7 @@ export default function AdminPanels() {
             cursor: 'pointer', outline: 'none',
           }}
         >
+          <option value="joined_desc">최근 가입순</option>
           <option value="recent">최근 활동순</option>
           <option value="most">제출 많은 순</option>
           <option value="least">제출 적은 순</option>
@@ -488,7 +545,11 @@ export default function AdminPanels() {
                       {/* 상태 */}
                       <td style={{ padding: '12px 14px' }}>
                         <Badge type={status === 'active' ? 'green' : status === 'pending' ? 'gold' : 'red'}>
-                          {status === 'active' ? '활성' : status === 'pending' ? '심사중' : '정지'}
+                          {status === 'active' ? '활성'
+                            : status === 'pending' ? '심사중'
+                            : status === 'rejected' ? '반려'
+                            : status === 'banned' ? '영구정지'
+                            : '정지'}
                         </Badge>
                       </td>
                     </tr>
@@ -518,6 +579,7 @@ export default function AdminPanels() {
 
         {/* 우측 상세 패널 */}
         {panel && <PanelDetail
+          key={panel.id}
           panel={panel}
           stats={feedbackStats[panel.id] || { total: 0, passed: 0, rejected: 0, passRate: 0, lastAt: null }}
           periodLabel={PERIOD_LABEL[periodFilter]}
@@ -525,6 +587,7 @@ export default function AdminPanels() {
           detailLoading={detailLoading}
           acting={acting}
           onUpdate={updatePanel}
+          onConfirmExperience={confirmExperience}
           flag={getFlag(panel, feedbackStats)}
           feedbackPage={feedbackDetailPage}
           onFeedbackPage={setFeedbackDetailPage}
@@ -539,24 +602,94 @@ export default function AdminPanels() {
 
 /* ─── 서브 컴포넌트 ─── */
 
-function FilterGroup({ options, value, onChange }) {
+function FilterGroup({ options, value, onChange, badges = {} }) {
   return (
     <div style={{ display: 'flex', gap: 2, background: 'var(--bg-2)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
-      {options.map(([v, l]) => (
-        <button key={v} onClick={() => onChange(v)} style={{
-          padding: '5px 11px', borderRadius: 5, fontSize: 12, fontWeight: 500,
-          background: value === v ? '#fff' : 'transparent',
-          color: value === v ? 'var(--text)' : 'var(--text-3)',
-          border: 'none', cursor: 'pointer',
-          boxShadow: value === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-          transition: 'all 0.12s',
-        }}>{l}</button>
-      ))}
+      {options.map(([v, l]) => {
+        const badge = badges[v] || 0;
+        return (
+          <button key={v} onClick={() => onChange(v)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '5px 11px', borderRadius: 5, fontSize: 12, fontWeight: 500,
+            background: value === v ? '#fff' : 'transparent',
+            color: value === v ? 'var(--text)' : 'var(--text-3)',
+            border: 'none', cursor: 'pointer',
+            boxShadow: value === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all 0.12s',
+          }}>
+            {l}
+            {badge > 0 && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8,
+                background: 'var(--red)', color: '#fff', fontSize: 10, fontWeight: 700,
+              }}>{badge}</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, flag,
+// 심사 거절 모달 — 거절 사유 입력 + 3번째 거절 시 영구 차단 경고 (ConfirmModal은 입력 필드 미지원이라 별도 구현, D-19 portal)
+function RejectModal({ willBan, rejectionCount, reason, onReason, errorMsg, acting, onConfirm, onCancel }) {
+  return ReactDOM.createPortal(
+    <div
+      onClick={onCancel}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className="confirm-modal-inner"
+        style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '24px 28px', width: 420, animation: 'fadeUp 0.18s ease both' }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text)' }}>
+          {willBan ? '⚠️ 영구 차단 경고' : '심사 거절'}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16, lineHeight: 1.6 }}>
+          거절 사유는 패널에게 그대로 전달되며, 재제출 시 무엇을 보완할지 안내합니다.
+        </div>
+
+        {willBan && (
+          <div style={{ fontSize: 12.5, color: '#DC2626', fontWeight: 600, marginBottom: 14, padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, lineHeight: 1.6 }}>
+            이 거절은 누적 {rejectionCount + 1}번째 거절입니다. 확인 시 이 계정은 <strong>영구적으로 사용 불가</strong>가 되며 재심사를 받을 수 없습니다.
+          </div>
+        )}
+
+        <textarea
+          value={reason}
+          onChange={e => onReason(e.target.value)}
+          placeholder="예: 건강보험 자격득실 확인서가 흐릿하여 근무 이력 확인이 어렵습니다. 선명한 파일로 다시 제출해 주세요."
+          rows={4}
+          style={{
+            width: '100%', padding: '11px 13px', borderRadius: 9,
+            border: '1px solid var(--border)', fontSize: 13.5, fontFamily: 'inherit',
+            outline: 'none', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6,
+          }}
+          onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
+          onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+        />
+
+        {errorMsg && (
+          <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600, marginTop: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 6 }}>
+            {errorMsg}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+          <Btn variant="secondary" onClick={onCancel} disabled={acting}>취소</Btn>
+          <Btn variant="danger" onClick={onConfirm} disabled={acting || !reason.trim()}>
+            {acting ? '처리 중...' : (willBan ? '영구 차단하고 거절' : '거절하기')}
+          </Btn>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, acting, onUpdate, onConfirmExperience, flag,
                        feedbackPage, onFeedbackPage, onFeedbackClick, actionMsg, onClearActionMsg }) {
   const totalDetailPages = Math.max(1, Math.ceil(feedbacks.length / DETAIL_PAGE_SIZE));
   const pagedFeedbacks = feedbacks.slice(
@@ -568,6 +701,12 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
   const cm = HONOR_COLOR_META[hl.colorTier];
   const [confirmAction, setConfirmAction] = useState(null);
   const [updateError, setUpdateError]     = useState('');
+  const [rejectOpen, setRejectOpen]       = useState(false);
+  const [rejectReason, setRejectReason]   = useState('');
+  const willBan = (panel.rejection_count ?? 0) >= 2; // 누적 2회 → 이번 거절이 3번째 = 영구 차단
+  const [expYearsInput, setExpYearsInput] = useState(panel.experience_years != null ? String(panel.experience_years) : '');
+  const [expSaving, setExpSaving]         = useState(false);
+  const [expMsg, setExpMsg]               = useState('');
   const suspendUntil = panel.suspend_until ? new Date(panel.suspend_until) : null;
   const isTempSuspend = status === 'suspended' && suspendUntil != null;
 
@@ -623,7 +762,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             { label: '전체 완료 미션', value: `${panel.total_missions || 0}건` },
             { label: '가입일',        value: new Date(panel.created_at).toLocaleDateString('ko-KR') },
             { label: '최근 활동',     value: relativeTime(s.lastAt) },
-            { label: '계정 상태',     value: status === 'active' ? '✅ 활성' : status === 'pending' ? '⏳ 심사중' : isTempSuspend ? '🕐 임시 정지' : '🚫 영구 정지' },
+            { label: '계정 상태',     value: status === 'active' ? '✅ 활성' : status === 'pending' ? '⏳ 심사중' : status === 'rejected' ? `📝 반려 (누적 ${panel.rejection_count || 0}회)` : status === 'banned' ? '🚫 영구 차단' : isTempSuspend ? '🕐 임시 정지' : '🚫 영구 정지' },
           ].map(({ label, value }) => (
             <div key={label} style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{label}</div>
@@ -784,7 +923,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
           검증 서류
         </div>
 
-        {!panel.health_insurance_url && !panel.linkedin_url && !panel.portfolio_url ? (
+        {!panel.health_insurance_url && !panel.linkedin_url && !panel.portfolio_url && !panel.portfolio_file_url ? (
           <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '8px 0' }}>
             제출된 서류 없음
           </div>
@@ -825,8 +964,8 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             )}
 
             {panel.portfolio_url && (
-              <div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서</div>
+              <div style={{ marginBottom: panel.portfolio_file_url ? 10 : 0 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서 링크</div>
                 {panel.portfolio_url.startsWith('http') ? (
                   <a
                     href={panel.portfolio_url}
@@ -837,6 +976,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
                     🔗 포트폴리오 열기 →
                   </a>
                 ) : (
+                  /* 레거시 호환: 구 데이터는 portfolio_url에 파일 경로가 들어있을 수 있음 */
                   <a
                     href="#"
                     onClick={async (e) => {
@@ -854,8 +994,94 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
                 )}
               </div>
             )}
+
+            {panel.portfolio_file_url && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>포트폴리오 / 이력서 파일</div>
+                <a
+                  href="#"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    const { data, error } = await supabase.storage
+                      .from('panel-verification-docs')
+                      .createSignedUrl(panel.portfolio_file_url, 600);
+                    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                    else alert('서류를 불러오는 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+                  }}
+                  style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  📄 파일 열기 →
+                </a>
+              </div>
+            )}
           </>
         )}
+      </Card>
+
+      {/* 경력 확정 */}
+      <Card style={{ padding: '16px 18px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+          경력 확정
+        </div>
+
+        {/* 현재 적용 경력 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>현재 적용 경력</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+              {(panel.experience_years ?? 0) >= 15 ? '헤드' : (panel.experience_years != null ? `${panel.experience_years}년차` : (panel.experience || '미입력'))}
+            </div>
+          </div>
+          {panel.experience_confirmed_at ? (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>✓ 확정됨</div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(panel.experience_confirmed_at).toLocaleDateString('ko-KR')}</div>
+            </div>
+          ) : (
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706' }}>미확정</span>
+          )}
+        </div>
+
+        {/* 연차 입력 (자격득실 확인서 기준) — 15년차 이상은 헤드로 자동 분류 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <input
+            type="number" min={0} max={50}
+            value={expYearsInput}
+            onChange={e => setExpYearsInput(e.target.value)}
+            placeholder="연차"
+            style={{ width: 90, padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', background: '#fff', outline: 'none' }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>년차</span>
+          {parseInt(expYearsInput, 10) >= 15 && (
+            <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#92400E' }}>→ 헤드 (15년차 이상)</span>
+          )}
+        </div>
+
+        {expMsg && (
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: expMsg.includes('실패') ? 'var(--red)' : '#059669' }}>
+            {expMsg}
+          </div>
+        )}
+
+        <Btn size="sm" disabled={expSaving} style={{ justifyContent: 'center', width: '100%' }}
+          onClick={async () => {
+            setExpMsg('');
+            const parsed = parseInt(expYearsInput, 10);
+            if (Number.isNaN(parsed) || parsed < 0 || parsed > 50) {
+              setExpMsg('연차를 0~50 사이 숫자로 입력하세요.');
+              return;
+            }
+            const finalYears = Math.max(0, Math.min(50, parsed));
+            setExpSaving(true);
+            const ok = await onConfirmExperience(panel.id, finalYears);
+            setExpSaving(false);
+            setExpMsg(ok ? '경력이 확정되었습니다.' : '확정 실패: 권한 또는 입력을 확인하세요.');
+          }}>
+          {expSaving ? '확정 중...' : (panel.experience_confirmed_at ? '경력 재확정 / 조정' : '경력 확정')}
+        </Btn>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.5 }}>
+          확정 시점 기준 매년 자동으로 +1 증가합니다. 15년차 이상은 헤드로 자동 분류되어 정산 3.0배가 적용됩니다. 필요 시 위 값을 직접 올리거나 내려 재확정할 수 있습니다.
+        </div>
       </Card>
 
       {/* 관리 액션 */}
@@ -879,7 +1105,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
                 ✓ 심사 승인
               </Btn>
               <Btn size="sm" variant="danger" disabled={acting} style={{ justifyContent: 'center' }}
-                onClick={() => setConfirmAction({ status: 'suspended', label: '심사 거절', desc: '이 패널을 심사 거절 처리합니까?\n계정이 정지 상태로 전환됩니다.' })}>
+                onClick={() => { setRejectReason(''); setUpdateError(''); setRejectOpen(true); }}>
                 ✕ 심사 거절
               </Btn>
             </>
@@ -910,6 +1136,34 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
               정지 해제
             </Btn>
           )}
+          {status === 'rejected' && (
+            <div style={{ fontSize: 12, color: 'var(--text-2)', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+              📝 <strong>반려 처리됨</strong> (누적 거절 {panel.rejection_count || 0}회).
+              패널이 서류를 재제출하면 다시 심사대기 목록에 표시됩니다.
+              {panel.rejection_reason && (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(245,158,11,0.25)', color: 'var(--text-3)' }}>
+                  최근 거절 사유: <span style={{ color: 'var(--text-2)' }}>{panel.rejection_reason}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {status === 'banned' && (
+            <>
+              <div style={{ fontSize: 12, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+                🚫 <strong>영구 차단됨</strong> (누적 거절 {panel.rejection_count || 0}회).
+                이 계정으로는 재심사가 불가합니다.
+                {panel.rejection_reason && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #FECACA', color: 'var(--text-3)' }}>
+                    최근 거절 사유: <span style={{ color: 'var(--text-2)' }}>{panel.rejection_reason}</span>
+                  </div>
+                )}
+              </div>
+              <Btn size="sm" disabled={acting} style={{ justifyContent: 'center' }}
+                onClick={() => setConfirmAction({ status: 'rejected', rejection_count: 0, label: '차단 해제', desc: '이 계정의 영구 차단을 해제합니까?\n반려 상태로 전환되고 누적 거절 횟수가 0으로 초기화됩니다. 패널은 서류를 재제출할 수 있습니다.' })}>
+                차단 해제
+              </Btn>
+            </>
+          )}
         </div>
       </Card>
 
@@ -924,12 +1178,42 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             const fields = { status: confirmAction.status };
             if (confirmAction.suspend_until) fields.suspend_until = confirmAction.suspend_until;
             if (confirmAction.status === 'active') fields.suspend_until = null;
+            // 차단 해제: 누적 거절 횟수 초기화 + 거절 사유 클리어
+            if (confirmAction.rejection_count != null) {
+              fields.rejection_count = confirmAction.rejection_count;
+              if (confirmAction.rejection_count === 0) fields.rejection_reason = null;
+            }
             const ok = await onUpdate(panel.id, fields);
             if (ok) setConfirmAction(null);
             else setUpdateError('처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
           }}
           onCancel={() => { setUpdateError(''); setConfirmAction(null); }}
           danger
+        />
+      )}
+
+      {rejectOpen && (
+        <RejectModal
+          willBan={willBan}
+          rejectionCount={panel.rejection_count ?? 0}
+          reason={rejectReason}
+          onReason={setRejectReason}
+          errorMsg={updateError}
+          acting={acting}
+          onCancel={() => { setUpdateError(''); setRejectOpen(false); }}
+          onConfirm={async () => {
+            setUpdateError('');
+            if (!rejectReason.trim()) { setUpdateError('거절 사유를 입력해 주세요.'); return; }
+            const nextCount = (panel.rejection_count ?? 0) + 1;
+            const fields = {
+              status: nextCount >= 3 ? 'banned' : 'rejected',
+              rejection_count: nextCount,
+              rejection_reason: rejectReason.trim(),
+            };
+            const ok = await onUpdate(panel.id, fields);
+            if (ok) { setRejectReason(''); setRejectOpen(false); }
+            else setUpdateError('처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
+          }}
         />
       )}
     </div>

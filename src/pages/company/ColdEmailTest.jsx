@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ReactDOM from 'react-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout } from '../../components/ui/PanelTargetStep';
+import { splitCredits, needsAddonConfirm, addonUsageFor } from '../../lib/credits';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
@@ -44,7 +45,7 @@ function Pagination({ page, total, onPage }) {
 
 const STEPS = ['이메일 입력', '질문 설정', '패널 설정', '검토'];
 
-const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', clevel: 'C레벨' };
+const CAREER_LABEL = { junior: '주니어', middle: '미들', senior: '시니어', clevel: '헤드' };
 
 const INDUSTRIES = [
   '뷰티/코스메틱', '헬스/피트니스', '식품/음료', '패션/의류',
@@ -97,8 +98,10 @@ export default function ColdEmailTest() {
   const [companyPlan, setCompanyPlan] = useState(null);
   const [careerLevels, setCareerLevels] = useState(['junior']);
   const [creditBalance, setCreditBalance] = useState(null);
+  const [creditAddon, setCreditAddon] = useState(0);
   const [teamRole, setTeamRole] = useState(null);
   const [draftId, setDraftId] = useState(null);
+  const [editIsDraft, setEditIsDraft] = useState(true);  // 수정 대상이 draft(true)면 제출 시 크레딧 예약, active(false)면 이미 예약돼 재차감 금지
   const [listFilter, setListFilter] = useState('active');
   const [listPage, setListPage] = useState(1);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -112,6 +115,8 @@ export default function ColdEmailTest() {
   const [activeToast, setActiveToast] = useState(null);
   const activeToastTimerRef = useRef(null);
   const [pendingNavPath, setPendingNavPath] = useState(null);
+  // 새로고침/크래시 대비 localStorage 자동저장 → 재진입 시 "이어서 작성" 배너로 복원
+  const [restorable, setRestorable] = useState(null);
 
   const initTemplateName = location.state?.templateName || null;
 
@@ -134,6 +139,7 @@ export default function ColdEmailTest() {
       setView('create');
       supabase.from('missions').select('*').eq('id', mid).single().then(({ data: ms }) => {
         if (!ms) return;
+        setEditIsDraft(ms.status === 'draft');
         let parsed = {};
         try { parsed = JSON.parse(ms.description || '{}'); } catch {}
         if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
@@ -141,7 +147,12 @@ export default function ColdEmailTest() {
         if (parsed.content) setEmailText(parsed.content);
         if (parsed.productDescription) setProductDescription(parsed.productDescription);
         if (parsed.industry) setIndustry(parsed.industry);
-        if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+        if (Array.isArray(parsed.selectedQuestions)) {
+          // 저장 시 합쳐진 질문을 local-(인라인 생성)/그 외로 다시 분리 복원 ('추가된 질문 목록' 취소 UI 복구)
+          const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');
+          setLocalCustomQs(parsed.selectedQuestions.filter(isLocal));
+          setSelectedQuestions(parsed.selectedQuestions.filter(q => !isLocal(q)));
+        }
         if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
         if (parsed.panelSize) setPanelSize(parsed.panelSize);
       });
@@ -157,6 +168,7 @@ export default function ColdEmailTest() {
     setSelectedQuestions([]); setLocalCustomQs([]); setExpandedTmpl({});
     setNewQText(''); setNewQType('text'); setNewQOptions(['', '']); setNewQScaleMin(''); setNewQScaleMax('');
     setDraftId(null);
+    setEditIsDraft(true);
   }
 
   async function load() {
@@ -167,7 +179,7 @@ export default function ColdEmailTest() {
       const { company: co, teamRole: tr } = await resolveCompany(user.id);
       setCompanyId(co?.id);
       setCompanyPlan(co?.plan?.toLowerCase() || 'starter');
-      if (co != null) setCreditBalance(co.credit_balance ?? 0);
+      if (co != null) { setCreditBalance(co.credit_balance ?? 0); setCreditAddon(co.addon_credits ?? 0); }
       setTeamRole(tr);
       if (co) {
         const { data: missionsData } = await supabase
@@ -195,6 +207,8 @@ export default function ColdEmailTest() {
   }
 
   const shouldBlockNav = view === 'create' && Boolean(missionTitle || emailText || productDescription || industry);
+  // 신규 등록·draft 활성화에서만 크레딧 차감 → active 의뢰 수정은 부족 게이트/경고 비활성
+  const creditsChargedOnSubmit = !draftId || editIsDraft;
 
   useEffect(() => {
     const handler = (e) => { if (shouldBlockNav) { e.preventDefault(); e.returnValue = ''; } };
@@ -212,6 +226,56 @@ export default function ColdEmailTest() {
     }
     return () => navigationGuard.unregister();
   }, [shouldBlockNav]);
+
+  // ── 새로고침 대비 localStorage 자동저장 / 복원 ──
+  // beforeunload 안에서는 DB 비동기 저장이 보장되지 않으므로, 작성 중 폼을 브라우저에 동기 저장해 둔다.
+  const draftKey = companyId ? `purit_form_draft_email_${companyId}` : null;
+  const clearLocalDraft = () => { if (draftKey) { try { localStorage.removeItem(draftKey); } catch {} } };
+
+  // 자동저장: 신규 작성(create) 모드에서 내용이 있을 때만 (draft 이어쓰기·active 수정은 DB가 진실 원천이라 제외)
+  useEffect(() => {
+    if (!draftKey || draftId || view !== 'create') return;
+    if (!(missionTitle || emailText || productDescription || industry)) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        missionTitle, emailText, productDescription, industry,
+        panelSize, selectedQuestions, localCustomQs, careerLevels, createStep, missionUuid, savedAt: Date.now(),
+      }));
+    } catch {}
+  }, [draftKey, draftId, view, missionTitle, emailText, productDescription, industry,
+      panelSize, selectedQuestions, localCustomQs, careerLevels, createStep, missionUuid]);
+
+  // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
+  useEffect(() => {
+    if (!draftKey || location.state?.editMode || initTemplateId) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) { const parsed = JSON.parse(raw); if (parsed?.missionTitle != null || parsed?.emailText != null) setRestorable(parsed); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  function restoreLocalDraft() {
+    const d = restorable;
+    if (!d) return;
+    if (d.missionTitle != null) setMissionTitle(d.missionTitle);
+    if (d.emailText != null) setEmailText(d.emailText);
+    if (d.productDescription != null) setProductDescription(d.productDescription);
+    if (d.industry != null) setIndustry(d.industry);
+    if (d.panelSize != null) setPanelSize(d.panelSize);
+    if (Array.isArray(d.selectedQuestions)) setSelectedQuestions(d.selectedQuestions);
+    if (Array.isArray(d.localCustomQs)) setLocalCustomQs(d.localCustomQs);
+    if (Array.isArray(d.careerLevels)) setCareerLevels(d.careerLevels);
+    if (typeof d.createStep === 'number') setCreateStep(d.createStep);
+    if (d.missionUuid) setMissionUuid(d.missionUuid);
+    setDraftId(null); setEditIsDraft(true);
+    setRestorable(null);
+    setView('create');
+  }
+  function discardLocalDraft() {
+    clearLocalDraft();
+    setRestorable(null);
+  }
 
   async function handleDeleteMission() {
     if (!deleteTarget) return;
@@ -241,6 +305,7 @@ export default function ColdEmailTest() {
 
   async function saveDraft() {
     if (!companyId) return;
+    if (draftId && !editIsDraft) return;  // active 의뢰 수정 중에는 임시저장(=status를 draft로 되돌림) 금지
     setSavingDraft(true);
     try {
       const desc = JSON.stringify({
@@ -260,6 +325,7 @@ export default function ColdEmailTest() {
       } else {
         await supabase.from('missions').insert({ id: missionUuid, ...payload });
         setDraftId(missionUuid);
+        clearLocalDraft();  // DB draft가 진실 원천이 되므로 localStorage 자동저장본 제거 (배너 중복 방지)
       }
     } catch (e) {
       console.error('[ColdEmailTest] 임시 저장 실패:', e.message);
@@ -273,6 +339,7 @@ export default function ColdEmailTest() {
     setDraftId(missionId);
     supabase.from('missions').select('*').eq('id', missionId).single().then(({ data: ms }) => {
       if (!ms) return;
+      setEditIsDraft(ms.status === 'draft');
       let parsed = {};
       try { parsed = JSON.parse(ms.description || '{}'); } catch {}
       if (parsed.missionTitle) setMissionTitle(parsed.missionTitle);
@@ -280,7 +347,12 @@ export default function ColdEmailTest() {
       if (parsed.content) setEmailText(parsed.content);
       if (parsed.productDescription) setProductDescription(parsed.productDescription);
       if (parsed.industry) setIndustry(parsed.industry);
-      if (Array.isArray(parsed.selectedQuestions)) setSelectedQuestions(parsed.selectedQuestions);
+      if (Array.isArray(parsed.selectedQuestions)) {
+        // 저장 시 합쳐진 질문을 local-(인라인 생성)/그 외로 다시 분리 복원 ('추가된 질문 목록' 취소 UI 복구)
+        const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');
+        setLocalCustomQs(parsed.selectedQuestions.filter(isLocal));
+        setSelectedQuestions(parsed.selectedQuestions.filter(q => !isLocal(q)));
+      }
       if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
       if (parsed.panelSize) setPanelSize(parsed.panelSize);
       setView('create');
@@ -375,16 +447,19 @@ export default function ColdEmailTest() {
       // 크레딧 예약 먼저 — 성공 후에만 status='active' DB 반영 (트리거 조기 발화 방지)
       const requiredCredits = calcCredits(panelSize, careerLevels, 'sub');
       if (draftId) {
-        const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
-          p_mission_id: draftId, p_company_id: companyId, p_credits: requiredCredits,
-        });
-        if (creditErr) throw creditErr;
-        if (!creditData?.success) {
-          throw new Error(
-            creditData?.error === 'INSUFFICIENT_CREDITS'
-              ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
-              : '크레딧 처리 중 오류가 발생했습니다.'
-          );
+        // active 의뢰 수정은 이미 크레딧이 예약돼 있어 재예약 금지 (draft 활성화일 때만 예약)
+        if (editIsDraft) {
+          const { data: creditData, error: creditErr } = await supabase.rpc('reserve_mission_credits', {
+            p_mission_id: draftId, p_company_id: companyId, p_credits: requiredCredits,
+          });
+          if (creditErr) throw creditErr;
+          if (!creditData?.success) {
+            throw new Error(
+              creditData?.error === 'INSUFFICIENT_CREDITS'
+                ? `크레딧이 부족합니다. (보유: ${creditData.balance}, 필요: ${creditData.required})`
+                : '크레딧 처리 중 오류가 발생했습니다.'
+            );
+          }
         }
         const { error: mErr } = await supabase.from('missions').update({
           title: finalTitle, description: descJson,
@@ -423,6 +498,7 @@ export default function ColdEmailTest() {
       });
       if (tErr) console.warn('[ColdEmailTest] 서브테이블 등록 실패:', tErr.message);
 
+      clearLocalDraft();
       setMissionUuid(crypto.randomUUID());
       navigate('/company');
       return true;
@@ -860,9 +936,11 @@ export default function ColdEmailTest() {
                 onCareerLevels={setCareerLevels}
                 missionType="sub"
                 creditBalance={creditBalance}
+                addonBalance={creditAddon}
                 companyId={companyId}
-                onCreditBalanceUpdate={(newBal) => setCreditBalance(newBal)}
+                onCreditBalanceUpdate={(newBal) => { setCreditAddon(a => a + Math.max(0, newBal - (creditBalance || 0))); setCreditBalance(newBal); }}
                 onSaveDraft={saveDraft}
+                chargeOnSubmit={creditsChargedOnSubmit}
               />
             )}
 
@@ -870,7 +948,7 @@ export default function ColdEmailTest() {
             {createStep === 3 && (() => {
               const allQs = [...selectedQuestions, ...localCustomQs];
               const reqCredits = calcCredits(panelSize, careerLevels, 'sub');
-              const notEnough = creditBalance != null && reqCredits > creditBalance;
+              const notEnough = creditsChargedOnSubmit && creditBalance != null && reqCredits > creditBalance;
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div>
@@ -932,7 +1010,7 @@ export default function ColdEmailTest() {
             </Btn>
             {createStep < STEPS.length - 1 ? (
               <Btn onClick={() => {
-                if (createStep === STEPS.length - 2 && creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance) {
+                if (creditsChargedOnSubmit && createStep === STEPS.length - 2 && creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance) {
                   panelStepRef.current?.openCreditModal();
                   return;
                 }
@@ -941,7 +1019,7 @@ export default function ColdEmailTest() {
                 다음 →
               </Btn>
             ) : (
-              <Btn onClick={() => setShowSubmitConfirm(true)} disabled={teamRole === 'viewer' || submitting || !emailText.trim() || (creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
+              <Btn onClick={() => setShowSubmitConfirm(true)} disabled={teamRole === 'viewer' || submitting || !emailText.trim() || (creditsChargedOnSubmit && creditBalance != null && calcCredits(panelSize, careerLevels, 'sub') > creditBalance)}>
                 {submitting ? '등록 중…' : '의뢰 제출 →'}
               </Btn>
             )}
@@ -951,7 +1029,23 @@ export default function ColdEmailTest() {
 
       {/* ── 목록 ── */}
       {view === 'list' && (
-        missions.length === 0 ? (
+        <>
+        {restorable && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '14px 18px', marginBottom: 16, background: 'rgba(16,54,125,0.06)', border: '1px solid rgba(16,54,125,0.25)', borderRadius: 10 }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>✏️</span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>작성 중이던 이메일 검증이 있습니다</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                {restorable.missionTitle ? `“${restorable.missionTitle}” ` : ''}이어서 작성하거나 새로 시작할 수 있습니다.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn size="sm" onClick={restoreLocalDraft}>이어서 작성 →</Btn>
+              <Btn size="sm" variant="secondary" onClick={discardLocalDraft}>새로 시작</Btn>
+            </div>
+          </div>
+        )}
+        {missions.length === 0 ? (
           <Card style={{ padding: '60px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 이메일 테스트가 없습니다</div>
@@ -1058,26 +1152,55 @@ export default function ColdEmailTest() {
               </>);
             })()}
           </div>
-        )
+        )}
+        </>
       )}
 
       {showSubmitConfirm && (() => {
         const credits = calcCredits(panelSize, careerLevels, 'sub');
         const remaining = creditBalance != null ? creditBalance - credits : null;
+        // active 의뢰 수정: 등록 시 이미 크레딧이 예약돼 제출 시 추가 차감 없음 (D-128)
+        const isActiveEdit = !creditsChargedOnSubmit;
         return (
           <ConfirmModal
-            title="의뢰를 제출할까요?"
+            title={isActiveEdit ? '수정 내용을 저장할까요?' : '의뢰를 제출할까요?'}
             desc={
               <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.75 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
-                  <span>예상 소모 크레딧</span>
-                  <strong style={{ color: 'var(--text)' }}>{Math.ceil(credits)} cr</strong>
-                </div>
-                {remaining != null && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
-                    <span>제출 후 잔여 크레딧</span>
-                    <strong style={{ color: remaining < 0 ? '#ef4444' : 'var(--text)' }}>{Math.floor(remaining)} cr</strong>
+                {isActiveEdit ? (
+                  <div style={{ padding: '14px 16px', background: 'rgba(16,54,125,0.06)', border: '1px solid rgba(16,54,125,0.22)', borderRadius: 8, marginBottom: 12, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--accent)', marginBottom: 6 }}>✏️ 진행 중인 의뢰 수정</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8 }}>
+                      <li>등록 시 크레딧이 이미 예약되어 <strong>추가로 차감되지 않습니다.</strong></li>
+                      <li>수정한 내용으로 의뢰가 갱신됩니다.</li>
+                    </ul>
                   </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                      <span>예상 소모 크레딧</span>
+                      <strong style={{ color: 'var(--text)' }}>{Math.ceil(credits)} cr</strong>
+                    </div>
+                    {remaining != null && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 8, marginBottom: 12 }}>
+                        <span>제출 후 잔여 크레딧</span>
+                        <strong style={{ color: remaining < 0 ? '#ef4444' : 'var(--text)' }}>{Math.floor(remaining)} cr</strong>
+                      </div>
+                    )}
+                    {needsAddonConfirm(credits, creditBalance, creditAddon) && (() => {
+                      const sp = splitCredits(creditBalance, creditAddon);
+                      const useAddon = addonUsageFor(credits, creditBalance, creditAddon);
+                      return (
+                        <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, marginBottom: 12, textAlign: 'left' }}>
+                          <div style={{ fontWeight: 800, color: '#B45309', marginBottom: 6 }}>💳 추가 크레딧 사용 안내</div>
+                          <div style={{ lineHeight: 1.7 }}>
+                            이번 의뢰는 <strong>{Math.ceil(credits)}cr</strong>이 필요합니다.<br />
+                            월간 크레딧 <strong>{sp.monthly}cr</strong>로는 부족해 <strong style={{ color: '#B45309' }}>추가(충전) 크레딧 {Math.ceil(useAddon)}cr</strong>이 함께 사용됩니다.<br />
+                            계속 진행하시겠습니까?
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
                 )}
                 <div style={{ padding: '10px 14px', background: 'rgba(16,54,125,0.06)', borderRadius: 8, marginBottom: 12 }}>
                   <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>💡 고품질 피드백을 받으려면</div>
@@ -1088,7 +1211,7 @@ export default function ColdEmailTest() {
                 </div>
               </div>
             }
-            confirmLabel="제출하기"
+            confirmLabel={isActiveEdit ? '수정 완료' : '제출하기'}
             cancelLabel="다시 확인"
             onConfirm={async () => { const ok = await handleSubmit(); if (ok) setShowSubmitConfirm(false); }}
             onCancel={() => { setShowSubmitConfirm(false); setSubmitError(''); }}
@@ -1164,6 +1287,7 @@ export default function ColdEmailTest() {
             </Btn>
             <Btn variant="secondary" onClick={() => {
               navigationGuard.unregister();
+              clearLocalDraft();  // 자발적 폐기 → localStorage 자동저장본도 제거 (배너 재등장 방지)
               setShowDraftModal(false);
               const dest = pendingNavPath;
               setPendingNavPath(null);

@@ -268,7 +268,7 @@ export default function AccountSettings() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>현재 플랜</div>
-                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{company?.plan || 'Starter'} 플랜</div>
+                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{(company?.plan === 'free_trial' ? '무료체험' : company?.plan) || 'Starter'} 플랜</div>
               </div>
               <Btn size="sm" variant="outline" onClick={() => navigate('/company/plans')}>플랜 변경</Btn>
             </div>

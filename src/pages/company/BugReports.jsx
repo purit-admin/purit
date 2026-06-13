@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, EmptyState } from '../../components/ui';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -33,8 +34,19 @@ export default function CompanyBugReports() {
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [searchParams] = useSearchParams();
+  const focusId = searchParams.get('id');
 
   useEffect(() => { setSelected(null); load(); }, [page]);
+
+  // 알림(💬 답변 도착)에서 진입 시 해당 리포트 자동 선택 — 페이지네이션과 무관하게 id로 직접 조회
+  useEffect(() => {
+    if (!focusId) return;
+    (async () => {
+      const { data } = await supabase.from('bug_reports').select('*').eq('id', focusId).single();
+      if (data) setSelected(data);
+    })();
+  }, [focusId]);
 
   async function load() {
     setLoading(true);

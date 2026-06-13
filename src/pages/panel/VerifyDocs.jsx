@@ -1,8 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
-import { Card, Btn } from '../../components/ui';
+import { Card, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { compressImage } from '../../lib/imageUtils';
+
+// 이미지 파일만 canvas 압축 가능 — PDF/DOC/DOCX는 그대로 업로드
+const isImageFile = (f) => f.type.startsWith('image/') || /\.(jpe?g|png)$/i.test(f.name);
 
 const ACCENT = '#10367D';
 const BORDER = '#E2E8F0';
@@ -59,18 +63,41 @@ export default function VerifyDocs() {
   const navigate = useNavigate();
 
   const [certFile,      setCertFile]      = useState(null);
-  const [careerChoice,  setCareerChoice]  = useState(null);
+  const [expYears,      setExpYears]      = useState('');
   const [linkedinUrl,   setLinkedinUrl]   = useState('');
   const [portfolioFile, setPortfolioFile] = useState(null);
   const [portfolioText, setPortfolioText] = useState('');
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState('');
+  const [existing,      setExisting]      = useState(null); // 재제출 시 기존 제출 내역 프리필용
+  const [showLastChance, setShowLastChance] = useState(false); // 3번째 제출(마지막 기회) 확인 모달
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  // 이미 2회 거절됨 → 이번 재제출이 3번째(마지막 기회), 또 거절되면 영구 정지(082 banned)
+  const isLastChance = existing?.status === 'rejected' && (existing?.rejection_count ?? 0) >= 2;
+
+  const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+  // 기존 제출 내역 로드 → 링크·연차 프리필 (재제출 시 빈 폼 방지) + 거절 사유 표시
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('panels')
+        .select('status, rejection_reason, rejection_count, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, experience_years')
+        .eq('user_id', user.id)
+        .single();
+      if (!data) return;
+      setExisting(data);
+      if (data.linkedin_url)             setLinkedinUrl(data.linkedin_url);
+      if (data.portfolio_url)            setPortfolioText(data.portfolio_url);
+      if (data.experience_years != null) setExpYears(String(data.experience_years));
+    })();
+  }, []);
 
   const handleCertFile = (f) => {
     if (f && f.size > MAX_FILE_SIZE) {
-      setError('파일 크기가 5MB를 초과합니다. 5MB 이하의 파일을 선택해 주세요.');
+      setError('파일 크기가 20MB를 초과합니다. 20MB 이하의 파일을 선택해 주세요.');
       return;
     }
     if (f) setError('');
@@ -79,32 +106,44 @@ export default function VerifyDocs() {
 
   const handlePortfolioFile = (f) => {
     if (f && f.size > MAX_FILE_SIZE) {
-      setError('포트폴리오 파일 크기가 5MB를 초과합니다. 5MB 이하의 파일을 선택해 주세요.');
+      setError('포트폴리오 파일 크기가 20MB를 초과합니다. 20MB 이하의 파일을 선택해 주세요.');
       return;
     }
     if (f) setError('');
     setPortfolioFile(f);
   };
 
-  const handleSubmit = async () => {
+  // 제출 버튼 클릭 → 유효성 검증 후, 마지막 기회면 확인 모달, 아니면 바로 제출
+  const handleSubmit = () => {
     setError('');
-    if (!certFile) {
+    if (!certFile && !existing?.health_insurance_url) {
       setError('건강보험 자격득실 확인서를 첨부해 주세요.'); return;
     }
-    if (!careerChoice) {
-      setError('LinkedIn 프로필 또는 포트폴리오/이력서 중 하나를 선택해 주세요.'); return;
+    // 연차 입력 검증 (자격득실 확인서 기준 본인 계산값)
+    const yearsNum = parseInt(expYears, 10);
+    if (expYears === '' || Number.isNaN(yearsNum) || yearsNum < 2 || yearsNum > 50) {
+      setError('본인 연차를 2 이상 50 이하의 숫자로 입력해 주세요.'); return;
     }
-    if (careerChoice === 'linkedin') {
-      if (!linkedinUrl.trim()) { setError('LinkedIn 프로필 URL을 입력해 주세요.'); return; }
-      if (!LINKEDIN_RE.test(linkedinUrl.trim())) { setError('올바른 LinkedIn URL을 입력해 주세요. (예: https://linkedin.com/in/홍길동)'); return; }
+    // 경력 인증: LinkedIn / 포트폴리오 링크 / 포트폴리오 파일 중 최소 1개 필수 (기존 제출분 포함)
+    const hasExistingCareer = !!(existing?.linkedin_url || existing?.portfolio_url || existing?.portfolio_file_url);
+    if (!linkedinUrl.trim() && !portfolioText.trim() && !portfolioFile && !hasExistingCareer) {
+      setError('경력 인증을 위해 LinkedIn 프로필, 포트폴리오 링크, 포트폴리오 파일 중 하나 이상을 제출해 주세요.'); return;
     }
-    if (careerChoice === 'portfolio' && !portfolioText.trim() && !portfolioFile) {
-      setError('포트폴리오/이력서 URL을 입력하거나 파일을 첨부해 주세요.'); return;
+    if (linkedinUrl.trim() && !LINKEDIN_RE.test(linkedinUrl.trim())) {
+      setError('올바른 LinkedIn URL을 입력해 주세요. (예: https://linkedin.com/in/홍길동)'); return;
     }
-    if (careerChoice === 'portfolio' && portfolioText.trim() && !URL_RE.test(portfolioText.trim())) {
-      setError('올바른 URL 형식을 입력해 주세요. (예: https://...)'); return;
+    if (portfolioText.trim() && !URL_RE.test(portfolioText.trim())) {
+      setError('올바른 포트폴리오 URL 형식을 입력해 주세요. (예: https://...)'); return;
     }
 
+    // 마지막 기회(누적 2회 거절)면 영구 정지 경고 모달 → 확인 시에만 제출
+    if (isLastChance) { setShowLastChance(true); return; }
+    doSubmit(yearsNum);
+  };
+
+  // 실제 업로드 + 저장 (검증 통과 후에만 호출)
+  const doSubmit = async (yearsNum) => {
+    setShowLastChance(false);
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -112,10 +151,11 @@ export default function VerifyDocs() {
       let portfolioFileUrl   = null;
 
       if (certFile) {
+        const certUp = isImageFile(certFile) ? await compressImage(certFile) : certFile;
         const ext  = certFile.name.split('.').pop();
         const path = `${user.id}/health_insurance.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from('panel-verification-docs').upload(path, certFile, { upsert: true });
+          .from('panel-verification-docs').upload(path, certUp, { upsert: true });
         if (!uploadErr) {
           healthInsuranceUrl = path;
         } else {
@@ -125,10 +165,11 @@ export default function VerifyDocs() {
       }
 
       if (portfolioFile) {
+        const portUp = isImageFile(portfolioFile) ? await compressImage(portfolioFile) : portfolioFile;
         const ext  = portfolioFile.name.split('.').pop();
         const path = `${user.id}/portfolio.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from('panel-verification-docs').upload(path, portfolioFile, { upsert: true });
+          .from('panel-verification-docs').upload(path, portUp, { upsert: true });
         if (!uploadErr) {
           portfolioFileUrl = path;
         } else {
@@ -137,14 +178,18 @@ export default function VerifyDocs() {
         }
       }
 
-      const { error: rpcErr } = await supabase.rpc('save_panel_verification_docs', {
+      const { data: rpcOk, error: rpcErr } = await supabase.rpc('save_panel_verification_docs', {
         p_user_id:              user.id,
         p_health_insurance_url: healthInsuranceUrl || null,
-        p_linkedin_url:         careerChoice === 'linkedin' ? (linkedinUrl.trim() || null) : null,
-        p_portfolio_url:        portfolioFileUrl || (careerChoice === 'portfolio' ? portfolioText.trim() || null : null),
+        p_linkedin_url:         linkedinUrl.trim() || null,
+        p_portfolio_url:        portfolioText.trim() || null,  // 포트폴리오 링크
+        p_portfolio_file_url:   portfolioFileUrl || null,      // 포트폴리오 파일 경로
+        p_experience_years:     yearsNum,                      // 자격득실 확인서 기준 본인 연차
       });
 
       if (rpcErr) { setError('저장 중 오류가 발생했습니다. 다시 시도해 주세요.'); return; }
+      // RPC는 status가 pending/rejected가 아니면(active/suspended/banned) FALSE 반환 → 에러 없이 조용히 실패하므로 반환값도 확인 (082 상태 가드)
+      if (rpcOk === false) { setError('현재 상태에서는 서류를 제출할 수 없습니다. 관리자에게 문의해 주세요.'); return; }
       navigate('/panel');
     } catch {
       setError('오류가 발생했습니다. 다시 시도해 주세요.');
@@ -161,6 +206,39 @@ export default function VerifyDocs() {
         <div style={{ fontSize: 14, color: T2 }}>심사 승인을 위해 아래 서류를 제출해 주세요.</div>
       </div>
 
+      {/* 반려 시 거절 사유 안내 — 무엇을 보완해 재제출할지 표시 */}
+      {existing?.status === 'rejected' && (
+        <div style={{
+          background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10,
+          padding: '14px 16px', marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#92400E', marginBottom: 6 }}>
+            📝 서류가 반려되었습니다. 아래 사유를 확인하고 보완하여 재제출해 주세요.
+          </div>
+          {existing.rejection_reason && (
+            <div style={{ fontSize: 13.5, color: '#78350F', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              {existing.rejection_reason}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 마지막 기회 경고 — 누적 2회 거절, 이번이 3번째(또 거절되면 영구 정지) */}
+      {isLastChance && (
+        <div style={{
+          background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10,
+          padding: '14px 16px', marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#991B1B', marginBottom: 4 }}>
+            ⚠️ 마지막 심사 기회입니다.
+          </div>
+          <div style={{ fontSize: 13, color: '#B91C1C', lineHeight: 1.6 }}>
+            이미 2회 반려되어, 이번 서류가 또 거절되면 계정이 <strong>영구 정지</strong>되어 더 이상 제출할 수 없습니다.
+            서류를 충분히 보완한 뒤 제출해 주세요.
+          </div>
+        </div>
+      )}
+
       {/* 건강보험 자격득실 확인서 */}
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: T1, marginBottom: 4 }}>
@@ -170,13 +248,59 @@ export default function VerifyDocs() {
           토스 · 카카오톡에서 30초 발급 가능합니다.
         </div>
         <div style={{ fontSize: 12, color: T3, marginBottom: 12 }}>
-          PDF 또는 이미지, 5MB 이하
+          PDF 또는 이미지, 20MB 이하 (이미지는 자동 압축)
         </div>
         <UploadZone
           file={certFile} onFile={handleCertFile}
           accept=".pdf,.jpg,.jpeg,.png"
           label="자격득실 확인서 업로드"
         />
+        {existing?.health_insurance_url && !certFile && (
+          <div style={{ fontSize: 12, color: ACCENT, marginTop: 8 }}>
+            ✓ 기존 제출 파일이 있습니다. 변경할 경우에만 새 파일을 업로드하세요.
+          </div>
+        )}
+
+        {/* 본인 연차 입력 — 자격득실 확인서 기준 자가 계산 */}
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>
+            본인 연차 (자격득실 확인서 기준) <span style={{ color: '#E53E3E', fontSize: 13 }}>*</span>
+          </div>
+          <div style={{ fontSize: 12, color: T3, marginBottom: 8 }}>
+            확인서의 직장가입자 취득·상실 이력으로 총 근무 기간을 확인한 뒤, 아래 방식으로 본인 연차를 계산해 입력해 주세요. 어드민 확인 후 확정됩니다.
+          </div>
+          <div style={{
+            background: 'rgba(16,54,125,0.04)', border: `1px solid ${BORDER}`,
+            borderRadius: 9, padding: '11px 13px', marginBottom: 10,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: ACCENT, marginBottom: 5 }}>
+              계산법 = 근무 연 수 + 1
+            </div>
+            <div style={{ fontSize: 12.5, color: T2, lineHeight: 1.7 }}>
+              · 예) <strong>4년 2개월</strong> 근무 → <strong>5년차</strong>로 입력<br />
+              · 예) <strong>1년 8개월</strong> 근무 → <strong>2년차</strong>로 입력<br />
+              · 개월 수는 버리고, 만으로 채운 근무 연 수에 1을 더합니다.
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="number"
+              min={2}
+              max={50}
+              placeholder="예: 5"
+              value={expYears}
+              onChange={e => setExpYears(e.target.value)}
+              style={{
+                width: 120, padding: '11px 13px', borderRadius: 9,
+                border: `1px solid ${BORDER}`, fontSize: 14,
+                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
+              onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
+            />
+            <span style={{ fontSize: 14, color: T2 }}>년차</span>
+          </div>
+        </div>
       </Card>
 
       {/* 경력 인증 */}
@@ -184,31 +308,13 @@ export default function VerifyDocs() {
         <div style={{ fontSize: 14, fontWeight: 700, color: T1, marginBottom: 4 }}>
           경력 인증 <span style={{ color: '#E53E3E', fontSize: 13 }}>*</span>
         </div>
-        <div style={{ fontSize: 13, color: T2, marginBottom: 14 }}>아래 중 하나를 선택해 주세요.</div>
-
-        {/* 선택 카드 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-          {[
-            { id: 'linkedin',  label: 'LinkedIn 프로필', desc: '링크드인 프로필 URL 입력' },
-            { id: 'portfolio', label: '포트폴리오 / 이력서', desc: 'URL 입력 또는 파일 업로드' },
-          ].map(opt => (
-            <button key={opt.id} type="button"
-              onClick={() => setCareerChoice(opt.id)}
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10,
-                border: careerChoice === opt.id ? `2px solid ${ACCENT}` : `1.5px solid ${BORDER}`,
-                background: careerChoice === opt.id ? 'rgba(16,54,125,0.05)' : '#fff',
-                textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600, color: careerChoice === opt.id ? ACCENT : T1 }}>{opt.label}</div>
-              <div style={{ fontSize: 12, color: T3, marginTop: 2 }}>{opt.desc}</div>
-            </button>
-          ))}
+        <div style={{ fontSize: 13, color: T2, marginBottom: 16 }}>
+          아래 항목 중 하나 이상을 제출해 주세요. (여러 개 동시 제출 가능)
         </div>
 
-        {/* LinkedIn URL 입력 */}
-        {careerChoice === 'linkedin' && (
+        {/* LinkedIn URL */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>LinkedIn 프로필 (선택)</div>
           <input
             type="url"
             placeholder="https://linkedin.com/in/홍길동"
@@ -222,31 +328,43 @@ export default function VerifyDocs() {
             onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
             onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
           />
-        )}
+        </div>
 
-        {/* 포트폴리오 URL + 파일 */}
-        {careerChoice === 'portfolio' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input
-              type="url"
-              placeholder="https://notion.so/내_포트폴리오 (선택)"
-              value={portfolioText}
-              onChange={e => setPortfolioText(e.target.value)}
-              style={{
-                width: '100%', padding: '11px 13px', borderRadius: 9,
-                border: `1px solid ${BORDER}`, fontSize: 14,
-                fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-              }}
-              onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
-              onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
-            />
-            <UploadZone
-              file={portfolioFile} onFile={handlePortfolioFile}
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              label="파일로 업로드 (선택)"
-            />
+        {/* 포트폴리오 / 이력서 링크 */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>포트폴리오 / 이력서 링크 (선택)</div>
+          <input
+            type="url"
+            placeholder="https://notion.so/내_포트폴리오"
+            value={portfolioText}
+            onChange={e => setPortfolioText(e.target.value)}
+            style={{
+              width: '100%', padding: '11px 13px', borderRadius: 9,
+              border: `1px solid ${BORDER}`, fontSize: 14,
+              fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+            }}
+            onFocus={e => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = '0 0 0 3px rgba(16,54,125,0.10)'; }}
+            onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none'; }}
+          />
+        </div>
+
+        {/* 포트폴리오 / 이력서 파일 */}
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T1, marginBottom: 6 }}>포트폴리오 / 이력서 파일 (선택)</div>
+          <div style={{ fontSize: 12, color: T3, marginBottom: 8 }}>
+            PDF · 문서 · 이미지, 20MB 이하 (이미지는 자동 압축)
           </div>
-        )}
+          <UploadZone
+            file={portfolioFile} onFile={handlePortfolioFile}
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            label="파일로 업로드"
+          />
+          {existing?.portfolio_file_url && !portfolioFile && (
+            <div style={{ fontSize: 12, color: ACCENT, marginTop: 8 }}>
+              ✓ 기존 제출 파일이 있습니다. 변경할 경우에만 새 파일을 업로드하세요.
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* 에러 */}
@@ -265,12 +383,24 @@ export default function VerifyDocs() {
         disabled={submitting}
         style={{ width: '100%', padding: '14px 0', fontSize: 15, fontWeight: 700, borderRadius: 10 }}
       >
-        {submitting ? '제출 중...' : '서류 제출하기 →'}
+        {submitting ? '제출 중...' : (existing?.status === 'rejected' ? '서류 재제출하기 →' : '서류 제출하기 →')}
       </Btn>
 
       <div style={{ fontSize: 12, color: T3, textAlign: 'center', marginTop: 12 }}>
         서류 검토 후 어드민이 심사를 완료하면 미션 참여가 가능합니다.
       </div>
+
+      {showLastChance && (
+        <ConfirmModal
+          title="마지막 심사 기회입니다"
+          desc={'이번에 제출하는 서류가 또 거절되면 계정이 영구 정지되어 더 이상 제출할 수 없습니다.\n\n서류를 충분히 보완하셨습니까?'}
+          confirmLabel="네, 제출하겠습니다"
+          cancelLabel="다시 확인하기"
+          danger
+          onConfirm={() => doSubmit(parseInt(expYears, 10))}
+          onCancel={() => setShowLastChance(false)}
+        />
+      )}
     </div>
     </div>
   );

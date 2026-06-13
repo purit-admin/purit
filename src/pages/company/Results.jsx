@@ -2,8 +2,10 @@
 import { useSearchParams } from 'react-router-dom';
 import { Card, ScoreBar, Badge, Btn } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
+import ChargeOptionsModal from '../../components/ui/ChargeOptionsModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
+import { getCareerUnlockCredit, applyUnlockDiscount, TRIAL_FIRST_UNLOCK_DISCOUNT, TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS } from '../../lib/honorLevels';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip,
@@ -167,6 +169,7 @@ function MissionItem({ m, isSelected, onClick }) {
       <div style={{ fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
         {isCompleted && <span style={{ color: '#22c55e', fontWeight: 700 }}>✅ 완료</span>}
         {isCancelled && <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>조기 종료</span>}
+        {m.is_free_trial && <span style={{ color: '#92400e', fontWeight: 700 }}>🎁 체험</span>}
         <span style={{ color: 'var(--text-3)' }}>피드백 {m.filled_count || 0}개</span>
       </div>
     </div>
@@ -292,7 +295,7 @@ function ExpandableText({ text, limit = EXPAND_LIMIT }) {
 }
 
 /* ─── 커스텀 질문 결과 섹션 (아코디언) ─── */
-function CustomQuestionsSection({ questions, responses }) {
+function CustomQuestionsSection({ questions, responses, locked = false, onUnlock = null }) {
   const [expanded, setExpanded] = useState({});
   if (!questions?.length) return null;
   const allAnswers = (responses || []).flatMap(r => r.custom_answers || []);
@@ -302,6 +305,45 @@ function CustomQuestionsSection({ questions, responses }) {
   const typeLabelMap = { radio: '옵션형', scale: '점수형', text: '서술형' };
   const typeColorMap = { radio: 'var(--text-2)', scale: 'var(--text-2)', text: '#34C759' };
   const typeBg = { radio: 'rgba(16,54,125,0.12)', scale: 'rgba(99,102,241,0.15)', text: 'rgba(52,199,89,0.15)' };
+
+  // 무료 체험 미언락: 질문(텍스트)은 공개, 응답(answer)만 잠금
+  if (locked) {
+    return (
+      <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>추가 질문 응답</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {questions.map((q, qi) => {
+            const answers = allAnswers.filter(a => a.questionId === q.id);
+            if (!answers.length) return null;
+            return (
+              <div key={q.id || qi} style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                {/* 질문 — 공개 */}
+                <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', background: 'var(--surface)', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, flexShrink: 0, background: typeBg[q.type] || typeBg.text, color: typeColorMap[q.type] || typeColorMap.text }}>
+                      {typeLabelMap[q.type] || '서술'}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.4 }}>
+                      {qi + 1}. {q.text}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>응답 {answers.length}건</span>
+                </div>
+                {/* 응답 — 잠금 */}
+                <div style={{ position: 'relative', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ filter: 'blur(6px)', userSelect: 'none', pointerEvents: 'none', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ height: 12, width: '80%', background: 'var(--bg-2)', borderRadius: 4 }} />
+                    <div style={{ height: 12, width: '55%', background: 'var(--bg-2)', borderRadius: 4 }} />
+                  </div>
+                  <LockOverlay onUnlock={onUnlock} label="🔒 잠금 해제 후 응답 열람" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
@@ -538,12 +580,36 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
 }
 
 /* ─── 이미지 미션: 차원 탭 뷰 ─── */
-function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAnnotations, panelProfiles }) {
+/* ─── 무료 체험 잠금 오버레이 ─── */
+function LockOverlay({ onUnlock, label = '🔒 잠금 해제 후 열람' }) {
+  return (
+    <div
+      onClick={onUnlock}
+      style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(248,250,252,0.35)', borderRadius: 'var(--radius)',
+        cursor: onUnlock ? 'pointer' : 'default',
+      }}
+    >
+      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', background: 'rgba(255,255,255,0.9)', padding: '4px 12px', borderRadius: 999, border: '1px solid var(--accent)' }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAnnotations, panelProfiles, locked = false, unlockedPanelIds = null }) {
+  const isAnnLocked = (panelId) => locked && unlockedPanelIds && !unlockedPanelIds.has(panelId);
   const [selectedAnnId, setSelectedAnnId] = useState(null);
   const [annPage, setAnnPage] = useState(1);
   const meta = DIM_META[dim];
   const imgAnns = allAnnotations.filter(a => a.dimension === dim && a.image_index === currentImageIdx);
-  const allDimAnns = allAnnotations.filter(a => a.dimension === dim);
+  const allDimAnns = (() => {
+    const base = allAnnotations.filter(a => a.dimension === dim);
+    if (!locked || !unlockedPanelIds) return base;
+    // 무료 체험: 잠금 해제된 코멘트를 앞 페이지로, 잠긴 코멘트는 뒷 페이지로 정렬 (궁금증 유발)
+    return [...base].sort((a, b) => (isAnnLocked(a.panel_id) ? 1 : 0) - (isAnnLocked(b.panel_id) ? 1 : 0));
+  })();
   const pagedAnns = allDimAnns.slice((annPage - 1) * PAGE_SIZE, annPage * PAGE_SIZE);
 
   // dim 변경 시 페이지 초기화
@@ -586,7 +652,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
           <ImageAnnotator
             imageUrl={imageUrls[currentImageIdx]}
             imageIndex={currentImageIdx}
-            annotations={imgAnns}
+            annotations={imgAnns.map(a => isAnnLocked(a.panel_id) ? { ...a, comment: '' } : a)}
             seqPool={allDimAnns}
             highlightedId={selectedAnnId}
             readonly
@@ -637,7 +703,12 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
                       <PanelBadges panelId={ann.panel_id} profiles={panelProfiles} />
                     </div>
                     {ann.comment
-                      ? <TruncatedComment text={ann.comment} />
+                      ? (isAnnLocked(ann.panel_id)
+                          ? <div style={{ position: 'relative' }}>
+                              <div style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none' }}><TruncatedComment text={ann.comment} /></div>
+                              <LockOverlay />
+                            </div>
+                          : <TruncatedComment text={ann.comment} />)
                       : <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>코멘트 없음</div>
                     }
                   </div>
@@ -654,8 +725,9 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
 }
 
 /* ─── 이미지 미션: 종합 탭 ─── */
-function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
+function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated, locked = false, unlockedPanelIds = null, onUnlock = null }) {
   const [commentPage, setCommentPage] = useState(1);
+  const isPanelLocked = (panelId) => locked && unlockedPanelIds && !unlockedPanelIds.has(panelId);
   const radarData = DIMS.map(dim => {
     const key = DIM_META[dim].key;
     const val = calcAvg(feedbacks, key);
@@ -665,6 +737,12 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
   const overallComments = feedbacks
     .map((fb, i) => ({ panel: i + 1, panelId: fb.panel_id, fbId: fb.id, text: extractOverallComment(fb.suggestions), passed: fb.purity_passed }))
     .filter(c => c.text);
+  if (locked && unlockedPanelIds) {
+    // 무료 체험: 공개 총평을 앞 페이지로, 잠긴 총평은 뒷 페이지로 정렬 (궁금증 유발)
+    overallComments.sort((a, b) => (isPanelLocked(a.panelId) ? 1 : 0) - (isPanelLocked(b.panelId) ? 1 : 0));
+    // 정렬 후 표시 순서대로 패널 번호 재부여 (#1 #3 #2 처럼 비연속으로 보이지 않도록)
+    overallComments.forEach((c, idx) => { c.panel = idx + 1; });
+  }
   const pagedComments = overallComments.slice((commentPage - 1) * PAGE_SIZE, commentPage * PAGE_SIZE);
 
   return (
@@ -716,7 +794,7 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
               <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
               <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
             </div>
-            <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
+            <CustomQuestionsSection questions={lpQs} responses={feedbacks} locked={locked} onUnlock={onUnlock} />
           </>
         );
       })()}
@@ -732,21 +810,39 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
       ) : (
         <div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {pagedComments.map(({ panel, panelId, fbId, text, passed }) => (
+            {pagedComments.map(({ panel, panelId, fbId, text, passed }) => {
+              const cLocked = isPanelLocked(panelId);
+              const cCredit = getCareerUnlockCredit(panelProfiles[panelId]?.experience || '');
+              return (
               <div key={panel} style={{ padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>패널 #{panel}</span>
                     <PanelBadges panelId={panelId} profiles={panelProfiles} />
                     {passed && <Badge type="green">Purit 통과</Badge>}
+                    {cLocked && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim, rgba(16,54,125,0.08))', padding: '2px 8px', borderRadius: 999, border: '1px solid var(--accent)' }}>
+                        🔒 {cCredit}크레딧
+                      </span>
+                    )}
                   </div>
-                  <div style={{ flexShrink: 0 }}>
-                    <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
-                  </div>
+                  {!cLocked && (
+                    <div style={{ flexShrink: 0 }}>
+                      <HelpfulnessButtons refType="feedback" refId={fbId} panelId={panelId} companyId={companyId} helpRatings={helpRatings} onRated={onRated} />
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                {cLocked ? (
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none', fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                    <LockOverlay onUnlock={onUnlock} label={`🔒 ${cCredit}크레딧으로 잠금 해제`} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
           <Pagination page={commentPage} total={overallComments.length} onPage={setCommentPage} />
         </div>
@@ -756,11 +852,16 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
 }
 
 /* ─── 텍스트 미션 결과 (이미지 없는 구형 미션) ─── */
-function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated }) {
-  const [activeFb, setActiveFb] = useState(feedbacks[0]?.id || null);
+function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, helpRatings, onRated, locked = false, unlockedPanelIds = null, onUnlock = null }) {
+  const isPanelLocked = (panelId) => locked && unlockedPanelIds && !unlockedPanelIds.has(panelId);
+  // 무료 체험: 공개 패널을 앞으로, 잠긴 패널은 뒤로 정렬 (궁금증 유발)
+  const orderedFeedbacks = (locked && unlockedPanelIds)
+    ? [...feedbacks].sort((a, b) => (isPanelLocked(a.panel_id) ? 1 : 0) - (isPanelLocked(b.panel_id) ? 1 : 0))
+    : feedbacks;
+  const [activeFb, setActiveFb] = useState(orderedFeedbacks[0]?.id || null);
   const [panelPage, setPanelPage] = useState(1);
-  const fb = feedbacks.find(f => f.id === activeFb) || null;
-  const pagedFeedbacks = feedbacks.slice((panelPage - 1) * PAGE_SIZE, panelPage * PAGE_SIZE);
+  const fb = orderedFeedbacks.find(f => f.id === activeFb) || null;
+  const pagedFeedbacks = orderedFeedbacks.slice((panelPage - 1) * PAGE_SIZE, panelPage * PAGE_SIZE);
 
   return (
     <div>
@@ -771,6 +872,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
         {pagedFeedbacks.map((f, i) => {
           const globalIdx = (panelPage - 1) * PAGE_SIZE + i;
           const overallAvg = DIMS.reduce((s, d) => s + (f[DIM_META[d].key] || 0), 0) / DIMS.length;
+          const pLocked = isPanelLocked(f.panel_id);
           return (
             <div key={f.id} onClick={() => setActiveFb(f.id)} style={{
               padding: '12px', background: activeFb === f.id ? 'var(--surface-2)' : 'var(--surface)',
@@ -781,10 +883,13 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>패널 #{globalIdx + 1}</span>
                   <PanelBadges panelId={f.panel_id} profiles={panelProfiles} />
+                  {pLocked && <span style={{ fontSize: 11 }}>🔒</span>}
                 </div>
                 <Badge type={f.purity_passed ? 'green' : 'gray'}>{f.purity_passed ? '통과' : '검토 중'}</Badge>
               </div>
-              <ScoreBar score={Math.round(overallAvg)} />
+              <div style={pLocked ? { filter: 'blur(4px)', userSelect: 'none', pointerEvents: 'none' } : undefined}>
+                <ScoreBar score={Math.round(overallAvg)} />
+              </div>
             </div>
           );
         })}
@@ -793,7 +898,31 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
 
       {/* 상세 */}
       {fb && (
-        fb.purity_passed ? (
+        isPanelLocked(fb.panel_id) ? (
+          <Card style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>피드백 상세</div>
+              <Badge type="green">Purit 통과</Badge>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <div style={{ filter: 'blur(6px)', userSelect: 'none', pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {DIMS.map(dim => {
+                  const score = fb[DIM_META[dim].key] || 0;
+                  return (
+                    <div key={dim} style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', textTransform: 'uppercase' }}>{DIM_META[dim].label}</span>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-sans)' }}>{score || '—'}</span>
+                      </div>
+                      {score > 0 && <ScoreBar score={score} color="var(--accent)" />}
+                    </div>
+                  );
+                })}
+              </div>
+              <LockOverlay onUnlock={onUnlock} label={`🔒 ${getCareerUnlockCredit(panelProfiles[fb.panel_id]?.experience || '')}크레딧으로 잠금 해제`} />
+            </div>
+          </Card>
+        ) : fb.purity_passed ? (
           <Card style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ fontWeight: 700, fontSize: 16 }}>피드백 상세</div>
@@ -849,7 +978,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
             <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>추가 질문 집계</span>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
-          <CustomQuestionsSection questions={lpQs} responses={feedbacks} />
+          <CustomQuestionsSection questions={lpQs} responses={feedbacks} locked={locked} onUnlock={onUnlock} />
         </div>
       );
     })()}
@@ -884,6 +1013,11 @@ export default function Results() {
   const [subPage, setSubPage]             = useState(1);
   const [missionTab, setMissionTab]       = useState('all');
   const [period, setPeriod]               = useState('all');
+  const [creditBalance, setCreditBalance] = useState(0);
+  const [showUnlockPay, setShowUnlockPay] = useState(false);
+  const [unlocking, setUnlocking]         = useState(false);
+  const [unlockError, setUnlockError]     = useState('');
+  const [nowTick, setNowTick]             = useState(Date.now()); // 할인 카운트다운 1초 틱
 
   // 미션 목록 로드
   useEffect(() => {
@@ -894,6 +1028,7 @@ export default function Results() {
       const { company: co } = await resolveCompany(user.id);
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
+      setCreditBalance(co.credit_balance ?? 0);
       // completed는 전부 표시, cancelled는 어드민이 완료 처리(company_notified_at SET)한 경우만 표시
       // dismissed=true 의뢰는 기업 포털에서 숨김 처리
       const { data: ms } = await supabase.from('missions').select('*').eq('company_id', co.id)
@@ -954,12 +1089,21 @@ export default function Results() {
         .order('created_at', { ascending: false });
       setFeedbacks(fbs || []);
 
+      // 무료 체험 미언락 미션을 처음 열면 할인 48h 앵커(trial_results_seen_at) 세팅 (멱등 — NULL일 때만 NOW())
+      if (m?.is_free_trial && !m?.trial_unlocked && !m?.trial_results_seen_at) {
+        supabase.rpc('touch_trial_results_seen', { p_mission_id: selected }).then(({ data: seenRes }) => {
+          if (seenRes?.success && seenRes.seen_at) {
+            setMissions(ms => ms.map(mx => mx.id === selected ? { ...mx, trial_results_seen_at: seenRes.seen_at } : mx));
+          }
+        });
+      }
+
       const approvedPanelIds = (fbs || []).map(f => f.panel_id).filter(Boolean);
 
       const { data: ppRows } = await supabase.rpc('get_panel_public_profiles', { p_mission_id: selected });
       if (ppRows) {
         const map = {};
-        ppRows.forEach(r => { map[r.panel_id] = { industry: r.industry, experience: r.experience }; });
+        ppRows.forEach(r => { map[r.panel_id] = { industry: r.industry, experience: r.experience, is_expert: r.is_expert }; });
         setPanelProfiles(map);
       }
 
@@ -1112,6 +1256,20 @@ export default function Results() {
     }
   };
 
+  // 할인 카운트다운 1초 틱 — 무료 체험 미언락 미션 열람 중일 때만 (조기 return 앞 = Rules of Hooks 준수)
+  useEffect(() => {
+    const m = missions.find(mx => mx.id === selected);
+    if (!m?.is_free_trial || m?.trial_unlocked) return;
+    const endMs = m.trial_results_seen_at
+      ? new Date(m.trial_results_seen_at).getTime() + TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS * 3600 * 1000
+      : null;
+    const t = setInterval(() => {
+      setNowTick(Date.now());
+      if (endMs !== null && Date.now() >= endMs) clearInterval(t); // 마감 후 틱 중단
+    }, 1000);
+    return () => clearInterval(t);
+  }, [selected, missions]);
+
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
   );
@@ -1119,6 +1277,95 @@ export default function Results() {
   const mission = missions.find(m => m.id === selected) || null;
   const isSubMission  = mission && ['preference', 'pricing', 'email'].includes(mission.type);
   const hasImages     = mission && Array.isArray(mission.image_urls) && mission.image_urls.length > 0 && !isSubMission;
+
+  // 무료 체험 부분 잠금: 미언락이면 호평(점수 상위) 2명만 상세 공개(점수 집계는 전체 공개)
+  const trialLocked = !!mission?.is_free_trial && !mission?.trial_unlocked;
+  // 패널별 평균 점수(5축) — 공개 선별 정렬·티저 집계용. 서버 AVG((coalesce..)/5.0)와 동일 공식 (D-121)
+  const panelAvgScore = (() => {
+    const acc = {};
+    feedbacks.forEach(f => {
+      if (!f.panel_id) return;
+      const s = ((f.clarity_score || 0) + (f.relevance_score || 0) + (f.value_score || 0)
+                 + (f.differentiation_score || 0) + (f.trust_score || 0)) / 5;
+      (acc[f.panel_id] ||= []).push(s);
+    });
+    const out = {};
+    Object.entries(acc).forEach(([pid, arr]) => { out[pid] = arr.reduce((a, b) => a + b, 0) / arr.length; });
+    return out;
+  })();
+  const unlockedPanelIds = (() => {
+    const ids = [...new Set(feedbacks.map(f => f.panel_id).filter(Boolean))];
+    if (!trialLocked) return new Set(ids);
+    // 어드민이 공개 패널을 직접 지정했으면 그 값을 우선 사용 (없으면 점수 상위 2명 자동 선별)
+    const adminPublic = mission?.trial_public_panel_ids;
+    if (Array.isArray(adminPublic) && adminPublic.length > 0) return new Set(adminPublic);
+    // 공개 = 호평 상위 2명. 정렬: 평균점수 DESC, panel_id ASC tiebreaker (서버 ROW_NUMBER와 1:1 정합)
+    const sorted = [...ids].sort((a, b) => {
+      const sa = panelAvgScore[a] ?? 0, sb = panelAvgScore[b] ?? 0;
+      if (sb !== sa) return sb - sa;
+      return a < b ? -1 : 1;
+    });
+    return new Set(sorted.slice(0, 2));
+  })();
+  // 언락 정가 = 잠긴 패널(공개 2명 제외)의 경력 크레딧 합 (실제 참여 경력 기준)
+  const lockedPanelIds = [...new Set(feedbacks.map(f => f.panel_id).filter(Boolean))].filter(pid => !unlockedPanelIds.has(pid));
+  const unlockBaseCost = lockedPanelIds.reduce((s, pid) => s + getCareerUnlockCredit(panelProfiles[pid]?.experience || ''), 0);
+
+  // 30% 첫 언락 할인 + 48h 마감 — 결과 최초 열람(trial_results_seen_at)부터 카운트다운
+  const seenAtMs = mission?.trial_results_seen_at ? new Date(mission.trial_results_seen_at).getTime() : null;
+  const discountEndMs = seenAtMs ? seenAtMs + TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS * 3600 * 1000 : null;
+  const withinDiscount = trialLocked && (discountEndMs === null || nowTick < discountEndMs);
+  const unlockCost = applyUnlockDiscount(unlockBaseCost, withinDiscount); // 표시가 = 서버 결제가 (D-121)
+  const discountRemainMs = discountEndMs ? Math.max(0, discountEndMs - nowTick) : null;
+
+  // 잠긴 쪽 티저 — 잠긴 패널 중 "치명적 지적"(어느 한 축이라도 ≤2점) 수 + 가장 약한 축
+  const trialTeaser = (() => {
+    if (!trialLocked || lockedPanelIds.length === 0) return null;
+    let criticalCount = 0;
+    const axisSum = { clarity_score: 0, relevance_score: 0, value_score: 0, differentiation_score: 0, trust_score: 0 };
+    let axisN = 0;
+    lockedPanelIds.forEach(pid => {
+      const fbs = feedbacks.filter(f => f.panel_id === pid);
+      const isCritical = fbs.some(f => Math.min(
+        f.clarity_score ?? 5, f.relevance_score ?? 5, f.value_score ?? 5,
+        f.differentiation_score ?? 5, f.trust_score ?? 5,
+      ) <= 2);
+      if (isCritical) criticalCount++;
+      fbs.forEach(f => {
+        DIMS.forEach(d => { const k = DIM_META[d].key; if (f[k] != null) axisSum[k] += f[k]; });
+        axisN++;
+      });
+    });
+    let weakest = null, weakestAvg = Infinity;
+    if (axisN > 0) DIMS.forEach(d => {
+      const avg = axisSum[DIM_META[d].key] / axisN;
+      if (avg < weakestAvg) { weakestAvg = avg; weakest = DIM_META[d].label; }
+    });
+    return { criticalCount, lockedCount: lockedPanelIds.length, weakestAxis: weakest };
+  })();
+
+  const handleUnlock = async () => {
+    if (!mission) return;
+    setUnlocking(true); setUnlockError('');
+    try {
+      const { data, error } = await supabase.rpc('unlock_free_trial_mission', { p_mission_id: mission.id });
+      if (error) throw error;
+      if (data?.success) {
+        setMissions(ms => ms.map(m => m.id === mission.id ? { ...m, trial_unlocked: true } : m));
+        if (typeof data.new_balance === 'number') setCreditBalance(data.new_balance);
+        setShowUnlockPay(false);
+      } else if (data?.error === 'INSUFFICIENT_CREDITS') {
+        setUnlockError('크레딧이 부족합니다. 충전 후 잠금을 해제하세요.');
+        setShowUnlockPay(true);
+      } else {
+        setUnlockError('잠금 해제 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      setUnlockError(e.message || '잠금 해제에 실패했습니다.');
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   // 기간 필터 — 의뢰 등록일(mission.created_at) 기준으로 미션 목록 필터링
   const cutoff = period === 'all' ? null : new Date(Date.now() - (period === '3m' ? 90 : 30) * 86400000);
@@ -1229,7 +1476,7 @@ export default function Results() {
                     )}
                   </div>
                 </div>
-                {mission?.status === 'completed' && (
+                {mission?.status === 'completed' && !trialLocked && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
                     {/* 공개 범위 토글 */}
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -1281,6 +1528,66 @@ export default function Results() {
               </div>
             ) : (
               <>
+                {/* 무료 체험 부분 잠금 배너 — 호평 2명 공개 + 잠긴 쪽 티저 + 30%/48h 할인 */}
+                {trialLocked && (
+                  <div style={{
+                    padding: '18px 20px', marginBottom: 20, borderRadius: 'var(--radius-lg)',
+                    background: 'rgba(16,54,125,0.06)', border: '1px solid var(--accent)',
+                    display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                  }}>
+                    <div style={{ minWidth: 200, flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--accent)', marginBottom: 4 }}>
+                        🔒 무료 체험 결과 — 호평 패널 2명 공개 중
+                      </div>
+                      {/* 잠긴 쪽 티저: 치명적 지적 수 (궁금증 유발) */}
+                      {trialTeaser && trialTeaser.criticalCount > 0 && (
+                        <div style={{ fontSize: 13.5, color: '#b91c1c', fontWeight: 700, lineHeight: 1.6, marginBottom: 4 }}>
+                          ⚠️ 잠긴 {trialTeaser.lockedCount}명 중 <strong>{trialTeaser.criticalCount}명</strong>이 심각한 문제(1~2점)를 지적했습니다.
+                        </div>
+                      )}
+                      <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                        5축 점수는 전체 패널 기준으로 집계됩니다. 누가, 무엇을 지적했는지 전체 피드백·어노테이션을 보려면 잠금을 해제하세요.
+                      </div>
+                    </div>
+                    {/* 우측: 가격·할인을 버튼에 녹임 + 카운트다운·에러는 버튼 아래 */}
+                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, minWidth: 180 }}>
+                      <Btn onClick={handleUnlock} disabled={unlocking} style={{ height: 'auto', padding: '16px 20px', lineHeight: 1.4 }}>
+                        {unlocking ? '처리 중...' : withinDiscount && unlockBaseCost > 0 ? (
+                          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                            <span style={{ padding: '2px 8px', borderRadius: 5, background: 'rgba(255,255,255,0.22)', fontSize: 11, fontWeight: 800 }}>
+                              첫 언락 {Math.round(TRIAL_FIRST_UNLOCK_DISCOUNT * 100)}%↓
+                            </span>
+                            <span style={{ fontWeight: 800 }}>
+                              <span style={{ textDecoration: 'line-through', opacity: 0.7, fontWeight: 600 }}>{unlockBaseCost}cr</span> → {unlockCost}크레딧으로 잠금 해제
+                            </span>
+                          </span>
+                        ) : `전체 잠금 해제 (${unlockCost}cr)`}
+                      </Btn>
+                      {withinDiscount && discountRemainMs != null && (
+                        <div style={{ fontSize: 11.5, color: '#b91c1c', fontWeight: 700, textAlign: 'center' }}>
+                          ⏳ 할인 마감까지 {(() => {
+                            const sec = Math.floor(discountRemainMs / 1000);
+                            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+                            return `${h}시간 ${String(m).padStart(2, '0')}분 ${String(s).padStart(2, '0')}초`;
+                          })()}
+                        </div>
+                      )}
+                      {unlockError && (
+                        <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, textAlign: 'center' }}>{unlockError}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {showUnlockPay && companyId && (
+                  <ChargeOptionsModal
+                    needed={unlockCost}
+                    currentBalance={creditBalance}
+                    companyId={companyId}
+                    onSuccess={(newBalance) => { if (typeof newBalance === 'number') setCreditBalance(newBalance); setShowUnlockPay(false); handleUnlock(); }}
+                    onClose={() => setShowUnlockPay(false)}
+                  />
+                )}
+
                 {/* 서브 미션 */}
                 {isSubMission && (
                   <Card style={{ padding: '24px' }}>
@@ -1322,7 +1629,7 @@ export default function Results() {
 
                     {/* 탭 콘텐츠 */}
                     {activeDimTab === 'summary' ? (
-                      <SummaryTabView key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
+                      <SummaryTabView key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} locked={trialLocked} unlockedPanelIds={unlockedPanelIds} onUnlock={handleUnlock} />
                     ) : (
                       <DimTabView
                         key={mission?.id}
@@ -1332,6 +1639,8 @@ export default function Results() {
                         setCurrentImageIdx={setCurrentImageIdx}
                         allAnnotations={allAnnotations}
                         panelProfiles={panelProfiles}
+                        locked={trialLocked}
+                        unlockedPanelIds={unlockedPanelIds}
                       />
                     )}
                   </div>
@@ -1339,7 +1648,7 @@ export default function Results() {
 
                 {/* 텍스트 미션 (이미지 없는 구형) */}
                 {!isSubMission && !hasImages && feedbacks.length > 0 && (
-                  <TextMissionResults key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} />
+                  <TextMissionResults key={mission?.id} feedbacks={feedbacks} panelProfiles={panelProfiles} mission={mission} companyId={companyId} helpRatings={helpRatings} onRated={handleRate} locked={trialLocked} unlockedPanelIds={unlockedPanelIds} onUnlock={handleUnlock} />
                 )}
               </>
             )}

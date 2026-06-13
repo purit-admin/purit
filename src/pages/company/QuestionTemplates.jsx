@@ -33,7 +33,7 @@ export default function QuestionTemplates() {
   const [companyId, setCompanyId] = useState(null);
 
   // 질문 만들기 탭 전용 상태
-  const [customCategory, setCustomCategory] = useState('preference');
+  const [customCategory, setCustomCategory] = useState('lp');
   const [customQList, setCustomQList] = useState([]);
   const [customLoading, setCustomLoading] = useState(false);
   const [newQText, setNewQText] = useState('');

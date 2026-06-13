@@ -1,11 +1,23 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-05-29 (067_enhanced_sharing — missions.share_permissions JSONB 추가 + get_shared_mission RPC 전면 확장)
+최종 업데이트: 2026-06-13 (096/097 구독 결제 재설계 — companies +addon_credits·plan_started_at·next_billing_at·plan_billing_cycle / grant_plan_credits 5-param 재정의(누적 +=·다운그레이드 가드·앵커) / purchase_credits addon 누적 / admin_change_plan 앵커+addon_credits=0(097) / renew_due_subscriptions 신규(구독분 리셋·구매분 LEAST 보존·097 원자화) / 단일지갑+트래커 파생분리 D-129) / 2026-06-13 (095 패널 "C레벨/임원"→"헤드" + 연차 구간 재정의(주2~4·미5~7·시8~14·헤드15+) — admin_confirm_panel_experience 2-param 재정의(is_executive=years>=15 자동)·auto_increment·complete_mission_and_refund·recalc_mission_consumed(배율 ≥15→3.0/≥8→2.0/≥5→1.5)·unlock_free_trial_mission(크레딧 ≥15→6/≥8→4.5/≥5→3) 재정의 + 기존 임원<15 강등 백필 / experience 'N년' 통일·is_executive 파생 플래그화 / D-127) / 2026-06-13 (094 — missions.trial_results_seen_at(할인 48h 앵커, 보호컬럼) / unlock_free_trial_mission 재정의: 자동 공개 2명을 avg_score(5축 평균) 상위로 + 30% 첫 언락 할인(seen_at부터 48h, ROUND(정가×0.70,2)) / touch_trial_results_seen RPC / guard_mission_freemium_columns에 seen_at 추가 / D-126) / 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
    CLAUDE.md 조건부 로드 규칙에 따라 자동 로드 금지 — DB 관련 작업 시에만 직접 읽을 것
 ================================================================
- 
+
 ※ 코드에서 역설계한 스키마. 실제 Supabase 대시보드와 교차 검증 필요.
+
+### ON DELETE 무결성 규칙 (migration 088) ★
+  auth.users 직접 참조 FK는 모두 CASCADE였으나, 그 아래 2차 사슬(companies/panels/missions → 자식)이
+  NO ACTION/SET NULL 이라 유저 삭제 시 "Database error deleting user"(500)로 차단됨 → 088이 아래 20개를 CASCADE 전환:
+    · companies 자식(9): ai_reports·brand_tracking_campaigns·cold_email_tests·icp_pulse_subscriptions·
+                         icp_research·invoices·preference_tests·pricing_tests·question_templates (.company_id)
+    · panels 자식(4):    email_responses·preference_responses·pricing_responses·settlements (.panel_id)
+    · missions 자식(7):  ai_reports(.mission_id, NO ACTION→CASCADE) +
+                         cold_email_tests·email_responses·preference_responses·preference_tests·
+                         pricing_responses·pricing_tests (.mission_id, SET NULL→CASCADE)
+  미변경: *_template_id_fkey(→question_templates) 3개는 의도된 SET NULL 유지(템플릿 삭제≠테스트 삭제,
+          question_templates 자체는 company_id CASCADE로 회사와 함께 정리). feedbacks·feedback_annotations는 이전부터 CASCADE.
 
 ### [auth.users] — Supabase 내장
   id              UUID  PK
@@ -19,10 +31,19 @@
   user_id         UUID  FK → auth.users.id  (UNIQUE, 1:1)
   name            TEXT
   email           TEXT  NOT NULL             ← 실제 DB NOT NULL 컬럼 (migration 059/060 INSERT에 포함)
-  plan            TEXT  (플랜명: starter/pro/enterprise)
+  plan            TEXT  (플랜명: free_trial/starter/pro/enterprise) DEFAULT 'free_trial'(085)
+                        ← CHECK 제약 companies_plan_check IN ('free_trial','starter','pro','enterprise') (086, 대시보드 수동생성→마이그레이션 동기화). 구 'free' 등급은 086에서 'free_trial'로 이관
   credit_balance  NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (잔여 크레딧, 플랜 선택 시 갱신·의뢰 등록 시 차감·완료 시 환불)
   phone           TEXT            DEFAULT NULL        ← 040 추가 (알림톡 수신용 전화번호)
   notif_prefs     JSONB           NOT NULL DEFAULT '{}' ← 042 추가 (알림 수신 설정: 키 미설정=수신, false=차단)
+  free_trial_used BOOLEAN         NOT NULL DEFAULT false ← 085 추가 (무료 체험 1회 소진 플래그 — create_free_trial_mission이 set, 1계정1회 게이트)
+  addon_credits      NUMERIC(10,2) NOT NULL DEFAULT 0 ← 096 추가 (보존 구매분 트래커 — purchase_credits로 누적, 월 갱신에도 리셋되지 않음)
+                     · 소비는 항상 "구독분 먼저" 규약 → 파생: 월간_잔여=GREATEST(0,credit_balance-addon_credits) / 추가_잔여=LEAST(addon_credits,credit_balance) (D-129)
+  plan_started_at    TIMESTAMPTZ DEFAULT NULL ← 096 추가 (현 플랜 결제 시작일=월 갱신 앵커, grant/admin_change 시 NOW())
+  next_billing_at    TIMESTAMPTZ DEFAULT NULL ← 096 추가 (다음 월 갱신/재지급일, +1개월. renew_due_subscriptions 대상 판별)
+  plan_billing_cycle TEXT DEFAULT 'monthly' CHECK IN('monthly','annual') ← 096 추가 (월간=정기청구·매월 크레딧 / 연간=선결제·크레딧만 드립)
+  ※ plan DEFAULT 'free_trial' (085) — 신규 가입은 무료체험으로 시작 / CHECK('free_trial','starter','pro','enterprise') (086, 구 'free'→'free_trial' 이관)
+  ※ 096 백필: 기존 starter/pro 중 next_billing_at NULL인 회사 → plan_started_at=NOW()·next_billing_at=NOW()+1개월·cycle='monthly'
 
 ---
 
@@ -31,7 +52,9 @@
   user_id           UUID  FK → auth.users.id  (UNIQUE, 1:1)
   name              TEXT
   email             TEXT  NOT NULL             ← 실제 DB NOT NULL 컬럼 (migration 059/060 INSERT에 포함)
-  status            TEXT  DEFAULT 'active'     ← 'active'|'suspended'|'pending' (057/058 RPC status='active' 체크 대상)
+  status            TEXT  DEFAULT 'active'     ← 'active'|'suspended'|'pending'|'rejected'|'banned' (057/058 RPC status='active' 체크 대상 / CHECK 제약 없음, 앱 레벨 enforce)
+                                                  · rejected = 심사 반려(재제출 가능, 082) / banned = 누적 3회 거절 영구 차단(재제출 불가, 082)
+                                                  · 심사 거절은 더 이상 'suspended'를 쓰지 않음 — suspended는 활성 계정 정지 전용 (082 분리)
   industry          TEXT
   experience        TEXT  (경력 연차 등)
   bio               TEXT
@@ -53,7 +76,19 @@
   notif_prefs            JSONB       NOT NULL DEFAULT '{}' ← 042 추가 (알림 수신 설정: 키 미설정=수신, false=차단)
   health_insurance_url   TEXT        DEFAULT NULL           ← 062 추가 (건강보험 자격득실 확인서 Storage path)
   linkedin_url           TEXT        DEFAULT NULL           ← 062 추가 (LinkedIn 프로필 URL)
-  portfolio_url          TEXT        DEFAULT NULL           ← 062 추가 (포트폴리오/이력서 — Storage path 또는 외부 URL)
+  portfolio_url          TEXT        DEFAULT NULL           ← 062 추가 / 080부터 포트폴리오 링크 전용 (레거시는 파일 path 잔존 가능)
+  portfolio_file_url     TEXT        DEFAULT NULL           ← 080 추가 (포트폴리오/이력서 파일 Storage path — 링크와 분리)
+  experience_years        INTEGER     DEFAULT NULL          ← 081 추가 (확정 연차; 가입 시 자가입력 → 어드민 확정·조정 대상)
+  experience_confirmed_at TIMESTAMPTZ DEFAULT NULL          ← 081 추가 (어드민 확정일; NULL=미확정 · 자동 +1 기준점)
+  is_executive            BOOLEAN     DEFAULT FALSE         ← 081 추가 / 095부터 '헤드' 파생 플래그 = (experience_years>=15) 자동 (구: 어드민 수동 C레벨/임원). 3.0배·언락6
+                                                              ※ 095: 수동 지정 폐지 — admin_confirm_panel_experience/auto_increment가 연차로 자동 set. 표시 전용(로직 분기 없음)
+  is_expert               BOOLEAN     NOT NULL DEFAULT FALSE ← 085 추가 (무료 체험 선점용 전문가 패널 — 결과 "공개 2건" 우선순위 / get_panel_public_profiles 반환, scripts/create-expert-panels.mjs로 세팅)
+  rejection_count         INTEGER     DEFAULT 0             ← 082 추가 (누적 심사 거절 횟수; 3 도달 시 banned)
+  rejection_reason        TEXT                              ← 082 추가 (최근 거절 사유; 패널에게 표시, 재제출 시 NULL 클리어)
+  ※ experience(TEXT)는 파생 필드로 유지: 095부터 헤드 포함 항상 'N년'으로 동기화(구 '임원' 특수텍스트 폐지)
+     → 배율/크레딧을 연차 숫자 기반으로 통일. getExperienceMultiplier/CareerKey·보상·미션필터·기업타겟팅 등 다운스트림 코드 불변
+     → 연차 밴드(095): 주니어 2~4(1.0×) / 미들 5~7(1.5×) / 시니어 8~14(2.0×) / 헤드 15+(3.0×). 내부 key 'clevel'(헤드) 유지
+     → 미확정 레거시 '임원'/'시니어'/'미들' 텍스트는 키워드 정규식 안전망으로 계속 해석(어드민 재확정 전까지)
   ※ 009_gamification.sql 에서 streak_count / last_mission_date / badges 컬럼 추가
   ※ 012_panel_phone_public_profiles.sql 에서 phone / phone_verified 컬럼 추가
   ※ 015_honor_level_system.sql 에서 honor_points / honor_decay_applied_at 컬럼 추가
@@ -61,6 +96,10 @@
   ※ 042_notif_prefs.sql 에서 notif_prefs 컬럼 추가
   ※ 062_panel_verification_docs.sql 에서 health_insurance_url / linkedin_url / portfolio_url 컬럼 추가
   ※ 078_panel_temp_suspension.sql 에서 suspend_until 컬럼 추가
+  ※ 080_portfolio_file_url.sql 에서 portfolio_file_url 컬럼 추가 (포트폴리오 링크/파일 분리)
+  ※ 081_panel_experience_confirmation.sql 에서 experience_years / experience_confirmed_at / is_executive 컬럼 추가 + 기존 패널 백필
+  ※ 082_panel_rejection_flow.sql 에서 rejection_count / rejection_reason 컬럼 추가 (심사 거절·재제출·영구차단 플로우)
+  ※ 095_panel_head_by_years.sql: is_executive=(years>=15) 자동 파생 + experience='N년' 정규화 백필 (헤드 개명·연차 구간 재정의·기존 임원<15 강등)
   suspend_until          TIMESTAMPTZ DEFAULT NULL              ← 078 추가 (기간제 정지 만료 시각; NULL=영구 정지 또는 비정지)
   ※ 신규 패널 status: handle_new_user 트리거(이메일)·create_oauth_user_profile RPC(OAuth) 모두 'pending'으로 생성
   ※ RLS UPDATE 정책 2개:
@@ -92,6 +131,13 @@
   credits_consumed   NUMERIC(10,2)   NOT NULL DEFAULT 0  ← 016 추가·018에서 NUMERIC 변환 (퓨릿 필터 승인 시 실시간 갱신·완료 처리 시 최종 확정)
   company_notified_at TIMESTAMPTZ    DEFAULT NULL        ← 039 추가 (조기종료 기업 공개 게이트 — earlyCompleteMission 호출 시 SET, NULL이면 Results.jsx 취소 탭 미노출)
   dismissed          BOOLEAN DEFAULT FALSE               ← 056 추가 (기업 포털 소프트 삭제 — dismissed=true 시 기업 목록에서 숨김, 어드민은 전체 조회)
+  is_free_trial      BOOLEAN NOT NULL DEFAULT false        ← 085 추가 (무료 체험 의뢰 — 회계/공유/완료 격리 분기 기준)
+  trial_unlocked     BOOLEAN NOT NULL DEFAULT false        ← 085 추가 (잠긴 피드백 전체 언락 여부 — unlock_free_trial_mission이 set)
+  unlock_cost        NUMERIC(10,2) NOT NULL DEFAULT 0       ← 085 추가 (등록 시점 추정치; 087 언락 시 실제 차감액으로 갱신)
+  trial_public_panel_ids UUID[] DEFAULT NULL                ← 089 추가 (어드민 지정 공개 패널 2명; NULL이면 자동 호평(점수) 상위 2명 폴백 — Results 공개분·언락비용 권위)
+  trial_results_seen_at TIMESTAMPTZ DEFAULT NULL            ← 094 추가 (기업이 무료 체험 결과를 처음 연 시각 — 30% 첫 언락 할인 48h 카운트다운 앵커. touch_trial_results_seen이 1회 set)
+  ※ 보호 컬럼(092→094): trial_unlocked·trial_public_panel_ids·credits_consumed·credits_reserved·unlock_cost·is_free_trial·trial_results_seen_at 은
+     missions BEFORE UPDATE 트리거(guard_mission_freemium_columns)로 클라 직접 UPDATE 차단 → SECURITY DEFINER RPC만 변경 가능
   created_at         TIMESTAMPTZ DEFAULT now()
 
 ---
@@ -177,7 +223,7 @@
 
 ### [settlements] — 패널 정산 내역
   id             UUID  PK
-  panel_id       UUID  FK → panels.id  (NULLABLE)
+  panel_id       UUID  FK → panels.id  (NULLABLE)  ON DELETE CASCADE ← 088
   panel_name     TEXT
   tier           TEXT
   missions_count INT
@@ -190,7 +236,7 @@
 
 ### [invoices] — 기업 청구서  ★ 컬럼 추가 (migration 079)
   id             UUID  PK
-  company_id     UUID  FK → companies.id  (NULLABLE)
+  company_id     UUID  FK → companies.id  (NULLABLE)  ON DELETE CASCADE ← 088
   company_name   TEXT
   plan           TEXT
   amount         NUMERIC
@@ -242,7 +288,7 @@
 
 ### [question_templates] — 질문 템플릿
   id          UUID  PK
-  company_id  UUID  FK → companies.id  (NULLABLE = 플랫폼 기본)
+  company_id  UUID  FK → companies.id  (NULLABLE = 플랫폼 기본)  ON DELETE CASCADE ← 088
   name        TEXT
   icon        TEXT
   category    TEXT
@@ -353,13 +399,16 @@
   created_at      TIMESTAMPTZ DEFAULT now()
   user_id         UUID        FK → auth.users.id  ON DELETE CASCADE
   role            TEXT        NOT NULL  ('company'|'panel'|'admin')
-  type            TEXT        NOT NULL  ('bug'|'ux'|'data'|'feature'|'other')
+  type            TEXT        NOT NULL  ('bug'|'ux'|'data'|'feature'|'appeal'|'other')  ★ 'appeal'(이의 신청)은 083에서 CHECK 추가 (BugReportModal에 있었으나 제약 누락으로 INSERT 실패하던 버그 수정)
   page_url        TEXT        NOT NULL DEFAULT ''
   title           TEXT        NOT NULL
   description     TEXT        NOT NULL
   screenshot_url  TEXT        (Storage public URL, NULL 허용)
   status          TEXT        NOT NULL DEFAULT 'pending'  ('pending'|'in_progress'|'resolved'|'dismissed')
   admin_memo      TEXT        DEFAULT ''
+  admin_reply     TEXT                    ← 023 추가 (어드민 답변 — 신고자에게 💬 알림 발송 시 표시)
+  replied_at      TIMESTAMPTZ             ← 023 추가 (답변 발송 시각)
+  ※ notify_admin_on_bug_report 트리거: 신규 신고 시 어드민 전원 알림 (082 미사용 — 022 트리거, 083에서 type_label에 appeal 분기 추가)
 
   ※ RLS:
     - INSERT: auth.uid() = user_id (본인만 신고 가능)
@@ -369,7 +418,21 @@
     → notify_admin_on_bug_report() SECURITY DEFINER
     → auth.users WHERE raw_user_meta_data->>'role' = 'admin' 루프
     → 각 어드민에게 notifications INSERT (type='warning', icon='🐛', action_url='/admin/reports')
-  ※ Storage 버킷: bug-screenshots (공개 버킷, 수동 생성 필요)
+  ※ Storage 버킷: bug-screenshots (공개 버킷, 수동 생성 필요) — 경로 `{uid}/{timestamp}.{ext}` (유니크, upsert 불필요)
+
+---
+
+### Storage 버킷 RLS 정책 (storage.objects) — D-118 참조
+  · panel-verification-docs (private, 063 생성) — 패널 검증 서류
+    - panel_upload_own_docs   : FOR INSERT  (auth.uid()=split_part(name,'/',1) — 본인 경로)
+    - panel_update_own_docs   : FOR UPDATE  (동일 조건, USING+WITH CHECK) ★ 084 추가 — upsert:true 재업로드(덮어쓰기) 허용
+    - admin_read_all_docs     : FOR SELECT  (app_metadata role='admin')
+    - panel_read_own_docs     : FOR SELECT  (본인 경로)
+  · mission-assets (public, 006 생성) — 의뢰 검증 이미지
+    - auth_upload_mission_assets : FOR INSERT (auth.role()='authenticated')
+    - auth_update_mission_assets : FOR UPDATE (동일 조건, USING+WITH CHECK) ★ 084 추가 — 소재/가격 이미지 교체 재업로드 허용
+    - public_read_mission_assets : FOR SELECT (전체 공개)
+  ※ UPDATE 정책 누락 시 고정 경로 + upsert:true 재업로드가 RLS에 막혀 400 무음 실패 (D-118). FOR UPDATE는 USING·WITH CHECK 둘 다 필요.
 
 ---
 
@@ -438,20 +501,73 @@
     → 기업 Results.jsx handleRate()에서 호출
     → 파일: supabase/migrations/015_honor_level_system.sql
 
-  grant_plan_credits(p_company_id UUID, p_plan TEXT, p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card') RETURNS void
-    → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(50/165/400)으로 갱신
+  grant_plan_credits(p_company_id UUID, p_plan TEXT, p_amount_krw NUMERIC DEFAULT 0, p_method TEXT DEFAULT 'card', p_billing_cycle TEXT DEFAULT 'monthly') RETURNS void
+    → ★ 096 재정의: companies.credit_balance += 플랜 월 크레딧(free_trial 0/starter 50/pro 165/enterprise 400) — '누적'(구 '절대값 덮어쓰기' 폐기, 업그레이드 시 잔여 보존, D-129)
+    → ★ 다운그레이드 가드: 티어 랭크(free_trial 0<starter 1<pro 2<enterprise 3), new_rank < cur_rank이면 'downgrade_not_allowed' 예외
+    → ★ 결제일 앵커 세팅: plan·plan_started_at=NOW()·next_billing_at=NOW()+1개월·plan_billing_cycle=p_billing_cycle
     → p_amount_krw > 0 이면 invoices INSERT(payment_type='plan') / 0이면 미기록
-    → PaymentModal(type='plan') 경유 시 호출 (기업 본인만 — user_id = auth.uid() 조건)
-    → 구 2-param 시그니처 하위 호환 유지 (DEFAULT 값으로 기존 호출 정상 작동)
-    → ★ 파일: supabase/migrations/079_payment_system.sql (재정의)
+    → PaymentModal(type='plan', billingCycle) 경유 호출 (기업 본인만 — user_id = auth.uid()). 구 4-param 호출도 5-param 디폴트로 정상 작동
+    → ★ 파일: supabase/migrations/096_subscription_billing.sql (079 시그니처 +p_billing_cycle, DROP 후 재생성)
 
   purchase_credits(p_company_id UUID, p_credits NUMERIC, p_amount_krw NUMERIC, p_method TEXT DEFAULT 'card') RETURNS jsonb
-    → credit_balance += p_credits + invoices INSERT(payment_type='credits')
+    → credit_balance += p_credits, ★ addon_credits += p_credits(096 — 구매 충전분은 월 갱신에도 보존) + invoices INSERT(payment_type='credits')
     → 소유권: companies.user_id = auth.uid() 검증 / p_credits <= 0 → invalid_amount 예외
     → 반환: { success: true, new_balance: NUMERIC }
     → PaymentModal(type='credits') 경유 시 호출 (기업 본인만)
     → ★ 파일: supabase/migrations/079_payment_system.sql (신규)
     → 파일: supabase/migrations/016_credit_system.sql
+
+  ─── 무료 체험 Freemium RPC (085 / 087) ★ 신규 ───────────────────────────────
+  create_free_trial_mission(p_mission_id UUID, p_company_id UUID, p_unlock_cost NUMERIC) RETURNS jsonb
+    → 무료 의뢰 등록 — reserve_mission_credits 우회 + 1계정1회 게이트
+    → companies FOR UPDATE 잠금 → plan='free_trial' & free_trial_used=false 검증 → missions
+      UPDATE(is_free_trial=true, credits_reserved=0, unlock_cost=p_unlock_cost, status='active' WHERE status='draft')
+      → companies.free_trial_used=true. status='active' 전환이 notify_admin_on_mission(무료 강한 알림) 발화
+    → 실패 코드: unauthorized / NOT_FREE_TRIAL / TRIAL_ALREADY_USED / mission_not_found
+    → NewMission.jsx 무료 분기에서 호출 (missions INSERT(draft) 직후) / GRANT authenticated
+    → 파일: supabase/migrations/085_free_trial_freemium.sql
+
+  unlock_free_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 087→089→090→094→095 재정의 (최신 095)
+    → 잠긴 피드백 전체 언락 — 정가 = 잠긴 패널(공개분 제외)의 경력 크레딧 합
+      공개분 ★094 점수기반: missions.trial_public_panel_ids 있으면 그 2명(089), 없으면 자동 ROW_NUMBER(avg_score DESC, panel_id ASC) rn≤2
+        avg_score = 패널별 AVG((coalesce 5축)/5.0) — 호평(점수 상위) 2명 공개, 저점(치명적) 패널은 잠겨 티저 유발
+      경력→크레딧 ★095 연차 밴드(메인 1.5배): ≥15→6(헤드) / ≥8→4.5(시니어) / ≥5→3(미들) / else 1.5(주니어) (honorLevels.CAREER_UNLOCK_CREDIT와 일치, D-121)
+      GROUP BY panel_id + WHERE (v_public 있으면 panel_id<>ALL(v_public), 없으면 rn>2) → 클라(Results) 표시와 합계 일치
+    → ★094 30% 첫 언락 할인: trial_results_seen_at(NULL이면 방금 연 것)부터 48h 이내면 v_cost = ROUND(정가 × 0.70, 2), 이후 정가
+      (honorLevels.TRIAL_FIRST_UNLOCK_DISCOUNT=0.30 / TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS=48 — 클라 applyUnlockDiscount와 1:1 정합, D-121)
+    → 소유권: companies.user_id=auth.uid()(오너만, 팀원 미지원) → credit_balance FOR UPDATE → 부족 시 INSUFFICIENT_CREDITS
+    → 성공 시 credit_balance -= v_cost, missions.trial_unlocked=true·credits_consumed=v_cost·unlock_cost=v_cost
+    → 반환: { success, cost, original_cost, discount, new_balance } / Results.jsx 충전·구독 후 호출 / GRANT authenticated
+    → 파일: 095_panel_head_by_years.sql (094 본문 유지 + 연차 밴드 ≥15→6 추가). 점수공개·할인·정렬은 094 그대로
+
+  touch_trial_results_seen(p_mission_id UUID) RETURNS jsonb ★ 신규 (094) SECURITY DEFINER
+    → 기업 오너(companies.user_id=auth.uid()) 검증 → is_free_trial & 미언락 & trial_results_seen_at IS NULL일 때만 NOW()로 1회 세팅(멱등)
+    → 할인 48h 카운트다운 시작점. Results.jsx가 무료 체험 미언락 미션 최초 열람 시 호출. 반환 { success, seen_at }. GRANT authenticated
+
+  admin_set_trial_public(p_mission_id UUID, p_panel_ids UUID[]) RETURNS jsonb ★ 신규 (092) SECURITY DEFINER
+    → 어드민(user_meta OR app_meta role) 검증 + is_free_trial + 정확히 2건 검증 → missions.trial_public_panel_ids 저장
+    → 보호 컬럼이라 클라 직접 UPDATE 불가 → 이 RPC로만 저장 (TrialMissions savePublic). GRANT authenticated
+
+  admin_delete_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 신규 (091) SECURITY DEFINER
+    → 어드민 검증 → 미션 DELETE(자식 CASCADE, 088) → is_free_trial이면 companies.free_trial_used=false 복구(무료 기회 재부여, D-124)
+    → TrialMissions·admin/Missions 삭제 모두 이 RPC 사용(복구는 무료 의뢰만). GRANT authenticated
+
+  admin_set_trial_mission_status(p_mission_id UUID, p_new_status TEXT) RETURNS jsonb ★ 신규 (093) SECURITY DEFINER
+    → 어드민 검증 + p_new_status IN(cancelled,active) → missions.status 전환 + is_free_trial이면 companies.free_trial_used 토글
+    → 취소→false(무료 기회 복구) / 재개→true(재소진). admin/Missions의 무료 체험 취소·재개만 이 RPC로 라우팅(일반 의뢰는 클라 직접 UPDATE). GRANT authenticated
+
+  guard_mission_freemium_columns() TRIGGER (BEFORE UPDATE ON missions) ★ 092 신규 → 094 재정의 (D-125)
+    → 보호 컬럼(trial_unlocked·trial_public_panel_ids·credits_consumed·credits_reserved·unlock_cost·is_free_trial·trial_results_seen_at[094]) 변경 +
+      current_user IN('authenticated','anon')이면 RAISE EXCEPTION 'protected_column'. SECURITY DEFINER RPC(postgres)는 통과.
+
+  ─── 무료 체험 관련 재정의 (085) ─────────────────────────────────────────────
+  · handle_new_user(071) / create_oauth_user_profile(072) — companies INSERT plan='free_trial'
+  · admin_change_plan(025) / grant_plan_credits(079) — 허용목록·CASE에 'free_trial'(크레딧 0) 추가
+  · notify_admin_on_mission(030) — NEW.is_free_trial이면 전 어드민에게 🔥 강한 알림(actionUrl /admin/trials?id=), 일반은 기존 LIMIT 1
+  · complete_mission_and_refund(018) — is_free_trial이면 환불·소비 재계산 없이 status='completed'만 (회계 격리, credits_consumed 보존)
+  · recalc_mission_consumed(018) — is_free_trial이면 재계산 제외 조기반환 (승인 시 credits_consumed 덮어쓰기 방지, 언락 RPC가 관리)
+  · get_panel_public_profiles(012) — 반환 컬럼에 is_expert 추가 (결과 "공개 2건" 정렬키, DROP 후 4컬럼 재생성)
+  · get_shared_mission(076) — 무료 미언락 미션이면 share_permissions 강제 false (공유 페이지도 코멘트/어노테이션 차단, 점수는 공개)
 
   admin_add_credits(p_company_id UUID, p_amount NUMERIC) RETURNS NUMERIC
     → 어드민 전용 (app_metadata.role='admin' 또는 raw_user_meta_data.role='admin' 검사)
@@ -461,9 +577,18 @@
 
   admin_change_plan(p_company_id UUID, p_plan TEXT) RETURNS void
     → 어드민 전용 (app_metadata.role='admin' 또는 raw_user_meta_data.role='admin' 검사)
-    → companies.plan = p_plan, companies.credit_balance = 플랜 월 크레딧(50/165/400)으로 갱신 (덮어쓰기)
+    → 어드민 강제 = 절대값 SET 유지(누적 아님·다운그레이드 가드 미적용): companies.credit_balance = 플랜 월 크레딧(0/50/165/400)
+    → ★ 096/097: 앵커도 함께 세팅(plan_started_at=NOW()·next_billing_at=NOW()+1개월) + ★ addon_credits=0(097 — 강제 리셋 시 구매분 트래커도 초기화, 유령 크레딧 부활 방지, D-129)
     → CompanyManagement.jsx 관리 액션 카드 '플랜 변경' 버튼에서 호출 (grant_plan_credits는 기업 본인 전용이라 어드민 불가)
-    → 파일: supabase/migrations/025_admin_change_plan.sql
+    → 파일: supabase/migrations/025_admin_change_plan.sql → 096(앵커) → 097(addon_credits=0)
+
+  renew_due_subscriptions() RETURNS INTEGER ← ★ 096 신규 / 097 원자화
+    → pg_cron 월 1회: plan IN('starter','pro') & next_billing_at <= NOW() 회사 순회 (free_trial·enterprise 제외=수동/CSM)
+    → 구독분 리셋 + 구매분 보존: credit_balance = 플랜크레딧 + LEAST(addon_credits, credit_balance), addon_credits = LEAST(addon_credits, credit_balance)
+    → ★ 097: 위 계산을 UPDATE문 내 컬럼 직접 참조로 원자화(스냅샷 변수 폐기) → 동시 purchase_credits 커밋분 유실 방지(read-then-write race)
+    → next_billing_at을 미래까지 +1개월(밀린 달 보정·리셋 멱등) / cycle='monthly'면 invoices INSERT(amount=0, 'plan', 'manual') / 'annual'은 청구 생략(크레딧만 드립)
+    → GRANT service_role. pg_cron 등록은 SQL Editor 수동(파일 하단 주석 081 패턴) / 반환=처리 건수
+    → 파일: supabase/migrations/096_subscription_billing.sql → 097_fix_subscription_billing.sql(원자화)
 
   reserve_mission_credits(p_mission_id UUID, p_company_id UUID, p_credits NUMERIC) RETURNS jsonb
     → 018에서 p_credits INTEGER → NUMERIC 변경 (소수 크레딧 지원)
@@ -472,12 +597,14 @@
     → 의뢰 등록 4개 페이지(NewMission/PreferenceTest/PricingTest/ColdEmailTest)에서 missions INSERT 직후 호출
     → 파일: supabase/migrations/018_credits_numeric.sql (016 버전 대체)
 
-  recalc_mission_consumed(p_mission_id UUID) RETURNS NUMERIC
-    → 어드민 전용 (role='admin' 검사)
+  recalc_mission_consumed(p_mission_id UUID) RETURNS NUMERIC ★ 095 재정의 (연차 밴드 교체)
+    → 어드민 전용 (role='admin' 검사) / 무료 미션이면 재계산 제외 조기반환(085 격리 가드 유지, D-122)
     → purity_passed=true 패널의 experience 기반 소비 크레딧 합산 (CEIL 없음, 소수 그대로)
+      연차 배율 밴드(095): ≥15→3.0 / ≥8→2.0 / ≥5→1.5 / else 1.0 (키워드 정규식 레거시 안전망 유지)
     → missions.credits_consumed = 합산값으로 즉시 갱신
     → PurityFilter 승인/반려/초기화 직후 자동 호출 + admin/Missions.jsx ↺ 버튼에서 수동 호출
-    → 파일: supabase/migrations/018_credits_numeric.sql (017 버전 대체)
+    → 파일: 095_panel_head_by_years.sql (085/018 버전 대체)
+    ※ complete_mission_and_refund(p_mission_id) — 동일 연차 밴드(095)로 소비 합산 후 status='completed'·환불. 무료 미션 회계 격리 불변(D-122)
 
   complete_mission_and_refund(p_mission_id UUID) RETURNS jsonb
     → 어드민 전용 (role='admin' 검사)
@@ -636,13 +763,36 @@
              + 064_fix_oauth_panel_status_pending.sql (status='active'→'pending' 수정)
              + 072_create_oauth_user_profile_invite.sql (p_invite_token 파라미터 추가, 기존 2-param DROP 후 3-param 재생성) ★ 현재 최신
 
-  save_panel_verification_docs(p_user_id UUID, p_health_insurance_url TEXT DEFAULT NULL, p_linkedin_url TEXT DEFAULT NULL, p_portfolio_url TEXT DEFAULT NULL) RETURNS BOOLEAN
-    → SECURITY DEFINER — 패널 가입 직후 검증 자료(건강보험·LinkedIn·포트폴리오) panels 테이블 저장
+  save_panel_verification_docs(p_user_id UUID, p_health_insurance_url TEXT DEFAULT NULL, p_linkedin_url TEXT DEFAULT NULL, p_portfolio_url TEXT DEFAULT NULL, p_portfolio_file_url TEXT DEFAULT NULL, p_experience_years INT DEFAULT NULL) RETURNS BOOLEAN
+    → SECURITY DEFINER — 패널 검증 자료(건강보험·LinkedIn·포트폴리오 링크/파일·본인 연차) panels 테이블 저장
     → 이유: 이메일 미확인 상태 or RLS 설정으로 직접 UPDATE 차단될 수 있음 (D-95 패턴)
     → auth.uid() IS NULL 또는 auth.uid() != p_user_id 이면 RETURN FALSE (보안 체크)
-    → COALESCE(p_xxx, health_insurance_url) 패턴 — NULL 인자는 기존 DB 값 유지, 덮어쓰지 않음
-    → Signup.jsx handleSubmit에서 Storage 업로드 직후, signOut() 직전 호출 (D-95 타이밍 원칙)
-    → 파일: supabase/migrations/065_save_panel_verification_docs.sql
+    → COALESCE(p_xxx, 컬럼) 패턴 — NULL 인자는 기존 DB 값 유지, 덮어쓰지 않음
+    → p_portfolio_url=포트폴리오 링크 / p_portfolio_file_url=포트폴리오 파일 path (080부터 분리)
+    → p_experience_years=본인 연차 — experience_confirmed_at IS NULL(미확정)일 때만 반영 (어드민 확정값 보호, 081)
+    → status 가드(082): 현재 status가 'pending' 또는 'rejected'일 때만 (재)제출 허용 — 그 외(suspended/active/banned)는 RETURN FALSE (상태 우회 차단)
+    → status flip(082): 제출 성공 시 status='pending'으로 전환 (rejected→pending = 재제출 / pending→pending 유지) → notify_admin_on_panel_resubmit 트리거 발화
+    → rejection_reason(082): 재제출(기존 status='rejected')이면 NULL로 클리어
+    → VerifyDocs.jsx handleSubmit에서 Storage 업로드 직후 호출 (이미지 파일은 compressImage 압축 후 업로드)
+    → 파일: 065_save_panel_verification_docs.sql (최초 4-param)
+             + 080_portfolio_file_url.sql (p_portfolio_file_url 추가, 5-param 재생성)
+             + 081_panel_experience_confirmation.sql (p_experience_years 추가, 기존 5-param DROP 후 6-param 재생성)
+             + 082_panel_rejection_flow.sql (status 가드 + pending flip + rejection_reason 클리어, 동일 6-param CREATE OR REPLACE) ★ 현재 최신
+
+  admin_confirm_panel_experience(p_panel_id UUID, p_years INT) RETURNS BOOLEAN ★ 095 재정의 (3-param DROP → 2-param)
+    → SECURITY DEFINER — 어드민 경력 확정·조정(최초 확정 / 수동 상·하향). 095부터 헤드는 연차 자동(p_is_executive 파라미터 폐지)
+    → 어드민 전용: (auth.jwt()->'app_metadata'->>'role') != 'admin' 이면 RETURN FALSE (D-58)
+    → p_years NULL 또는 < 0 이면 RETURN FALSE
+    → experience_years=p_years, is_executive=(p_years>=15), experience_confirmed_at=NOW(),
+      experience=p_years::text||'년' (헤드도 'N년') — 확정 시점이 자동 +1 앵커 리셋
+    → PanelManagement.jsx confirmExperience(id, years) 2-param 호출 / 파일: 095_panel_head_by_years.sql (081 3-param 대체)
+
+  auto_increment_panel_experience() RETURNS INTEGER ★ 095 재정의
+    → SECURITY DEFINER (GRANT service_role) — pg_cron 일 1회 호출
+    → experience_confirmed_at + 1년 경과 패널: 경과 만년 수(AGE)만큼 experience_years +N, 앵커 +N년
+    → experience='N년' 재동기화 + is_executive=((years+N)>=15) (14→15 자동 헤드 승급)
+    → 다년 누락도 한 번에 보정 (GET DIAGNOSTICS ROW_COUNT 반환)
+    → pg_cron 스케줄은 SQL Editor 수동 실행 필요 / 파일: 095_panel_head_by_years.sql (081 대체)
 
   accept_team_invite(p_token UUID) RETURNS JSONB
     → SECURITY DEFINER — 비로그인 상태에서도 토큰으로 호출 가능 (RLS 우회)
@@ -683,3 +833,11 @@
     → actionUrl: /company/settings
     → 호출: InviteAccept.jsx handleAccept() 성공 직후 fire-and-forget
     → 파일: supabase/migrations/073_notify_feedback_and_team.sql
+
+  notify_admin_on_panel_resubmit() [트리거 함수] — on_panel_resubmit (AFTER UPDATE OF status ON panels)
+    → SECURITY DEFINER — OLD.status='rejected' AND NEW.status='pending'(서류 재제출) 전환에만 발화
+    → 단일 어드민(raw_app_meta_data->>'role'='admin' LIMIT 1) 조회 후 notifications INSERT (062 notify_admin_on_new_panel 패턴 재사용, D-58)
+    → 🔁 "패널 서류 재제출" / actionUrl: /admin/panels / target_role: admin
+    → 발화 경로: save_panel_verification_docs RPC가 rejected→pending flip 시 (082)
+    → 파일: supabase/migrations/082_panel_rejection_flow.sql
+    → 참고: 최초 가입(INSERT pending)은 062 on_panel_pending_created가 담당 — 재제출(UPDATE)은 본 트리거가 담당
