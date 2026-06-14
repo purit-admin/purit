@@ -1081,13 +1081,24 @@ export default function Results() {
     async function loadFeedback() {
       try {
       // completed / cancelled: 승인된(purity_passed=true) 피드백만 표시
-      const { data: fbs } = await supabase
-        .from('feedbacks')
-        .select('*')
-        .eq('mission_id', selected)
-        .eq('purity_passed', true)
-        .order('created_at', { ascending: false });
-      setFeedbacks(fbs || []);
+      // 무료 체험은 서버 마스킹 RPC 경유 — 잠긴 패널 텍스트(코멘트·총평·추가질문 응답)가
+      // 클라로 내려오지 않도록 서버에서 차단 (페이월 서버 차단, 니체-TRIAL-페이월)
+      let fbs = [];
+      let trialAnns = null;
+      if (m?.is_free_trial) {
+        const { data: tr } = await supabase.rpc('get_company_trial_feedbacks', { p_mission_id: selected });
+        fbs = tr?.feedbacks || [];
+        trialAnns = tr?.annotations || [];
+      } else {
+        const { data } = await supabase
+          .from('feedbacks')
+          .select('*')
+          .eq('mission_id', selected)
+          .eq('purity_passed', true)
+          .order('created_at', { ascending: false });
+        fbs = data || [];
+      }
+      setFeedbacks(fbs);
 
       // 무료 체험 미언락 미션을 처음 열면 할인 48h 앵커(trial_results_seen_at) 세팅 (멱등 — NULL일 때만 NOW())
       if (m?.is_free_trial && !m?.trial_unlocked && !m?.trial_results_seen_at) {
@@ -1108,14 +1119,20 @@ export default function Results() {
       }
 
       if (hasImgs && !['preference', 'pricing', 'email'].includes(mType)) {
-        const { data: anns } = await supabase
-          .from('feedback_annotations')
-          .select('*')
-          .eq('mission_id', selected)
-          .in('panel_id', approvedPanelIds.length > 0 ? approvedPanelIds : ['none'])
-          .order('created_at');
-        setAllAnnotations(anns || []);
+        if (m?.is_free_trial) {
+          // 무료 체험: 위 RPC가 잠긴 패널 comment 까지 마스킹해 반환 (직접 쿼리 금지 — 페이월 우회 방지)
+          setAllAnnotations(trialAnns || []);
+        } else {
+          const { data: anns } = await supabase
+            .from('feedback_annotations')
+            .select('*')
+            .eq('mission_id', selected)
+            .in('panel_id', approvedPanelIds.length > 0 ? approvedPanelIds : ['none'])
+            .order('created_at');
+          setAllAnnotations(anns || []);
+        }
       }
+
 
       let subData = null;
       if (approvedPanelIds.length > 0) {

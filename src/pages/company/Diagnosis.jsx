@@ -184,7 +184,8 @@ export default function Diagnosis() {
       const { company: co } = await resolveCompany(user.id);
       if (!co) { setLoading(false); return; }
 
-      const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').order('created_at', { ascending: false });
+      // 무료 체험 미션 제외 — 부분 공개(페이월) 대상이라 코멘트가 키워드/진단 분석에 노출되면 안 됨 (니체-TRIAL-페이월 수평전개)
+      const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).order('created_at', { ascending: false });
       const msList = ms || [];
       const ids = msList.map(m => m.id);
       setMissions(msList);

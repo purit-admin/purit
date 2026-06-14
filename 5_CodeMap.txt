@@ -246,6 +246,7 @@
 - EmailResults: 이메일 원문(ExpandableText, limit=250) → 비율 바 → 점수 카드
 - 무료 체험 부분 잠금 (085/089/090/094):
   · trialLocked = mission.is_free_trial && !mission.trial_unlocked. 5축 점수 집계는 전체 공개, 코멘트/어노테이션/추가질문 응답만 잠금.
+  · ★ 페이월 서버 차단(100, D-136): 무료체험은 loadFeedback이 get_company_trial_feedbacks RPC로 feedbacks·annotations 로드(잠긴 패널 텍스트 서버 마스킹) — 직접 select('*') 폐기(원문 클라 누출 차단). 일반 미션은 기존 직접 쿼리 유지. 점수·구조는 마스킹 후에도 유지되어 아래 panelAvgScore/unlockedPanelIds/티저 계산 무수정.
   · panelAvgScore: feedbacks 5축 평균을 패널별로 집계(서버 AVG((coalesce..)/5.0)와 동일 공식, D-121).
   · unlockedPanelIds(공개 2명): adminPublic(trial_public_panel_ids) 있으면 그 값, 없으면 ★094 panelAvgScore DESC, panel_id ASC 상위 2명(호평 자동 선별).
   · unlockBaseCost(정가) = lockedPanelIds(공개 제외)의 getCareerUnlockCredit 합. 표시·결제 모두 서버 unlock RPC와 정합.
@@ -275,6 +276,7 @@
   · 취약 차원 코멘트: calcPurityScoreLocal 정렬 후 상위 3개, dimScore 뱃지 표시
 - period state: 'all'|'3m'|'1m' (기본 'all') — 의뢰 칩 행 아래 pill 버튼
 - rawFeedbacks state: 전체 미필터 피드백 보존 (가이드 탭 미사용, 다른 탭 period 변경 시 재계산 원본)
+- ★ 무료 체험 미션 제외(100, D-136): missions 로드에 .neq('is_free_trial', true) — 부분공개(페이월) 대상 체험 의뢰 코멘트가 키워드/진단 분석에 노출되는 것 차단. (AIReport도 동일 .neq 적용)
 - 필터 기준: missions.created_at (의뢰 등록일) — feedbacks.created_at 아님
 - cutoff 공식: period!=='all' → new Date(Date.now() - (period==='3m' ? 90 : 30) * 86400000)
 - loadFeedbacks(ids, msList) — 반드시 두 인자 필요 (D-89)

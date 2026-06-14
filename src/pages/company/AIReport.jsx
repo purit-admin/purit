@@ -53,10 +53,11 @@ export default function AIReport() {
       const { company: co } = await resolveCompany(user.id);
       if (!co) { setLoading(false); return; }
 
-      const { data: missions } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(1);
+      // 무료 체험 미션 제외 — 부분 공개(페이월) 대상이라 AI 리포트 분석에 섞이면 안 됨 (니체-TRIAL-페이월 수평전개)
+      const { data: missions } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).order('created_at', { ascending: false }).limit(1);
       const latestMission = missions?.[0];
 
-      const missionIds = (await supabase.from('missions').select('id').eq('company_id', co.id).eq('status', 'completed')).data?.map(m => m.id) || [];
+      const missionIds = (await supabase.from('missions').select('id').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true)).data?.map(m => m.id) || [];
       if (!missionIds.length) { setLoading(false); return; }
 
       if (latestMission?.id) setLatestMissionId(latestMission.id);
