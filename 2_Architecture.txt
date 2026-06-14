@@ -222,7 +222,8 @@ purit/
 │   ├── update-panel-profiles.mjs              (panel1~10 직군·경력 업데이트 — .env.local 필요)
 │   └── delete-penguin-account.mjs            (service role로 테스트 계정 삭제 + 차단 자식행 진단 — 이름 '펭귄' 포함만 대상, NEEDLE 변경해 재활용. 088 미적용 환경의 수동 정리 폴백)
 ├── supabase/
-│   ├── migrations/  001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
+│   ├── migrations/  ※ 001~100은 supabase/migrations/archive/ 로 보관 이동(2026-06-14) — 101부터 migrations/ 직속 생성. 다음 번호는 archive 최신(100) 기준. 전부 SQL Editor 수동 실행 방식이라 폴더 위치는 운영 무관(CLI db push 미사용)
+│   │                001(DDL) 002(시드) 003(admin) 004(cancel_fb_rpc) 005(ai_reports)
 │   │                006(annotations) 007(subtest) 008(templates) 009(gamification)
 │   │                010(sharing) 011(notification_triggers) 012(typed_template_questions)
 │   │                013(custom_question_rls) 014(feedbacks_custom_answers)
