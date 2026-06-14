@@ -8,3 +8,6 @@ dist
 
 # 디자인 핸드오프 원본 zip (저장소 용량 절감 — 추출 폴더는 참고용으로 추적 유지)
 purit_landing*.zip
+
+# DB 백업 (고객 개인정보 포함 — git/GitHub 업로드 절대 금지)
+backups/
