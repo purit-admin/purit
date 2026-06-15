@@ -1011,6 +1011,7 @@ export default function Results() {
   const [ratingInFlight, setRatingInFlight] = useState(new Set());
   const [mainPage, setMainPage]           = useState(1);
   const [subPage, setSubPage]             = useState(1);
+  const [missionKind, setMissionKind]     = useState('main');
   const [missionTab, setMissionTab]       = useState('all');
   const [period, setPeriod]               = useState('all');
   const [creditBalance, setCreditBalance] = useState(0);
@@ -1452,23 +1453,41 @@ export default function Results() {
             })}
           </div>
 
-            {mainMissions.length > 0 && (
+            {(mainMissions.length > 0 || subMissions.length > 0) && (
+              <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 10, marginBottom: 16 }}>
+                {[['main', '메인 의뢰', mainMissions.length], ['sub', '서브 의뢰', subMissions.length]].map(([k, label, cnt]) => (
+                  <button key={k} onClick={() => setMissionKind(k)} style={{
+                    padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none',
+                    background: missionKind === k ? 'var(--surface)' : 'transparent',
+                    color: missionKind === k ? 'var(--accent)' : 'var(--text-3)',
+                    boxShadow: missionKind === k ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
+                  }}>{label} {cnt}</button>
+                ))}
+              </div>
+            )}
+            {(mainMissions.length > 0 || subMissions.length > 0) && missionKind === 'main' && (
+              mainMissions.length > 0 ? (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>메인 의뢰</div>
                 {pagedMain.map(m => (
                   <MissionItem key={m.id} m={m} isSelected={selected === m.id} onClick={() => setSelected(m.id)} />
                 ))}
                 <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
               </div>
+              ) : (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>해당 의뢰가 없습니다.</div>
+              )
             )}
-            {subMissions.length > 0 && (
+            {(mainMissions.length > 0 || subMissions.length > 0) && missionKind === 'sub' && (
+              subMissions.length > 0 ? (
               <div>
-                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>서브 의뢰</div>
                 {pagedSub.map(m => (
                   <MissionItem key={m.id} m={m} isSelected={selected === m.id} onClick={() => setSelected(m.id)} />
                 ))}
                 <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
               </div>
+              ) : (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>해당 의뢰가 없습니다.</div>
+              )
             )}
             {mainMissions.length === 0 && subMissions.length === 0 && (
               <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>

@@ -99,6 +99,57 @@ export const Divider = ({ style }) => (
   <div style={{ height: 1, background: 'var(--border)', ...style }} />
 );
 
+// 상태·진행 단계(라이프사이클) 탭 — 밑줄형 (기준: company/Dashboard.jsx)
+// tabs: [{ key, label, count?, badge? }]  value: 현재 key  onChange(key)
+export const StatusTabs = ({ tabs, value, onChange, style }) => (
+  <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid var(--border)', ...style }}>
+    {tabs.map(t => {
+      const active = value === t.key;
+      return (
+        <button key={t.key} onClick={() => onChange(t.key)} style={{
+          padding: '8px 16px', marginBottom: -1, fontSize: 14, fontWeight: active ? 700 : 500,
+          background: 'transparent',
+          color: active ? 'var(--text)' : 'var(--text-3)',
+          borderBottom: active ? '2px solid var(--text)' : '2px solid transparent',
+          border: 'none', borderRadius: 0, transition: 'all 0.15s', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+        }}>
+          {t.label}
+          {t.count != null && (
+            <span style={{ fontSize: 12, fontWeight: 600, color: active ? 'var(--text-2)' : 'var(--text-3)' }}>{t.count}</span>
+          )}
+          {t.badge}
+        </button>
+      );
+    })}
+  </div>
+);
+
+// 병렬 분류·구간 세그먼트 필터 — 붙은 칸형 (기준: company/Dashboard.jsx 메인/서브 토글)
+// tabs: [{ key, label, count? }]  value: 현재 key  onChange(key)  label: 좌측 접두 텍스트(선택)
+export const SegmentFilter = ({ tabs, value, onChange, label, style }) => (
+  <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap', ...style }}>
+    {label && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{label}</span>}
+    <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 10 }}>
+      {tabs.map(t => {
+        const active = value === t.key;
+        return (
+          <button key={t.key} onClick={() => onChange(t.key)} style={{
+            padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
+            background: active ? 'var(--surface)' : 'transparent',
+            color: active ? 'var(--accent)' : 'var(--text-3)',
+            boxShadow: active ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
+            display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+          }}>
+            {t.label}
+            {t.count != null && <span style={{ opacity: 0.8 }}>{t.count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 export const EmptyState = ({ icon, title, desc }) => (
   <div style={{ textAlign: 'center', padding: '72px 24px', color: 'var(--text-3)' }}>
     <div style={{ fontSize: 44, marginBottom: 16 }}>{icon}</div>

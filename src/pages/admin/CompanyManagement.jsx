@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, SegmentFilter } from '../../components/ui';
 import { ChevronLeft, ChevronRight, AlertTriangle, Star, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -48,26 +48,6 @@ function relativeTime(iso) {
   if (d < 7)  return `${d}일 전`;
   if (d < 30) return `${Math.floor(d / 7)}주 전`;
   return new Date(iso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-}
-
-function FilterGroup({ options, value, onChange }) {
-  return (
-    <div style={{ display: 'flex', gap: 2, background: 'var(--bg-2)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
-      {options.map(([v, l]) => (
-        <button
-          key={v}
-          onClick={() => onChange(v)}
-          style={{
-            padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-            border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-            background: value === v ? '#fff' : 'transparent',
-            color: value === v ? 'var(--text)' : 'var(--text-3)',
-            boxShadow: value === v ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
-          }}
-        >{l}</button>
-      ))}
-    </div>
-  );
 }
 
 const DETAIL_PAGE_SIZE = 5;
@@ -548,15 +528,23 @@ export default function CompanyManagement() {
             color: 'var(--text)', outline: 'none',
           }}
         />
-        <FilterGroup
-          options={[['all', '전체'], ['starter', 'Starter'], ['pro', 'Pro'], ['enterprise', 'Enterprise']]}
+        <SegmentFilter
           value={planFilter}
           onChange={v => { setPlanFilter(v); setPage(1); }}
+          tabs={[
+            { key: 'all', label: '전체' }, { key: 'starter', label: 'Starter' },
+            { key: 'pro', label: 'Pro' }, { key: 'enterprise', label: 'Enterprise' },
+          ]}
+          style={{ marginBottom: 0 }}
         />
-        <FilterGroup
-          options={[['all', '전체'], ['ok', '충분(≥20)'], ['warn', '주의(10~19)'], ['danger', '위험(<10)']]}
+        <SegmentFilter
           value={creditFilter}
           onChange={v => { setCreditFilter(v); setPage(1); }}
+          tabs={[
+            { key: 'all', label: '전체' }, { key: 'ok', label: '충분(≥20)' },
+            { key: 'warn', label: '주의(10~19)' }, { key: 'danger', label: '위험(<10)' },
+          ]}
+          style={{ marginBottom: 0 }}
         />
         <select
           value={sortBy}

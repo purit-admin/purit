@@ -58,7 +58,6 @@ const INDUSTRIES = [
 export default function ColdEmailTest() {
   const location = useLocation();
   const navigate = useNavigate();
-  const initTemplateId = location.state?.templateId || null;
   const submittingRef = useRef(false);
   const panelStepRef = useRef(null);
 
@@ -118,21 +117,8 @@ export default function ColdEmailTest() {
   // 새로고침/크래시 대비 localStorage 자동저장 → 재진입 시 "이어서 작성" 배너로 복원
   const [restorable, setRestorable] = useState(null);
 
-  const initTemplateName = location.state?.templateName || null;
-
   useEffect(() => {
     load();
-    if (initTemplateId) {
-      setView('create');
-      setCreateStep(1);
-      if (initTemplateName) {
-        const target = QUESTION_TEMPLATES.email.find(t => t.name === initTemplateName);
-        if (target) {
-          setSelectedQuestions(target.questions.slice(0, 5));
-          setExpandedTmpl({ [target.id]: true });
-        }
-      }
-    }
     if (location.state?.editMode && location.state?.missionId) {
       const mid = location.state.missionId;
       setDraftId(mid);
@@ -247,7 +233,7 @@ export default function ColdEmailTest() {
 
   // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
   useEffect(() => {
-    if (!draftKey || location.state?.editMode || initTemplateId) return;
+    if (!draftKey || location.state?.editMode) return;
     try {
       const raw = localStorage.getItem(draftKey);
       if (raw) { const parsed = JSON.parse(raw); if (parsed?.missionTitle != null || parsed?.emailText != null) setRestorable(parsed); }
@@ -494,7 +480,7 @@ export default function ColdEmailTest() {
 
       const { error: tErr } = await supabase.from('cold_email_tests').insert({
         company_id: companyId, email_text: emailText.trim(),
-        status: 'active', mission_id: targetId, template_id: initTemplateId || null,
+        status: 'active', mission_id: targetId, template_id: null,
       });
       if (tErr) console.warn('[ColdEmailTest] 서브테이블 등록 실패:', tErr.message);
 

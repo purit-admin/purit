@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getHonorLevel, HONOR_COLOR_META } from '../../lib/honorLevels';
@@ -354,6 +354,25 @@ export default function AdminPanels() {
         ))}
       </div>
 
+      {/* 상태 탭 */}
+      <StatusTabs
+        value={statusFilter}
+        onChange={v => { setStatusFilter(v); setPage(1); }}
+        tabs={[
+          { key: 'all', label: '전체' },
+          { key: 'active', label: '활성' },
+          {
+            key: 'pending', label: '심사대기',
+            badge: pendingCount > 0 ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: 'var(--red)', color: '#fff', fontSize: 10, fontWeight: 700 }}>{pendingCount}</span>
+            ) : null,
+          },
+          { key: 'rejected', label: '반려' },
+          { key: 'suspended', label: '정지' },
+          { key: 'banned', label: '영구정지' },
+        ]}
+      />
+
       {/* 검색 + 필터 바 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
@@ -367,56 +386,37 @@ export default function AdminPanels() {
             color: 'var(--text)', outline: 'none',
           }}
         />
-        {/* 상태 */}
-        <FilterGroup
-          options={[['all', '전체'], ['active', '활성'], ['pending', '심사대기'], ['rejected', '반려'], ['suspended', '정지'], ['banned', '영구정지']]}
-          value={statusFilter}
-          onChange={v => { setStatusFilter(v); setPage(1); }}
-          badges={{ pending: pendingCount }}
-        />
-
         {/* 기간 */}
-        <FilterGroup
-          options={[['all', '전체 기간'], ['today', '오늘'], ['week', '1주일'], ['month', '1개월']]}
+        <SegmentFilter
           value={periodFilter}
           onChange={v => { setPeriodFilter(v); setPage(1); }}
+          tabs={[
+            { key: 'all', label: '전체 기간' }, { key: 'today', label: '오늘' },
+            { key: 'week', label: '1주일' }, { key: 'month', label: '1개월' },
+          ]}
+          style={{ marginBottom: 0 }}
         />
 
         {/* 분류 (위험/우수) */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[
-            ['all',    '전체',      'var(--bg-2)',  'var(--text-3)',  'var(--border)'],
-            ['danger', '⚠️ 위험',   '#FEF2F2',     '#DC2626',        '#DC2626'],
-            ['star',   '⭐ 우수',   '#F0FDF4',     '#059669',        '#059669'],
-          ].map(([v, l, bg, color, border]) => (
-            <button key={v}
-              onClick={() => { setRiskFilter(v); setPage(1); }}
-              style={{
-                padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                background: riskFilter === v ? bg : 'var(--bg-2)',
-                color: riskFilter === v ? color : 'var(--text-3)',
-                border: `1px solid ${riskFilter === v ? border : 'var(--border)'}`,
-                cursor: 'pointer', transition: 'all 0.12s',
-              }}
-            >{l}</button>
-          ))}
-        </div>
+        <SegmentFilter
+          value={riskFilter}
+          onChange={v => { setRiskFilter(v); setPage(1); }}
+          tabs={[
+            { key: 'all', label: '전체' }, { key: 'danger', label: '⚠️ 위험' }, { key: 'star', label: '⭐ 우수' },
+          ]}
+          style={{ marginBottom: 0 }}
+        />
 
         {/* 레벨 */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[['all', '전체 레벨'], ['1-3', 'Lv.1-3'], ['4-6', 'Lv.4-6'], ['7-9', 'Lv.7-9'], ['10', 'Lv.10']].map(([v, l]) => (
-            <button key={v}
-              onClick={() => { setLevelFilter(v); setPage(1); }}
-              style={{
-                padding: '5px 11px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                background: levelFilter === v ? 'var(--accent)' : 'var(--bg-2)',
-                color: levelFilter === v ? '#fff' : 'var(--text-3)',
-                border: `1px solid ${levelFilter === v ? 'var(--accent)' : 'var(--border)'}`,
-                cursor: 'pointer', transition: 'all 0.12s',
-              }}
-            >{l}</button>
-          ))}
-        </div>
+        <SegmentFilter
+          value={levelFilter}
+          onChange={v => { setLevelFilter(v); setPage(1); }}
+          tabs={[
+            { key: 'all', label: '전체 레벨' }, { key: '1-3', label: 'Lv.1-3' }, { key: '4-6', label: 'Lv.4-6' },
+            { key: '7-9', label: 'Lv.7-9' }, { key: '10', label: 'Lv.10' },
+          ]}
+          style={{ marginBottom: 0 }}
+        />
 
         {/* 정렬 */}
         <select
@@ -601,36 +601,6 @@ export default function AdminPanels() {
 }
 
 /* ─── 서브 컴포넌트 ─── */
-
-function FilterGroup({ options, value, onChange, badges = {} }) {
-  return (
-    <div style={{ display: 'flex', gap: 2, background: 'var(--bg-2)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
-      {options.map(([v, l]) => {
-        const badge = badges[v] || 0;
-        return (
-          <button key={v} onClick={() => onChange(v)} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '5px 11px', borderRadius: 5, fontSize: 12, fontWeight: 500,
-            background: value === v ? '#fff' : 'transparent',
-            color: value === v ? 'var(--text)' : 'var(--text-3)',
-            border: 'none', cursor: 'pointer',
-            boxShadow: value === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            transition: 'all 0.12s',
-          }}>
-            {l}
-            {badge > 0 && (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8,
-                background: 'var(--red)', color: '#fff', fontSize: 10, fontWeight: 700,
-              }}>{badge}</span>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 // 심사 거절 모달 — 거절 사유 입력 + 3번째 거절 시 영구 차단 경고 (ConfirmModal은 입력 필드 미지원이라 별도 구현, D-19 portal)
 function RejectModal({ willBan, rejectionCount, reason, onReason, errorMsg, acting, onConfirm, onCancel }) {

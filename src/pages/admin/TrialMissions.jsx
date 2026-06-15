@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, StatusTabs } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -413,27 +413,20 @@ export default function TrialMissions() {
         무료 체험 의뢰의 모니터링·피드백 승인/반려·완료/취소를 한 곳에서 처리합니다. 전문가 패널 계정(expert1·expert2)으로 슬롯을 선점 수락하세요.
       </p>
 
-      {/* 상태 탭 + 검색 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        {TABS.map(t => {
-          const cnt = missions.filter(t.match).length;
-          const active = tab === t.key;
-          return (
-            <button key={t.key} onClick={() => { setTab(t.key); setSelected(null); }} style={{
-              padding: '7px 16px', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-              background: active ? 'var(--accent)' : 'var(--surface)', color: active ? '#fff' : 'var(--text-2)',
-            }}>
-              {t.label} <span style={{ opacity: 0.8 }}>{cnt}</span>
-            </button>
-          );
-        })}
+      {/* 상태 탭 */}
+      <StatusTabs
+        value={tab}
+        onChange={(v) => { setTab(v); setSelected(null); }}
+        tabs={TABS.map(t => ({ key: t.key, label: t.label, count: missions.filter(t.match).length }))}
+      />
+      {/* 검색 */}
+      <div style={{ marginBottom: 20 }}>
         <input
           type="text"
           placeholder="의뢰명으로 검색..."
           value={searchQuery}
           onChange={(e) => { setSearchQuery(e.target.value); setSelected(null); }}
-          style={{ marginLeft: 'auto', width: 260, padding: '7px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}
+          style={{ width: 260, padding: '7px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}
         />
       </div>
 

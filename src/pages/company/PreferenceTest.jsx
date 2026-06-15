@@ -67,7 +67,6 @@ const INDUSTRIES = [
 export default function PreferenceTest() {
   const location = useLocation();
   const navigate = useNavigate();
-  const initTemplateId = location.state?.templateId || null;
   const submittingRef = useRef(false);
   const panelStepRef = useRef(null);
 
@@ -138,21 +137,8 @@ export default function PreferenceTest() {
   const fileInputARef = useRef(null);
   const fileInputBRef = useRef(null);
 
-  const initTemplateName = location.state?.templateName || null;
-
   useEffect(() => {
     load();
-    if (initTemplateId) {
-      setView('create');
-      setCreateStep(1);
-      if (initTemplateName) {
-        const target = QUESTION_TEMPLATES.preference.find(t => t.name === initTemplateName);
-        if (target) {
-          setSelectedQuestions(target.questions.slice(0, 5));
-          setExpandedTmpl({ [target.id]: true });
-        }
-      }
-    }
     // draft 이어쓰기 진입
     if (location.state?.editMode && location.state?.missionId) {
       const mid = location.state.missionId;
@@ -275,7 +261,7 @@ export default function PreferenceTest() {
 
   // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
   useEffect(() => {
-    if (!draftKey || location.state?.editMode || initTemplateId) return;
+    if (!draftKey || location.state?.editMode) return;
     try {
       const raw = localStorage.getItem(draftKey);
       if (raw) { const parsed = JSON.parse(raw); if (parsed?.missionTitle != null || parsed?.variantA != null) setRestorable(parsed); }

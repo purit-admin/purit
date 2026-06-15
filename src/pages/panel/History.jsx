@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Card, Badge, ConfirmModal } from '../../components/ui';
+import { Card, Badge, ConfirmModal, StatusTabs } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';
 
@@ -190,19 +190,13 @@ export default function History() {
       </div>
 
       {/* 탭 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)' }}>현황</h2>
-        <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4 }}>
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); setPage(1); setOpenReasonId(null); }} style={{
-              padding: '5px 14px', borderRadius: 4, fontSize: 12, fontWeight: 500,
-              background: tab === t.key ? 'var(--bg)' : 'transparent',
-              color: tab === t.key ? 'var(--text)' : 'var(--text-3)',
-              border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-            }}>{t.label}</button>
-          ))}
-        </div>
-      </div>
+      <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10 }}>현황</h2>
+      <StatusTabs
+        value={tab}
+        onChange={(v) => { setTab(v); setPage(1); setOpenReasonId(null); }}
+        tabs={TABS.map(t => ({ key: t.key, label: t.label }))}
+        style={{ marginBottom: 14 }}
+      />
 
       {filtered.length === 0 ? (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -32,6 +32,22 @@ export default function QuestionTemplates() {
   const [selected, setSelected] = useState(null);
   const [companyId, setCompanyId] = useState(null);
 
+  // 미리보기 패널을 클릭한 카드 높이에 맞춰 띄우기 위한 측정값/참조
+  const gridRef = useRef(null);          // 좌/우 2열 그리드 컨테이너 (기준 좌표)
+  const clickedCardRef = useRef(null);   // 방금 "미리보기"를 누른 카드 DOM (리플로우 후에도 유효)
+  const [panelOffset, setPanelOffset] = useState(0);
+
+  // selected 변경(미리보기 클릭) 직후, 리플로우가 끝난 DOM에서 위치를 측정해 패널 marginTop 설정
+  // 기준은 "클릭한 카드"가 아니라 그 카드가 속한 "섹션의 첫 카드" — 같은 섹션의 1·2·3번을 눌러도 패널 위치 동일
+  useLayoutEffect(() => {
+    if (!selected || !clickedCardRef.current || !gridRef.current) return;
+    const groupEl = clickedCardRef.current.closest('.tmpl-group');
+    const anchorEl = groupEl?.querySelector('.tmpl-card') || clickedCardRef.current;
+    const off = anchorEl.getBoundingClientRect().top
+              - gridRef.current.getBoundingClientRect().top;
+    setPanelOffset(Math.max(0, off));
+  }, [selected]);
+
   // 질문 만들기 탭 전용 상태
   const [customCategory, setCustomCategory] = useState('lp');
   const [customQList, setCustomQList] = useState([]);
@@ -61,38 +77,14 @@ export default function QuestionTemplates() {
       const { company: co } = await resolveCompany(user.id);
       if (co) setCompanyId(co.id);
 
-      const baseQuery = supabase
-        .from('question_templates')
-        .select('*, template_questions(id, question_text, question_order, question_type, options)')
-        .order('use_count', { ascending: false });
-
-      const { data, error } = await (co
-        ? baseQuery.or(`is_default.eq.true,company_id.eq.${co.id}`)
-        : baseQuery.eq('is_default', true));
-
-      if (error) console.error('[QuestionTemplates]', error.message);
-      if (data) {
-        const allData = [...data];
-        // DB에 없으면 로컬 상수로 폴백 (D-31 패턴) — 4개 탭 전체 적용
-        const checks = [
-          { key: 'lp',         category: '랜딩페이지' },
-          { key: 'preference', category: '광고소재'   },
-          { key: 'pricing',    category: '가격'       },
-          { key: 'email',      category: '이메일'     },
-        ];
-        checks.forEach(({ key, category }) => {
-          const hasData = allData.some(t => t.category === category && t.is_default);
-          if (!hasData) {
-            (QUESTION_TEMPLATES[key] || []).forEach(t => allData.push({
-              ...t, is_default: true, template_questions: [], use_count: 0,
-            }));
-          }
-        });
-        setTemplates(allData.map(t => ({
-          ...t,
-          template_questions: [...(t.template_questions || [])].sort((a, b) => a.question_order - b.question_order),
-        })));
-      }
+      // 기본 템플릿은 코드(templates.js)를 단일 출처로 사용한다.
+      // 과거 시드(008)가 DB(question_templates, is_default=true)에 넣어둔 옛/중복 템플릿이
+      // 미리보기와 실제 등록(서브테스트가 쓰는 templates.js)을 어긋나게 만들던 문제 해소.
+      // 회사 커스텀 질문(is_default=false)은 별도 'custom' 탭(loadCustomQs)에서 따로 로드하므로 여기선 미사용.
+      const locals = Object.values(QUESTION_TEMPLATES).flat().map(t => ({
+        ...t, is_default: true, template_questions: [], use_count: 0,
+      }));
+      setTemplates(locals);
       setLoading(false);
     } catch (err) {
       console.error('[QuestionTemplates load]', err);
@@ -181,17 +173,6 @@ export default function QuestionTemplates() {
     return true;
   }
 
-  async function handleUse(template) {
-    const tab = TABS.find(t => t.key === activeTab);
-    // 로컬 폴백 템플릿(UUID 아닌 id)은 DB update 생략
-    const isDbTemplate = template.id && template.id.includes('-') && template.id.length > 20;
-    if (isDbTemplate) {
-      await supabase.from('question_templates')
-        .update({ use_count: (template.use_count || 0) + 1 })
-        .eq('id', template.id);
-    }
-    navigate(tab.path, { state: { templateId: template.id, templateName: template.name } });
-  }
 
   const currentTab = TABS.find(t => t.key === activeTab);
   const filtered = templates.filter(t => t.category === currentTab?.category && t.is_default);
@@ -285,7 +266,7 @@ export default function QuestionTemplates() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{q.question_text}</div>
                     <div style={{ marginTop: 5, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, fontWeight: 600, background: TYPE_BG[qType], color: TYPE_COL[qType], border: `1px solid ${TYPE_COL[qType]}44` }}>
+                      <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, fontWeight: 600, background: TYPE_BG[qType], color: TYPE_COL[qType] }}>
                         {TYPE_LABEL[qType] || '서술형'}
                       </span>
                       {qType === 'radio' && opts.length > 0 && (
@@ -436,7 +417,7 @@ export default function QuestionTemplates() {
               <Btn onClick={() => navigate(currentTab?.path)}>바로 의뢰 등록하기</Btn>
             </Card>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 20 }}>
+            <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 20, alignItems: 'start' }}>
               {/* 템플릿 카드 그리드 (섹션 구분 렌더링) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {(() => {
@@ -451,7 +432,7 @@ export default function QuestionTemplates() {
                     groups[groups.length - 1].items.push(t);
                   });
                   return groups.map((group, gi) => (
-                    <div key={gi}>
+                    <div key={gi} className="tmpl-group">
                       {group.label && (
                         <div style={{ marginBottom: 12 }}>
                           <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', letterSpacing: '0.08em', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
@@ -464,7 +445,8 @@ export default function QuestionTemplates() {
                         {group.items.map(t => (
                           <Card
                             key={t.id}
-                            style={{ transition: 'all 0.15s', borderColor: selected === t.id ? 'var(--accent)' : undefined }}
+                            className="tmpl-card"
+                            style={{ transition: 'all 0.15s', borderColor: selected === t.id ? 'var(--accent)' : undefined, display: 'flex', flexDirection: 'column', height: '100%' }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -482,13 +464,16 @@ export default function QuestionTemplates() {
                               </div>
                             </div>
                             <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 14 }}>{t.description}</p>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
                               <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
                                 {(t.template_questions?.length > 0
                                   ? t.template_questions.length
                                   : (TEMPLATE_BY_NAME[t.name]?.questions?.length || 0))}개 문항 · {t.use_count || 0}회 사용
                               </span>
-                              <Btn size="sm" variant="secondary" onClick={() => setSelected(t.id)}>
+                              <Btn size="sm" variant="secondary" onClick={(e) => {
+                                clickedCardRef.current = e.currentTarget.closest('.tmpl-card');
+                                setSelected(t.id);
+                              }}>
                                 미리보기
                               </Btn>
                             </div>
@@ -500,9 +485,9 @@ export default function QuestionTemplates() {
                 })()}
               </div>
 
-              {/* 우측 사이드 패널 */}
+              {/* 우측 사이드 패널 — 화면 높이로 제한 + 내부 스크롤(목록을 아래로 내려 미리보기해도 항상 따라와 전체가 보이도록) */}
               {selectedTemplate && (
-                <div style={{ position: 'sticky', top: 24 }}>
+                <div key={selected} style={{ position: 'sticky', top: 24, alignSelf: 'start', marginTop: panelOffset, maxHeight: 'calc(100vh - 48px)', overflowY: 'auto' }}>
                   <Card>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                       <div>
@@ -522,10 +507,6 @@ export default function QuestionTemplates() {
                     <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 16 }}>
                       {selectedTemplate.description}
                     </p>
-
-                    <Btn size="sm" onClick={() => handleUse(selectedTemplate)} style={{ width: '100%', marginBottom: 16 }}>
-                      이 템플릿으로 의뢰 등록 →
-                    </Btn>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {(() => {
@@ -558,7 +539,7 @@ export default function QuestionTemplates() {
                                   <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>[{opts.join(' / ')}]</div>
                                 )}
                               </div>
-                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: TYPE_BG[qType], color: TYPE_COL[qType], border: `1px solid ${TYPE_COL[qType]}44` }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, flexShrink: 0, background: TYPE_BG[qType], color: TYPE_COL[qType] }}>
                                 {TYPE_LABEL[qType] || '서술형'}
                               </span>
                             </div>

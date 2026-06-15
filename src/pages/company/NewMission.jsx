@@ -331,8 +331,6 @@ export default function NewMission() {
   const location = useLocation();
   const isEditMode      = Boolean(location.state?.editMode);
   const editMissionId   = location.state?.missionId   || null;
-  const initTemplateId   = location.state?.templateId   || null;
-  const initTemplateName = location.state?.templateName || null;
 
   const fileInputRef = useRef(null);
   const panelStepRef = useRef(null);
@@ -465,20 +463,6 @@ export default function NewMission() {
     }
     loadMissions();
   }, [view]);
-
-  // 질문 템플릿 페이지에서 templateId/templateName 전달 시 해당 템플릿 미리 선택
-  useEffect(() => {
-    if (!initTemplateId) return;
-    setView('form');
-    if (initTemplateName) {
-      const target = (QUESTION_TEMPLATES.lp || []).find(t => t.name === initTemplateName);
-      if (target) {
-        setSelectedQuestions(target.questions.slice(0, 5));
-        setExpandedTmpl({ [target.id]: true });
-        setStep(2);
-      }
-    }
-  }, []);
 
   function resetForm() {
     setMissionUuid(crypto.randomUUID());
@@ -705,9 +689,9 @@ export default function NewMission() {
     } catch {}
   }, [draftKey, effectiveEditMode, view, form, step, careerLevels, selectedQuestions, localCustomQs, missionUuid]);
 
-  // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
+  // 복원 감지: 신규 진입(수정 아님) 시 저장본이 있으면 배너로 제안
   useEffect(() => {
-    if (!draftKey || isEditMode || initTemplateId) return;
+    if (!draftKey || isEditMode) return;
     try {
       const raw = localStorage.getItem(draftKey);
       if (raw) { const parsed = JSON.parse(raw); if (parsed?.form) setRestorable(parsed); }

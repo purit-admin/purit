@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -591,37 +591,29 @@ export default function PurityFilter() {
       </div>
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-        {[['pending', '검토 대기'], ['approved', '승인됨'], ['rejected', '반려됨'], ['all', '전체']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); setTypeFilter('all'); setSearchQuery(''); setPanelQuery(''); }} style={{
-            padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
-            background: filter === v ? 'var(--bg)' : 'transparent',
-            color: filter === v ? 'var(--text)' : 'var(--text-3)',
-            border: 'none', transition: 'all 0.15s', cursor: 'pointer',
-          }}>{l}</button>
-        ))}
-      </div>
+      <StatusTabs
+        value={filter}
+        onChange={(v) => { setFilter(v); setSelected(null); setListPage(1); setCheckedIds(new Set()); setPendingSubFilter('all'); setTypeFilter('all'); setSearchQuery(''); setPanelQuery(''); }}
+        tabs={[
+          { key: 'pending', label: '검토 대기' },
+          { key: 'approved', label: '승인됨' },
+          { key: 'rejected', label: '반려됨' },
+          { key: 'all', label: '전체' },
+        ]}
+        style={{ marginBottom: 24 }}
+      />
 
       {/* 타입 필터 탭 — 메인/서브 구분 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: 'var(--text-3)', marginRight: 2 }}>타입:</span>
-        {[
-          ['all',  `전체 (${filteredBaseBySearch.length})`],
-          ['main', `메인 (${filteredBaseBySearch.filter(f => !SUB_TYPES.includes(f.missions?.type)).length})`],
-          ['sub',  `서브 (${filteredBaseBySearch.filter(f =>  SUB_TYPES.includes(f.missions?.type)).length})`],
-        ].map(([v, label]) => (
-          <button key={v}
-            onClick={() => { setTypeFilter(v); setListPage(1); setCheckedIds(new Set()); setSelected(null); }}
-            style={{
-              padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer', border: '1px solid',
-              background:  typeFilter === v ? 'var(--accent)' : 'transparent',
-              color:       typeFilter === v ? '#fff'          : 'var(--text-2)',
-              borderColor: typeFilter === v ? 'var(--accent)' : 'var(--border)',
-            }}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentFilter
+        label="타입:"
+        value={typeFilter}
+        onChange={(v) => { setTypeFilter(v); setListPage(1); setCheckedIds(new Set()); setSelected(null); }}
+        tabs={[
+          { key: 'all',  label: '전체', count: filteredBaseBySearch.length },
+          { key: 'main', label: '메인', count: filteredBaseBySearch.filter(f => !SUB_TYPES.includes(f.missions?.type)).length },
+          { key: 'sub',  label: '서브', count: filteredBaseBySearch.filter(f =>  SUB_TYPES.includes(f.missions?.type)).length },
+        ]}
+      />
 
       {/* 검색 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -669,23 +661,16 @@ export default function PurityFilter() {
 
       {/* 65점 기준 서브 필터 — 검토 대기 탭에서만 표시 */}
       {filter === 'pending' && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 2 }}>점수 기준:</span>
-          {[
-            ['all', '전체', null],
-            ['above65', '65점 이상', filteredBySearch.filter(f => getScore(f) >= 65).length],
-            ['below65', '65점 미만', filteredBySearch.filter(f => getScore(f) < 65).length],
-          ].map(([v, l, cnt]) => (
-            <button key={v} onClick={() => { setPendingSubFilter(v); setListPage(1); setCheckedIds(new Set()); }} style={{
-              padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer', border: '1px solid',
-              background: pendingSubFilter === v ? 'var(--accent)' : 'transparent',
-              color: pendingSubFilter === v ? '#fff' : 'var(--text-2)',
-              borderColor: pendingSubFilter === v ? 'var(--accent)' : 'var(--border)',
-            }}>
-              {l}{cnt !== null ? ` (${cnt})` : ` (${filteredBySearch.length})`}
-            </button>
-          ))}
-        </div>
+        <SegmentFilter
+          label="점수 기준:"
+          value={pendingSubFilter}
+          onChange={(v) => { setPendingSubFilter(v); setListPage(1); setCheckedIds(new Set()); }}
+          tabs={[
+            { key: 'all', label: '전체', count: filteredBySearch.length },
+            { key: 'above65', label: '65점 이상', count: filteredBySearch.filter(f => getScore(f) >= 65).length },
+            { key: 'below65', label: '65점 미만', count: filteredBySearch.filter(f => getScore(f) < 65).length },
+          ]}
+        />
       )}
 
       {/* statusError */}

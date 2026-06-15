@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
 
@@ -137,16 +137,11 @@ function MissionDetail({ mission, onFeedbackClick }) {
       </Card>
       <Card style={{ padding: '14px 16px' }}>
         {detailLoading && <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>피드백 로딩 중...</div>}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-          {TABS.map(t => (
-            <button key={t.v} onClick={() => handleTab(t.v)} style={{
-              padding: '4px 10px', borderRadius: 99, fontSize: 12, cursor: 'pointer', border: '1px solid',
-              background:  fbFilter === t.v ? 'var(--accent)' : 'transparent',
-              color:       fbFilter === t.v ? '#fff' : 'var(--text-2)',
-              borderColor: fbFilter === t.v ? 'var(--accent)' : 'var(--border)',
-            }}>{t.l}</button>
-          ))}
-        </div>
+        <SegmentFilter
+          tabs={TABS.map(t => ({ key: t.v, label: t.l }))}
+          value={fbFilter}
+          onChange={handleTab}
+        />
         {feedbacks.length === 0 ? (
           <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>해당 피드백이 없습니다.</div>
         ) : (
@@ -341,6 +336,7 @@ export default function AdminMissions() {
   const [earlyCompleteError, setEarlyCompleteError] = useState('');
   const [mainPage, setMainPage] = useState(1);
   const [subPage, setSubPage]   = useState(1);
+  const [missionKind, setMissionKind] = useState('main');
   const [statusError, setStatusError] = useState('');
   const [highlightId, setHighlightId] = useState(null);
   const [selectedMission, setSelectedMission] = useState(null);
@@ -575,23 +571,24 @@ export default function AdminMissions() {
       )}
 
       {/* Filter */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-        {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['cancelled', '취소']].map(([v, l]) => (
-          <button key={v} onClick={() => { setFilter(v); setMainPage(1); setSubPage(1); setHighlightId(null); setSelectedMission(null); setSearchQuery(''); }} style={{
-            padding: '6px 14px', borderRadius: 4, fontSize: 13, fontWeight: 500,
-            background: filter === v ? 'var(--bg)' : 'transparent',
-            color: filter === v ? 'var(--text)' : 'var(--text-3)',
-            border: 'none', transition: 'all 0.15s', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-          }}>
-            {l}
-            {v === 'cancelled' && cancelledPendingCount > 0 && (
+      <StatusTabs
+        value={filter}
+        onChange={(v) => { setFilter(v); setMainPage(1); setSubPage(1); setHighlightId(null); setSelectedMission(null); setSearchQuery(''); }}
+        tabs={[
+          { key: 'all', label: '전체' },
+          { key: 'active', label: '진행' },
+          { key: 'completed', label: '완료' },
+          {
+            key: 'cancelled', label: '취소',
+            badge: cancelledPendingCount > 0 ? (
               <span style={{ background: '#ef4444', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 6px', lineHeight: 1.5 }}>
                 {cancelledPendingCount}
               </span>
-            )}
-          </button>
-        ))}
-      </div>
+            ) : null,
+          },
+        ]}
+        style={{ marginBottom: 24 }}
+      />
 
       {/* 의뢰명 검색 */}
       <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -694,13 +691,19 @@ export default function AdminMissions() {
       )}
 
       {/* 메인/서브 분리 (모든 탭 공통) */}
+      {/* 메인/서브 전환 탭 */}
+      <SegmentFilter
+        value={missionKind}
+        onChange={setMissionKind}
+        tabs={[
+          { key: 'main', label: '메인 의뢰', count: mainMissions.length },
+          { key: 'sub', label: '서브 의뢰', count: subMissions.length },
+        ]}
+        style={{ marginBottom: 20 }}
+      />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-        {/* 메인 미션 섹션 */}
+        {missionKind === 'main' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 의뢰</h2>
-            <Badge type="gray">{mainMissions.length}개</Badge>
-          </div>
           {mainMissions.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
               해당 조건의 미션이 없습니다.
@@ -721,13 +724,10 @@ export default function AdminMissions() {
             </>
           )}
         </div>
+        )}
 
-        {/* 서브 의뢰 섹션 */}
+        {missionKind === 'sub' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 의뢰</h2>
-            <Badge type="blue">{subMissions.length}개</Badge>
-          </div>
           {subMissions.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
               해당 조건의 미션이 없습니다.
@@ -748,6 +748,7 @@ export default function AdminMissions() {
             </>
           )}
         </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, StatusTabs } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid } from 'recharts';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';

@@ -283,6 +283,7 @@ export default function CompanyDashboard() {
   const [feedbacks, setFeedbacks]     = useState([]);
   const [loading, setLoading]         = useState(true);
   const [missionFilter, setMissionFilter] = useState('active');
+  const [missionKind, setMissionKind] = useState('main');
   const [mainMissionPage, setMainMissionPage] = useState(1);
   const [subMissionPage, setSubMissionPage]   = useState(1);
   const [showBanner, setShowBanner] = useState(() => !isBannerDismissed());
@@ -749,13 +750,21 @@ export default function CompanyDashboard() {
             <span style={{ color: C.primary, cursor: 'pointer', fontWeight: 600 }} onClick={() => navigate('/company/new')}>첫 의뢰를 등록해보세요 →</span>
           </div>
         ) : (
+          <>
+          {/* 메인/서브 전환 탭 */}
+          <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: '#F1F5F9', borderRadius: 10, marginBottom: 20 }}>
+            {[['main', '메인 의뢰', mainMissions.length], ['sub', '서브 의뢰', subMissions.length]].map(([k, label, cnt]) => (
+              <button key={k} onClick={() => setMissionKind(k)} style={{
+                padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
+                background: missionKind === k ? C.cardBg : 'transparent',
+                color: missionKind === k ? C.primary : C.text3,
+                boxShadow: missionKind === k ? C.shadow : 'none', transition: 'all 0.15s',
+              }}>{label} {cnt}</button>
+            ))}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {/* 메인 의뢰 섹션 */}
+            {missionKind === 'main' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text2 }}>메인 의뢰</h3>
-                <Badge type="gray">{mainMissions.length}개</Badge>
-              </div>
               {mainMissions.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: C.text3, fontSize: 14, background: C.cardBg, borderRadius: 12, boxShadow: C.shadow }}>
                   해당 조건의 의뢰가 없습니다.
@@ -769,13 +778,10 @@ export default function CompanyDashboard() {
                 </>
               )}
             </div>
+            )}
 
-            {/* 서브 의뢰 섹션 */}
+            {missionKind === 'sub' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text2 }}>서브 의뢰</h3>
-                <Badge type="blue">{subMissions.length}개</Badge>
-              </div>
               {subMissions.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: C.text3, fontSize: 14, background: C.cardBg, borderRadius: 12, boxShadow: C.shadow }}>
                   해당 조건의 의뢰가 없습니다.
@@ -789,7 +795,9 @@ export default function CompanyDashboard() {
                 </>
               )}
             </div>
+            )}
           </div>
+          </>
         )}
       </motion.div>
 

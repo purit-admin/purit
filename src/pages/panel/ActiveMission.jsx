@@ -103,7 +103,7 @@ function TypedQuestionsBlock({ qs, get, set }) {
                   ))}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>
-                  <span>매우 낮음</span><span>매우 높음</span>
+                  <span>{q.options?.[0] || '매우 낮음'}</span><span>{q.options?.[1] || '매우 높음'}</span>
                 </div>
               </div>
             )}
@@ -172,6 +172,7 @@ export default function ActiveMission() {
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const [viewedImages, setViewedImages]       = useState(() => new Set([0]));
   const [activeDimension, setActiveDimension] = useState('clarity');
+  const [missionKind, setMissionKind] = useState('main');
   const [overallComment, setOverallComment]   = useState('');
   const [skippedDims, setSkippedDims]         = useState({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
 
@@ -757,13 +758,21 @@ export default function ActiveMission() {
             <Btn variant="outline" onClick={() => navigate('/panel/missions')}>미션 탐색 보기 →</Btn>
           </div>
         ) : (
+          <>
+          {/* 메인/서브 전환 탭 */}
+          <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 10, marginBottom: 20 }}>
+            {[['main', '메인 미션', mainDrafts.length], ['sub', '서브 미션', subDrafts.length]].map(([k, label, cnt]) => (
+              <button key={k} onClick={() => setMissionKind(k)} style={{
+                padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
+                background: missionKind === k ? 'var(--surface)' : 'transparent',
+                color: missionKind === k ? 'var(--accent)' : 'var(--text-3)',
+                boxShadow: missionKind === k ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
+              }}>{label} {cnt}</button>
+            ))}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {/* 메인 미션 섹션 */}
+            {missionKind === 'main' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 미션</h2>
-                <Badge type="gray">{mainDrafts.length}개</Badge>
-              </div>
               {mainDrafts.length === 0 ? (
                 <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
                   진행 중인 메인 미션이 없습니다.
@@ -774,12 +783,9 @@ export default function ActiveMission() {
                 </div>
               )}
             </div>
-            {/* 서브 미션 섹션 */}
+            )}
+            {missionKind === 'sub' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 미션</h2>
-                <Badge type="blue">{subDrafts.length}개</Badge>
-              </div>
               {subDrafts.length === 0 ? (
                 <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
                   진행 중인 서브 미션이 없습니다.
@@ -790,7 +796,9 @@ export default function ActiveMission() {
                 </div>
               )}
             </div>
+            )}
           </div>
+          </>
         )}
       </div>
     );

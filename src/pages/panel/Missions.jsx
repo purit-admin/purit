@@ -240,6 +240,7 @@ export default function MissionList() {
   const [resubmitCountdown, setResubmitCountdown] = useState(0);
   const [mainPage, setMainPage]       = useState(1);
   const [subPage, setSubPage]         = useState(1);
+  const [missionKind, setMissionKind] = useState('main');
 
   // 수락 모달 열릴 때 카운트다운 시작
   useEffect(() => {
@@ -691,13 +692,21 @@ export default function MissionList() {
 
       {/* ── 메인/서브 분리 목록 ── */}
       {filtered.length > 0 && (
+        <>
+        {/* 메인/서브 전환 탭 */}
+        <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 10, marginBottom: 20 }}>
+          {[['main', '메인 미션', mainFiltered.length], ['sub', '서브 미션', subFiltered.length]].map(([k, label, cnt]) => (
+            <button key={k} onClick={() => setMissionKind(k)} style={{
+              padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
+              background: missionKind === k ? 'var(--surface)' : 'transparent',
+              color: missionKind === k ? 'var(--accent)' : 'var(--text-3)',
+              boxShadow: missionKind === k ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
+            }}>{label} {cnt}</button>
+          ))}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {/* 메인 미션 섹션 */}
+          {missionKind === 'main' && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>메인 미션</h2>
-              <Badge type="gray">{mainFiltered.length}개</Badge>
-            </div>
             {mainFiltered.length === 0 ? (
               <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
                 해당 조건의 미션이 없습니다.
@@ -727,13 +736,10 @@ export default function MissionList() {
               </>
             )}
           </div>
+          )}
 
-          {/* 서브 미션 섹션 */}
+          {missionKind === 'sub' && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-2)' }}>서브 미션</h2>
-              <Badge type="blue">{subFiltered.length}개</Badge>
-            </div>
             {subFiltered.length === 0 ? (
               <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
                 해당 조건의 미션이 없습니다.
@@ -763,7 +769,9 @@ export default function MissionList() {
               </>
             )}
           </div>
+          )}
         </div>
+        </>
       )}
     </div>
   );
