@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_panel.txt — Purity MVP 패널(Panel) 포털 상세 정의
-최종 업데이트: 2026-06-15 (대시보드 수익 현황을 정산 내역(History)과 동일한 정산 LEDGER 공용 뷰로 통일 — SettlementLedger 컴포넌트 신규 추출(요약 카드+현황 탭+건별 목록+탈락 사유+삭제), 대시보드는 요약 카드만이던 것을 전체 정산 뷰로 확장·활성 패널 한정 / 정산 내역 페이지는 유지(정지 패널 전용 정산 열람 경로 RJ-E)) / 2026-06-15 (피드백 작성 — 이미지 전수 확인 게이트 정확화: viewedImages를 실제 본 이미지만 저장·복원(일부만 보고 복귀해도 안 본 이미지 재확인 필요, D-141) / 자동 저장 배지(정적 "🟢 자동 저장 중") 폼 헤더 우측 추가 / 제출 확인 모달 "아니요, 더 검토할게요" 취소 버튼 추가 / 마감 배너 inline-flex로 폭 축소) / 2026-06-15 (미션 관리(Missions)·진행 중 미션(ActiveMission 목록뷰)에서 메인/서브 미션을 세로 스택 대신 상단 탭(메인/서브+개수)으로 전환 / 피드백 작성 점수형 질문의 양끝 라벨이 기업이 설계한 앵커(예: '전혀 아님'↔'정확히 묘사')로 표시 — TypedQuestionsBlock이 질문 options 우선 사용·없으면 '매우 낮음/높음' 폴백, 기업 미리보기와 일치) / 2026-06-13 (095 프로필 경력 표시 — experience_years>=15 → '헤드'(구 'C레벨/임원진'), 연차 구간 주2~4·미5~7·시8~14·헤드15+ / VerifyDocs 연차 입력·정산 배율 영향 불변) / 2026-06-13 (메인 의뢰 검증 포커스(mission.assets) 뱃지를 미션 브리핑 + 이미지 피드백 작성 화면 상단에 노출 — 기업이 고른 중점 항목('A/B 소재 비교' 포함)을 보며 평가 / 서브 의뢰는 미표시) / 2026-06-10 (VerifyDocs 마지막 기회 경고 배너+확인 모달 / 084 서류 재제출 upsert 실패 수정 D-118) / 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 RJ-E / 심사 거절→재제출→영구차단 플로우 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
+최종 업데이트: 2026-06-15 (서브 의뢰 피드백 — 소재 비교 '소재 유형'·이메일 '전환 목표'를 브리핑+피드백 상단 배지로 표시(단일 출처 src/lib/subMissionMeta.js) / 이메일 평가 질문을 "이 이메일을 보면 목표대로 행동하시겠어요?"(그렇다/아니다)로 통일해 구 '답장 의향' 대체(would_reply 재사용), 점수 '호기심/행동 욕구' / 서브 피드백 헤더 '브리핑으로'를 제목 위 좌측 '← 브리핑으로' 뒤로가기로 이동) / 2026-06-15 (대시보드 수익 현황을 정산 내역(History)과 동일한 정산 LEDGER 공용 뷰로 통일 — SettlementLedger 컴포넌트 신규 추출(요약 카드+현황 탭+건별 목록+탈락 사유+삭제), 대시보드는 요약 카드만이던 것을 전체 정산 뷰로 확장·활성 패널 한정 / 정산 내역 페이지는 유지(정지 패널 전용 정산 열람 경로 RJ-E)) / 2026-06-15 (피드백 작성 — 이미지 전수 확인 게이트 정확화: viewedImages를 실제 본 이미지만 저장·복원(일부만 보고 복귀해도 안 본 이미지 재확인 필요, D-141) / 자동 저장 배지(정적 "🟢 자동 저장 중") 폼 헤더 우측 추가 / 제출 확인 모달 "아니요, 더 검토할게요" 취소 버튼 추가 / 마감 배너 inline-flex로 폭 축소) / 2026-06-15 (미션 관리(Missions)·진행 중 미션(ActiveMission 목록뷰)에서 메인/서브 미션을 세로 스택 대신 상단 탭(메인/서브+개수)으로 전환 / 피드백 작성 점수형 질문의 양끝 라벨이 기업이 설계한 앵커(예: '전혀 아님'↔'정확히 묘사')로 표시 — TypedQuestionsBlock이 질문 options 우선 사용·없으면 '매우 낮음/높음' 폴백, 기업 미리보기와 일치) / 2026-06-13 (095 프로필 경력 표시 — experience_years>=15 → '헤드'(구 'C레벨/임원진'), 연차 구간 주2~4·미5~7·시8~14·헤드15+ / VerifyDocs 연차 입력·정산 배율 영향 불변) / 2026-06-13 (메인 의뢰 검증 포커스(mission.assets) 뱃지를 미션 브리핑 + 이미지 피드백 작성 화면 상단에 노출 — 기업이 고른 중점 항목('A/B 소재 비교' 포함)을 보며 평가 / 서브 의뢰는 미표시) / 2026-06-10 (VerifyDocs 마지막 기회 경고 배너+확인 모달 / 084 서류 재제출 upsert 실패 수정 D-118) / 2026-06-12 (Sidebar 게이트 suspended 분기 추가-정산내역만 허용 RJ-E / 심사 거절→재제출→영구차단 플로우 / 경력 어드민 확정·잠금 시스템 + 가입 연차 입력 + 직군 7종)
 ================================================================
 
 인증 후 /panel 하위 라우트 접근 가능. 패널 상태 게이트(Layout <main> 블록):
@@ -90,6 +90,7 @@ feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline
   · rejection_deadline IS NOT NULL (재작성 draft) → rejection_deadline 기준 체크 (D-76 참조)
   · 유효 → deadlineBanner state 설정 (브리핑·폼 상단 표시)
 - ★ 검증 포커스 노출(메인 의뢰): mission.assets(기업이 고른 검증 포커스, 'A/B 소재 비교' 포함)를 미션 브리핑 + 이미지 피드백 작성 화면 상단에 뱃지로 표시 → 패널이 그 관점을 중점으로 평가. 서브 의뢰는 미표시(assets=[]).
+- ★ 서브 의뢰 유형/목표 노출: 소재 비교는 '소재 유형'(resolveAssetType), 이메일은 '전환 목표'(resolveEmailGoal)를 브리핑 + 피드백 작성 화면 상단 배지로 표시 (단일 출처 src/lib/subMissionMeta.js). 기타(직접입력) 값도 라벨로 표시.
 
 [이미지 미션]
 - ImageAnnotator로 드래그 영역 지정
@@ -106,9 +107,10 @@ feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline
 
 [서브 미션 (preference/pricing/email)]
 - 자동저장: {__subType, ...fields, customAnswers} → feedbacks.strengths (1.5초 debounce)
-- preference: A/B 선택 + message_clarity + purchase_intent
+- preference: 소재 유형 라벨 표시 + A/B 선택 + message_clarity + purchase_intent
 - pricing: price_fairness + value_perception + would_buy
-- email: open_intent + hook_score + clarity_score + curiosity_score + would_reply
+- email: 전환 목표 라벨 표시 + open_intent + hook_score + clarity_score + curiosity_score + would_reply
+  · would_reply 질문 = "이 이메일을 보면 목표대로 행동하시겠어요?"(그렇다/아니다, 전환 목표 일반화 — 구 '답장 의향' 대체), 점수 라벨 "호기심/행동 욕구"
 - TypedQuestionsBlock: radio/scale/text 타입별 렌더, 미응답 시 제출 불가
 - 총 평가(comment): TypedQuestionsBlock 아래 최하단 별도 Card
 - 제출: preference_responses/pricing_responses/email_responses INSERT + feedbacks UPDATE(submitted) + RPC 2개
@@ -126,7 +128,8 @@ feedbackMap 구조: { [missionId]: { status, id, suggestions, rejection_deadline
 - 재제출: 서브 미션 응답 테이블 UPDATE (INSERT 금지 — D-29)
 
 [공통 폼 UI]
-- 자동 저장 배지: 폼 헤더 우측(이미지=제목 옆, 서브=브리핑으로 버튼 옆)에 "🟢 자동 저장 중" 정적 배지 상시 표시
+- 서브 의뢰 피드백 헤더의 '브리핑으로'는 제목 위 좌측 '← 브리핑으로' 뒤로가기 버튼으로 이동(긴 의뢰명에 우측 배지·버튼이 눌리던 문제 해소) — 제목 영역 minWidth:0, 자동저장 배지 flexShrink:0
+- 자동 저장 배지: 폼 헤더 우측(이미지=제목 옆, 서브=제목 옆)에 "🟢 자동 저장 중" 정적 배지 상시 표시
   · 초록 점 pulse 애니메이션, 색 없는 회색 톤 / "페이지를 벗어나도 자동 저장됨" 안내 목적 (실제 저장 상태 추적 X — 안내 전용)
 - 제출 확인 모달("피드백을 제출할까요?"): "아니요, 더 검토할게요"(취소) + "네, 제출합니다"(확정, N초 카운트다운) — 취소 버튼·배경 클릭 모두 닫힘
 - 마감 배너(deadlineBannerEl): inline-flex로 내용 폭만 차지 (글자 길이에 맞춤)

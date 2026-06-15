@@ -6,6 +6,7 @@ import ChargeOptionsModal from '../../components/ui/ChargeOptionsModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { getCareerUnlockCredit, applyUnlockDiscount, TRIAL_FIRST_UNLOCK_DISCOUNT, TRIAL_UNLOCK_DISCOUNT_WINDOW_HOURS } from '../../lib/honorLevels';
+import { resolveEmailGoal } from '../../lib/subMissionMeta';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip,
@@ -543,6 +544,7 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
   const replyYes = responses.filter(r => r.would_reply === true).length;
   const replyNo  = responses.filter(r => r.would_reply === false).length;
   const parsedDesc = parseSubDesc(mission?.description, 'email');
+  const emailGoal = resolveEmailGoal(parsedDesc);
   const allTypedQs = parsedDesc.selectedQuestions || [
     ...(parsedDesc.templateQuestions || []),
     ...(parsedDesc.customQuestions || []).filter(Boolean).map(q =>
@@ -558,8 +560,12 @@ function EmailResults({ responses, mission, panelProfiles, companyId, helpRating
           <ExpandableText text={parsedDesc.content} limit={250} />
         </div>
       )}
-      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>답장 의향</div>
-      <RatioBar aLabel="답장하겠음" bLabel="답장 안 함" aCount={replyYes} bCount={replyNo} aColor="var(--green)" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>전환 목표</span>
+        <Badge type="blue">{emailGoal.label}</Badge>
+      </div>
+      <div style={{ marginBottom: 4, fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>목표 행동 의향</div>
+      <RatioBar aLabel="그렇다" bLabel="아니다" aCount={replyYes} bCount={replyNo} aColor="var(--green)" />
       <ScoreCardRow items={[
         { label: '개봉 의향',    value: calcAvg(responses, 'open_intent') },
         { label: '훅 강도',      value: calcAvg(responses, 'hook_score') },

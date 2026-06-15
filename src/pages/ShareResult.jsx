@@ -359,7 +359,7 @@ export default function ShareResult() {
                 <>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#4B556D', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>이메일 검증 결과</div>
                   <div style={{ background: '#F8FAFC', borderRadius: 10, border: '1px solid #E2E8F0', padding: '20px', textAlign: 'center', marginBottom: 16 }}>
-                    <div style={{ fontSize: 11, color: '#8598AA', marginBottom: 6 }}>답장 의향</div>
+                    <div style={{ fontSize: 11, color: '#8598AA', marginBottom: 6 }}>목표 행동 의향</div>
                     <div style={{ fontSize: 40, fontWeight: 800, color: replyColor, lineHeight: 1 }}>{replyPct}%</div>
                     <div style={{ fontSize: 12, color: '#8598AA', marginTop: 4 }}>{subResp.would_reply_count}/{total}명</div>
                   </div>

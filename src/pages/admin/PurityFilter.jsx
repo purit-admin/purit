@@ -6,6 +6,7 @@ import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
 import { getPanelReward } from '../../lib/honorLevels';
+import { resolveEmailGoal } from '../../lib/subMissionMeta';
 
 const DIM = [
   { key: 'clarity_score',         label: '명확성' },
@@ -1019,9 +1020,13 @@ export default function PurityFilter() {
                                   {pd.productDescription}
                                 </div>
                               )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)' }}>전환 목표</span>
+                                <Badge type="blue">{resolveEmailGoal(pd).label}</Badge>
+                              </div>
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
-                                  { label: '답장 의향', value: subDataForScore.would_reply === true ? 'Yes' : subDataForScore.would_reply === false ? 'No' : '—' },
+                                  { label: '목표 행동', value: subDataForScore.would_reply === true ? 'Yes' : subDataForScore.would_reply === false ? 'No' : '—' },
                                   { label: '후킹력', value: subDataForScore.hook_score ? `${subDataForScore.hook_score}/5` : '—' },
                                   { label: '명확성', value: subDataForScore.clarity_score ? `${subDataForScore.clarity_score}/5` : '—' },
                                   { label: '개봉 의향', value: subDataForScore.open_intent ? `${subDataForScore.open_intent}/5` : '—' },

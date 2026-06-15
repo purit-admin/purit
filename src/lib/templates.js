@@ -136,7 +136,7 @@ export const QUESTION_TEMPLATES = {
       id: 't-email-3c',
       name: '콜드 리치아웃 효과',
       category: '이메일',
-      description: '발신자 신뢰도와 CTA 명확성 및 답장 의향을 측정합니다.',
+      description: '발신자 신뢰도와 CTA 명확성 및 전환 의향을 측정합니다.',
       icon: '◆',
       questions: [
         { id: 'p3c-q1', text: '이메일을 보낸 발신자에 대한 전문성과 신뢰감이 느껴집니까?', type: 'scale', options: ['전혀 안 느껴짐', '매우 신뢰됨'] },

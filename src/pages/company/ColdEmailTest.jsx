@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
+import { EMAIL_GOALS, SUB_CUSTOM_MAXLEN, resolveEmailGoal } from '../../lib/subMissionMeta';
 
 
 const PAGE_SIZE = 5;
@@ -68,6 +69,8 @@ export default function ColdEmailTest() {
   // Step 0
   const [missionTitle, setMissionTitle] = useState('');
   const [emailText, setEmailText] = useState('');
+  const [conversionGoal, setConversionGoal] = useState('');          // 이메일 전환 목표 (EMAIL_GOALS key | 'custom')
+  const [conversionGoalCustom, setConversionGoalCustom] = useState('');  // conversionGoal==='custom' 직접입력값
   // Step 1
   const [productDescription, setProductDescription] = useState('');
   const [industry,            setIndustry]            = useState('');
@@ -149,6 +152,7 @@ export default function ColdEmailTest() {
     setMissionUuid(crypto.randomUUID());
     setCreateStep(0);
     setMissionTitle(''); setEmailText(''); setProductDescription('');
+    setConversionGoal(''); setConversionGoalCustom('');
     setIndustry(''); setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
     setPanelSize(10); setCareerLevels(['junior']);
     setSelectedQuestions([]); setLocalCustomQs([]); setExpandedTmpl({});
@@ -225,10 +229,12 @@ export default function ColdEmailTest() {
     try {
       localStorage.setItem(draftKey, JSON.stringify({
         missionTitle, emailText, productDescription, industry,
+        conversionGoal, conversionGoalCustom,
         panelSize, selectedQuestions, localCustomQs, careerLevels, createStep, missionUuid, savedAt: Date.now(),
       }));
     } catch {}
   }, [draftKey, draftId, view, missionTitle, emailText, productDescription, industry,
+      conversionGoal, conversionGoalCustom,
       panelSize, selectedQuestions, localCustomQs, careerLevels, createStep, missionUuid]);
 
   // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
@@ -248,6 +254,8 @@ export default function ColdEmailTest() {
     if (d.emailText != null) setEmailText(d.emailText);
     if (d.productDescription != null) setProductDescription(d.productDescription);
     if (d.industry != null) setIndustry(d.industry);
+    if (d.conversionGoal != null) setConversionGoal(d.conversionGoal);
+    if (d.conversionGoalCustom != null) setConversionGoalCustom(d.conversionGoalCustom);
     if (d.panelSize != null) setPanelSize(d.panelSize);
     if (Array.isArray(d.selectedQuestions)) setSelectedQuestions(d.selectedQuestions);
     if (Array.isArray(d.localCustomQs)) setLocalCustomQs(d.localCustomQs);
@@ -297,6 +305,7 @@ export default function ColdEmailTest() {
       const desc = JSON.stringify({
         missionTitle,
         content: emailText, productDescription, industry,
+        conversionGoal, conversionGoalCustom,
         selectedQuestions: [...selectedQuestions, ...localCustomQs],
         careerLevels, panelSize,
       });
@@ -333,6 +342,8 @@ export default function ColdEmailTest() {
       if (parsed.content) setEmailText(parsed.content);
       if (parsed.productDescription) setProductDescription(parsed.productDescription);
       if (parsed.industry) setIndustry(parsed.industry);
+      if (parsed.conversionGoal) setConversionGoal(parsed.conversionGoal);
+      if (parsed.conversionGoalCustom) setConversionGoalCustom(parsed.conversionGoalCustom);
       if (Array.isArray(parsed.selectedQuestions)) {
         // 저장 시 합쳐진 질문을 local-(인라인 생성)/그 외로 다시 분리 복원 ('추가된 질문 목록' 취소 UI 복구)
         const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');
@@ -424,6 +435,7 @@ export default function ColdEmailTest() {
       missionTitle,
       content: emailText.trim(), productDescription: productDescription.trim(),
       industry: industry || null,
+      conversionGoal, conversionGoalCustom: conversionGoalCustom.trim(),
       selectedQuestions: [...selectedQuestions, ...localCustomQs],
       careerLevels,
       panelSize,
@@ -506,7 +518,7 @@ export default function ColdEmailTest() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>이메일 검증</h1>
-            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>대량 발송 전 타겟 패널에게 먼저 검증받아 개봉률과 답장율을 높이세요.</p>
+            <p style={{ color: 'var(--text-2)', fontSize: 14 }}>대량 발송 전 타겟 패널에게 먼저 검증받아 개봉률과 전환율을 높이세요.</p>
           </div>
           {view !== 'list' && <Btn variant="ghost" onClick={() => {
             if (shouldBlockNav) setShowDraftModal(true);
@@ -593,6 +605,42 @@ export default function ColdEmailTest() {
                     placeholder={'제목: [이메일 제목줄]\n\n안녕하세요, [이름]님.\n\n[이메일 본문 내용 전체]\n\n[CTA 문구]\n\n감사합니다.\n[발신자 이름]'}
                     style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.7 }}
                   />
+                </div>
+
+                <div style={{ height: 1, background: 'var(--border)' }} />
+
+                {/* 전환 목표 */}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>이메일의 전환 목표</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10 }}>
+                    이 이메일로 받는 사람이 하길 바라는 행동입니다. 패널은 "이 이메일을 보면 목표대로 행동할지"로 평가합니다.
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {EMAIL_GOALS.map(g => (
+                      <button key={g.key} type="button" onClick={() => setConversionGoal(g.key)} title={g.desc} style={{
+                        padding: '8px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer', fontWeight: 600,
+                        background: conversionGoal === g.key ? 'var(--accent)' : 'var(--surface-2)',
+                        color: conversionGoal === g.key ? '#fff' : 'var(--text-2)',
+                        border: '1px solid ' + (conversionGoal === g.key ? 'var(--accent)' : 'var(--border)'), transition: 'all 0.12s',
+                      }}>{g.label}</button>
+                    ))}
+                    <button type="button" onClick={() => setConversionGoal('custom')} style={{
+                      padding: '8px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer', fontWeight: 600,
+                      background: conversionGoal === 'custom' ? 'var(--blue)' : 'var(--surface-2)',
+                      color: conversionGoal === 'custom' ? '#fff' : 'var(--text-2)',
+                      border: '1px solid ' + (conversionGoal === 'custom' ? 'var(--blue)' : 'var(--border)'), transition: 'all 0.12s',
+                    }}>✏️ 기타</button>
+                  </div>
+                  {conversionGoal === 'custom' && (
+                    <input
+                      type="text"
+                      value={conversionGoalCustom}
+                      onChange={e => setConversionGoalCustom(e.target.value.slice(0, SUB_CUSTOM_MAXLEN))}
+                      maxLength={SUB_CUSTOM_MAXLEN}
+                      placeholder="목표를 직접 입력하세요 (예: 앱 다운로드, 웨비나 등록)"
+                      style={{ width: '100%', marginTop: 10, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  )}
                 </div>
 
                 <div style={{ height: 1, background: 'var(--border)' }} />
@@ -946,6 +994,7 @@ export default function ColdEmailTest() {
                     {[
                       missionTitle.trim() && { label: '의뢰명', value: missionTitle.trim() },
                       { label: '이메일 원문', value: emailText.trim() },
+                      conversionGoal && { label: '전환 목표', value: resolveEmailGoal({ conversionGoal, conversionGoalCustom }).label },
                       productDescription.trim() && { label: '제품/타겟 설명', value: productDescription.trim() },
                       industry && { label: '산업군', value: industry },
                     ].filter(Boolean).map(r => (
@@ -1001,7 +1050,7 @@ export default function ColdEmailTest() {
                   return;
                 }
                 setCreateStep(s => s + 1);
-              }} disabled={createStep === 0 && (!emailText.trim() || !productDescription.trim() || !industry)}>
+              }} disabled={createStep === 0 && (!emailText.trim() || !productDescription.trim() || !industry || !conversionGoal || (conversionGoal === 'custom' && !conversionGoalCustom.trim()))}>
                 다음 →
               </Btn>
             ) : (
@@ -1035,7 +1084,7 @@ export default function ColdEmailTest() {
           <Card style={{ padding: '60px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>등록된 이메일 테스트가 없습니다</div>
-            <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>발송 전 패널 검증으로 개봉률과 답장율을 높여보세요.</div>
+            <div style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>발송 전 패널 검증으로 개봉률과 전환율을 높여보세요.</div>
             <Btn onClick={() => { resetForm(); setView('create'); }}>+ 새 테스트</Btn>
           </Card>
         ) : (

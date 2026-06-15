@@ -5,6 +5,7 @@ import { Card, Btn, Badge, ConfirmModal, SegmentFilter } from '../../components/
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';
+import { resolveAssetType, resolveEmailGoal } from '../../lib/subMissionMeta';
 
 
 const DIM_LABEL = { clarity: '명확성', relevance: '관련성', value: '가치', differentiation: '차별화', trust: '신뢰' };
@@ -568,6 +569,7 @@ export default function ActiveMission() {
     setSubmitting(true);
     try {
       let suggestionText = '';
+      const emailGoalLabel = missionType === 'email' ? resolveEmailGoal(parseSubDesc(mission.description, 'email')).label : '';
 
       if (isResubmit) {
         // 재제출: 기존 응답 행 UPDATE
@@ -579,7 +581,7 @@ export default function ActiveMission() {
           suggestionText = `[구매 의향] ${priceWouldBuy ? '있음' : '없음'}\n[가격 적절성] ${priceFairness}/5\n[가치 인식] ${priceValue}/5\n[코멘트] ${priceComment}`;
         } else if (missionType === 'email') {
           await supabase.from('email_responses').update({ would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, custom_answers: customAnswers }).eq('mission_id', mission.id).eq('panel_id', panel.id);
-          suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
+          suggestionText = `[전환 목표] ${emailGoalLabel}\n[목표 행동 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
         }
       } else {
         // 최초 제출: INSERT
@@ -594,7 +596,7 @@ export default function ActiveMission() {
         } else if (missionType === 'email') {
           const { data: emailTest } = await supabase.from('cold_email_tests').select('id').eq('mission_id', mission.id).single();
           await supabase.from('email_responses').insert({ test_id: emailTest?.id, panel_id: panel.id, mission_id: mission.id, would_reply: emailWouldReply, hook_score: emailHook || null, clarity_score: emailClarity || null, open_intent: emailOpenIntent || null, curiosity_score: emailCuriosity || null, comment: emailComment, custom_answers: customAnswers, status: 'submitted' });
-          suggestionText = `[답장 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
+          suggestionText = `[전환 목표] ${emailGoalLabel}\n[목표 행동 의향] ${emailWouldReply ? '있음' : '없음'}\n[훅 강도] ${emailHook}/5\n[명확성] ${emailClarity}/5\n[개봉 의향] ${emailOpenIntent}/5\n[호기심] ${emailCuriosity}/5\n[코멘트] ${emailComment}`;
         }
       }
 
@@ -1027,6 +1029,31 @@ export default function ActiveMission() {
             🎯 <strong>타겟 페르소나:</strong> {mission.persona}
           </div>
         )}
+        {mission.type === 'preference' && (() => {
+          const meta = resolveAssetType(parseSubDesc(mission.description, 'preference'));
+          if (!meta) return null;
+          return (
+            <div style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <strong style={{ color: 'var(--text)', fontSize: 14 }}>검증 유형:</strong>
+                <Badge type="blue">{meta.label}</Badge>
+              </div>
+              {meta.desc && <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.6 }}>{meta.desc}</div>}
+            </div>
+          );
+        })()}
+        {mission.type === 'email' && (() => {
+          const goal = resolveEmailGoal(parseSubDesc(mission.description, 'email'));
+          return (
+            <div style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <strong style={{ color: 'var(--text)', fontSize: 14 }}>전환 목표:</strong>
+                <Badge type="blue">{goal.label}</Badge>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.6 }}>이 이메일을 받은 사람이 "{goal.label}" 행동을 하도록 만드는 것이 목표입니다.</div>
+            </div>
+          );
+        })()}
         {(() => {
           if (!mission.description) return null;
           const subTypes = ['preference', 'pricing', 'email'];
@@ -1161,6 +1188,7 @@ export default function ActiveMission() {
   /* ─── 서브 미션 폼 ─── */
   if (isSubMission && step >= 1) {
     const parsedDesc = parseSubDesc(mission.description, missionType);
+    const emailGoal = missionType === 'email' ? resolveEmailGoal(parsedDesc) : null;
 
     // selectedQuestions 우선, 없으면 구 포맷(templateQuestions + customQuestions) 폴백
     const allTypedQs = parsedDesc.selectedQuestions
@@ -1225,21 +1253,32 @@ export default function ActiveMission() {
 
     return (
       <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 760, animation: 'fadeUp 0.4s ease both' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div>
+        <button onClick={() => setStep(0)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, marginBottom: 14, fontSize: 13, fontWeight: 600, color: 'var(--text-2)', cursor: 'pointer' }}>
+          ← 브리핑으로
+        </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 24 }}>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>FEEDBACK</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>{mission.title}</h1>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {autoSaveBadgeEl}
-            <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
-          </div>
+          <div style={{ flexShrink: 0 }}>{autoSaveBadgeEl}</div>
         </div>
         {deadlineBannerEl}
 
         {/* 소재 비교 A/B */}
         {missionType === 'preference' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {(() => {
+              const meta = resolveAssetType(parsedDesc);
+              if (!meta) return null;
+              return (
+                <div style={{ padding: '12px 16px', background: 'var(--accent-dim2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>검증 유형</span>
+                  <Badge type="blue">{meta.label}</Badge>
+                  {meta.desc && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{meta.desc}</span>}
+                </div>
+              );
+            })()}
             {parsedDesc.productDescription && (
               <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase' }}>제품 설명</div>
@@ -1319,6 +1358,13 @@ export default function ActiveMission() {
         {/* 이메일 */}
         {missionType === 'email' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {emailGoal && (
+              <div style={{ padding: '12px 16px', background: 'var(--accent-dim2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>전환 목표</span>
+                <Badge type="blue">{emailGoal.label}</Badge>
+                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>이 이메일이 유도하려는 행동</span>
+              </div>
+            )}
             <div style={{ padding: '16px 20px', background: 'var(--surface)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.8, whiteSpace: 'pre-wrap', border: '1px solid var(--border)', fontFamily: 'inherit', maxHeight: 280, overflowY: 'auto' }}>
               <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>이메일 원문</div>
               {parsedDesc.content || mission.description}
@@ -1333,10 +1379,11 @@ export default function ActiveMission() {
               <ScoreRow label="제목줄 개봉 의향" value={emailOpenIntent} setter={setEmailOpenIntent} />
               <ScoreRow label="훅 강도 (첫 문장)" value={emailHook} setter={setEmailHook} />
               <ScoreRow label="메시지 명확성" value={emailClarity} setter={setEmailClarity} />
-              <ScoreRow label="호기심/답장 욕구" value={emailCuriosity} setter={setEmailCuriosity} />
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>답장 의향</div>
+              <ScoreRow label="호기심/행동 욕구" value={emailCuriosity} setter={setEmailCuriosity} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>이 이메일을 보면 목표대로 행동하시겠어요?</div>
+              {emailGoal && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10 }}>목표: {emailGoal.label}</div>}
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                {[['답장하겠음', true], ['답장 안 함', false]].map(([label, val]) => (
+                {[['그렇다', true], ['아니다', false]].map(([label, val]) => (
                   <button key={label} onClick={() => setEmailWouldReply(val)} style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius)', border: `1.5px solid ${emailWouldReply === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`, background: emailWouldReply === val ? (val ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.08)') : 'var(--surface)', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s', color: emailWouldReply === val ? (val ? 'var(--green)' : 'var(--red)') : 'var(--text-2)' }}>
                     {label}
                   </button>

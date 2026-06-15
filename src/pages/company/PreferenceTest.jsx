@@ -9,6 +9,7 @@ import { resolveCompany } from '../../lib/resolveCompany';
 import { navigationGuard } from '../../lib/navigationGuard';
 import { QUESTION_TEMPLATES, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
 import { compressImage } from '../../lib/imageUtils';
+import { ASSET_TYPES, SUB_CUSTOM_MAXLEN, resolveAssetType } from '../../lib/subMissionMeta';
 
 const PAGE_SIZE = 5;
 const WINDOW = 5;
@@ -43,14 +44,7 @@ function Pagination({ page, total, onPage }) {
   );
 }
 
-const ASSET_TYPES = [
-  { key: 'headline',   label: '헤드라인 카피', icon: '◎', desc: '두 헤드라인 중 구매 욕구를 더 자극하는 쪽' },
-  { key: 'cta',        label: 'CTA 문구',      icon: '▲', desc: '클릭을 유도하는 버튼 텍스트 비교' },
-  { key: 'value_prop', label: '가치 제안',     icon: '◆', desc: '핵심 가치를 설명하는 두 방식 비교' },
-  { key: 'lp_section', label: 'LP 섹션',       icon: '◈', desc: '랜딩페이지 특정 섹션의 두 버전 비교' },
-  { key: 'ad_copy',    label: '광고 소재',     icon: '●', desc: '두 광고 소재 중 전환 가능성 높은 쪽' },
-  { key: 'email',      label: '이메일 제목',   icon: '✉', desc: '두 이메일 제목 중 열람율이 높을 쪽' },
-];
+// 검증 유형(ASSET_TYPES)은 src/lib/subMissionMeta.js 단일 출처에서 import
 
 const STEPS = ['소재 입력', '질문 설정', '패널 설정', '검토'];
 
@@ -77,6 +71,7 @@ export default function PreferenceTest() {
   // Step 0
   const [missionTitle, setMissionTitle] = useState('');
   const [assetType, setAssetType] = useState('');
+  const [assetTypeCustom, setAssetTypeCustom] = useState('');  // assetType==='custom'(기타) 직접입력값
   // Step 1
   const [variantA, setVariantA] = useState('');
   const [variantB, setVariantB] = useState('');
@@ -166,6 +161,7 @@ export default function PreferenceTest() {
         if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
         if (parsed.panelSize) setPanelSize(parsed.panelSize);
         if (parsed.assetType) setAssetType(parsed.assetType);
+        if (parsed.assetTypeCustom) setAssetTypeCustom(parsed.assetTypeCustom);
       });
     }
   }, []);
@@ -173,7 +169,7 @@ export default function PreferenceTest() {
   function resetForm() {
     setMissionUuid(crypto.randomUUID());
     setCreateStep(0);
-    setMissionTitle(''); setAssetType('');
+    setMissionTitle(''); setAssetType(''); setAssetTypeCustom('');
     setVariantA(''); setVariantB(''); setVariantAImage(null); setVariantBImage(null);
     setProductDescription('');
     setIndustry(''); setIndustryOpen(false); setIndustryCustomMode(false); setIndustryCustomInput('');
@@ -251,12 +247,12 @@ export default function PreferenceTest() {
     if (!(missionTitle || variantA || variantB || productDescription)) return;
     try {
       localStorage.setItem(draftKey, JSON.stringify({
-        missionTitle, assetType, variantA, variantB, variantAImage, variantBImage,
+        missionTitle, assetType, assetTypeCustom, variantA, variantB, variantAImage, variantBImage,
         productDescription, industry, panelSize, selectedQuestions, localCustomQs,
         careerLevels, createStep, missionUuid, savedAt: Date.now(),
       }));
     } catch {}
-  }, [draftKey, draftId, view, missionTitle, assetType, variantA, variantB, variantAImage, variantBImage,
+  }, [draftKey, draftId, view, missionTitle, assetType, assetTypeCustom, variantA, variantB, variantAImage, variantBImage,
       productDescription, industry, panelSize, selectedQuestions, localCustomQs, careerLevels, createStep, missionUuid]);
 
   // 복원 감지: 신규 진입(수정·템플릿 진입 아님) 시 저장본이 있으면 배너로 제안
@@ -274,6 +270,7 @@ export default function PreferenceTest() {
     if (!d) return;
     if (d.missionTitle != null) setMissionTitle(d.missionTitle);
     if (d.assetType != null) setAssetType(d.assetType);
+    if (d.assetTypeCustom != null) setAssetTypeCustom(d.assetTypeCustom);
     if (d.variantA != null) setVariantA(d.variantA);
     if (d.variantB != null) setVariantB(d.variantB);
     if (d.variantAImage !== undefined) setVariantAImage(d.variantAImage);
@@ -329,7 +326,7 @@ export default function PreferenceTest() {
       const desc = JSON.stringify({
         missionTitle,
         variantA, variantB, variantAImage, variantBImage,
-        productDescription, industry, assetType,
+        productDescription, industry, assetType, assetTypeCustom,
         selectedQuestions: [...selectedQuestions, ...localCustomQs],
         careerLevels, panelSize,
       });
@@ -380,6 +377,7 @@ export default function PreferenceTest() {
       if (Array.isArray(parsed.careerLevels)) setCareerLevels(parsed.careerLevels);
       if (parsed.panelSize) setPanelSize(parsed.panelSize);
       if (parsed.assetType) setAssetType(parsed.assetType);
+      if (parsed.assetTypeCustom) setAssetTypeCustom(parsed.assetTypeCustom);
       setView('create');
     }).catch(e => console.error('[PreferenceTest] 이어쓰기 로드 실패:', e.message));
   }
@@ -482,7 +480,7 @@ export default function PreferenceTest() {
 
   async function handleSubmit() {
     if (teamRole === 'viewer') return;
-    if (!variantA.trim() || !variantB.trim() || !assetType || !companyId) return;
+    if (!variantA.trim() || !variantB.trim() || !assetType || (assetType === 'custom' && !assetTypeCustom.trim()) || !companyId) return;
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
@@ -494,13 +492,13 @@ export default function PreferenceTest() {
       variantAImage: variantAImage || null, variantBImage: variantBImage || null,
       productDescription: productDescription.trim(),
       industry: industry || null,
-      assetType,
+      assetType, assetTypeCustom,
       selectedQuestions: [...selectedQuestions, ...localCustomQs],
       careerLevels,
       panelSize,
     });
     try {
-      const finalTitle = missionTitle.trim() || `소재 비교: ${ASSET_TYPES.find(a => a.key === assetType)?.label || assetType}`;
+      const finalTitle = missionTitle.trim() || `소재 비교: ${resolveAssetType({ assetType, assetTypeCustom })?.label || assetType}`;
       // 크레딧 예약 먼저 — 성공 후에만 status='active' DB 반영 (트리거 조기 발화 방지)
       const requiredCredits = calcCredits(panelSize, careerLevels, 'sub');
       if (draftId) {
@@ -654,9 +652,9 @@ export default function PreferenceTest() {
                   />
                 </div>
                 <div style={{ height: 1, background: 'var(--border)' }} />
-                {/* 소재 유형 */}
+                {/* 검증 유형 */}
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>소재 유형</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>검증 유형</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                     {ASSET_TYPES.map(t => (
                       <div key={t.key} onClick={() => setAssetType(t.key)} style={{
@@ -671,7 +669,27 @@ export default function PreferenceTest() {
                         <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.4 }}>{t.desc}</div>
                       </div>
                     ))}
+                    {/* 기타(직접입력) */}
+                    <div onClick={() => setAssetType('custom')} style={{
+                      padding: '12px 14px', borderRadius: 'var(--radius)',
+                      border: `1px solid ${assetType === 'custom' ? 'var(--accent)' : 'var(--border)'}`,
+                      cursor: 'pointer', background: 'var(--surface)', transition: 'all 0.15s',
+                    }}>
+                      <div style={{ fontSize: 16, marginBottom: 4 }}>✏️</div>
+                      <div style={{ fontWeight: 600, fontSize: 12 }}>기타</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.4 }}>직접 입력</div>
+                    </div>
                   </div>
+                  {assetType === 'custom' && (
+                    <input
+                      type="text"
+                      value={assetTypeCustom}
+                      onChange={e => setAssetTypeCustom(e.target.value.slice(0, SUB_CUSTOM_MAXLEN))}
+                      maxLength={SUB_CUSTOM_MAXLEN}
+                      placeholder="검증 유형을 직접 입력하세요 (예: 가격 표시 방식)"
+                      style={{ width: '100%', marginTop: 10, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  )}
                 </div>
 
                 <div style={{ height: 1, background: 'var(--border)' }} />
@@ -1059,7 +1077,7 @@ export default function PreferenceTest() {
               const notEnough = creditsChargedOnSubmit && creditBalance != null && reqCredits > creditBalance;
               const rows = [
                 missionTitle.trim() && { label: '의뢰명', value: missionTitle.trim() },
-                { label: '소재 유형', value: ASSET_TYPES.find(a => a.key === assetType)?.label || '-' },
+                { label: '검증 유형', value: resolveAssetType({ assetType, assetTypeCustom })?.label || '-' },
                 { label: '소재 A', value: variantA.trim() || '-' },
                 { label: '소재 B', value: variantB.trim() || '-' },
                 productDescription.trim() && { label: '제품/타겟 설명', value: productDescription.trim() },
@@ -1128,7 +1146,7 @@ export default function PreferenceTest() {
                 }
                 setCreateStep(s => s + 1);
               }} disabled={
-                createStep === 0 && (!assetType || !variantA.trim() || !variantB.trim() || !productDescription.trim() || !industry)
+                createStep === 0 && (!assetType || (assetType === 'custom' && !assetTypeCustom.trim()) || !variantA.trim() || !variantB.trim() || !productDescription.trim() || !industry)
               }>
                 다음 →
               </Btn>
