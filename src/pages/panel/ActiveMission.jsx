@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
+import { Card, Btn, Badge, ConfirmModal, SegmentFilter } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';
@@ -760,16 +760,15 @@ export default function ActiveMission() {
         ) : (
           <>
           {/* 메인/서브 전환 탭 */}
-          <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 10, marginBottom: 20 }}>
-            {[['main', '메인 미션', mainDrafts.length], ['sub', '서브 미션', subDrafts.length]].map(([k, label, cnt]) => (
-              <button key={k} onClick={() => setMissionKind(k)} style={{
-                padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
-                background: missionKind === k ? 'var(--surface)' : 'transparent',
-                color: missionKind === k ? 'var(--accent)' : 'var(--text-3)',
-                boxShadow: missionKind === k ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
-              }}>{label} {cnt}</button>
-            ))}
-          </div>
+          <SegmentFilter
+            value={missionKind}
+            onChange={setMissionKind}
+            tabs={[
+              { key: 'main', label: '메인 미션', count: mainDrafts.length },
+              { key: 'sub', label: '서브 미션', count: subDrafts.length },
+            ]}
+            style={{ marginBottom: 20 }}
+          />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {missionKind === 'main' && (
             <div>
@@ -1581,7 +1580,7 @@ export default function ActiveMission() {
                     );
                   })}
                 </div>
-                <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
+                <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center', lineHeight: 1.6 }}>
                   {DIM_META[activeDimension]?.label}에 관한 코멘트를 추가로 남기려면<br />이미지를 다시 드래그하세요.
                 </div>
               </div>
@@ -1596,7 +1595,7 @@ export default function ActiveMission() {
 
             {/* 진행 현황 힌트 */}
             {!allDimsDone || !allImagesViewed ? (
-              <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
+              <div style={{ marginTop: 8, padding: '14px 16px', background: 'var(--surface)', border: '1.5px dashed var(--text-3)', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center', lineHeight: 1.6 }}>
                 5대 지표 작성 완료 및 모든 이미지 확인 후 총평 작성 가능
               </div>
             ) : (

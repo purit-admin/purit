@@ -110,16 +110,16 @@ export default function RevenueManagement() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-        {[['overview', 'GMV 차트'], ['settlements', '패널 정산'], ['invoices', '기업 청구']].map(([v, l]) => (
-          <button key={v} onClick={() => setTab(v)} style={{
-            padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
-            background: tab === v ? 'var(--bg)' : 'transparent',
-            color: tab === v ? 'var(--text)' : 'var(--text-3)',
-            border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-          }}>{l}</button>
-        ))}
-      </div>
+      <StatusTabs
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { key: 'overview', label: 'GMV 차트' },
+          { key: 'settlements', label: '패널 정산' },
+          { key: 'invoices', label: '기업 청구' },
+        ]}
+        style={{ marginBottom: 24 }}
+      />
 
       {tab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>

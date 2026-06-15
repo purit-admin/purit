@@ -1,6 +1,6 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, ScoreBar, Badge, Btn } from '../../components/ui';
+import { Card, ScoreBar, Badge, Btn, StatusTabs, SegmentFilter } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import ChargeOptionsModal from '../../components/ui/ChargeOptionsModal';
 import { supabase } from '../../lib/supabase';
@@ -1417,53 +1417,34 @@ export default function Results() {
         {/* 좌측: 미션 선택 패널 */}
         <div className="results-sidebar" style={{ position: 'sticky', top: 24 }}>
           {/* 기간 필터 */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: '#F1F5F9', borderRadius: 8, padding: 3 }}>
-            {[['all', '전체'], ['3m', '3개월'], ['1m', '1개월']].map(([val, label]) => (
-              <button key={val} onClick={() => { setPeriod(val); setMainPage(1); setSubPage(1); setSelected(null); }} style={{
-                flex: 1, padding: '4px 0', borderRadius: 6, fontSize: 11, fontWeight: period === val ? 700 : 500,
-                background: period === val ? '#fff' : 'transparent',
-                color: period === val ? 'var(--text)' : 'var(--text-3)',
-                border: 'none', cursor: 'pointer',
-                boxShadow: period === val ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                transition: 'all 0.15s',
-              }}>{label}</button>
-            ))}
-          </div>
+          <SegmentFilter
+            value={period}
+            onChange={(val) => { setPeriod(val); setMainPage(1); setSubPage(1); setSelected(null); }}
+            tabs={[{ key: 'all', label: '전체' }, { key: '3m', label: '3개월' }, { key: '1m', label: '1개월' }]}
+            style={{ marginBottom: 10 }}
+          />
           {/* 탭 필터 */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: '100%' }}>
-            {[
-              { key: 'all',       label: '전체' },
+          <StatusTabs
+            value={missionTab}
+            onChange={handleMissionTab}
+            tabs={[
+              { key: 'all', label: '전체' },
               { key: 'completed', label: '완료' },
               { key: 'cancelled', label: '취소' },
-            ].map(({ key, label }) => {
-              const isActive = missionTab === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => handleMissionTab(key)}
-                  style={{
-                    flex: 1, padding: '6px 8px', fontSize: 13, fontWeight: 500,
-                    borderRadius: 4, border: 'none',
-                    background: isActive ? 'var(--bg)' : 'transparent',
-                    color: isActive ? 'var(--text)' : 'var(--text-3)',
-                    cursor: 'pointer', transition: 'all 0.15s',
-                  }}
-                >{label}</button>
-              );
-            })}
-          </div>
+            ]}
+            style={{ marginBottom: 14 }}
+          />
 
             {(mainMissions.length > 0 || subMissions.length > 0) && (
-              <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 10, marginBottom: 16 }}>
-                {[['main', '메인 의뢰', mainMissions.length], ['sub', '서브 의뢰', subMissions.length]].map(([k, label, cnt]) => (
-                  <button key={k} onClick={() => setMissionKind(k)} style={{
-                    padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none',
-                    background: missionKind === k ? 'var(--surface)' : 'transparent',
-                    color: missionKind === k ? 'var(--accent)' : 'var(--text-3)',
-                    boxShadow: missionKind === k ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
-                  }}>{label} {cnt}</button>
-                ))}
-              </div>
+              <SegmentFilter
+                value={missionKind}
+                onChange={setMissionKind}
+                tabs={[
+                  { key: 'main', label: '메인 의뢰', count: mainMissions.length },
+                  { key: 'sub', label: '서브 의뢰', count: subMissions.length },
+                ]}
+                style={{ marginBottom: 16 }}
+              />
             )}
             {(mainMissions.length > 0 || subMissions.length > 0) && missionKind === 'main' && (
               mainMissions.length > 0 ? (

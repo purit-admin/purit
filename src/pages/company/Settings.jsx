@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
+import { Card, Btn, Badge, ConfirmModal, StatusTabs } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 
@@ -143,18 +143,12 @@ export default function AccountSettings() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
-        {[['team', '팀 관리'], ['plan', '플랜 & 결제'], ['notifications', '알림 설정']].map(([v, l]) => (
-          <button key={v} onClick={() => setActiveTab(v)} style={{
-            padding: '10px 20px', fontSize: 13,
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: activeTab === v ? 'var(--text)' : 'var(--text-3)',
-            fontWeight: activeTab === v ? 700 : 500,
-            borderBottom: `2px solid ${activeTab === v ? 'var(--text)' : 'transparent'}`,
-            marginBottom: -1, transition: 'all 0.15s',
-          }}>{l}</button>
-        ))}
-      </div>
+      <StatusTabs
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[{ key: 'team', label: '팀 관리' }, { key: 'plan', label: '플랜 & 결제' }, { key: 'notifications', label: '알림 설정' }]}
+        style={{ marginBottom: 28 }}
+      />
 
       {/* TEAM TAB */}
       {activeTab === 'team' && (

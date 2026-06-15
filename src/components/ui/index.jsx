@@ -101,6 +101,7 @@ export const Divider = ({ style }) => (
 
 // 상태·진행 단계(라이프사이클) 탭 — 밑줄형 (기준: company/Dashboard.jsx)
 // tabs: [{ key, label, count?, badge? }]  value: 현재 key  onChange(key)
+//   badge: ReactNode 또는 (active)=>ReactNode (활성 상태별 색상 분기 지원)
 export const StatusTabs = ({ tabs, value, onChange, style }) => (
   <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid var(--border)', ...style }}>
     {tabs.map(t => {
@@ -114,11 +115,8 @@ export const StatusTabs = ({ tabs, value, onChange, style }) => (
           border: 'none', borderRadius: 0, transition: 'all 0.15s', cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
         }}>
-          {t.label}
-          {t.count != null && (
-            <span style={{ fontSize: 12, fontWeight: 600, color: active ? 'var(--text-2)' : 'var(--text-3)' }}>{t.count}</span>
-          )}
-          {t.badge}
+          {t.count != null ? <span>{t.label} ({t.count})</span> : t.label}
+          {typeof t.badge === 'function' ? t.badge(active) : t.badge}
         </button>
       );
     })}
@@ -141,8 +139,7 @@ export const SegmentFilter = ({ tabs, value, onChange, label, style }) => (
             boxShadow: active ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
             display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
           }}>
-            {t.label}
-            {t.count != null && <span style={{ opacity: 0.8 }}>{t.count}</span>}
+            {t.count != null ? <span>{t.label} ({t.count})</span> : t.label}
           </button>
         );
       })}

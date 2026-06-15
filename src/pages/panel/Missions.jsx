@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { getPanelReward, getExperienceCareerKey } from '../../lib/honorLevels';
 
@@ -652,26 +652,22 @@ export default function MissionList() {
       </div>
 
       {/* ── 탭 ── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-        {TABS.map(({ key, label }) => (
-          <button key={key} onClick={() => changeTab(key)} style={{
-            padding: '6px 16px', borderRadius: 4, fontSize: 13, fontWeight: 500,
-            background: filter === key ? 'var(--bg)' : 'transparent',
-            color: filter === key ? 'var(--text)' : 'var(--text-3)',
-            border: 'none', transition: 'all 0.15s', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            {label}
-            {key === 'needsRevision' && rejectedCount > 0 && (
-              <span style={{
-                background: 'var(--red, #ef4444)', color: '#fff',
-                borderRadius: 99, fontSize: 11, fontWeight: 700,
-                padding: '1px 6px', lineHeight: 1.6, minWidth: 18, textAlign: 'center',
-              }}>{rejectedCount}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      <StatusTabs
+        value={filter}
+        onChange={changeTab}
+        style={{ marginBottom: 24 }}
+        tabs={TABS.map(({ key, label }) => ({
+          key,
+          label,
+          badge: key === 'needsRevision' && rejectedCount > 0 ? (
+            <span style={{
+              background: 'var(--red, #ef4444)', color: '#fff',
+              borderRadius: 99, fontSize: 11, fontWeight: 700,
+              padding: '1px 6px', lineHeight: 1.6, minWidth: 18, textAlign: 'center',
+            }}>{rejectedCount}</span>
+          ) : null,
+        }))}
+      />
 
       {/* ── 빈 상태 ── */}
       {filtered.length === 0 && (() => {
@@ -694,16 +690,15 @@ export default function MissionList() {
       {filtered.length > 0 && (
         <>
         {/* 메인/서브 전환 탭 */}
-        <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 10, marginBottom: 20 }}>
-          {[['main', '메인 미션', mainFiltered.length], ['sub', '서브 미션', subFiltered.length]].map(([k, label, cnt]) => (
-            <button key={k} onClick={() => setMissionKind(k)} style={{
-              padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
-              background: missionKind === k ? 'var(--surface)' : 'transparent',
-              color: missionKind === k ? 'var(--accent)' : 'var(--text-3)',
-              boxShadow: missionKind === k ? 'var(--shadow)' : 'none', transition: 'all 0.15s',
-            }}>{label} {cnt}</button>
-          ))}
-        </div>
+        <SegmentFilter
+          value={missionKind}
+          onChange={setMissionKind}
+          tabs={[
+            { key: 'main', label: '메인 미션', count: mainFiltered.length },
+            { key: 'sub', label: '서브 미션', count: subFiltered.length },
+          ]}
+          style={{ marginBottom: 20 }}
+        />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           {missionKind === 'main' && (
           <div>

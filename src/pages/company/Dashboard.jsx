@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Card, Stat, Btn, Badge, ConfirmModal } from '../../components/ui';
+import { Card, Stat, Btn, Badge, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { splitCredits } from '../../lib/credits';
@@ -568,18 +568,12 @@ export default function CompanyDashboard() {
       {/* Chart Row header */}
       <motion.div {...fadeUp(0.08)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text2, letterSpacing: '0.04em', textTransform: 'uppercase' }}>전환 지표 분석</div>
-        <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 8, padding: 3 }}>
-          {[['all', '전체'], ['3m', '최근 3개월'], ['1m', '최근 1개월']].map(([val, label]) => (
-            <button key={val} onClick={() => { setChartPeriod(val); setMainSentPage(1); setSubSentPage(1); }} style={{
-              padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: chartPeriod === val ? 700 : 500,
-              background: chartPeriod === val ? '#fff' : 'transparent',
-              color: chartPeriod === val ? C.text : C.text3,
-              border: 'none', cursor: 'pointer',
-              boxShadow: chartPeriod === val ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.15s',
-            }}>{label}</button>
-          ))}
-        </div>
+        <SegmentFilter
+          value={chartPeriod}
+          onChange={(val) => { setChartPeriod(val); setMainSentPage(1); setSubSentPage(1); }}
+          tabs={[{ key: 'all', label: '전체' }, { key: '3m', label: '최근 3개월' }, { key: '1m', label: '최근 1개월' }]}
+          style={{ marginBottom: 0 }}
+        />
       </motion.div>
 
       {/* Chart Row: 레이더 + KPI + 긍부정 3열 */}
@@ -731,18 +725,15 @@ export default function CompanyDashboard() {
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: C.text2 }}>전체 의뢰 현황</h2>
 
         {/* 탭 — underline 스타일 */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: `1px solid #E2E8F0` }}>
-          {[['all', '전체'], ['active', '진행'], ['completed', '완료'], ['draft', '임시 저장'], ['cancelled', '취소']].map(([v, l]) => (
-            <button key={v} onClick={() => { setMissionFilter(v); setMainMissionPage(1); setSubMissionPage(1); }} style={{
-              padding: '8px 16px', marginBottom: -1, fontSize: 14, fontWeight: missionFilter === v ? 700 : 500,
-              background: 'transparent',
-              color: missionFilter === v ? C.text : C.text3,
-              borderBottom: missionFilter === v ? `2px solid ${C.text}` : '2px solid transparent',
-              border: 'none', borderRadius: 0,
-              transition: 'all 0.15s', cursor: 'pointer',
-            }}>{l}</button>
-          ))}
-        </div>
+        <StatusTabs
+          value={missionFilter}
+          onChange={(v) => { setMissionFilter(v); setMainMissionPage(1); setSubMissionPage(1); }}
+          tabs={[
+            { key: 'all', label: '전체' }, { key: 'active', label: '진행' },
+            { key: 'completed', label: '완료' }, { key: 'draft', label: '임시 저장' },
+            { key: 'cancelled', label: '취소' },
+          ]}
+        />
 
         {missions.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', background: C.cardBg, borderRadius: 16, boxShadow: C.shadow, color: C.text3, fontSize: 14 }}>
@@ -752,16 +743,15 @@ export default function CompanyDashboard() {
         ) : (
           <>
           {/* 메인/서브 전환 탭 */}
-          <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: '#F1F5F9', borderRadius: 10, marginBottom: 20 }}>
-            {[['main', '메인 의뢰', mainMissions.length], ['sub', '서브 의뢰', subMissions.length]].map(([k, label, cnt]) => (
-              <button key={k} onClick={() => setMissionKind(k)} style={{
-                padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none',
-                background: missionKind === k ? C.cardBg : 'transparent',
-                color: missionKind === k ? C.primary : C.text3,
-                boxShadow: missionKind === k ? C.shadow : 'none', transition: 'all 0.15s',
-              }}>{label} {cnt}</button>
-            ))}
-          </div>
+          <SegmentFilter
+            value={missionKind}
+            onChange={setMissionKind}
+            tabs={[
+              { key: 'main', label: '메인 의뢰', count: mainMissions.length },
+              { key: 'sub', label: '서브 의뢰', count: subMissions.length },
+            ]}
+            style={{ marginBottom: 20 }}
+          />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {missionKind === 'main' && (
             <div>

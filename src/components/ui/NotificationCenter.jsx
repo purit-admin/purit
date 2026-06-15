@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Btn } from '../ui';
+import { Btn, StatusTabs } from '../ui';
 import { supabase } from '../../lib/supabase';
 
 const TYPE_COLORS = {
@@ -182,31 +182,23 @@ export default function NotificationCenter({ role = 'company' }) {
 
       {/* 어드민 탭 */}
       {role === 'admin' && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
-          {ADMIN_TABS.map(t => {
+        <StatusTabs
+          value={tab}
+          onChange={(v) => { setTab(v); setPage(1); }}
+          style={{ marginBottom: 16 }}
+          tabs={ADMIN_TABS.map(t => {
             const cnt = tabUnread(t.key);
-            return (
-              <button
-                key={t.key}
-                onClick={() => { setTab(t.key); setPage(1); }}
-                style={{
-                  padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer',
-                  fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
-                  color: tab === t.key ? 'var(--text)' : 'var(--text-3)',
-                  borderBottom: tab === t.key ? '2px solid var(--text)' : '2px solid transparent',
-                  marginBottom: -1, transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
-                }}
-              >
-                {t.label}
-                {cnt > 0 && (
-                  <span style={{ background: 'var(--red)', color: '#fff', fontSize: 11, fontFamily: 'var(--font-sans)', padding: '1px 7px', borderRadius: 20 }}>
-                    {cnt}
-                  </span>
-                )}
-              </button>
-            );
+            return {
+              key: t.key,
+              label: t.label,
+              badge: cnt > 0 ? (
+                <span style={{ background: 'var(--red)', color: '#fff', fontSize: 11, fontFamily: 'var(--font-sans)', padding: '1px 7px', borderRadius: 20 }}>
+                  {cnt}
+                </span>
+              ) : null,
+            };
           })}
-        </div>
+        />
       )}
 
       {loading ? (

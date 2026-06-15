@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn, ConfirmModal } from '../../components/ui';
+import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { QUESTION_TEMPLATES, TEMPLATE_BY_NAME, TYPE_LABEL, TYPE_COLOR } from '../../lib/templates';
@@ -193,26 +193,15 @@ export default function QuestionTemplates() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 28, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '10px 18px',
-              fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
-              color: activeTab === tab.key ? 'var(--text)' : 'var(--text-3)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: activeTab === tab.key ? '2px solid var(--text)' : '2px solid transparent',
-              marginBottom: -1, transition: 'all 0.15s',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            {tab.icon && <span>{tab.icon}</span>}
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <StatusTabs
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={TABS.map(tab => ({
+          key: tab.key,
+          label: <>{tab.icon && <span>{tab.icon}</span>}{tab.label}</>,
+        }))}
+        style={{ marginBottom: 28 }}
+      />
 
       {/* ── 질문 만들기 탭 ── */}
       {activeTab === 'custom' && (
@@ -227,17 +216,12 @@ export default function QuestionTemplates() {
           </div>
 
           {/* 카테고리 선택 */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            {CUSTOM_CAT_TABS.map(c => (
-              <button key={c.key} onClick={() => setCustomCategory(c.key)} style={{
-                padding: '8px 16px', borderRadius: 'var(--radius)',
-                border: `1px solid ${customCategory === c.key ? 'var(--accent)' : 'var(--border)'}`,
-                background: 'var(--surface)',
-                color: customCategory === c.key ? 'var(--accent)' : 'var(--text-2)',
-                fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
-              }}>{c.label}</button>
-            ))}
-          </div>
+          <SegmentFilter
+            value={customCategory}
+            onChange={setCustomCategory}
+            tabs={CUSTOM_CAT_TABS.map(c => ({ key: c.key, label: c.label }))}
+            style={{ marginBottom: 0 }}
+          />
 
           {/* 기존 커스텀 질문 목록 */}
           <div>

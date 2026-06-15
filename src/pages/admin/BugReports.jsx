@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Btn, Badge } from '../../components/ui';
+import { Card, Btn, Badge, StatusTabs, SegmentFilter } from '../../components/ui';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
@@ -214,74 +214,42 @@ export default function BugReports() {
       </div>
 
       {/* 상태 탭 */}
-      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', paddingBottom: 0, marginBottom: 0 }}>
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => handleTabChange(t.key)}
-            style={{
-              padding: '9px 16px', fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
-              color: tab === t.key ? 'var(--text)' : 'var(--text-3)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: tab === t.key ? '2px solid var(--text)' : '2px solid transparent',
-              marginBottom: -1, transition: 'all 0.12s', display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            {t.label}
-            {counts[t.key] > 0 && (
-              <span style={{
-                minWidth: 18, height: 18, borderRadius: 9,
-                background: tab === t.key ? t.color : 'var(--bg-3)',
-                color: tab === t.key ? '#fff' : 'var(--text-3)',
-                fontSize: 11, fontWeight: 700,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                padding: '0 5px',
-              }}>
-                {counts[t.key]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <StatusTabs
+        value={tab}
+        onChange={handleTabChange}
+        style={{ marginBottom: 0 }}
+        tabs={TABS.map(t => ({
+          key: t.key,
+          label: t.label,
+          badge: counts[t.key] > 0
+            ? (active) => (
+                <span style={{
+                  minWidth: 18, height: 18, borderRadius: 9,
+                  background: active ? t.color : 'var(--bg-3)',
+                  color: active ? '#fff' : 'var(--text-3)',
+                  fontSize: 11, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 5px',
+                }}>
+                  {counts[t.key]}
+                </span>
+              )
+            : null,
+        }))}
+      />
 
       {/* 유형 서브탭 */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '12px 0 16px', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
-        {TYPE_FILTER_OPTIONS.map(opt => {
+      <SegmentFilter
+        value={typeFilter}
+        onChange={handleTypeFilterChange}
+        style={{ marginTop: 12, marginBottom: 20 }}
+        tabs={TYPE_FILTER_OPTIONS.map(opt => {
           const cnt = opt.key === 'all'
             ? (counts[tab] || 0)
             : (typeCounts[tab]?.[opt.key] || 0);
-          const isActive = typeFilter === opt.key;
-          const tm = TYPE_META[opt.key];
-          return (
-            <button
-              key={opt.key}
-              onClick={() => handleTypeFilterChange(opt.key)}
-              style={{
-                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: isActive ? 700 : 500,
-                cursor: 'pointer', border: '1.5px solid',
-                borderColor: isActive ? (tm?.color || 'var(--accent)') : 'var(--border)',
-                background: isActive ? (tm?.bg || 'var(--accent-dim)') : 'transparent',
-                color: isActive ? (tm?.color || 'var(--accent)') : 'var(--text-2)',
-                display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.12s',
-              }}
-            >
-              {opt.label}
-              {cnt > 0 && (
-                <span style={{
-                  minWidth: 16, height: 16, borderRadius: 8,
-                  background: isActive ? (tm?.color || 'var(--accent)') : 'var(--bg-3)',
-                  color: isActive ? '#fff' : 'var(--text-3)',
-                  fontSize: 10, fontWeight: 700,
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '0 4px',
-                }}>
-                  {cnt}
-                </span>
-              )}
-            </button>
-          );
+          return { key: opt.key, label: opt.label, count: cnt > 0 ? cnt : undefined };
         })}
-      </div>
+      />
 
       {/* 본문 — 좌우 2열 */}
       <div className="purity-layout" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20, alignItems: 'start' }}>

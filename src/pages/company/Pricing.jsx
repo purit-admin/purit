@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, SegmentFilter } from '../../components/ui';
 import PaymentModal from '../../components/ui/PaymentModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
@@ -206,16 +206,12 @@ export default function PricingPage() {
         <p style={{ color: 'var(--text-2)', fontSize: 15, maxWidth: 520, margin: '0 auto 24px' }}>
           크레딧 기반 구독 — 필요한 만큼 테스트하고, 패널 등급과 규모로 인사이트 깊이를 조절하세요.
         </p>
-        <div style={{ display: 'inline-flex', background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, gap: 4 }}>
-          {[['annual', '연간 결제 (절감)'], ['monthly', '월간 결제 (무약정)']].map(([v, l]) => (
-            <button key={v} onClick={() => setBilling(v)} style={{
-              padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
-              background: billing === v ? 'var(--bg)' : 'transparent',
-              color: billing === v ? 'var(--text)' : 'var(--text-3)',
-              border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-            }}>{l}</button>
-          ))}
-        </div>
+        <SegmentFilter
+          value={billing}
+          onChange={setBilling}
+          tabs={[{ key: 'annual', label: '연간 결제 (절감)' }, { key: 'monthly', label: '월간 결제 (무약정)' }]}
+          style={{ justifyContent: 'center', marginBottom: 0 }}
+        />
       </div>
 
       {/* Plans */}

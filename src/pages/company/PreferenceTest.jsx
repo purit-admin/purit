@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ReactDOM from 'react-dom';
-import { Card, Btn, Badge, ConfirmModal } from '../../components/ui';
+import { Card, Btn, Badge, ConfirmModal, StatusTabs } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout } from '../../components/ui/PanelTargetStep';
 import { splitCredits, needsAddonConfirm, addonUsageFor } from '../../lib/credits';
 import { supabase } from '../../lib/supabase';
@@ -1172,17 +1172,16 @@ export default function PreferenceTest() {
               <Btn size="sm" onClick={() => { resetForm(); setView('create'); }}>+ 새 테스트</Btn>
             </div>
             {/* 탭 */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
-              {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
-                <button key={v} onClick={() => { setListFilter(v); setListPage(1); }} style={{
-                  padding: '7px 14px', marginBottom: -1, fontSize: 13,
-                  fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
-                  color: listFilter === v ? 'var(--text)' : 'var(--text-3)',
-                  borderBottom: listFilter === v ? '2px solid var(--text)' : '2px solid transparent',
-                  border: 'none', borderRadius: 0, cursor: 'pointer',
-                }}>{l}</button>
-              ))}
-            </div>
+            <StatusTabs
+              value={listFilter}
+              onChange={(v) => { setListFilter(v); setListPage(1); }}
+              tabs={[
+                { key: 'all', label: '전체' }, { key: 'active', label: '진행' },
+                { key: 'completed', label: '완료' }, { key: 'draft', label: '임시 저장' },
+                { key: 'cancelled', label: '취소' },
+              ]}
+              style={{ marginBottom: 4 }}
+            />
             {(() => {
               const filtered = listFilter === 'all' ? missions : missions.filter(m => m.status === listFilter);
               const paged = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);

@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { Card, Btn } from '../../components/ui';
+import { Card, Btn, StatusTabs } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const lbl = { display: 'flex', flexDirection: 'column', gap: 8 };
@@ -92,18 +92,12 @@ export default function AdminAccount() {
       </Card>
 
       {/* 탭 */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
-        {[['profile', '관리자 정보'], ['password', '비밀번호 변경']].map(([v, l]) => (
-          <button key={v} onClick={() => { setTab(v); setMsg(''); setPwMsg(''); }} style={{
-            padding: '10px 18px', fontSize: 13,
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: tab === v ? 'var(--text)' : 'var(--text-3)',
-            fontWeight: tab === v ? 700 : 500,
-            borderBottom: `2px solid ${tab === v ? 'var(--text)' : 'transparent'}`,
-            marginBottom: -1, transition: 'all 0.15s',
-          }}>{l}</button>
-        ))}
-      </div>
+      <StatusTabs
+        value={tab}
+        onChange={(v) => { setTab(v); setMsg(''); setPwMsg(''); }}
+        tabs={[{ key: 'profile', label: '관리자 정보' }, { key: 'password', label: '비밀번호 변경' }]}
+        style={{ marginBottom: 24 }}
+      />
 
       {/* 피드백 메시지 */}
       {(msg || pwMsg) && (

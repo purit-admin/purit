@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Card, Btn, Badge } from '../../components/ui';
+import { Card, Btn, Badge, StatusTabs } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 
 const INDUSTRIES = ['이커머스 마케터', 'B2B SaaS 세일즈', '스타트업 PM', 'B2B 영업', '퍼포먼스 마케터', '브랜드 마케터', 'CRO 전문가', '콘텐츠 마케터', '스타트업 대표', '그로스 마케터', '프로덕트 마케터(PMM)', 'CRM 마케터', 'SNS·소셜 마케터', 'SEO 전문가', 'UX/UI 디자이너', '마케팅 데이터 분석가', '기타'];
@@ -383,17 +383,16 @@ export default function PanelProfile() {
       </Card>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
-        {[['profile', '기본 정보'], ['achievement', '성과'], ['payment', '정산 계좌'], ['password', '비밀번호'], ['notifications', '알림 설정']].map(([v, l]) => (
-          <button key={v} onClick={() => handleTabClick(v)} style={{
-            padding: '10px 18px', fontSize: 13, fontWeight: 500,
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: tab === v ? 'var(--text)' : 'var(--text-3)',
-            borderBottom: `2px solid ${tab === v ? 'var(--green)' : 'transparent'}`,
-            marginBottom: -1, transition: 'all 0.15s',
-          }}>{l}</button>
-        ))}
-      </div>
+      <StatusTabs
+        value={tab}
+        onChange={handleTabClick}
+        tabs={[
+          { key: 'profile', label: '기본 정보' }, { key: 'achievement', label: '성과' },
+          { key: 'payment', label: '정산 계좌' }, { key: 'password', label: '비밀번호' },
+          { key: 'notifications', label: '알림 설정' },
+        ]}
+        style={{ marginBottom: 24 }}
+      />
 
       {/* Feedback */}
       {pwMsg && (

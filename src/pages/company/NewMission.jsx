@@ -1,7 +1,7 @@
 ﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ReactDOM from 'react-dom';
-import { Btn, Card, Badge, ConfirmModal } from '../../components/ui';
+import { Btn, Card, Badge, ConfirmModal, StatusTabs } from '../../components/ui';
 import PanelTargetStep, { calcCredits, calcPanelPayout, CAREER_LEVELS } from '../../components/ui/PanelTargetStep';
 import { splitCredits, needsAddonConfirm, addonUsageFor } from '../../lib/credits';
 import { supabase } from '../../lib/supabase';
@@ -1032,17 +1032,16 @@ export default function NewMission() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
             <Btn size="sm" onClick={() => { resetForm(); setView('form'); }}>+ 새 의뢰 등록하기</Btn>
           </div>
-          <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
-            {[['all','전체'],['active','진행'],['completed','완료'],['draft','임시 저장'],['cancelled','취소']].map(([v, l]) => (
-              <button key={v} onClick={() => { setListFilter(v); setListPage(1); }} style={{
-                padding: '7px 14px', marginBottom: -1, fontSize: 13,
-                fontWeight: listFilter === v ? 700 : 500, background: 'transparent',
-                color: listFilter === v ? 'var(--text)' : 'var(--text-3)',
-                borderBottom: listFilter === v ? '2px solid var(--text)' : '2px solid transparent',
-                border: 'none', borderRadius: 0, cursor: 'pointer',
-              }}>{l}</button>
-            ))}
-          </div>
+          <StatusTabs
+            value={listFilter}
+            onChange={(v) => { setListFilter(v); setListPage(1); }}
+            tabs={[
+              { key: 'all', label: '전체' }, { key: 'active', label: '진행' },
+              { key: 'completed', label: '완료' }, { key: 'draft', label: '임시 저장' },
+              { key: 'cancelled', label: '취소' },
+            ]}
+            style={{ marginBottom: 16 }}
+          />
 
           {loadingList ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 13 }}>로딩 중...</div>

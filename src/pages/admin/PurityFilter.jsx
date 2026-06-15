@@ -609,9 +609,9 @@ export default function PurityFilter() {
         value={typeFilter}
         onChange={(v) => { setTypeFilter(v); setListPage(1); setCheckedIds(new Set()); setSelected(null); }}
         tabs={[
-          { key: 'all',  label: '전체', count: filteredBaseBySearch.length },
-          { key: 'main', label: '메인', count: filteredBaseBySearch.filter(f => !SUB_TYPES.includes(f.missions?.type)).length },
-          { key: 'sub',  label: '서브', count: filteredBaseBySearch.filter(f =>  SUB_TYPES.includes(f.missions?.type)).length },
+          { key: 'all',  label: `전체 (${filteredBaseBySearch.length})` },
+          { key: 'main', label: `메인 (${filteredBaseBySearch.filter(f => !SUB_TYPES.includes(f.missions?.type)).length})` },
+          { key: 'sub',  label: `서브 (${filteredBaseBySearch.filter(f =>  SUB_TYPES.includes(f.missions?.type)).length})` },
         ]}
       />
 
@@ -666,9 +666,9 @@ export default function PurityFilter() {
           value={pendingSubFilter}
           onChange={(v) => { setPendingSubFilter(v); setListPage(1); setCheckedIds(new Set()); }}
           tabs={[
-            { key: 'all', label: '전체', count: filteredBySearch.length },
-            { key: 'above65', label: '65점 이상', count: filteredBySearch.filter(f => getScore(f) >= 65).length },
-            { key: 'below65', label: '65점 미만', count: filteredBySearch.filter(f => getScore(f) < 65).length },
+            { key: 'all', label: `전체 (${filteredBySearch.length})` },
+            { key: 'above65', label: `65점 이상 (${filteredBySearch.filter(f => getScore(f) >= 65).length})` },
+            { key: 'below65', label: `65점 미만 (${filteredBySearch.filter(f => getScore(f) < 65).length})` },
           ]}
         />
       )}

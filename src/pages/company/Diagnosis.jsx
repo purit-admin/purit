@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, Btn } from '../../components/ui';
+import { Card, Badge, Btn, StatusTabs, SegmentFilter } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 
@@ -392,20 +392,14 @@ export default function Diagnosis() {
                 )}
             </div>
           </div>
-          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>기간</span>
-            <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 8, padding: 3 }}>
-              {[['all', '전체'], ['3m', '최근 3개월'], ['1m', '최근 1개월']].map(([val, label]) => (
-                <button key={val} onClick={() => setPeriod(val)} style={{
-                  padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: period === val ? 700 : 500,
-                  background: period === val ? '#fff' : 'transparent',
-                  color: period === val ? 'var(--text)' : 'var(--text-3)',
-                  border: 'none', cursor: 'pointer',
-                  boxShadow: period === val ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s',
-                }}>{label}</button>
-              ))}
-            </div>
+          <div style={{ marginTop: 10 }}>
+            <SegmentFilter
+              label="기간"
+              value={period}
+              onChange={setPeriod}
+              tabs={[{ key: 'all', label: '전체' }, { key: '3m', label: '최근 3개월' }, { key: '1m', label: '최근 1개월' }]}
+              style={{ marginBottom: 0 }}
+            />
           </div>
           </>
         )}
@@ -474,16 +468,17 @@ export default function Diagnosis() {
             </Card>
           )}
 
-          <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 4, width: 'fit-content' }}>
-            {[['overview', '차원별 점수'], ['benchmark', '업계 벤치마크'], ['keywords', '키워드 분석'], ['guide', '전환 가이드']].map(([v, l]) => (
-              <button key={v} onClick={() => handleTabChange(v)} style={{
-                padding: '7px 18px', borderRadius: 4, fontSize: 13, fontWeight: 500,
-                background: activeTab === v ? 'var(--bg)' : 'transparent',
-                color: activeTab === v ? 'var(--text)' : 'var(--text-3)',
-                border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-              }}>{l}</button>
-            ))}
-          </div>
+          <StatusTabs
+            value={activeTab}
+            onChange={handleTabChange}
+            tabs={[
+              { key: 'overview', label: '차원별 점수' },
+              { key: 'benchmark', label: '업계 벤치마크' },
+              { key: 'keywords', label: '키워드 분석' },
+              { key: 'guide', label: '전환 가이드' },
+            ]}
+            style={{ marginBottom: 24 }}
+          />
 
           {activeTab === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
