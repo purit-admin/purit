@@ -1011,7 +1011,7 @@ export default function Results() {
   const [ratingInFlight, setRatingInFlight] = useState(new Set());
   const [mainPage, setMainPage]           = useState(1);
   const [subPage, setSubPage]             = useState(1);
-  const [missionKind, setMissionKind]     = useState('main');
+  const [missionKind, setMissionKind]     = useState('all');
   const [missionTab, setMissionTab]       = useState('all');
   const [period, setPeriod]               = useState('all');
   const [creditBalance, setCreditBalance] = useState(0);
@@ -1440,13 +1440,14 @@ export default function Results() {
                 value={missionKind}
                 onChange={setMissionKind}
                 tabs={[
+                  { key: 'all', label: '전체', count: mainMissions.length + subMissions.length },
                   { key: 'main', label: '메인 의뢰', count: mainMissions.length },
                   { key: 'sub', label: '서브 의뢰', count: subMissions.length },
                 ]}
                 style={{ marginBottom: 16 }}
               />
             )}
-            {(mainMissions.length > 0 || subMissions.length > 0) && missionKind === 'main' && (
+            {(mainMissions.length > 0 || subMissions.length > 0) && (missionKind === 'main' || missionKind === 'all') && (
               mainMissions.length > 0 ? (
               <div style={{ marginBottom: 20 }}>
                 {pagedMain.map(m => (
@@ -1454,11 +1455,11 @@ export default function Results() {
                 ))}
                 <Pagination page={mainPage} total={mainMissions.length} onPage={setMainPage} />
               </div>
-              ) : (
+              ) : missionKind === 'main' ? (
               <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>해당 의뢰가 없습니다.</div>
-              )
+              ) : null
             )}
-            {(mainMissions.length > 0 || subMissions.length > 0) && missionKind === 'sub' && (
+            {(mainMissions.length > 0 || subMissions.length > 0) && (missionKind === 'sub' || missionKind === 'all') && (
               subMissions.length > 0 ? (
               <div>
                 {pagedSub.map(m => (
@@ -1466,9 +1467,9 @@ export default function Results() {
                 ))}
                 <Pagination page={subPage} total={subMissions.length} onPage={setSubPage} />
               </div>
-              ) : (
+              ) : missionKind === 'sub' ? (
               <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>해당 의뢰가 없습니다.</div>
-              )
+              ) : null
             )}
             {mainMissions.length === 0 && subMissions.length === 0 && (
               <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>

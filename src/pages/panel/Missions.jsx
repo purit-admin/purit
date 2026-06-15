@@ -240,7 +240,7 @@ export default function MissionList() {
   const [resubmitCountdown, setResubmitCountdown] = useState(0);
   const [mainPage, setMainPage]       = useState(1);
   const [subPage, setSubPage]         = useState(1);
-  const [missionKind, setMissionKind] = useState('main');
+  const [missionKind, setMissionKind] = useState('all');
 
   // 수락 모달 열릴 때 카운트다운 시작
   useEffect(() => {
@@ -694,13 +694,14 @@ export default function MissionList() {
           value={missionKind}
           onChange={setMissionKind}
           tabs={[
+            { key: 'all', label: '전체', count: mainFiltered.length + subFiltered.length },
             { key: 'main', label: '메인 미션', count: mainFiltered.length },
             { key: 'sub', label: '서브 미션', count: subFiltered.length },
           ]}
           style={{ marginBottom: 20 }}
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {missionKind === 'main' && (
+          {(missionKind === 'main' || (missionKind === 'all' && mainFiltered.length > 0)) && (
           <div>
             {mainFiltered.length === 0 ? (
               <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
@@ -733,7 +734,7 @@ export default function MissionList() {
           </div>
           )}
 
-          {missionKind === 'sub' && (
+          {(missionKind === 'sub' || (missionKind === 'all' && subFiltered.length > 0)) && (
           <div>
             {subFiltered.length === 0 ? (
               <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>

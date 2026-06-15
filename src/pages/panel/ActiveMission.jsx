@@ -171,7 +171,7 @@ export default function ActiveMission() {
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const [viewedImages, setViewedImages]       = useState(() => new Set([0]));
   const [activeDimension, setActiveDimension] = useState('clarity');
-  const [missionKind, setMissionKind] = useState('main');
+  const [missionKind, setMissionKind] = useState('all');
   const [overallComment, setOverallComment]   = useState('');
   const [skippedDims, setSkippedDims]         = useState({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
 
@@ -766,13 +766,14 @@ export default function ActiveMission() {
             value={missionKind}
             onChange={setMissionKind}
             tabs={[
+              { key: 'all', label: '전체', count: mainDrafts.length + subDrafts.length },
               { key: 'main', label: '메인 미션', count: mainDrafts.length },
               { key: 'sub', label: '서브 미션', count: subDrafts.length },
             ]}
             style={{ marginBottom: 20 }}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {missionKind === 'main' && (
+            {(missionKind === 'main' || (missionKind === 'all' && mainDrafts.length > 0)) && (
             <div>
               {mainDrafts.length === 0 ? (
                 <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
@@ -785,7 +786,7 @@ export default function ActiveMission() {
               )}
             </div>
             )}
-            {missionKind === 'sub' && (
+            {(missionKind === 'sub' || (missionKind === 'all' && subDrafts.length > 0)) && (
             <div>
               {subDrafts.length === 0 ? (
                 <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>

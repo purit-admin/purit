@@ -283,7 +283,7 @@ export default function CompanyDashboard() {
   const [feedbacks, setFeedbacks]     = useState([]);
   const [loading, setLoading]         = useState(true);
   const [missionFilter, setMissionFilter] = useState('active');
-  const [missionKind, setMissionKind] = useState('main');
+  const [missionKind, setMissionKind] = useState('all');
   const [mainMissionPage, setMainMissionPage] = useState(1);
   const [subMissionPage, setSubMissionPage]   = useState(1);
   const [showBanner, setShowBanner] = useState(() => !isBannerDismissed());
@@ -747,13 +747,14 @@ export default function CompanyDashboard() {
             value={missionKind}
             onChange={setMissionKind}
             tabs={[
+              { key: 'all', label: '전체', count: mainMissions.length + subMissions.length },
               { key: 'main', label: '메인 의뢰', count: mainMissions.length },
               { key: 'sub', label: '서브 의뢰', count: subMissions.length },
             ]}
             style={{ marginBottom: 20 }}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {missionKind === 'main' && (
+            {(missionKind === 'main' || (missionKind === 'all' && mainMissions.length > 0)) && (
             <div>
               {mainMissions.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: C.text3, fontSize: 14, background: C.cardBg, borderRadius: 12, boxShadow: C.shadow }}>
@@ -770,7 +771,7 @@ export default function CompanyDashboard() {
             </div>
             )}
 
-            {missionKind === 'sub' && (
+            {(missionKind === 'sub' || (missionKind === 'all' && subMissions.length > 0)) && (
             <div>
               {subMissions.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: C.text3, fontSize: 14, background: C.cardBg, borderRadius: 12, boxShadow: C.shadow }}>

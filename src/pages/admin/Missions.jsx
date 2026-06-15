@@ -336,7 +336,7 @@ export default function AdminMissions() {
   const [earlyCompleteError, setEarlyCompleteError] = useState('');
   const [mainPage, setMainPage] = useState(1);
   const [subPage, setSubPage]   = useState(1);
-  const [missionKind, setMissionKind] = useState('main');
+  const [missionKind, setMissionKind] = useState('all');
   const [statusError, setStatusError] = useState('');
   const [highlightId, setHighlightId] = useState(null);
   const [selectedMission, setSelectedMission] = useState(null);
@@ -696,13 +696,14 @@ export default function AdminMissions() {
         value={missionKind}
         onChange={setMissionKind}
         tabs={[
+          { key: 'all', label: '전체', count: mainMissions.length + subMissions.length },
           { key: 'main', label: '메인 의뢰', count: mainMissions.length },
           { key: 'sub', label: '서브 의뢰', count: subMissions.length },
         ]}
         style={{ marginBottom: 20 }}
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-        {missionKind === 'main' && (
+        {(missionKind === 'main' || (missionKind === 'all' && mainMissions.length > 0)) && (
         <div>
           {mainMissions.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
@@ -726,7 +727,7 @@ export default function AdminMissions() {
         </div>
         )}
 
-        {missionKind === 'sub' && (
+        {(missionKind === 'sub' || (missionKind === 'all' && subMissions.length > 0)) && (
         <div>
           {subMissions.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
