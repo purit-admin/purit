@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Stat, Btn, Badge } from '../../components/ui';
+import SettlementLedger from '../../components/ui/SettlementLedger';
 import { supabase } from '../../lib/supabase';
 import {
   getHonorLevel, getNextLevel, getProgressPct, getPanelReward,
-  getExperienceCareerKey, HONOR_COLOR_META, fmtWon, fmtKRW,
+  getExperienceCareerKey, HONOR_COLOR_META, fmtWon,
 } from '../../lib/honorLevels';
 
 const BADGE_CATALOG_DASH = [
@@ -79,9 +80,10 @@ export default function PanelDashboard() {
           .order('created_at', { ascending: false }),
         supabase.from('feedbacks').select('mission_id, status').eq('panel_id', p?.id),
         supabase.from('feedbacks')
-          .select('status, purity_passed, payout_amount, updated_at, created_at, missions(type)')
+          .select('*, missions(title, reward_amount, type)')
           .eq('panel_id', p?.id)
-          .neq('status', 'draft'),
+          .neq('status', 'draft')
+          .order('created_at', { ascending: false }),
       ]);
 
       const myMissionIds = new Set((myFeedbacks || []).map(f => f.mission_id));
@@ -223,18 +225,6 @@ export default function PanelDashboard() {
   const selectedBadgeMeta = selectedBadgeKey && earnedBadgeSet.has(selectedBadgeKey)
     ? BADGE_CATALOG_DASH.find(b => b.key === selectedBadgeKey)
     : null;
-
-  const approvedFbs = histFeedbacks.filter(f => f.purity_passed);
-  const pendingFbs  = histFeedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
-  const rejectedFbs = histFeedbacks.filter(f => !f.purity_passed && f.status === 'rejected');
-  const calcDashReward = (f) => {
-    if (f.purity_passed && f.payout_amount != null) return Number(f.payout_amount);
-    const isSub = ['preference', 'pricing', 'email'].includes(f.missions?.type);
-    const base = getPanelReward(panel?.honor_points || 0, panel?.experience || '');
-    return isSub ? Math.round(base * (4500 / 8000)) : base;
-  };
-  const totalPaid    = approvedFbs.reduce((s, f) => s + calcDashReward(f), 0);
-  const totalPending = pendingFbs.reduce((s, f)  => s + calcDashReward(f), 0);
 
   return (
     <div className="page-wrap" style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', maxWidth: 1000, animation: 'fadeUp 0.5s ease both' }}>
@@ -402,34 +392,10 @@ export default function PanelDashboard() {
         </div>
       </div>
 
-      {/* 수익 현황 */}
+      {/* 수익 현황 — 정산 내역 페이지와 동일한 정산 LEDGER 공용 뷰 */}
       <div style={{ marginBottom: 32, marginTop: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text2, marginBottom: 10 }}>수익 현황</div>
-        <div className="dash-stat-grid-3">
-          <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
-            <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>총 정산 확정</div>
-            <div style={{ lineHeight: 1, marginBottom: 6 }}>
-              <div style={{ fontSize: 10, color: C.text3, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: C.primary, letterSpacing: '-0.03em' }}>{fmtKRW(totalPaid)}</div>
-            </div>
-            <div style={{ fontSize: 13, color: C.text3 }}>{approvedFbs.length}건</div>
-          </div>
-          <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
-            <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>정산 대기 중</div>
-            <div style={{ lineHeight: 1, marginBottom: 6 }}>
-              <div style={{ fontSize: 10, color: C.text3, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: C.text, letterSpacing: '-0.03em' }}>{fmtKRW(totalPending)}</div>
-            </div>
-            <div style={{ fontSize: 13, color: C.text3 }}>{pendingFbs.length}건</div>
-          </div>
-          <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 24px', boxShadow: C.shadow }}>
-            <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 8 }}>필터 탈락</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: rejectedFbs.length > 0 ? '#EF4444' : C.text3, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>
-              {rejectedFbs.length}건
-            </div>
-            <div style={{ fontSize: 13, color: C.text3 }}>Purit Filter 미통과</div>
-          </div>
-        </div>
+        <SettlementLedger feedbacks={histFeedbacks} panelData={panel} />
       </div>
     </div>
   );
