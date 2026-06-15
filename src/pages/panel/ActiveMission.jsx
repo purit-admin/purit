@@ -147,7 +147,6 @@ export default function ActiveMission() {
   const [submitting, setSubmitting]       = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [draftId, setDraftId]             = useState(null);
-  const [autoSaving, setAutoSaving]       = useState(false);
   const autoSaveTimer = useRef(null);
   const commentUpdateTimers = useRef({});
   const bottomSectionRef = useRef(null);
@@ -388,17 +387,20 @@ export default function ActiveMission() {
                   .eq('feedback_id', fb.id)
                   .order('created_at');
                 setAnnotations(anns || []);
-                if ((anns && anns.length > 0) || fb.strengths) {
-                  setViewedImages(new Set(ms.image_urls.map((_, i) => i)));
-                }
+                // 실제로 확인한 이미지만 복원: 저장된 viewedImages + 어노테이션이 있는 이미지(확실히 본 것) 합집합
+                // (구: 저장물이 있으면 전체를 봤다고 간주 → 안 본 이미지도 통과시켜 총평 게이트가 조기 개방되던 버그 D-141)
+                const restoredViewed = new Set([0]);
+                (anns || []).forEach(a => { if (typeof a.image_index === 'number') restoredViewed.add(a.image_index); });
                 if (fb.strengths) {
                   try {
                     const s = JSON.parse(fb.strengths);
                     if (Array.isArray(s.customAnswers)) setCustomAnswers(s.customAnswers);
                     if (s.overallComment) setOverallComment(s.overallComment);
                     if (s.skippedDims) setSkippedDims(prev => ({ ...prev, ...s.skippedDims }));
+                    if (Array.isArray(s.viewedImages)) s.viewedImages.forEach(i => restoredViewed.add(i));
                   } catch {}
                 }
+                setViewedImages(restoredViewed);
               }
             }
           }
@@ -428,6 +430,7 @@ export default function ActiveMission() {
       if (customAnswers.length) toSave.customAnswers = customAnswers;
       if (overallComment) toSave.overallComment = overallComment;
       if (Object.values(skippedDims).some(Boolean)) toSave.skippedDims = skippedDims;
+      if (viewedImages.size > 1) toSave.viewedImages = [...viewedImages]; // 실제 확인한 이미지 인덱스 보존 (복원 시 게이트 정확도)
       if (Object.keys(toSave).length === 0) return;
       supabase.from('feedbacks')
         .update({ strengths: JSON.stringify(toSave) })
@@ -435,7 +438,7 @@ export default function ActiveMission() {
         .then(({ error }) => { if (error) console.warn('[이미지 자동저장 실패]', error.message); });
     }, 1500);
     return () => clearTimeout(autoSaveTimer.current);
-  }, [customAnswers, overallComment, skippedDims]);
+  }, [customAnswers, overallComment, skippedDims, viewedImages]);
 
   // 서브 미션 자동 저장
   useEffect(() => {
@@ -459,9 +462,8 @@ export default function ActiveMission() {
       subState = { ...subState, emailOpenIntent, emailCuriosity, emailHook, emailClarity, emailWouldReply, emailComment };
     }
     subState = { ...subState, customAnswers };
-    setAutoSaving(true);
     supabase.from('feedbacks').update({ strengths: JSON.stringify(subState) })
-      .eq('id', draftId).then(() => setAutoSaving(false));
+      .eq('id', draftId).then(({ error }) => { if (error) console.warn('[서브 자동저장 실패]', error.message); });
   };
 
   // 제출 후 공통 후처리: 게이미피케이션 RPC + 어드민 알림
@@ -843,12 +845,25 @@ export default function ActiveMission() {
     const borderColor = isUrgent ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.3)';
     const textColor   = isUrgent ? 'var(--red, #ef4444)' : '#D97706';
     return (
-      <div style={{ marginBottom: 16, padding: '10px 14px', background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+      <div style={{ marginBottom: 16, padding: '10px 14px', background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 'var(--radius)', display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
         <span>⏱</span>
         <span style={{ fontWeight: 600, color: textColor }}>{deadlineBanner.label}: {remaining}</span>
       </div>
     );
   })() : null;
+
+  /* ─── 자동 저장 배지 공용 엘리먼트 (서브·이미지 폼 헤더 우측) ─── */
+  const autoSaveBadgeEl = (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 7,
+      padding: '6px 12px', borderRadius: 999,
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      fontSize: 12, fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap',
+    }} title="현재 페이지를 벗어나도 작성 내용이 자동으로 저장됩니다.">
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 1.4s ease-in-out infinite' }} />
+      자동 저장 중
+    </div>
+  );
 
   if (panelPending) {
     const st = panel?.status;
@@ -1122,7 +1137,8 @@ export default function ActiveMission() {
           <span style={{ color: 'var(--red,#ef4444)', flexShrink: 0, fontSize: 16 }}>🚨</span>
           <span style={{ fontSize: 15, color: 'var(--red,#ef4444)', fontWeight: 700, lineHeight: 1.5 }}>지속적인 반려는 패널 계정 정지로 이어질 수 있습니다.</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <Btn variant="secondary" onClick={() => setShowSubmitConfirm(false)}>아니요, 더 검토할게요</Btn>
           <Btn
             onClick={() => {
               setShowSubmitConfirm(false);
@@ -1213,7 +1229,10 @@ export default function ActiveMission() {
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>FEEDBACK</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>{mission.title}</h1>
           </div>
-          <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {autoSaveBadgeEl}
+            <Btn variant="secondary" onClick={() => setStep(0)}>브리핑으로</Btn>
+          </div>
         </div>
         {deadlineBannerEl}
 
@@ -1376,7 +1395,7 @@ export default function ActiveMission() {
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>{mission.title}</h1>
           </div>
-          <div />
+          {autoSaveBadgeEl}
         </div>
 
         {/* 검증 포커스 리마인더 — 기업이 지정한 중점 항목을 보며 피드백 */}
