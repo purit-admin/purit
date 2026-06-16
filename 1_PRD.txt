@@ -1,6 +1,7 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-16 (패널 알림에 '피드백 승인 취소'(PurityFilter reset 승인됨→검토대기 되돌리기) 추가 — actionUrl /panel/history, 보상 직결로 항상 발송 / 반려 취소 시 honor_points -5 복원 / 어드민 피드백·미션·패널 관리 3페이지 양방향 교차 이동 버튼 + 뒤로가기 복원)
+최종 업데이트: 2026-06-16 (가입 휴대폰 인증 Mock OTP + /verify-phone 게이트 — 이메일 가입 폼 인라인 인증(metadata 전달→handle_new_user 저장)·Google 가입자는 가입 후 게이트(save_my_phone RPC)·RoleRoute가 user_metadata.phone_verified로 미인증 기업/패널 차단(admin 제외)·알림톡 전 사용자 도달 목적·migration 101/103 / D-144 team_members self-UPDATE RLS 권한상승 함정 / D-145 StrictMode useState 초기화 부작용)
+            2026-06-16 (패널 알림에 '피드백 승인 취소'(PurityFilter reset 승인됨→검토대기 되돌리기) 추가 — actionUrl /panel/history, 보상 직결로 항상 발송 / 반려 취소 시 honor_points -5 복원 / 어드민 피드백·미션·패널 관리 3페이지 양방향 교차 이동 버튼 + 뒤로가기 복원)
             2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff 이식 + landing.css(.purit-landing 스코프)·Pretendard / "작동 방식(5분 등록·48시간)" 섹션만 기존 유지 / 카피 기업고객 관점 정리: 48시간 통일·시니어/헤드급·전환율40%·광고비800만원·후기 수치·CTA 안심 라인)
             2026-06-12 (기업 무료 체험 Freemium — 가입 plan='free_trial' + 첫 의뢰 1회 무료·부분 언락 / 패널 심사 거절→재제출→영구차단 알림 + 버그/건의 답변 딥링크 / 경력 어드민 확정·잠금)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
@@ -47,9 +48,19 @@
   · OAuthCallback.jsx: 신규 유저면 role 읽어 user_metadata 업데이트 + companies/panels 레코드 수동 생성
   · 기존 유저(role 이미 있음)면 바로 대시보드 리다이렉트
   · Supabase 대시보드 URL Configuration에 /oauth/callback 허용 URL 등록 필요
+- 휴대폰 인증 (Mock OTP) ★ 신규 (migration 101/103, 2026-06-16)
+  · 가입 시 휴대폰 인증 필수 — 알림톡 도달 위해 전 사용자 휴대폰 확보 (보안 목적 아님: 패널은 서류 검증이 더 강함)
+  · 이메일 가입: Signup 폼에 휴대폰 입력 + "인증번호 받기"(800ms)+6자리 확인 → 인증 완료 전 가입 차단
+    인증 번호를 signUp user_metadata(phone·phone_verified)로 전달 → handle_new_user 트리거가 panels/companies에 저장
+  · Google 가입: 폼을 안 거치므로 가입 후 /verify-phone 게이트에서 본인 인증 → save_my_phone RPC(본인 행만)로 panels/companies/team_members에 저장
+  · 게이트: RoleRoute가 user_metadata.phone_verified !== true 인 기업/패널을 /verify-phone로 (admin 제외).
+    인증 시 supabase.auth.updateUser로 metadata.phone_verified 갱신 → 통과. 라우트마다 DB 조회 없이 metadata로 판별
+    · /verify-phone(VerifyPhone.jsx)은 마운트 시 DB가 이미 phone_verified면 metadata만 동기화 후 통과(기존 인증 패널 재입력 불필요)
+  · Mock: 6자리 아무 숫자 통과 (실 SMS 게이트웨이 연동 전). 연타 가드(submittingRef) 적용
 - 세션: getSession() 초기 로드 + onAuthStateChange 실시간 구독
 - 접근 제어: RoleRoute 컴포넌트 — 비인증 시 /login 리다이렉트,
-             역할 불일치 시 해당 역할 홈으로 리다이렉트
+             역할 불일치 시 해당 역할 홈으로 리다이렉트,
+             기업/패널 휴대폰 미인증 시 /verify-phone 리다이렉트 (admin 제외)
 
 ================================================================
 ## 공용 기능 (포털 공통)
@@ -99,7 +110,10 @@
   - 후기 3종(전환율 2배·CTR 3배·광고비 절반 수치 포함) / 요금 3플랜(Starter/Pro/Enterprise, 크레딧 기반)
   - CTA: "첫 신청은 무료예요" + 안심 라인 "첫 신청 무료 · 카드 등록 없음 · 비용 0원"
 - /login : Login.jsx (공개)
-- /signup : Signup.jsx (공개, role 선택 포함)
+- /signup : Signup.jsx (공개, role 선택 포함 + 이메일 가입 시 휴대폰 인증 Mock OTP)
+- /verify-phone : VerifyPhone.jsx ★ 신규 — 가입 후 휴대폰 인증 게이트 (로그인 필요·휴대폰 게이트 미적용)
+  - RoleRoute가 미인증 기업/패널을 여기로 리다이렉트 / VerifyPhoneRoute 가드(인증완료·admin은 홈으로)
+  - Google 가입자·기존 미인증 사용자가 본인 인증 → save_my_phone RPC + updateUser metadata 갱신 후 홈 이동
 - /share/:token : ShareResult.jsx (공개, 인증 불필요)
   - get_shared_mission(p_token) SECURITY DEFINER RPC 호출
   - 미션 제목·페르소나·피드백 수·5차원 평균 점수(레이더+바) 표시

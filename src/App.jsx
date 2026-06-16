@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import OAuthCallback from './pages/OAuthCallback';
 import InviteAccept from './pages/InviteAccept';
+import VerifyPhone from './pages/VerifyPhone';
 
 // Company pages
 import CompanyDashboard from './pages/company/Dashboard';
@@ -59,7 +60,19 @@ function RoleRoute({ role: required, children }) {
   if (!role) return <Navigate to="/login" replace />;
   // admin은 모든 포털 접근 허용, 다른 역할은 자기 포털로 리다이렉트
   if (role !== required && role !== 'admin') return <Navigate to={ROLE_HOME[role]} replace />;
+  // 휴대폰 인증 게이트 — 미인증 기업/패널은 /verify-phone으로 (admin 제외)
+  if (role !== 'admin' && user.user_metadata?.phone_verified !== true) return <Navigate to="/verify-phone" replace />;
   return children;
+}
+
+// /verify-phone 전용 가드 — 로그인 필요, 단 휴대폰 게이트는 미적용(무한 리다이렉트 방지)
+// 이미 인증된 사용자·admin은 홈으로 되돌림
+function VerifyPhoneRoute() {
+  const { user, role, loading } = useAuth();
+  if (loading) return null;
+  if (!user || !role) return <Navigate to="/login" replace />;
+  if (role === 'admin' || user.user_metadata?.phone_verified === true) return <Navigate to={ROLE_HOME[role]} replace />;
+  return <VerifyPhone />;
 }
 
 function AppRoutes() {
@@ -72,6 +85,7 @@ function AppRoutes() {
       <Route path="/oauth/callback" element={<OAuthCallback />} />
       <Route path="/share/:token" element={<ShareResult />} />
 <Route path="/invite" element={<InviteAccept />} />
+      <Route path="/verify-phone" element={<VerifyPhoneRoute />} />
 
       {/* Company — company 역할만 접근 가능 */}
       <Route path="/company" element={<RoleRoute role="company"><CL><CompanyDashboard /></CL></RoleRoute>} />

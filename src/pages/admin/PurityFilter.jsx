@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
@@ -156,6 +156,7 @@ function Pagination({ page, total, onPage }) {
 export default function PurityFilter() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   // 패널 관리로 이동 후 뒤로가기 시 보던 위치(페이지·선택·필터) 복원용 — 1회성
   const [restored] = useState(() => {
     try {
@@ -280,6 +281,38 @@ export default function PurityFilter() {
     const t = setTimeout(() => setHighlightId(null), 3000);
     return () => clearTimeout(t);
   }, [loading, location.state?.feedbackId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 알림 클릭 딥링크: ?feedbackId=xxx 쿼리 파라미터 처리
+  // (알림은 문자열 URL로만 이동 → location.state를 못 받으므로 쿼리 경로가 필수)
+  useEffect(() => {
+    if (loading) return;
+    const targetId = searchParams.get('feedbackId');
+    if (!targetId) return;
+    const target = feedbacks.find(f => f.id === targetId);
+    if (!target) return;
+
+    const tf = target.purity_passed ? 'approved'
+      : target.status === 'rejected' ? 'rejected'
+      : 'pending';
+    setFilter(tf);
+    setPendingSubFilter('all');
+    setTypeFilter('all');
+    setSearchQuery('');
+    setPanelQuery('');
+
+    const base =
+      tf === 'approved' ? feedbacks.filter(f => f.purity_passed)
+      : tf === 'rejected' ? feedbacks.filter(f => f.status === 'rejected' && !f.purity_passed)
+      : feedbacks.filter(f => !f.purity_passed && f.status === 'submitted');
+    const idx = base.findIndex(f => f.id === targetId);
+    if (idx !== -1) setListPage(Math.floor(idx / PAGE_SIZE) + 1);
+
+    setSelected(targetId);
+    setHighlightId(targetId);
+    navigate(location.pathname, { replace: true });
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [loading, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selected) { setAnnotations([]); setSubResponse(null); return; }

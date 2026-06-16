@@ -509,7 +509,7 @@ export default function ActiveMission() {
     supabase.rpc('check_and_award_badges', { p_panel_id: panel.id })
       .then(({ error }) => { if (error) console.warn('[check_and_award_badges]', error.message); });
     if (mission?.id) {
-      supabase.rpc('notify_admin_on_feedback_submitted', { p_mission_id: mission.id, p_is_resubmit: resubmitMode })
+      supabase.rpc('notify_admin_on_feedback_submitted', { p_mission_id: mission.id, p_is_resubmit: resubmitMode, p_feedback_id: draftId })
         .then(({ error }) => { if (error) console.warn('[notify_admin_feedback]', error.message); });
     }
   };

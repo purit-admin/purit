@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -112,7 +112,81 @@ function PanelChooseStep({ onChoose, busy }) {
   );
 }
 
-function EmailFields({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, role }) {
+// 휴대폰 인증 블록 (Mock OTP) — 인증 완료 시 setVerifiedPhone(phone), 번호 수정 시 setVerifiedPhone('')
+function PhoneVerifyBlock({ verifiedPhone, setVerifiedPhone }) {
+  const [phone, setPhone]       = useState('');
+  const [otpSent, setOtpSent]   = useState(false);
+  const [otp, setOtp]           = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const sendingRef   = useRef(false); // 연타 가드 (동기) — D-22
+  const verifyingRef = useRef(false);
+  const verified = !!verifiedPhone;
+
+  const handleEdit = v => {
+    setPhone(v); setOtpError('');
+    if (verified) setVerifiedPhone('');
+    if (otpSent) { setOtpSent(false); setOtp(''); }
+  };
+  const sendOtp = async () => {
+    if (sendingRef.current) return;
+    if (phone.replace(/\D/g, '').length < 10) { setOtpError('올바른 휴대폰 번호를 입력해 주세요.'); return; }
+    sendingRef.current = true;
+    setOtpError(''); setLoading(true);
+    await new Promise(r => setTimeout(r, 800)); // Mock 발송
+    setOtpSent(true); setLoading(false);
+    sendingRef.current = false;
+  };
+  const verify = async () => {
+    if (verifyingRef.current) return;
+    if (otp.length !== 6) { setOtpError('인증번호 6자리를 입력해 주세요.'); return; }
+    verifyingRef.current = true;
+    setOtpError(''); setLoading(true);
+    await new Promise(r => setTimeout(r, 600)); // Mock 검증 (6자리면 통과)
+    setVerifiedPhone(phone); setOtpSent(false); setOtp(''); setLoading(false);
+    verifyingRef.current = false;
+  };
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: T2, display: 'block', marginBottom: 7 }}>
+        휴대폰 번호 {verified && <span style={{ fontSize: 12, color: '#059669', fontWeight: 700 }}>✓ 인증 완료</span>}
+      </label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          type="tel" placeholder="010-1234-5678" value={phone}
+          onChange={e => handleEdit(e.target.value)}
+          disabled={verified}
+          style={{ ...INPUT_STYLE, flex: 1, opacity: verified ? 0.6 : 1 }}
+          onFocus={onInputFocus} onBlur={onInputBlur}
+        />
+        {!verified && !otpSent && (
+          <button type="button" onClick={sendOtp} disabled={loading}
+            style={{ flexShrink: 0, padding: '0 14px', borderRadius: 10, border: 'none', background: loading ? T3 : ACCENT, color: '#fff', fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            {loading ? '발송 중...' : '인증번호 받기'}
+          </button>
+        )}
+      </div>
+      {!verified && otpSent && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <input
+            type="text" inputMode="numeric" maxLength={6} placeholder="인증번호 6자리" value={otp}
+            onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); setOtpError(''); }}
+            style={{ ...INPUT_STYLE, flex: 1 }} onFocus={onInputFocus} onBlur={onInputBlur}
+          />
+          <button type="button" onClick={verify} disabled={loading}
+            style={{ flexShrink: 0, padding: '0 18px', borderRadius: 10, border: 'none', background: loading ? T3 : ACCENT, color: '#fff', fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            {loading ? '확인 중...' : '확인'}
+          </button>
+        </div>
+      )}
+      {otpError && <div style={{ fontSize: 12, color: '#C53030', marginTop: 6 }}>{otpError}</div>}
+      {!verified && otpSent && <div style={{ fontSize: 11, color: T3, marginTop: 6 }}>🧪 테스트 모드 · 6자리 아무 숫자나 입력하면 인증됩니다.</div>}
+    </div>
+  );
+}
+
+function EmailFields({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, role, verifiedPhone, setVerifiedPhone }) {
   return (
     <>
       <div style={{ marginBottom: 14 }}>
@@ -144,11 +218,12 @@ function EmailFields({ name, setName, email, setEmail, password, setPassword, sh
           </button>
         </div>
       </div>
+      <PhoneVerifyBlock verifiedPhone={verifiedPhone} setVerifiedPhone={setVerifiedPhone} />
     </>
   );
 }
 
-function PanelEmailStep({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, error, successMsg, loading, busy, onBack, onSubmit }) {
+function PanelEmailStep({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, verifiedPhone, setVerifiedPhone, error, successMsg, loading, busy, onBack, onSubmit }) {
   return (
     <div>
       <button type="button" onClick={onBack}
@@ -163,7 +238,8 @@ function PanelEmailStep({ name, setName, email, setEmail, password, setPassword,
 
       <form onSubmit={onSubmit}>
         <EmailFields name={name} setName={setName} email={email} setEmail={setEmail}
-          password={password} setPassword={setPassword} showPw={showPw} setShowPw={setShowPw} role="panel" />
+          password={password} setPassword={setPassword} showPw={showPw} setShowPw={setShowPw}
+          verifiedPhone={verifiedPhone} setVerifiedPhone={setVerifiedPhone} role="panel" />
 
         {error && (
           <div style={{
@@ -196,12 +272,13 @@ function PanelEmailStep({ name, setName, email, setEmail, password, setPassword,
   );
 }
 
-function CompanyEmailForm({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, error, successMsg, loading, busy, onSubmit, googleLoading, onGoogle }) {
+function CompanyEmailForm({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, verifiedPhone, setVerifiedPhone, error, successMsg, loading, busy, onSubmit, googleLoading, onGoogle }) {
   return (
     <>
       <form onSubmit={onSubmit}>
         <EmailFields name={name} setName={setName} email={email} setEmail={setEmail}
-          password={password} setPassword={setPassword} showPw={showPw} setShowPw={setShowPw} role="company" />
+          password={password} setPassword={setPassword} showPw={showPw} setShowPw={setShowPw}
+          verifiedPhone={verifiedPhone} setVerifiedPhone={setVerifiedPhone} role="company" />
 
         {error && (
           <div style={{
@@ -303,6 +380,7 @@ export default function Signup() {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [showPw,   setShowPw]   = useState(false);
+  const [verifiedPhone, setVerifiedPhone] = useState(''); // 휴대폰 인증 완료 시 인증된 번호
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
 
@@ -326,6 +404,7 @@ export default function Signup() {
     setPanelMethod(null);
     setError('');
     setSuccessMsg('');
+    setVerifiedPhone('');
   }, [role]);
 
   const handleChooseMethod = method => {
@@ -350,10 +429,11 @@ export default function Signup() {
     if (!name.trim())        { setError('이름을 입력해 주세요.'); return; }
     if (!email.trim())       { setError('이메일을 입력해 주세요.'); return; }
     if (password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); return; }
+    if (!verifiedPhone)      { setError('휴대폰 인증을 완료해 주세요.'); return; }
 
     setLoading(true);
     try {
-      await signUp({ email, password, name, role, inviteToken });
+      await signUp({ email, password, name, role, inviteToken, phone: verifiedPhone });
       await signOut();
       const loginMsg = inviteToken
         ? '가입이 완료되었습니다. 로그인하면 초대 수락 페이지로 이동합니다.'
@@ -366,7 +446,7 @@ export default function Signup() {
     }
   };
 
-  const emailFieldProps = { name, setName, email, setEmail, password, setPassword, showPw, setShowPw };
+  const emailFieldProps = { name, setName, email, setEmail, password, setPassword, showPw, setShowPw, verifiedPhone, setVerifiedPhone };
   const formStatusProps = { error, successMsg, loading, busy };
 
   return (

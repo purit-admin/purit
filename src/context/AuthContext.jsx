@@ -23,10 +23,13 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signUp({ email, password, name, role: selectedRole, inviteToken }) {
+  async function signUp({ email, password, name, role: selectedRole, inviteToken, phone }) {
     const metadata = { name, role: selectedRole };
     // 초대 토큰이 있으면 포함 → handle_new_user 트리거가 companies 생성 건너뜀
     if (inviteToken) metadata.invite_token = inviteToken;
+    // 휴대폰 인증(Mock) 완료 시 → 트리거가 panels/companies에 phone·phone_verified 저장
+    // RoleRoute 게이트가 user_metadata.phone_verified로 통과 판별
+    if (phone) { metadata.phone = phone; metadata.phone_verified = true; }
     const { data, error } = await supabase.auth.signUp({
       email,
       password,

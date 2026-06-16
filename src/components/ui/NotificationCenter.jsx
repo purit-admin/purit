@@ -26,13 +26,19 @@ export default function NotificationCenter({ role = 'company' }) {
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
 
-  const isBug      = n => n.action_url === '/admin/reports';
+  // 알림 종류별 탭 분류 — 어드민 운영 영역(미션/무료체험/피드백/패널/버그)과 1:1 매핑
+  const isBug      = n => n.action_url?.startsWith('/admin/reports');
   const isFeedback = n => n.action_url?.startsWith('/admin/purity');
-  const isMission  = n => !isBug(n) && !isFeedback(n);
+  const isPanel    = n => n.action_url?.startsWith('/admin/panels');
+  const isTrial    = n => n.action_url?.startsWith('/admin/trials');
+  // 의뢰 탭: 위 4종에 속하지 않는 나머지(주로 /admin/missions — 새 의뢰·수집완료·조기종료)
+  const isMission  = n => !isBug(n) && !isFeedback(n) && !isPanel(n) && !isTrial(n);
 
   const ADMIN_TABS = [
     { key: 'missions', label: '의뢰',       filter: isMission  },
+    { key: 'trials',   label: '무료체험',    filter: isTrial    },
     { key: 'feedback', label: '피드백',      filter: isFeedback },
+    { key: 'panels',   label: '패널',        filter: isPanel    },
     { key: 'bugs',     label: '버그 리포트', filter: isBug      },
   ];
 
@@ -185,7 +191,7 @@ export default function NotificationCenter({ role = 'company' }) {
         <StatusTabs
           value={tab}
           onChange={(v) => { setTab(v); setPage(1); }}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16, flexWrap: 'wrap' }}
           tabs={ADMIN_TABS.map(t => {
             const cnt = tabUnread(t.key);
             return {

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, Btn, Badge, StatusTabs, SegmentFilter } from '../../components/ui';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -62,9 +63,33 @@ export default function BugReports() {
   const [sendReplyError, setSendReplyError] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const deeplinkRef = useRef(false);
 
   useEffect(() => { loadAll(); }, []);
   useEffect(() => { loadTab(); }, [tab, page, typeFilter]);
+
+  // 알림 클릭 딥링크: ?id=xxx 쿼리 파라미터 처리
+  // (알림은 문자열 URL로만 이동 → location.state를 못 받으므로 쿼리 경로가 필수)
+  // 리포트는 상태별 탭·서버 페이지네이션이라 단건 조회 후 해당 상태 탭으로 전환하고 상세 패널을 연다
+  // (상세는 selected 객체로 렌더되므로 목록 페이지 위치와 무관하게 즉시 표시됨)
+  useEffect(() => {
+    const targetId = searchParams.get('id');
+    if (!targetId || deeplinkRef.current) return;
+    deeplinkRef.current = true;
+    (async () => {
+      const { data } = await supabase.from('bug_reports').select('*').eq('id', targetId).single();
+      navigate('/admin/reports', { replace: true });
+      if (!data) return;
+      setTab(data.status);
+      setTypeFilter('all');
+      setPage(1);
+      setSelected(data);
+      setMemo(data.admin_memo || '');
+      setAdminReply(data.admin_reply || '');
+    })();
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadAll() {
     try {
@@ -182,7 +207,7 @@ export default function BugReports() {
         r.id === selected.id ? { ...r, admin_reply: adminReply.trim(), replied_at: now } : r
       ));
       setSelected(s => ({ ...s, admin_reply: adminReply.trim(), replied_at: now }));
-      const actionUrl = selected.role === 'company' ? `/company/bug-reports?id=${selected.id}` : selected.role === 'admin' ? '/admin/reports' : `/panel/bug-reports?id=${selected.id}`;
+      const actionUrl = selected.role === 'company' ? `/company/bug-reports?id=${selected.id}` : selected.role === 'admin' ? `/admin/reports?id=${selected.id}` : `/panel/bug-reports?id=${selected.id}`;
       sendNotification(selected.user_id, {
         type: 'info', icon: '💬',
         title: '버그/건의 답변이 도착했습니다',

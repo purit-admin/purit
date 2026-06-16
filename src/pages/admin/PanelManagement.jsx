@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -54,6 +54,7 @@ const PERIOD_LABEL = { all: '전체', today: '오늘', week: '1주일', month: '
 export default function AdminPanels() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   // 피드백 관리로 이동 후 뒤로가기 시 보던 위치(선택 패널·페이지·필터) 복원용 — 1회성
   const [restored] = useState(() => {
     try {
@@ -123,6 +124,25 @@ export default function AdminPanels() {
     setActionMsg('');
     window.history.replaceState({}, '', location.pathname);
   }, [loading, location.state?.panelId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 알림 클릭 딥링크: ?panelId=xxx 쿼리 파라미터 처리
+  // (알림은 문자열 URL로만 이동 → location.state를 못 받으므로 쿼리 경로가 필수)
+  useEffect(() => {
+    if (loading) return;
+    const targetId = searchParams.get('panelId');
+    if (!targetId) return;
+    const target = panels.find(p => p.id === targetId);
+    if (!target) return;
+    // 필터·정렬 초기화 → 대상 패널이 목록에 보이도록 + 해당 페이지로 이동
+    setStatusFilter('all'); setLevelFilter('all'); setRiskFilter('all');
+    setSearchInput(''); setSearchQuery(''); setSortBy('joined_desc');
+    const sorted = [...panels].sort((a, b) => (b.created_at || '') > (a.created_at || '') ? 1 : -1);
+    const idx = sorted.findIndex(p => p.id === targetId);
+    if (idx !== -1) setPage(Math.floor(idx / PAGE_SIZE) + 1);
+    setSelected(targetId);
+    setActionMsg('');
+    navigate(location.pathname, { replace: true });
+  }, [loading, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     setLoading(true);
