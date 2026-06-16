@@ -1269,7 +1269,8 @@ export default function PricingTest() {
       {terminateTarget && (
         <ConfirmModal
           title="의뢰를 조기 종료할까요?"
-          desc="⚠️ 조기 종료 시 잔여 크레딧은 환불되지 않습니다. 이미 수집된 피드백 결과는 계속 확인 가능합니다."
+          width={450}
+          desc={<div style={{ textAlign: 'left' }}><div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '13px 15px', background: 'rgba(245,158,11,0.09)', border: '1px solid rgba(245,158,11,0.28)', borderRadius: 10, marginBottom: 13 }}><span style={{ fontSize: 17, lineHeight: 1.4 }}>⚠️</span><span style={{ fontSize: 14.5, fontWeight: 700, color: '#B45309', lineHeight: 1.45 }}>조기 종료 시 잔여 크레딧은 환불되지 않습니다.</span></div><div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.65 }}>이미 수집된 피드백 결과는 <strong style={{ color: 'var(--text)' }}>'취소 탭'</strong>에서 계속 확인 가능합니다.</div></div>}
           confirmLabel="조기 종료 (크레딧 환불 불가)"
           cancelLabel="유지"
           danger

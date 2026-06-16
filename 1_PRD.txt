@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-16 (어드민 알림 딥링크 전면 보강 + 알림센터 탭 3→5 분리(의뢰/무료체험/피드백/패널/버그) — 발송측 action_url에 대상 id 부착(missions?missionId·trials?id·purity?feedbackId·panels?panelId·reports?id), 수신 페이지(PurityFilter·PanelManagement·BugReports)에 ?쿼리 수신 effect 추가, notify_admin_on_feedback_submitted에 p_feedback_id 추가 / migration 102 / D-146 알림 딥링크는 location.state 전달 불가·쿼리만 가능 함정)
+최종 업데이트: 2026-06-16 (어드민 의뢰 완료 알림 body에 환불 크레딧액 포함 — "잔여 크레딧 N cr이 환불되었습니다"(환불 0이면 금액 문구 생략). admin/Missions가 complete_mission_and_refund 반환값 credits_refunded 사용) / 2026-06-16 (어드민 알림 딥링크 전면 보강 + 알림센터 탭 3→5 분리(의뢰/무료체험/피드백/패널/버그) — 발송측 action_url에 대상 id 부착(missions?missionId·trials?id·purity?feedbackId·panels?panelId·reports?id), 수신 페이지(PurityFilter·PanelManagement·BugReports)에 ?쿼리 수신 effect 추가, notify_admin_on_feedback_submitted에 p_feedback_id 추가 / migration 102 / D-146 알림 딥링크는 location.state 전달 불가·쿼리만 가능 함정)
             2026-06-16 (가입 휴대폰 인증 Mock OTP + /verify-phone 게이트 — 이메일 가입 폼 인라인 인증(metadata 전달→handle_new_user 저장)·Google 가입자는 가입 후 게이트(save_my_phone RPC)·RoleRoute가 user_metadata.phone_verified로 미인증 기업/패널 차단(admin 제외)·알림톡 전 사용자 도달 목적·migration 101/103 / D-144 team_members self-UPDATE RLS 권한상승 함정 / D-145 StrictMode useState 초기화 부작용)
             2026-06-16 (패널 알림에 '피드백 승인 취소'(PurityFilter reset 승인됨→검토대기 되돌리기) 추가 — actionUrl /panel/history, 보상 직결로 항상 발송 / 반려 취소 시 honor_points -5 복원 / 어드민 피드백·미션·패널 관리 3페이지 양방향 교차 이동 버튼 + 뒤로가기 복원)
             2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff 이식 + landing.css(.purit-landing 스코프)·Pretendard / "작동 방식(5분 등록·48시간)" 섹션만 기존 유지 / 카피 기업고객 관점 정리: 48시간 통일·시니어/헤드급·전환율40%·광고비800만원·후기 수치·CTA 안심 라인)
@@ -166,7 +166,7 @@
     [어드민 — 버그 탭] (action_url: /admin/reports* — admin/BugReports ?id 딥링크) ★ migration 102
     · 버그/이의신청 접수 (DB 트리거 on_bug_report_insert, notify_admin_on_bug_report, 022/083) → 어드민 🚩 — actionUrl: /admin/reports?id=xxx
     [기업]
-    · 의뢰 완료 처리 (admin/Missions.jsx) → 기업
+    · 의뢰 완료 처리 (admin/Missions.jsx) → 기업 (body에 환불액 N cr 포함 — credits_refunded>0이면 "잔여 크레딧 N cr이 환불되었습니다", 0이면 금액 문구 생략)
     · 의뢰 취소 처리 (admin/Missions.jsx) → 기업
     · 의뢰 재개 취소→진행 (admin/Missions.jsx) → 기업
     · 의뢰 재진행 완료→진행 (admin/Missions.jsx) → 기업

@@ -443,7 +443,9 @@ export default function AdminMissions() {
         sendNotification(completedMission.companies.user_id, {
           type: 'success', icon: '🏁',
           title: '의뢰 완료',
-          body: `[${completedMission.title}] 의뢰가 완료 처리되었습니다. 잔여 크레딧이 환불되었습니다.`,
+          body: (data.credits_refunded ?? 0) > 0
+            ? `[${completedMission.title}] 의뢰가 완료 처리되었습니다. 잔여 크레딧 ${fmtCr(data.credits_refunded)}cr이 환불되었습니다.`
+            : `[${completedMission.title}] 의뢰가 완료 처리되었습니다.`,
           actionUrl: `/company/results?id=${completedMission.id}`,
           targetRole: 'company', prefKey: 'missionComplete',
         });
@@ -664,10 +666,17 @@ export default function AdminMissions() {
       {/* Complete confirm modal */}
       {confirmComplete && (() => {
         const approvedCount = (confirmComplete.feedbacks || []).filter(f => f.purity_passed).length;
+        const hasCredits = (confirmComplete.credits_reserved ?? 0) > 0;
+        const reserved = fmtCr(confirmComplete.credits_reserved);
+        const consumed = fmtCr(confirmComplete.credits_consumed);
+        const refund = fmtCr(Math.max(0, (confirmComplete.credits_reserved ?? 0) - (confirmComplete.credits_consumed ?? 0)));
+        const completeDesc = hasCredits
+          ? `완료 처리 시 승인된 ${approvedCount}건 피드백 기준으로 크레딧이 정산됩니다.\n\n• 선차감(예약): ${reserved} cr\n• 실제 사용(정산): ${consumed} cr\n• 환불 예정: ${refund} cr\n\n잔여 크레딧은 기업 계정에 환불됩니다. 계속하시겠습니까?`
+          : `완료 처리 시 승인된 ${approvedCount}건 피드백이 기업에게 공개됩니다. 계속하시겠습니까?`;
         return (
           <ConfirmModal
             title="완료 처리하시겠습니까?"
-            desc={`완료 처리 시 승인된 ${approvedCount}건 피드백 기준으로 크레딧이 정산되며, 잔여 크레딧은 기업 계정에 환불됩니다. 계속하시겠습니까?`}
+            desc={completeDesc}
             confirmLabel="완료 처리"
             cancelLabel="돌아가기"
             errorMsg={statusError}
@@ -719,8 +728,8 @@ export default function AdminMissions() {
         onChange={setMissionKind}
         tabs={[
           { key: 'all', label: '전체', count: mainMissions.length + subMissions.length },
-          { key: 'main', label: '메인 의뢰', count: mainMissions.length },
-          { key: 'sub', label: '서브 의뢰', count: subMissions.length },
+          { key: 'main', label: '메인', count: mainMissions.length },
+          { key: 'sub', label: '서브', count: subMissions.length },
         ]}
         style={{ marginBottom: 20 }}
       />
