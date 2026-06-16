@@ -1,6 +1,7 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-16 (가입 휴대폰 인증 Mock OTP + /verify-phone 게이트 — 이메일 가입 폼 인라인 인증(metadata 전달→handle_new_user 저장)·Google 가입자는 가입 후 게이트(save_my_phone RPC)·RoleRoute가 user_metadata.phone_verified로 미인증 기업/패널 차단(admin 제외)·알림톡 전 사용자 도달 목적·migration 101/103 / D-144 team_members self-UPDATE RLS 권한상승 함정 / D-145 StrictMode useState 초기화 부작용)
+최종 업데이트: 2026-06-16 (어드민 알림 딥링크 전면 보강 + 알림센터 탭 3→5 분리(의뢰/무료체험/피드백/패널/버그) — 발송측 action_url에 대상 id 부착(missions?missionId·trials?id·purity?feedbackId·panels?panelId·reports?id), 수신 페이지(PurityFilter·PanelManagement·BugReports)에 ?쿼리 수신 effect 추가, notify_admin_on_feedback_submitted에 p_feedback_id 추가 / migration 102 / D-146 알림 딥링크는 location.state 전달 불가·쿼리만 가능 함정)
+            2026-06-16 (가입 휴대폰 인증 Mock OTP + /verify-phone 게이트 — 이메일 가입 폼 인라인 인증(metadata 전달→handle_new_user 저장)·Google 가입자는 가입 후 게이트(save_my_phone RPC)·RoleRoute가 user_metadata.phone_verified로 미인증 기업/패널 차단(admin 제외)·알림톡 전 사용자 도달 목적·migration 101/103 / D-144 team_members self-UPDATE RLS 권한상승 함정 / D-145 StrictMode useState 초기화 부작용)
             2026-06-16 (패널 알림에 '피드백 승인 취소'(PurityFilter reset 승인됨→검토대기 되돌리기) 추가 — actionUrl /panel/history, 보상 직결로 항상 발송 / 반려 취소 시 honor_points -5 복원 / 어드민 피드백·미션·패널 관리 3페이지 양방향 교차 이동 버튼 + 뒤로가기 복원)
             2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff 이식 + landing.css(.purit-landing 스코프)·Pretendard / "작동 방식(5분 등록·48시간)" 섹션만 기존 유지 / 카피 기업고객 관점 정리: 48시간 통일·시니어/헤드급·전환율40%·광고비800만원·후기 수치·CTA 안심 라인)
             2026-06-12 (기업 무료 체험 Freemium — 가입 plan='free_trial' + 첫 의뢰 1회 무료·부분 언락 / 패널 심사 거절→재제출→영구차단 알림 + 버그/건의 답변 딥링크 / 경력 어드민 확정·잠금)
@@ -135,26 +136,35 @@
   - notifications.target_role 컬럼으로 포털별 알림 분리 ('admin'|'company'|'panel'|null)
     · 조회 시 .or('target_role.eq.${role},target_role.is.null') 필터 적용
     · Sidebar 뱃지 카운트도 동일 필터 적용
-  - 어드민 전용 탭 3개 ★ 개편: '의뢰' / '피드백' / '버그 리포트'
-    · 의뢰 탭: action_url이 /admin/purity·/admin/reports가 아닌 모든 알림
-    · 피드백 탭: action_url이 /admin/purity로 시작하는 알림
-    · 버그 탭: action_url === '/admin/reports'
-    · 탭별 읽지 않은 수 뱃지 표시 / 모두 읽음·삭제는 현재 탭 기준
+  - 어드민 전용 탭 5개 ★ 개편(구 3개 의뢰/피드백/버그 → 운영영역 1:1 매핑, migration 102): '의뢰' / '무료체험' / '피드백' / '패널' / '버그 리포트'
+    · 무료체험 탭: action_url이 /admin/trials로 시작
+    · 피드백 탭: action_url이 /admin/purity로 시작
+    · 패널 탭: action_url이 /admin/panels로 시작
+    · 버그 탭: action_url이 /admin/reports로 시작
+    · 의뢰 탭: 위 4종에 속하지 않는 나머지(주로 /admin/missions)
+    · 분류는 action_url 접두사(startsWith) 기준 → 구 알림(파라미터 유무 무관)도 정확히 분류
+    · 탭별 읽지 않은 수 뱃지 표시 / 모두 읽음·삭제는 현재 탭 기준 / StatusTabs flexWrap(5탭 협폭 줄바꿈 안전)
   - 10개씩 페이지네이션 (탭·페이지 전환 시 선택 자동 초기화)
   - 선택·전체선택·삭제 기능: 체크박스 + 툴바 (선택 시 삭제 버튼 표시) ★
   - 알림 발송 이벤트 전체 목록 (코드 기준):
-    [어드민 — 의뢰 탭]
-    · 새 의뢰 등록 (DB 트리거 on_mission_created) → 어드민 (draft INSERT 제외)
-    · draft → active 전환 (DB 트리거 on_mission_activated) → 어드민 (임시저장 후 제출 경로)
-    · 슬롯 완료 (DB 트리거 on_mission_slots_full) → 어드민 (migration 033에서 기업→어드민으로 변경)
-    · 버그/불편 신고 접수 (DB 트리거 on_bug_report_insert) → 어드민
+    ※ 어드민 알림 actionUrl은 모두 대상 id를 쿼리로 부착해 클릭 시 해당 항목 직행(딥링크) — migration 102. 수신 페이지는 ?쿼리 수신 effect 보유.
+    [어드민 — 의뢰 탭] (action_url: /admin/missions* — admin/Missions ?missionId 딥링크)
+    · 새 의뢰 등록 (DB 트리거 on_mission_created, notify_admin_on_mission) → 어드민 (draft INSERT 제외) — actionUrl: /admin/missions?missionId=xxx
+    · draft → active 전환 (DB 트리거 on_mission_activated, notify_admin_on_mission 재사용) → 어드민 (임시저장 후 제출) — actionUrl: /admin/missions?missionId=xxx
+    · 패널 수집 완료 (DB 트리거 on_mission_slots_full, notify_company_on_slots_full) → 어드민 (033에서 기업→어드민) — actionUrl: /admin/missions?missionId=xxx
     · 기업 조기 종료 (company 포털 handleTerminate 성공 후) → 어드민 (notify_early_termination RPC, migration 036)
       actionUrl: /admin/missions?missionId=xxx → 취소 탭 자동 이동 + 미션 하이라이트
-    [어드민 — 피드백 탭] ★ 신규
-    · 새 피드백 제출 (panel/ActiveMission.jsx postSubmitActions, 최초 제출 시) → 어드민 (notify_admin_on_feedback_submitted RPC, migration 073)
-      actionUrl: /admin/purity
-    · 반려 피드백 재제출 (panel/ActiveMission.jsx postSubmitActions, resubmit 시) → 어드민 (동일 RPC, p_is_resubmit=true)
-      actionUrl: /admin/purity
+    [어드민 — 무료체험 탭] (action_url: /admin/trials* — admin/TrialMissions ?id 딥링크)
+    · 무료체험 첫 의뢰 (DB 트리거 notify_admin_on_mission, is_free_trial 분기) → 어드민 🔥 강한 알림 — actionUrl: /admin/trials?id=xxx
+    [어드민 — 피드백 탭] (action_url: /admin/purity* — admin/PurityFilter ?feedbackId 딥링크)
+    · 새 피드백 제출 (panel/ActiveMission.jsx postSubmitActions, 최초 제출 시) → 어드민 (notify_admin_on_feedback_submitted RPC, migration 073 / p_feedback_id 추가 migration 102)
+      actionUrl: /admin/purity?feedbackId=xxx (p_feedback_id=제출 피드백 id=draftId)
+    · 반려 피드백 재제출 (동일 RPC, p_is_resubmit=true) → 어드민 — actionUrl: /admin/purity?feedbackId=xxx
+    [어드민 — 패널 탭] (action_url: /admin/panels* — admin/PanelManagement ?panelId 딥링크) ★ migration 102
+    · 새 패널 심사 대기 (DB 트리거 on_panel_pending_created, notify_admin_on_new_panel, 062) → 어드민 👤 — actionUrl: /admin/panels?panelId=xxx
+    · 패널 서류 재제출 (DB 트리거 on_panel_resubmit, rejected→pending, 082) → 어드민 🔁 — actionUrl: /admin/panels?panelId=xxx
+    [어드민 — 버그 탭] (action_url: /admin/reports* — admin/BugReports ?id 딥링크) ★ migration 102
+    · 버그/이의신청 접수 (DB 트리거 on_bug_report_insert, notify_admin_on_bug_report, 022/083) → 어드민 🚩 — actionUrl: /admin/reports?id=xxx
     [기업]
     · 의뢰 완료 처리 (admin/Missions.jsx) → 기업
     · 의뢰 취소 처리 (admin/Missions.jsx) → 기업
@@ -177,7 +187,7 @@
     · 심사 반려 (PanelManagement.jsx pending→rejected) → 패널 "검증 서류가 반려되었습니다" 📝 (거절 사유 포함, 재제출 안내) ★ 082 (구: pending→suspended)
     · 영구 차단 (PanelManagement.jsx 누적 3회 거절 →banned) → 패널 "계정이 영구 정지되었습니다" 🚫 (재심사 불가) ★ 082
     · 차단 해제 (PanelManagement.jsx banned→rejected, rejection_count=0) → 패널 "재심사 기회가 부여되었습니다" 🔓 ★ 082
-    · 서류 재제출 (DB 트리거 on_panel_resubmit, rejected→pending) → 어드민 "패널 서류 재제출" 🔁 (actionUrl /admin/panels) ★ 082
+    · 서류 재제출 (DB 트리거 on_panel_resubmit, rejected→pending) → 어드민 "패널 서류 재제출" 🔁 (actionUrl /admin/panels?panelId=xxx, 딥링크 migration 102) ★ 082
     · 기간제 정지 (PanelManagement.jsx active→suspended+suspend_until) → 패널 "N일 임시 정지되었습니다" ★ 신규
     · 영구 정지 (PanelManagement.jsx active→suspended, suspend_until=NULL) → 패널 "계정이 영구 정지되었습니다" ★ 신규
     · 정지 자동 해제 (pg_cron lift_expired_panel_suspensions, 매시간) → 패널 "임시 정지가 해제되었습니다" ★ 신규
