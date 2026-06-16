@@ -696,8 +696,8 @@ export default function MissionList() {
           onChange={setMissionKind}
           tabs={[
             { key: 'all', label: '전체', count: mainFiltered.length + subFiltered.length },
-            { key: 'main', label: '메인 미션', count: mainFiltered.length },
-            { key: 'sub', label: '서브 미션', count: subFiltered.length },
+            { key: 'main', label: '메인', count: mainFiltered.length },
+            { key: 'sub', label: '서브', count: subFiltered.length },
           ]}
           style={{ marginBottom: 20 }}
         />

@@ -1447,8 +1447,8 @@ export default function Results() {
                 onChange={setMissionKind}
                 tabs={[
                   { key: 'all', label: '전체', count: mainMissions.length + subMissions.length },
-                  { key: 'main', label: '메인 의뢰', count: mainMissions.length },
-                  { key: 'sub', label: '서브 의뢰', count: subMissions.length },
+                  { key: 'main', label: '메인', count: mainMissions.length },
+                  { key: 'sub', label: '서브', count: subMissions.length },
                 ]}
                 style={{ marginBottom: 16 }}
               />

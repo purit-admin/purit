@@ -186,7 +186,7 @@ export default function TrialMissions() {
     const { error } = await supabase.from('feedbacks').update(payload).eq('id', fb.id);
     if (error) { setStatusError('승인 실패: ' + error.message); setActing(false); return; }
     setDetailFbs(fbs => fbs.map(f => f.id === fb.id ? { ...f, ...payload } : f));
-    if (fb.rejection_penalty_applied && fb.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: 5 });
+    if (fb.rejection_penalty_applied && fb.panel_id) supabase.rpc('restore_feedback_honor', { p_feedback_id: fb.id, p_panel_id: fb.panel_id });
     // 무료 미션이라 recalc_mission_consumed 생략 (credits_consumed는 언락이 관리)
     if (fb.panels?.user_id && fb.panels?.notif_prefs?.feedbackApproved !== false) {
       sendNotification(fb.panels.user_id, {
@@ -209,7 +209,7 @@ export default function TrialMissions() {
     if (error) { setStatusError('반려 실패: ' + error.message); setActing(false); return; }
     setDetailFbs(fbs => fbs.map(f => f.id === fb.id ? { ...f, ...payload } : f));
     if (fb.mission_id) await supabase.rpc('decrement_mission_filled_count', { p_mission_id: fb.mission_id });
-    if (fb.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 });
+    if (fb.panel_id) supabase.rpc('reject_feedback_honor', { p_feedback_id: fb.id, p_panel_id: fb.panel_id });
     setMissions(ms => ms.map(m => m.id === fb.mission_id ? { ...m, filled_count: Math.max(0, (m.filled_count || 0) - 1) } : m));
     if (fb.panels?.user_id && fb.panels?.notif_prefs?.feedbackRejected !== false) {
       sendNotification(fb.panels.user_id, {
@@ -323,7 +323,7 @@ export default function TrialMissions() {
     // 무료 미션이라 recalc_mission_consumed 생략 (언락이 credits_consumed 관리)
     ids.forEach(id => {
       const f = detailFbs.find(x => x.id === id);
-      if (f?.rejection_penalty_applied && f?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: 5 });
+      if (f?.rejection_penalty_applied && f?.panel_id) supabase.rpc('restore_feedback_honor', { p_feedback_id: f.id, p_panel_id: f.panel_id });
     });
     const notifRows = ids.map(id => detailFbs.find(x => x.id === id)).filter(Boolean)
       .filter(f => f.panels?.user_id && f.panels?.notif_prefs?.feedbackApproved !== false)
@@ -345,7 +345,7 @@ export default function TrialMissions() {
     for (const id of ids) {
       const f = detailFbs.find(x => x.id === id);
       if (f?.mission_id) { mid = f.mission_id; await supabase.rpc('decrement_mission_filled_count', { p_mission_id: f.mission_id }); }
-      if (f?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 });
+      if (f?.panel_id) supabase.rpc('reject_feedback_honor', { p_feedback_id: f.id, p_panel_id: f.panel_id });
     }
     if (mid) setMissions(ms => ms.map(m => m.id === mid ? { ...m, filled_count: Math.max(0, (m.filled_count || 0) - ids.length) } : m));
     const notifRows = ids.map(id => detailFbs.find(x => x.id === id)).filter(Boolean)

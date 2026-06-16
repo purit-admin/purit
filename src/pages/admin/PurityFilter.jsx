@@ -354,7 +354,7 @@ export default function PurityFilter() {
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, ...updatePayload } : f));
 
     if (fb?.rejection_penalty_applied && fb?.panel_id) {
-      supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: 5 }).then(({ error: he }) => { if (he) console.warn('[honor_restore]', he.message); });
+      supabase.rpc('restore_feedback_honor', { p_feedback_id: fb.id, p_panel_id: fb.panel_id }).then(({ error: he }) => { if (he) console.warn('[honor_restore]', he.message); });
     }
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
 
@@ -385,7 +385,7 @@ export default function PurityFilter() {
       if (decrErr) setStatusError('반려 처리됨. 단, 슬롯 차감 실패: ' + decrErr.message + ' — 미션 슬롯 카운트를 수동으로 확인해 주세요.');
       supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
     }
-    if (fb?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: -5 }).then(({ error: e }) => { if (e) console.warn('[honor_penalty]', e.message); });
+    if (fb?.panel_id) supabase.rpc('reject_feedback_honor', { p_feedback_id: fb.id, p_panel_id: fb.panel_id }).then(({ error: e }) => { if (e) console.warn('[honor_penalty]', e.message); });
 
     const panelUserId = fb?.panels?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
@@ -413,7 +413,7 @@ export default function PurityFilter() {
 
     // 반려 취소 시 반려 패널티로 차감했던 HP(-5) 복원 — reject의 -5에 대칭 (approve의 복원과 동일 패턴)
     if (isRejectReversal && fb?.rejection_penalty_applied && fb?.panel_id) {
-      supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: 5 }).then(({ error: e }) => { if (e) console.warn('[honor_restore]', e.message); });
+      supabase.rpc('restore_feedback_honor', { p_feedback_id: fb.id, p_panel_id: fb.panel_id }).then(({ error: e }) => { if (e) console.warn('[honor_restore]', e.message); });
     }
 
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
@@ -473,7 +473,7 @@ export default function PurityFilter() {
     ids.forEach(id => {
       const f = feedbacks.find(fb => fb.id === id);
       if (f?.rejection_penalty_applied && f?.panel_id) {
-        supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: 5 }).then(({ error: he }) => { if (he) console.warn('[bulk_honor_restore]', he.message); });
+        supabase.rpc('restore_feedback_honor', { p_feedback_id: f.id, p_panel_id: f.panel_id }).then(({ error: he }) => { if (he) console.warn('[bulk_honor_restore]', he.message); });
       }
     });
 
@@ -544,7 +544,7 @@ export default function PurityFilter() {
     // HP -5 패널티 (병렬)
     ids.forEach(id => {
       const f = feedbacks.find(fb => fb.id === id);
-      if (f?.panel_id) supabase.rpc('add_panel_honor_points', { p_panel_id: f.panel_id, p_delta: -5 }).then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
+      if (f?.panel_id) supabase.rpc('reject_feedback_honor', { p_feedback_id: f.id, p_panel_id: f.panel_id }).then(({ error: he }) => { if (he) console.warn('[bulkReject honor]', he.message); });
     });
 
     // 알림: 배열 INSERT 1회
@@ -1159,7 +1159,7 @@ export default function PurityFilter() {
                         {/* Comment (공통) */}
                         {(subDataForScore.comment || subDataForScore.key_comment) && (
                           <div style={{ padding: '14px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 8 }}>
-                            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>코멘트</div>
+                            <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>총 평가 — 패널 코멘트</div>
                             <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
                               {subDataForScore.comment || subDataForScore.key_comment}
                             </p>

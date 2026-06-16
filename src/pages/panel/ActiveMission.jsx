@@ -824,8 +824,8 @@ export default function ActiveMission() {
             onChange={setMissionKind}
             tabs={[
               { key: 'all', label: '전체', count: mainDrafts.length + subDrafts.length },
-              { key: 'main', label: '메인 미션', count: mainDrafts.length },
-              { key: 'sub', label: '서브 미션', count: subDrafts.length },
+              { key: 'main', label: '메인', count: mainDrafts.length },
+              { key: 'sub', label: '서브', count: subDrafts.length },
             ]}
             style={{ marginBottom: 20 }}
           />
