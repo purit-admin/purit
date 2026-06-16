@@ -1264,7 +1264,7 @@ export default function PurityFilter() {
                         </div>
                         {annotations.length > 0 && (
                           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
-                            총 어노테이션 {annotations.length}개
+                            총 이미지 코멘트 {annotations.length}개
                           </div>
                         )}
                       </div>

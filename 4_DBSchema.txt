@@ -1,6 +1,6 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-16 (105 명예 포인트 0바닥 가역 정확화 — feedback_helpfulness_ratings.applied_hp_delta·feedbacks.rejection_honor_delta 컬럼 신설 + rate_panel_feedback_helpfulness 재작성(실제 적용량 기록·역적용·FOR UPDATE) + reject_feedback_honor/restore_feedback_honor 신규 RPC(어드민 게이트). 0바닥 클램프가 가역 연산 되돌림 시 증발분 과다적립하던 버그 D-148 / 107 rate_panel_feedback_helpfulness 대상 소유권 검증 3종 추가(ref 실재·ref.panel_id==p_panel_id·미션 소유 기업 일치)로 셸 기업 honor 부풀리기 차단 니체-HonorIDOR — 별도 작업 106_shared_mission과 충돌로 107 부여)
+최종 업데이트: 2026-06-16 (106 get_shared_mission 확장 — 공유 페이지를 결과 화면과 동일화: 메인 feedbacks에 custom_answers 추가 + 서브 sub_panel_responses(패널별 전체 응답 행: 점수·코멘트·custom_answers·panel_industry/experience, 승인 패널만=결과화면 동일집합 D-149) 신규 반환·구 sub_responses 집계본 폐지. 서브는 show_comments 무관(공개 토글 없음)·무료체험 잠김만 비공개. GRANT anon/authenticated) / 2026-06-16 (105 명예 포인트 0바닥 가역 정확화 — feedback_helpfulness_ratings.applied_hp_delta·feedbacks.rejection_honor_delta 컬럼 신설 + rate_panel_feedback_helpfulness 재작성(실제 적용량 기록·역적용·FOR UPDATE) + reject_feedback_honor/restore_feedback_honor 신규 RPC(어드민 게이트). 0바닥 클램프가 가역 연산 되돌림 시 증발분 과다적립하던 버그 D-148 / 107 rate_panel_feedback_helpfulness 대상 소유권 검증 3종 추가(ref 실재·ref.panel_id==p_panel_id·미션 소유 기업 일치)로 셸 기업 honor 부풀리기 차단 니체-HonorIDOR — 별도 작업 106_shared_mission과 충돌로 107 부여)
             2026-06-16 (104 패널 반려 피드백 삭제 분리 — feedbacks.revision_dismissed 컬럼 신설 + dismiss_rejected_feedback이 dismissed→revision_dismissed로 SET 변경. [수정 필요] 탭 삭제=revision_dismissed(지급 거절 유지) / [지급 거절] 탭 삭제=dismissed(전체 숨김, delete_rejected_feedback 불변). 같은 dismissed 공유 시 [수정 필요] 삭제가 [지급 거절]까지 지워 모달 약속 위반하던 버그 수정)
             2026-06-16 (102 어드민 알림 딥링크 — 트리거/RPC 6종 action_url에 대상 id 부착: notify_admin_on_mission·notify_company_on_slots_full(missions?missionId), notify_admin_on_feedback_submitted(purity?feedbackId, p_feedback_id 파라미터 추가→DROP 2-param후 3-param 재생성+GRANT), notify_admin_on_new_panel·notify_admin_on_panel_resubmit(panels?panelId), notify_admin_on_bug_report(reports?id). 트리거함수 5종은 CREATE OR REPLACE라 트리거 재생성 불필요. D-146)
             2026-06-16 (가입 휴대폰 인증 — 101 handle_new_user 재정의(INSERT에 phone·phone_verified 추가, metadata에서) + companies.phone_verified 컬럼 신설 / 103 save_my_phone(p_phone) SECURITY DEFINER RPC 신설: 본인 행(panels/companies/team_members)에만 phone·phone_verified 저장, VerifyPhone 게이트가 호출 + team_members.phone/phone_verified 컬럼 신설 / team_members self-UPDATE RLS=권한상승이라 컬럼한정 DEFINER RPC로 우회 D-144)
@@ -487,16 +487,20 @@
     → panels RLS가 기업의 직접 JOIN을 차단(D-28)하므로 SECURITY DEFINER RPC로 우회
     → 파일: supabase/migrations/012_panel_phone_public_profiles.sql
 
-  get_shared_mission(p_token TEXT) RETURNS jsonb
-    → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 + 어노테이션 + 서브 미션 응답 반환
-    → 인증 불필요 (SECURITY DEFINER), /share/:token 공개 페이지에서 사용
+  get_shared_mission(p_token TEXT) RETURNS jsonb  ★ migration 106 확장 (공유 페이지를 결과 화면과 동일화)
+    → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 + 이미지 코멘트(어노테이션) + 서브 패널별 응답 반환
+    → 인증 불필요 (SECURITY DEFINER), /share/:token 공개 페이지에서 사용. GRANT anon, authenticated
     → 반환 필드: title / type / description / image_urls / persona(TEXT) / created_at /
                  feedback_count / share_permissions / scores(5차원) /
-                 feedbacks(익명 배열: idx·suggestions·5차원점수) /
+                 feedbacks(익명 배열: idx·suggestions·★custom_answers·5차원점수) /
                  annotations(배열: dimension·x_pct·y_pct·w_pct·h_pct·comment·score·image_index) /
-                 sub_responses(타입별: preference=choice_a/b_count+2점수 / pricing=would_buy_count+2점수 / email=would_reply_count+4점수)
-    → share_permissions.show_comments=false이면 feedbacks=[] / show_annotations=false이면 annotations=[]
-    → 파일: supabase/migrations/067_enhanced_sharing.sql (010_sharing.sql 재정의)
+                 ★ sub_panel_responses(서브 의뢰 패널별 전체 응답 행 — 점수·코멘트(comment/key_comment)·custom_answers·panel_industry·panel_experience)
+                   → 클라(ShareResult)가 Results 서브 렌더러로 직접 집계 (구 sub_responses 집계본 폐지)
+    → 메인(이미지): show_comments=false이면 feedbacks=[] / show_annotations=false이면 annotations=[]
+    → 서브: sub_panel_responses는 show_comments 토글과 무관(서브는 공개 토글 없음) — 무료체험 미언락(v_locked)일 때만 비공개.
+           승인 패널만 반환(panel_id IN feedbacks where purity_passed=true AND status!='draft' — 결과 화면과 동일 집합, D-149)
+    → 무료 체험 미언락 시 전체 강제 비공개(페이월, D-136)
+    → 파일: supabase/migrations/106_shared_mission_custom_answers.sql (010→076→085→106 재정의 누적)
 
   add_panel_honor_points(p_panel_id UUID, p_delta INT)
     → panels.honor_points = GREATEST(0, honor_points + p_delta) 원자 업데이트
@@ -612,7 +616,7 @@
   · complete_mission_and_refund(018→095→098) — 어드민 전용(★ 098 app_metadata 단독 NOT EXISTS, D-58/D-134) / is_free_trial이면 환불·소비 재계산 없이 status='completed'만 (회계 격리, credits_consumed 보존)
   · recalc_mission_consumed(018) — is_free_trial이면 재계산 제외 조기반환 (승인 시 credits_consumed 덮어쓰기 방지, 언락 RPC가 관리)
   · get_panel_public_profiles(012) — 반환 컬럼에 is_expert 추가 (결과 "공개 2건" 정렬키, DROP 후 4컬럼 재생성)
-  · get_shared_mission(076) — 무료 미언락 미션이면 share_permissions 강제 false (공유 페이지도 코멘트/어노테이션 차단, 점수는 공개)
+  · get_shared_mission(106) — 무료 미언락 미션이면 share_permissions 강제 false (코멘트/이미지 코멘트 차단, 점수는 공개) + 서브 sub_panel_responses(승인 패널만)·메인 custom_answers 반환
 
   admin_add_credits(p_company_id UUID, p_amount NUMERIC) RETURNS NUMERIC
     → 어드민 전용 (★ 098: app_metadata.role='admin' 단독, NULL-안전 NOT EXISTS — user_metadata 폴백 제거 D-58/D-134)

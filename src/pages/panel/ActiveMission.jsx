@@ -1077,7 +1077,7 @@ export default function ActiveMission() {
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <Badge type="gold">{isResubmit ? '재작성 중' : '진행 중'}</Badge>
-          {hasImages && <Badge type="blue">이미지 어노테이션</Badge>}
+          {hasImages && <Badge type="blue">이미지 코멘트</Badge>}
         </div>
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>{mission.title}</h2>
         {mission.persona && (
@@ -1498,7 +1498,7 @@ export default function ActiveMission() {
         {deadlineBannerEl}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>ANNOTATION MODE</div>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--green)', marginBottom: 4, letterSpacing: '0.1em' }}>이미지 코멘트 모드</div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>{mission.title}</h1>
           </div>
           {autoSaveBadgeEl}

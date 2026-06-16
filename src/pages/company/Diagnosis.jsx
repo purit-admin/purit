@@ -83,21 +83,56 @@ const NEXT_ACTIONS = {
 
 const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
-const KO_STOP = new Set(['이','가','은','는','을','를','의','에','서','와','과','으로','로','에서','까지','부터','도','만','이다','있다','하다','되다','이고','그','그리고','또','하지만','그러나','하여','해서','것','수','더','또한','등','및','위해','대해','관해','있는','없는','하는','되는','많이','어서','입니다','습니다','합니다','했습니다','됩니다','같은','같이','때문에','통해','위한','않은','않고','않아','않습니다','없어','있어','있고','없고','없어서','이런','이렇게','저렇게','그렇게','좋은','좋아','나쁜','너무','매우','정말','조금','좀','잘','못','안','더욱','가장','좋습니다','입니다','있습니다','없습니다','하겠습니다','됩니다','됩니다만','입니다만']);
+// 차원 라벨 → 점수 컬럼 (라벨에 인라인 점수가 없을 때 폴백용)
+const DIM_LABEL_TO_COL = { '명확성': 'clarity_score', '관련성': 'relevance_score', '가치': 'value_score', '차별화': 'differentiation_score', '신뢰': 'trust_score' };
 
-function extractKeywords(feedbacks) {
-  const freq = {};
+// 메인 의뢰 피드백(suggestions)을 "[차원] 헤더 + 코멘트" 블록으로 파싱 →
+// 차원별로 칭찬(4~5점)/지적(1~2점) 코멘트를 모아 "왜 강·약점인지"를 실제 문장으로 보여줌.
+// 동일 문장은 묶어 count(언급 패널 수)로 집계. 두 저장 형식 모두 지원:
+//   ① 실제 패널 제출: "[명확성 / 4점] 코멘트"  (점수가 줄 안에 인라인)
+//   ② 시드/레거시:     "[명확성]\n코멘트"        (점수 없음 → 피드백 행의 차원 점수 컬럼에서 폴백)
+// (3점 중립·[총평]·[해당 없음]·차원 미매칭 줄은 점수 신호가 없어 제외)
+const KW_HEAD_RE = /^\[([^\]]+)\]\s*(.*)$/;
+function extractDimInsights(feedbacks) {
+  // dimKey -> { praise: Map<text,{score,count}>, critique: Map<...> }
+  const acc = {};
+  DIMENSIONS.forEach(d => { acc[d.key] = { praise: new Map(), critique: new Map() }; });
   feedbacks.forEach(f => {
-    const text = [f.suggestions, f.strengths, f.weaknesses].filter(Boolean).join(' ');
-    text.split(/[\s,.\[\]「」『』【】〔〕《》\(\)\!\?\;\:\"\'\n\r]+/)
-      .map(w => w.replace(/[^가-힣a-zA-Z0-9]/g, '').trim())
-      .filter(w => w.length >= 2 && !KO_STOP.has(w))
-      .forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    let curKey = null, curScore = null;   // 현재 블록의 차원 컬럼·점수
+    const addComment = (text) => {
+      const comment = text.trim();
+      if (!curKey || curScore == null || !comment) return;
+      const bag = curScore >= 4 ? acc[curKey].praise : curScore <= 2 ? acc[curKey].critique : null;
+      if (!bag) return;   // 3점 중립 제외
+      const ex = bag.get(comment);
+      if (ex) { ex.count += 1; ex.score = Math.max(ex.score, curScore); }
+      else bag.set(comment, { text: comment, score: curScore, count: 1 });
+    };
+    (f.suggestions || '').split('\n').forEach(raw => {
+      const line = raw.trim();
+      if (!line) return;
+      const head = line.match(KW_HEAD_RE);
+      if (head) {
+        const inside = head[1].trim();                       // "명확성 / 4점" | "명확성" | "총평" | "차별화 - 해당 없음"
+        const dim = inside.replace(/\s*[\/\-].*$/, '').trim(); // 점수·해당없음 접미 제거
+        const col = DIM_LABEL_TO_COL[dim];
+        if (!col) { curKey = null; curScore = null; return; }  // 총평·미매칭 헤더 → 블록 종료
+        const scoreM = inside.match(/(\d)\s*점/);
+        const cv = Number(f[col]);
+        curKey = col;
+        curScore = scoreM ? parseInt(scoreM[1], 10) : (Number.isFinite(cv) ? cv : null);
+        if (head[2]) addComment(head[2]);                    // 인라인 코멘트(형식 ①)
+      } else {
+        addComment(line);                                    // 연속 코멘트 줄(형식 ②)
+      }
+    });
   });
-  return Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 60)
-    .map(([word, count]) => ({ word, count }));
+  const out = {};
+  DIMENSIONS.forEach(d => {
+    const sortByCount = m => [...m.values()].sort((a, b) => b.count - a.count);
+    out[d.key] = { praise: sortByCount(acc[d.key].praise), critique: sortByCount(acc[d.key].critique) };
+  });
+  return out;
 }
 
 function MissionChip({ label, active, color, onClick, title }) {
@@ -119,7 +154,8 @@ export default function Diagnosis() {
   const [scores, setScores] = useState({});
   const [distributions, setDistributions] = useState({});
   const [benchmarks, setBenchmarks] = useState({});
-  const [keywords, setKeywords] = useState([]);
+  const [dimInsights, setDimInsights] = useState({}); // 차원별 칭찬/지적 코멘트
+  const [expandedDims, setExpandedDims] = useState(new Set()); // 더보기 펼친 차원 키
   const [missions, setMissions] = useState([]);
   const [allMissionIds, setAllMissionIds] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -146,7 +182,8 @@ export default function Diagnosis() {
     setScores(newScores);
     setDistributions(newDistributions);
     setBenchmarks(newBenchmarks);
-    setKeywords(extractKeywords(filtered));
+    setDimInsights(extractDimInsights(filtered));
+    setExpandedDims(new Set());
     setHasData(filtered.length > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
@@ -185,7 +222,8 @@ export default function Diagnosis() {
       if (!co) { setLoading(false); return; }
 
       // 무료 체험 미션 제외 — 부분 공개(페이월) 대상이라 코멘트가 키워드/진단 분석에 노출되면 안 됨 (니체-TRIAL-페이월 수평전개)
-      const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).order('created_at', { ascending: false });
+      // 메인 의뢰(landing_page)만 — 5대 지표 진단은 5축 점수(clarity/relevance/value/differentiation/trust) 전용이라 서브 의뢰(preference/pricing/email) 제외 (레거시 메인은 type=NULL)
+      const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).or('type.is.null,type.eq.landing_page').order('created_at', { ascending: false });
       const msList = ms || [];
       const ids = msList.map(m => m.id);
       setMissions(msList);
@@ -220,7 +258,8 @@ export default function Diagnosis() {
       setScores(newScores);
       setDistributions(newDistributions);
       setBenchmarks(newBenchmarks);
-      setKeywords(extractKeywords(periodFiltered));
+      setDimInsights(extractDimInsights(periodFiltered));
+      setExpandedDims(new Set());
       setHasData(periodFiltered.length > 0);
     } catch (err) {
       console.error('[loadFeedbacks]', err);
@@ -249,12 +288,12 @@ export default function Diagnosis() {
       const comB = computeForFbs(fbsB);
 
       const data = {
-        a: { id: idA, title: mA?.title || 'A', scores: comA.newScores, distributions: comA.newDistributions, keywords: extractKeywords(fbsA) },
-        b: { id: idB, title: mB?.title || 'B', scores: comB.newScores, distributions: comB.newDistributions, keywords: extractKeywords(fbsB) },
+        a: { id: idA, title: mA?.title || 'A', scores: comA.newScores, distributions: comA.newDistributions, dimInsights: extractDimInsights(fbsA) },
+        b: { id: idB, title: mB?.title || 'B', scores: comB.newScores, distributions: comB.newDistributions, dimInsights: extractDimInsights(fbsB) },
       };
       if (idC) {
         const comC = computeForFbs(fbsC);
-        data.c = { id: idC, title: mC?.title || 'C', scores: comC.newScores, distributions: comC.newDistributions, keywords: extractKeywords(fbsC) };
+        data.c = { id: idC, title: mC?.title || 'C', scores: comC.newScores, distributions: comC.newDistributions, dimInsights: extractDimInsights(fbsC) };
       }
 
       setCompareData(data);
@@ -474,7 +513,7 @@ export default function Diagnosis() {
             tabs={[
               { key: 'overview', label: '차원별 점수' },
               { key: 'benchmark', label: '업계 벤치마크' },
-              { key: 'keywords', label: '키워드 분석' },
+              { key: 'keywords', label: '코멘트 인사이트' },
               { key: 'guide', label: '전환 가이드' },
             ]}
             style={{ marginBottom: 24 }}
@@ -567,35 +606,87 @@ export default function Diagnosis() {
           )}
 
           {activeTab === 'keywords' && (() => {
+            const toggleDim = (key) => setExpandedDims(prev => {
+              const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n;
+            });
+
+            // 코멘트 한 줄 (칭찬/지적)
+            const commentRow = (sentiment, c, k) => {
+              const isNeg = sentiment === 'neg';
+              const col = isNeg ? '#ca2121' : '#159143';
+              return (
+                <div key={k} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 11px', background: 'var(--bg-2)', borderRadius: 8, borderLeft: `3px solid ${col}` }}>
+                  <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: col, whiteSpace: 'nowrap' }}>{isNeg ? '👎' : '👍'} {c.score}점</span>
+                  <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55, flex: 1 }}>{c.text}</span>
+                  {c.count > 1 && <span style={{ flexShrink: 0, fontSize: 11, color: 'var(--text-3)' }}>{c.count}명</span>}
+                </div>
+              );
+            };
+
+            // 차원 1개 카드 (worst=취약 강조, expandable=더보기)
+            const renderDimCard = (key, ins, dimAvg, { worst = false, compact = false, expandable = false } = {}) => {
+              const dim = DIMENSIONS.find(d => d.key === key);
+              const { praise, critique } = ins;
+              const isExp = expandable && expandedDims.has(key);
+              const CAP = 3;
+              const critShown = isExp ? critique : critique.slice(0, CAP);
+              const praiseShown = isExp ? praise : praise.slice(0, CAP);
+              const more = (critique.length - critShown.length) + (praise.length - praiseShown.length);
+              const empty = praise.length === 0 && critique.length === 0;
+              return (
+                <Card key={key} style={{ padding: compact ? '14px 16px' : '18px 22px', borderLeft: worst ? '3px solid #ca2121' : undefined }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: empty ? 0 : 12, flexWrap: 'wrap' }}>
+                    <span style={{ color: dim.color, fontSize: 14 }}>{dim.icon}</span>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{dim.label}</span>
+                    {dimAvg != null && dimAvg > 0 && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>평균 {dimAvg.toFixed(1)}</span>}
+                    <span style={{ fontSize: 12, color: '#159143' }}>👍 {praise.length}</span>
+                    <span style={{ fontSize: 12, color: '#ca2121' }}>👎 {critique.length}</span>
+                    {worst && <Badge type="red">취약</Badge>}
+                  </div>
+                  {empty ? null : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {critShown.map((c, i) => commentRow('neg', c, 'c' + i))}
+                      {praiseShown.map((c, i) => commentRow('pos', c, 'p' + i))}
+                      {expandable && more > 0 && (
+                        <button onClick={() => toggleDim(key)} style={{ alignSelf: 'flex-start', marginTop: 2, padding: '4px 6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
+                          {isExp ? '접기' : `+${more}건 더보기`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              );
+            };
+
             if (isComparing) {
-              // Compare mode: show A and B keywords side by side
+              // 비교 모드: 의뢰별 차원 요약 (차원별 칭찬/지적 수 + 대표 지적 1건)
               return (
                 <div style={{ display: 'flex', gap: 16 }}>
                   {compareItems.map(({ data, color }) => {
-                    const kws = data.keywords || [];
-                    const maxC = kws[0]?.count || 1;
-                    const minSize = 11, maxSize = 26;
+                    const ins = data.dimInsights || {};
+                    const anyData = DIMENSIONS.some(d => ins[d.key] && (ins[d.key].praise.length || ins[d.key].critique.length));
                     return (
-                      <Card key={data.id} style={{ flex: 1, padding: '20px 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                      <Card key={data.id} style={{ flex: 1, padding: '18px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                           <span style={{ fontSize: 10, color }}>●</span>
                           <span style={{ fontWeight: 700, fontSize: 13, color }}>{data.title}</span>
                         </div>
-                        {kws.length === 0 ? (
+                        {!anyData ? (
                           <div style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>코멘트 없음</div>
                         ) : (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', alignItems: 'center', lineHeight: 1.8 }}>
-                            {kws.slice(0, 30).map(({ word, count }) => {
-                              const ratio = (count - 1) / Math.max(maxC - 1, 1);
-                              const size = Math.round(minSize + ratio * (maxSize - minSize));
-                              const opacity = 0.5 + ratio * 0.5;
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {DIMENSIONS.map(d => {
+                              const di = ins[d.key] || { praise: [], critique: [] };
                               return (
-                                <span key={word} title={`${count}회`} style={{
-                                  fontSize: size,
-                                  fontWeight: ratio > 0.6 ? 800 : ratio > 0.3 ? 600 : 400,
-                                  color: `rgba(${color === COMPARE_B ? '198,101,7' : color === COMPARE_C ? '21,145,67' : '16,54,125'},${opacity})`,
-                                  cursor: 'default',
-                                }}>{word}</span>
+                                <div key={d.key}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <span style={{ color: d.color, fontSize: 12 }}>{d.icon}</span>
+                                    <span style={{ fontWeight: 600, fontSize: 12.5 }}>{d.label}</span>
+                                    <span style={{ fontSize: 11, color: '#159143' }}>👍{di.praise.length}</span>
+                                    <span style={{ fontSize: 11, color: '#ca2121' }}>👎{di.critique.length}</span>
+                                  </div>
+                                  {di.critique[0] && commentRow('neg', di.critique[0], 'cc')}
+                                </div>
                               );
                             })}
                           </div>
@@ -607,53 +698,31 @@ export default function Diagnosis() {
               );
             }
 
-            if (keywords.length === 0) return (
+            const anyData = DIMENSIONS.some(d => dimInsights[d.key] && (dimInsights[d.key].praise.length || dimInsights[d.key].critique.length));
+            if (!anyData) return (
               <Card style={{ padding: '40px', textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>분석할 코멘트가 없습니다</div>
-                <div style={{ fontSize: 13, color: 'var(--text-3)' }}>패널 코멘트가 쌓이면 자주 언급된 키워드가 여기에 표시됩니다.</div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)' }}>패널이 점수와 함께 남긴 코멘트가 쌓이면 차원별 강·약점이 여기에 표시됩니다.</div>
               </Card>
             );
-            const maxCount = keywords[0].count;
-            const minSize = 11, maxSize = 32;
+
+            // 점수 낮은 차원(취약)부터 정렬 — "무엇을 고칠지"가 위로
+            const ordered = [...DIMENSIONS].sort((a, b) => (scores[a.key] || 99) - (scores[b.key] || 99));
+            const worstKey = ordered.find(d => (scores[d.key] || 0) > 0)?.key;
+
             return (
               <div>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20, lineHeight: 1.7 }}>
-                  패널 코멘트에서 자주 등장한 키워드입니다. 글자 크기는 언급 빈도에 비례합니다.
+                  각 차원에서 패널이 실제로 <b style={{ color: '#159143' }}>칭찬한 점(4~5점)</b>과 <b style={{ color: '#ca2121' }}>지적한 점(1~2점)</b>을 모았습니다.
+                  점수가 낮은 차원부터 정렬했으니, 위쪽 차원의 지적부터 개선해 보세요.
                 </p>
-                <Card style={{ padding: '32px' }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 16px', alignItems: 'center', lineHeight: 1.8 }}>
-                    {keywords.map(({ word, count }) => {
-                      const ratio = (count - 1) / Math.max(maxCount - 1, 1);
-                      const size = Math.round(minSize + ratio * (maxSize - minSize));
-                      const opacity = 0.5 + ratio * 0.5;
-                      const hue = 210 + ratio * 40;
-                      return (
-                        <span key={word} title={`${count}회 언급`} style={{
-                          fontSize: size,
-                          fontWeight: ratio > 0.6 ? 800 : ratio > 0.3 ? 600 : 400,
-                          color: `hsla(${hue}, 80%, 65%, ${opacity})`,
-                          cursor: 'default',
-                          transition: 'color 0.2s',
-                          letterSpacing: size > 20 ? '-0.02em' : 'normal',
-                        }}>
-                          {word}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </Card>
-                <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>상위 10개 키워드</div>
-                  {keywords.slice(0, 10).map(({ word, count }, i) => (
-                    <div key={word} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--text-3)', width: 20 }}>0{i + 1}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, width: 100 }}>{word}</span>
-                      <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ width: `${(count / maxCount) * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--text-2)', width: 40, textAlign: 'right' }}>{count}회</span>
-                    </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {ordered.map(d => renderDimCard(
+                    d.key,
+                    dimInsights[d.key] || { praise: [], critique: [] },
+                    scores[d.key] ?? null,
+                    { worst: d.key === worstKey && (scores[d.key] || 0) > 0, expandable: true }
                   ))}
                 </div>
               </div>
@@ -869,7 +938,6 @@ export default function Diagnosis() {
                 );
               })}
               <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8 }}>
-                <span style={{ display: 'inline-block', width: 12, height: 2, background: 'var(--text-3)', verticalAlign: 'middle', marginRight: 6 }} />
                 세로선 = 플랫폼 전체 평균
               </div>
             </div>

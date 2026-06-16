@@ -852,7 +852,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
             {/* 통과율 바 */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginBottom: 5 }}>
-                <span>PURITY PASS RATE</span>
+                <span>PURIT PASS RATE</span>
                 <span style={{ fontWeight: 700, color: s.passRate >= 80 ? '#059669' : s.passRate >= 50 ? 'var(--accent)' : '#DC2626' }}>
                   {s.passRate}%
                 </span>

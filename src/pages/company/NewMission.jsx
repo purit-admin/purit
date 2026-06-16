@@ -996,7 +996,7 @@ export default function NewMission() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               {[
                 { icon: '🖼', title: '이미지 최대 3장', desc: '랜딩페이지, 광고 소재, 배너 등 최대 3장 업로드' },
-                { icon: '📐', title: '영역 어노테이션', desc: '패널이 이미지 위에 직접 영역을 지정해 피드백 제공' },
+                { icon: '📐', title: '이미지 코멘트', desc: '패널이 이미지 위에 직접 영역을 지정해 피드백 제공' },
                 { icon: '📊', title: '5대 지표 정량 평가', desc: '명확성 / 관련성 / 가치 / 차별화 / 신뢰 항목별 점수' },
                 { icon: '❓', title: '추가 질문 설정', desc: '최대 5개의 커스텀 질문을 추가로 설정 가능' },
               ].map(({ icon, title, desc }) => (

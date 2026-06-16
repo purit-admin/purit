@@ -79,7 +79,7 @@ export const Stat = ({ label, value, sub, accent }) => (
 );
 
 export const ScoreBar = ({ score, max = 5, color = 'var(--text)' }) => (
-  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
     {Array.from({ length: max }).map((_, i) => (
       <div key={i} style={{
         width: 28, height: 4, borderRadius: 2,

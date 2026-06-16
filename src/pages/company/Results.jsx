@@ -180,7 +180,7 @@ function MissionItem({ m, isSelected, onClick }) {
 /* ─── 점수 카드 그리드 ─── */
 function ScoreCardRow({ items }) {
   return (
-    <div className="score-card-row" style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, 1fr)`, gap: 10, maxWidth: `${items.length * 220}px`, margin: '0 auto 20px' }}>
+    <div className="score-card-row" style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, gap: 10, maxWidth: `${items.length * 220}px`, margin: '0 auto 20px' }}>
       {items.map(({ label, value, color }) => {
         const num = parseFloat(value);
         const c = color || (isNaN(num) ? 'var(--text-3)' : num >= 4 ? 'var(--green)' : num <= 2 ? 'var(--red)' : 'var(--text-2)');
@@ -237,7 +237,7 @@ function CommentList({ items }) {
                 {item.actions && <div style={{ flexShrink: 0 }}>{item.actions}</div>}
               </div>
             )}
-            <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>
+            <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
               {item.text || <span style={{ fontStyle: 'italic', color: 'var(--text-3)', fontWeight: 400, fontSize: 13 }}>내용 없음</span>}
             </div>
           </div>
@@ -424,7 +424,7 @@ function CustomQuestionsSection({ questions, responses, locked = false, onUnlock
                   {q.type !== 'radio' && q.type !== 'scale' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {answers.map((a, i) => (
-                        <div key={i} style={{ padding: '10px 12px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>
+                        <div key={i} style={{ padding: '10px 12px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                           {a || <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>내용 없음</span>}
                         </div>
                       ))}
@@ -441,7 +441,7 @@ function CustomQuestionsSection({ questions, responses, locked = false, onUnlock
 }
 
 /* ─── 서브미션 결과: preference ─── */
-function PreferenceResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
+export function PreferenceResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
   if (!responses?.length) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>응답 데이터가 없습니다.</div>;
   const aCount = responses.filter(r => r.preference === 'A').length;
   const bCount = responses.filter(r => r.preference === 'B').length;
@@ -498,7 +498,7 @@ function PreferenceResults({ responses, mission, panelProfiles, companyId, helpR
 }
 
 /* ─── 서브미션 결과: pricing ─── */
-function PricingResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
+export function PricingResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
   if (!responses?.length) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>응답 데이터가 없습니다.</div>;
   const buyYes = responses.filter(r => r.would_buy === true).length;
   const buyNo  = responses.filter(r => r.would_buy === false).length;
@@ -539,7 +539,7 @@ function PricingResults({ responses, mission, panelProfiles, companyId, helpRati
 }
 
 /* ─── 서브미션 결과: email ─── */
-function EmailResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
+export function EmailResults({ responses, mission, panelProfiles, companyId, helpRatings, onRated }) {
   if (!responses?.length) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>응답 데이터가 없습니다.</div>;
   const replyYes = responses.filter(r => r.would_reply === true).length;
   const replyNo  = responses.filter(r => r.would_reply === false).length;
@@ -680,7 +680,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
         })()}
         {allDimAnns.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-            이 차원에 남겨진 어노테이션이 없습니다.
+            이 차원에 남겨진 이미지 코멘트가 없습니다.
           </div>
         ) : (
           <div>
@@ -840,11 +840,11 @@ function SummaryTabView({ feedbacks, panelProfiles, mission, companyId, helpRati
                 </div>
                 {cLocked ? (
                   <div style={{ position: 'relative' }}>
-                    <div style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none', fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                    <div style={{ filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none', fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{text}</div>
                     <LockOverlay onUnlock={onUnlock} label={`🔒 ${cCredit}크레딧으로 잠금 해제`} />
                   </div>
                 ) : (
-                  <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500 }}>{text}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.75, fontWeight: 500, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{text}</div>
                 )}
               </div>
               );
@@ -967,7 +967,7 @@ function TextMissionResults({ feedbacks, panelProfiles, mission, companyId, help
             <div style={{ fontSize: 36, marginBottom: 12 }}>🔍</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>검토 중인 피드백입니다</div>
             <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7, maxWidth: 300, margin: '0 auto' }}>
-              어드민의 Purity Filter 승인 후 피드백 상세를 확인할 수 있습니다.
+              어드민의 Purit Filter 승인 후 피드백 상세를 확인할 수 있습니다.
             </p>
           </Card>
         )
@@ -1502,11 +1502,12 @@ export default function Results() {
                 </div>
                 {mission?.status === 'completed' && !trialLocked && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-                    {/* 공개 범위 토글 */}
+                    {/* 공개 범위 토글 — 메인(이미지) 의뢰 전용 (서브 의뢰는 토글 없이 항상 공개) */}
+                    {!isSubMission && (
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                       {[
-                        { key: 'show_comments',    label: '코멘트' },
-                        { key: 'show_annotations', label: '어노테이션' },
+                        { key: 'show_comments',    label: '총평' },
+                        { key: 'show_annotations', label: '이미지 코멘트' },
                       ].map(({ key, label }) => (
                         <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)', userSelect: 'none' }}>
                           <input
@@ -1519,6 +1520,7 @@ export default function Results() {
                         </label>
                       ))}
                     </div>
+                    )}
                     {/* 공유 링크 버튼 */}
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       {shareToken ? (
@@ -1570,7 +1572,7 @@ export default function Results() {
                         </div>
                       )}
                       <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-                        5축 점수는 전체 패널 기준으로 집계됩니다. 누가, 무엇을 지적했는지 전체 피드백·어노테이션을 보려면 잠금을 해제하세요.
+                        5축 점수는 전체 패널 기준으로 집계됩니다. 누가, 무엇을 지적했는지 전체 피드백·이미지 코멘트를 보려면 잠금을 해제하세요.
                       </div>
                     </div>
                     {/* 우측: 가격·할인을 버튼에 녹임 + 카운트다운·에러는 버튼 아래 */}

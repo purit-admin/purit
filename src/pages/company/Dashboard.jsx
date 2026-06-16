@@ -431,7 +431,9 @@ export default function CompanyDashboard() {
 
   const periodCutoff = chartPeriod === 'all' ? null
     : new Date(Date.now() - (chartPeriod === '3m' ? 90 : 30) * 24 * 60 * 60 * 1000);
-  const chartFeedbacks  = periodCutoff ? feedbacks.filter(f => new Date(f.created_at) >= periodCutoff) : feedbacks;
+  // 5축 차트/게이지 기준 피드백 — 5축 점수가 실제로 있는 피드백만(메인 의뢰). 서브 의뢰 승인 피드백은 5축이 NULL이라 레이더엔 안 들어가므로 "N건 기준" 카운트·게이지 게이트에서도 제외해 표시 정합 유지. (총 수집 피드백 카운트는 feedbacks.length로 별도 유지)
+  const chartFeedbacks  = (periodCutoff ? feedbacks.filter(f => new Date(f.created_at) >= periodCutoff) : feedbacks)
+    .filter(f => SCORE_KEYS.some(k => f[k] != null && f[k] > 0));
   const chartPrefResps  = periodCutoff ? prefResps.filter(r => new Date(r.created_at) >= periodCutoff) : prefResps;
   const chartPriceResps = periodCutoff ? priceResps.filter(r => new Date(r.created_at) >= periodCutoff) : priceResps;
   const chartEmailResps = periodCutoff ? emailResps.filter(r => new Date(r.created_at) >= periodCutoff) : emailResps;

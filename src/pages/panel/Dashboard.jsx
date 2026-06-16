@@ -371,7 +371,7 @@ export default function PanelDashboard() {
           }} />
         </div>
         <div style={{ fontSize: 12, color: C.text3, marginTop: 6 }}>
-          Purity Filter 통과율 기준 — 높을수록 우선 미션 배정
+          Purit Filter 통과율 기준 — 높을수록 우선 미션 배정
         </div>
       </div>
 

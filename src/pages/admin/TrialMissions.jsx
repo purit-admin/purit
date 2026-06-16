@@ -670,7 +670,7 @@ export default function TrialMissions() {
               <textarea
                 value={rejectNote}
                 onChange={e => setRejectNote(e.target.value)}
-                placeholder="예: 어노테이션 코멘트가 너무 추상적입니다. 구체적 개선안을 추가해주세요."
+                placeholder="예: 이미지 코멘트가 너무 추상적입니다. 구체적 개선안을 추가해주세요."
                 style={{ width: '100%', minHeight: 80, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }}
               />
             </div>
