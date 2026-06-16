@@ -1,6 +1,7 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff 이식 + landing.css(.purit-landing 스코프)·Pretendard / "작동 방식(5분 등록·48시간)" 섹션만 기존 유지 / 카피 기업고객 관점 정리: 48시간 통일·시니어/헤드급·전환율40%·광고비800만원·후기 수치·CTA 안심 라인)
+최종 업데이트: 2026-06-16 (패널 알림에 '피드백 승인 취소'(PurityFilter reset 승인됨→검토대기 되돌리기) 추가 — actionUrl /panel/history, 보상 직결로 항상 발송 / 반려 취소 시 honor_points -5 복원 / 어드민 피드백·미션·패널 관리 3페이지 양방향 교차 이동 버튼 + 뒤로가기 복원)
+            2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff 이식 + landing.css(.purit-landing 스코프)·Pretendard / "작동 방식(5분 등록·48시간)" 섹션만 기존 유지 / 카피 기업고객 관점 정리: 48시간 통일·시니어/헤드급·전환율40%·광고비800만원·후기 수치·CTA 안심 라인)
             2026-06-12 (기업 무료 체험 Freemium — 가입 plan='free_trial' + 첫 의뢰 1회 무료·부분 언락 / 패널 심사 거절→재제출→영구차단 알림 + 버그/건의 답변 딥링크 / 경력 어드민 확정·잠금)
 ※ 워딩 규칙: 기업(Company) 포털 UI 표시 텍스트는 "의뢰" 사용.
              패널·어드민 포털 및 코드 내부(변수명·DB컬럼·라우트)는 "미션/mission" 유지.
@@ -154,6 +155,8 @@
     [패널]
     · 피드백 승인 개별/일괄 (PurityFilter.jsx) → 패널
     · 피드백 반려 개별/일괄 (PurityFilter.jsx) → 패널
+    · 피드백 승인 취소 (PurityFilter.jsx reset, 승인됨→검토대기 되돌리기 시) → 패널 ↩️ "피드백 승인 취소" (actionUrl /panel/history, 보상 직결이라 prefKey 없이 항상 발송) ★ 신규
+      ※ 반려 취소(반려됨→검토대기)는 알림 미발송 / 반려 취소 시 reject로 차감했던 honor_points(-5)는 reset에서 +5 복원(approve와 대칭)
     · 만료 1시간 전 임박 알림 — 최초 draft(submission_deadline 1h 이내), 재작성 draft(rejection_deadline 1h 이내), 미수락 반려(rejection_deadline 1h 이내) (panel/Dashboard.jsx) → 패널
     · 수락 취소됨 알림 — draft 만료 시 자동 삭제 (expire_panel_drafts RPC, migration 037) → 패널
     · 심사 승인 (PanelManagement.jsx pending→active) → 패널

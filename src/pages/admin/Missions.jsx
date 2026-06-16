@@ -324,9 +324,16 @@ export default function AdminMissions() {
   const location = useLocation();
   const navigate  = useNavigate();
   const [searchParams] = useSearchParams();
+  // 피드백 관리로 이동 후 뒤로가기 시 보던 위치(선택 미션·페이지·필터·검색) 복원용 — 1회성
+  const [restored] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('purit_missions_return');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
   const [missions, setMissions] = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [filter, setFilter]     = useState('active');
+  const [filter, setFilter]     = useState(restored?.filter || 'active');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleteError, setDeleteError]     = useState('');
   const [confirmCancel, setConfirmCancel] = useState(null);
@@ -334,13 +341,13 @@ export default function AdminMissions() {
   const [confirmReactivate, setConfirmReactivate] = useState(null);
   const [confirmEarlyComplete, setConfirmEarlyComplete] = useState(null);
   const [earlyCompleteError, setEarlyCompleteError] = useState('');
-  const [mainPage, setMainPage] = useState(1);
-  const [subPage, setSubPage]   = useState(1);
-  const [missionKind, setMissionKind] = useState('all');
+  const [mainPage, setMainPage] = useState(restored?.mainPage || 1);
+  const [subPage, setSubPage]   = useState(restored?.subPage || 1);
+  const [missionKind, setMissionKind] = useState(restored?.missionKind || 'all');
   const [statusError, setStatusError] = useState('');
   const [highlightId, setHighlightId] = useState(null);
   const [selectedMission, setSelectedMission] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(restored?.searchQuery || '');
 
   useEffect(() => {
     async function load() {
@@ -362,6 +369,21 @@ export default function AdminMissions() {
     load();
   }, []);
 
+  // 복원값 1회 소비 — 새로고침/사이드바 재진입 시 재적용 방지
+  useEffect(() => {
+    try { sessionStorage.removeItem('purit_missions_return'); } catch {}
+  }, []);
+
+  // 뒤로가기 복원 — 피드백 관리에서 돌아왔을 때 보던 미션 상세를 다시 펼침 (필터·페이지는 초기값으로 이미 복원됨)
+  useEffect(() => {
+    if (loading) return;
+    // 딥링크(미션 보기 버튼·알림 ?missionId) 진입 시엔 stale sessionStorage 복원 차단 — 아래 딥링크 effect가 담당
+    if (location.state?.missionId || searchParams.get('missionId')) return;
+    if (!restored?.selectedMissionId) return;
+    const target = missions.find(m => m.id === restored.selectedMissionId);
+    if (target) { setSelectedMission(target); scrollToMission(target.id); }
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (loading) return;
     const targetId = location.state?.missionId;
@@ -372,6 +394,7 @@ export default function AdminMissions() {
     const targetStatus = target.status === 'draft' ? 'all' : target.status;
     setFilter(targetStatus);
     setSearchQuery('');
+    setMissionKind('all'); // 대상 미션이 메인/서브 어느 쪽이든 항상 보이도록 (stale missionKind 오염 방지)
 
     const isMain = !target.type || target.type === 'landing_page';
     const filteredMs = targetStatus === 'all' ? missions : missions.filter(m => m.status === targetStatus);
@@ -386,6 +409,8 @@ export default function AdminMissions() {
     }
 
     setHighlightId(targetId);
+    setSelectedMission(target); // 피드백 관리에서 진입 시 해당 미션 상세를 자동으로 펼침
+    scrollToMission(targetId);  // 해당 미션 카드 위치로 자동 스크롤 (페이지 상·하단 무관 바로 보이게)
     window.history.replaceState({}, '', location.pathname);
     const t = setTimeout(() => setHighlightId(null), 3000);
     return () => clearTimeout(t);
@@ -402,6 +427,7 @@ export default function AdminMissions() {
     const targetStatus = target.status === 'draft' ? 'all' : target.status;
     setFilter(targetStatus);
     setSearchQuery('');
+    setMissionKind('all'); // 대상 미션이 메인/서브 어느 쪽이든 항상 보이도록 (stale missionKind 오염 방지)
 
     const isMain = !target.type || target.type === 'landing_page';
     const filteredMs = targetStatus === 'all' ? missions : missions.filter(m => m.status === targetStatus);
@@ -416,6 +442,7 @@ export default function AdminMissions() {
     }
 
     setHighlightId(targetId);
+    scrollToMission(targetId); // 알림 딥링크 진입 시에도 해당 미션 카드로 자동 스크롤
     navigate(location.pathname, { replace: true });
     const t = setTimeout(() => setHighlightId(null), 3000);
     return () => clearTimeout(t);
@@ -505,6 +532,24 @@ export default function AdminMissions() {
     const { data, error } = await supabase.rpc('recalc_mission_consumed', { p_mission_id: id });
     if (error) { setStatusError('재계산 실패: ' + error.message); return; }
     setMissions(ms => ms.map(m => m.id === id ? { ...m, credits_consumed: data } : m));
+  };
+
+  // 딥링크/복원 진입 시 해당 미션 카드로 스크롤 — 페이지·펼침 렌더 후 DOM이 준비되도록 다음 틱에 실행
+  const scrollToMission = (id) => {
+    setTimeout(() => {
+      document.getElementById(`adm-mission-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 140);
+  };
+
+  // 미션 상세의 피드백 클릭 → 피드백 관리로 이동. 이동 전 현재 위치 저장(뒤로가기 복원용)
+  const handleDetailFeedbackClick = (feedbackId) => {
+    try {
+      sessionStorage.setItem('purit_missions_return', JSON.stringify({
+        filter, mainPage, subPage, missionKind, searchQuery,
+        selectedMissionId: selectedMission?.id || null,
+      }));
+    } catch {}
+    navigate('/admin/purity', { state: { feedbackId } });
   };
 
   // 취소 탭 뱃지: 아직 미처리(검토 중) 피드백이 있는 조기 종료 미션 수
@@ -713,10 +758,10 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {mainPaged.map(m => (
-                  <div key={m.id}>
+                  <div key={m.id} id={`adm-mission-${m.id}`}>
                     <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} onEarlyComplete={setConfirmEarlyComplete} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
                     {selectedMission?.id === m.id && (
-                      <MissionDetail mission={selectedMission} onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })} />
+                      <MissionDetail mission={selectedMission} onFeedbackClick={handleDetailFeedbackClick} />
                     )}
                   </div>
                 ))}
@@ -737,10 +782,10 @@ export default function AdminMissions() {
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {subPaged.map(m => (
-                  <div key={m.id}>
+                  <div key={m.id} id={`adm-mission-${m.id}`}>
                     <MissionCard m={m} onUpdateStatus={updateStatus} onDelete={setConfirmDelete} onRecalc={recalcCredits} onCancelMission={setConfirmCancel} onCompleteMission={setConfirmComplete} onReactivateMission={setConfirmReactivate} onEarlyComplete={setConfirmEarlyComplete} isHighlighted={m.id === highlightId} isSelected={selectedMission?.id === m.id} onSelect={(mission) => setSelectedMission(prev => prev?.id === mission.id ? null : mission)} />
                     {selectedMission?.id === m.id && (
-                      <MissionDetail mission={selectedMission} onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })} />
+                      <MissionDetail mission={selectedMission} onFeedbackClick={handleDetailFeedbackClick} />
                     )}
                   </div>
                 ))}

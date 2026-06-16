@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -53,36 +53,76 @@ const PERIOD_LABEL = { all: '전체', today: '오늘', week: '1주일', month: '
 
 export default function AdminPanels() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // 피드백 관리로 이동 후 뒤로가기 시 보던 위치(선택 패널·페이지·필터) 복원용 — 1회성
+  const [restored] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('purit_panelmgmt_return');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  const searchInited = useRef(false);
+  const selectInited = useRef(false);
   const [panels, setPanels]             = useState([]);
   const [feedbackStats, setFeedbackStats] = useState({});
   const [panelFeedbacks, setPanelFeedbacks] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [statsLoading, setStatsLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [selected, setSelected]         = useState(null);
+  const [selected, setSelected]         = useState(restored?.selected || null);
   const [acting, setActing]             = useState(false);
   const [actionMsg, setActionMsg]       = useState('');
-  const [page, setPage]                 = useState(1);
-  const [feedbackDetailPage, setFeedbackDetailPage] = useState(1);
-  const [searchInput, setSearchInput]   = useState('');
-  const [searchQuery, setSearchQuery]   = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [levelFilter, setLevelFilter]   = useState('all');
-  const [periodFilter, setPeriodFilter] = useState('all');
-  const [riskFilter, setRiskFilter]     = useState('all');
-  const [sortBy, setSortBy]             = useState('joined_desc');
+  const [page, setPage]                 = useState(restored?.page || 1);
+  const [feedbackDetailPage, setFeedbackDetailPage] = useState(restored?.feedbackDetailPage || 1);
+  const [searchInput, setSearchInput]   = useState(restored?.searchInput || '');
+  const [searchQuery, setSearchQuery]   = useState(restored?.searchInput || '');
+  const [statusFilter, setStatusFilter] = useState(restored?.statusFilter || 'all');
+  const [levelFilter, setLevelFilter]   = useState(restored?.levelFilter || 'all');
+  const [periodFilter, setPeriodFilter] = useState(restored?.periodFilter || 'all');
+  const [riskFilter, setRiskFilter]     = useState(restored?.riskFilter || 'all');
+  const [sortBy, setSortBy]             = useState(restored?.sortBy || 'joined_desc');
 
   useEffect(() => { load(); }, []);
   useEffect(() => { loadStats(periodFilter); }, [periodFilter]);
   useEffect(() => {
-    const t = setTimeout(() => { setSearchQuery(searchInput); setPage(1); }, 300);
+    const t = setTimeout(() => {
+      setSearchQuery(searchInput);
+      // 마운트 첫 실행(복원)에서는 페이지 리셋 생략 — 복원된 page 보존
+      if (searchInited.current) setPage(1);
+      else searchInited.current = true;
+    }, 300);
     return () => clearTimeout(t);
   }, [searchInput]);
   useEffect(() => {
     if (selected) loadPanelDetail(selected);
     else setPanelFeedbacks([]);
-    setFeedbackDetailPage(1);
+    // 마운트 첫 실행(복원)에서는 상세 페이지 리셋 생략 — 복원된 feedbackDetailPage 보존
+    if (selectInited.current) setFeedbackDetailPage(1);
+    else selectInited.current = true;
   }, [selected]);
+
+  // 복원값 1회 소비 — 새로고침/사이드바 재진입 시 재적용 방지 (초기화 effect는 순수성 위해 분리)
+  useEffect(() => {
+    try { sessionStorage.removeItem('purit_panelmgmt_return'); } catch {}
+  }, []);
+
+  // 딥링크 — 피드백 관리(PurityFilter)에서 패널 닉네임 클릭 시 해당 패널 자동 선택
+  useEffect(() => {
+    if (loading) return;
+    const targetId = location.state?.panelId;
+    if (!targetId) return;
+    const target = panels.find(p => p.id === targetId);
+    if (!target) return;
+    // 필터·정렬 초기화 → 대상 패널이 목록에 보이도록 + 해당 페이지로 이동
+    setStatusFilter('all'); setLevelFilter('all'); setRiskFilter('all');
+    setSearchInput(''); setSearchQuery(''); setSortBy('joined_desc');
+    const sorted = [...panels].sort((a, b) => (b.created_at || '') > (a.created_at || '') ? 1 : -1);
+    const idx = sorted.findIndex(p => p.id === targetId);
+    if (idx !== -1) setPage(Math.floor(idx / PAGE_SIZE) + 1);
+    setSelected(targetId);
+    setActionMsg('');
+    window.history.replaceState({}, '', location.pathname);
+  }, [loading, location.state?.panelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     setLoading(true);
@@ -591,7 +631,16 @@ export default function AdminPanels() {
           flag={getFlag(panel, feedbackStats)}
           feedbackPage={feedbackDetailPage}
           onFeedbackPage={setFeedbackDetailPage}
-          onFeedbackClick={(feedbackId) => navigate('/admin/purity', { state: { feedbackId } })}
+          onFeedbackClick={(feedbackId) => {
+            // 뒤로가기 복원용 — 현재 보던 위치(선택 패널·페이지·필터·검색·상세 페이지) 저장
+            try {
+              sessionStorage.setItem('purit_panelmgmt_return', JSON.stringify({
+                selected, page, feedbackDetailPage, searchInput,
+                statusFilter, levelFilter, periodFilter, riskFilter, sortBy,
+              }));
+            } catch {}
+            navigate('/admin/purity', { state: { feedbackId } });
+          }}
           actionMsg={actionMsg}
           onClearActionMsg={() => setActionMsg('')}
         />}

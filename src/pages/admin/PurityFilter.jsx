@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
@@ -155,8 +155,16 @@ function Pagination({ page, total, onPage }) {
 
 export default function PurityFilter() {
   const location = useLocation();
+  const navigate = useNavigate();
+  // 패널 관리로 이동 후 뒤로가기 시 보던 위치(페이지·선택·필터) 복원용 — 1회성
+  const [restored] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('purit_purityfilter_return');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
   const [feedbacks, setFeedbacks]         = useState([]);
-  const [selected, setSelected]           = useState(null);
+  const [selected, setSelected]           = useState(restored?.selected || null);
   const [loading, setLoading]             = useState(true);
   const [highlightId, setHighlightId]     = useState(null);
   const [acting, setActing]               = useState(false);
@@ -169,20 +177,25 @@ export default function PurityFilter() {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [deleteError, setDeleteError]             = useState('');
   const [bulkActing, setBulkActing]       = useState(false);
-  const [filter, setFilter]               = useState('pending');
-  const [pendingSubFilter, setPendingSubFilter] = useState('all'); // 'all'|'above65'|'below65'
+  const [filter, setFilter]               = useState(restored?.filter || 'pending');
+  const [pendingSubFilter, setPendingSubFilter] = useState(restored?.pendingSubFilter || 'all'); // 'all'|'above65'|'below65'
   const [checkedIds, setCheckedIds]       = useState(new Set());
-  const [typeFilter, setTypeFilter]       = useState('all'); // 'all'|'main'|'sub'
-  const [listPage, setListPage]           = useState(1);
+  const [typeFilter, setTypeFilter]       = useState(restored?.typeFilter || 'all'); // 'all'|'main'|'sub'
+  const [listPage, setListPage]           = useState(restored?.listPage || 1);
   const [annotations, setAnnotations]     = useState([]);
   const [adminImageIdx, setAdminImageIdx] = useState(0);
   const [subResponse, setSubResponse]     = useState(null);
   const [subLoading, setSubLoading]       = useState(false);
   const [subResponseMap, setSubResponseMap] = useState({});
   const [statusError, setStatusError]     = useState('');
-  const [searchQuery, setSearchQuery]     = useState('');
-  const [panelQuery, setPanelQuery]       = useState('');
+  const [searchQuery, setSearchQuery]     = useState(restored?.searchQuery || '');
+  const [panelQuery, setPanelQuery]       = useState(restored?.panelQuery || '');
   const [rejectNote, setRejectNote]       = useState('');
+
+  // 복원값 1회 소비 — 새로고침/사이드바 재진입 시 재적용 방지 (초기화 effect는 순수성 위해 분리)
+  useEffect(() => {
+    try { sessionStorage.removeItem('purit_purityfilter_return'); } catch {}
+  }, []);
 
   useEffect(() => {
     const pendingDeeplink = location.state?.feedbackId;
@@ -210,7 +223,7 @@ export default function PurityFilter() {
         ...(rejectedRes.data || []),
       ];
       setFeedbacks(fbs);
-      if (!pendingDeeplink && fbs.length > 0) setSelected(fbs[0].id);
+      if (!pendingDeeplink && !restored?.selected && fbs.length > 0) setSelected(fbs[0].id);
       setLoading(false);
 
       // 서브 미션 응답 전체 사전 로드 → 목록 점수 즉시 표시
@@ -363,7 +376,19 @@ export default function PurityFilter() {
     if (error) { setResetError('취소 실패: ' + error.message); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted', rejection_penalty_applied: false } : f));
 
+    // 반려 취소 시 반려 패널티로 차감했던 HP(-5) 복원 — reject의 -5에 대칭 (approve의 복원과 동일 패턴)
+    if (isRejectReversal && fb?.rejection_penalty_applied && fb?.panel_id) {
+      supabase.rpc('add_panel_honor_points', { p_panel_id: fb.panel_id, p_delta: 5 }).then(({ error: e }) => { if (e) console.warn('[honor_restore]', e.message); });
+    }
+
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error: e }) => { if (e) console.warn('[recalc_credits]', e.message); });
+
+    // 승인 취소(approved→submitted)인 경우에만 패널에게 알림 — 보상 직결 중요 알림이라 토글 없이 항상 발송
+    if (!isRejectReversal) {
+      const panelUserId = fb?.panels?.user_id;
+      const missionTitle = fb?.missions?.title || '미션';
+      if (panelUserId) sendNotification(panelUserId, { type: 'warning', icon: '↩️', title: '피드백 승인 취소', body: `[${missionTitle}] 승인되었던 피드백이 재검토를 위해 승인 취소되었습니다. 정산 내역에서 확인해 주세요.`, actionUrl: '/panel/history', targetRole: 'panel' });
+    }
 
     setConfirmResetId(null);
     setSelected(null);
@@ -796,6 +821,54 @@ export default function PurityFilter() {
           {/* Detail */}
           {fb && (
             <div>
+              {/* 교차 이동 — 패널 관리·미션 관리 상세로 이동 (교차 검증). 이동 전 현재 위치 저장(뒤로가기 복원용) */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('purit_purityfilter_return', JSON.stringify({
+                        filter, typeFilter, pendingSubFilter, searchQuery, panelQuery, listPage, selected: fb.id,
+                      }));
+                    } catch {}
+                    navigate('/admin/panels', { state: { panelId: fb.panel_id } });
+                  }}
+                  title="패널 관리에서 이 패널의 상세 정보 보기"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-dim2)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)'; }}
+                >
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>패널</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{fb.panels?.name || '패널'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>패널 관리에서 보기 →</span>
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('purit_purityfilter_return', JSON.stringify({
+                        filter, typeFilter, pendingSubFilter, searchQuery, panelQuery, listPage, selected: fb.id,
+                      }));
+                    } catch {}
+                    navigate('/admin/missions', { state: { missionId: fb.mission_id } });
+                  }}
+                  title="미션 관리에서 이 의뢰의 상세 정보 보기"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '8px 14px', background: 'var(--surface)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'inherit',
+                    maxWidth: 320, minWidth: 0,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-dim2)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)'; }}
+                >
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>의뢰</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fb.missions?.title || '의뢰'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', flexShrink: 0 }}>미션 관리에서 보기 →</span>
+                </button>
+              </div>
               <Card style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 32 }}>
                 <div style={{ textAlign: 'center', flexShrink: 0 }}>
                   <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Purit Score</div>
