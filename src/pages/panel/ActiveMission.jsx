@@ -25,6 +25,26 @@ const DIM_META = {
   trust:           { label: '신뢰',   short: '신', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
 };
 
+// 제출된 이미지 미션 피드백(feedbacks.suggestions 텍스트 + custom_answers)에서
+// 총평·"해당 없음"(skippedDims)·추가질문을 복원값으로 추출 — 재작성 진입 2경로(Path A/B) 공용
+function parseImageSubmission(fb) {
+  const out = { overallComment: null, skippedDims: null, customAnswers: null };
+  if (fb?.suggestions) {
+    const overallMatch = fb.suggestions.match(/\[총평\]\n([\s\S]*)$/);
+    if (overallMatch) out.overallComment = overallMatch[1].trim();
+    const dimMap = { '명확성': 'clarity', '관련성': 'relevance', '가치': 'value', '차별화': 'differentiation', '신뢰': 'trust' };
+    const sk = { clarity: false, relevance: false, value: false, differentiation: false, trust: false };
+    let anySkip = false;
+    fb.suggestions.split('\n').forEach(line => {
+      const m = line.match(/^\[(.+?) - 해당 없음\]$/);
+      if (m && dimMap[m[1]]) { sk[dimMap[m[1]]] = true; anySkip = true; }
+    });
+    if (anySkip) out.skippedDims = sk;
+  }
+  if (Array.isArray(fb?.custom_answers)) out.customAnswers = fb.custom_answers;
+  return out;
+}
+
 const hasDraftProgress = (fb) => {
   if (fb.clarity_score || fb.relevance_score || fb.value_score || fb.differentiation_score || fb.trust_score) return true;
   if (!fb.strengths) return false;
@@ -172,6 +192,7 @@ export default function ActiveMission() {
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const [viewedImages, setViewedImages]       = useState(() => new Set([0]));
   const [activeDimension, setActiveDimension] = useState('clarity');
+  const [commentWarn, setCommentWarn]         = useState(false); // 코멘트 미작성 영역 경고 표시
   const [missionKind, setMissionKind] = useState('all');
   const [overallComment, setOverallComment]   = useState('');
   const [skippedDims, setSkippedDims]         = useState({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
@@ -225,6 +246,7 @@ export default function ActiveMission() {
     setCurrentImageIdx(0);
     setViewedImages(new Set([0]));
     setActiveDimension('clarity');
+    setCommentWarn(false);
     setOverallComment('');
     setSkippedDims({ clarity: false, relevance: false, value: false, differentiation: false, trust: false });
 
@@ -249,7 +271,7 @@ export default function ActiveMission() {
         if (ms && p) {
           const { data: existing } = await supabase
             .from('feedbacks')
-            .select('id, status, clarity_score, relevance_score, value_score, differentiation_score, trust_score, strengths, submission_deadline, rejection_deadline')
+            .select('id, status, clarity_score, relevance_score, value_score, differentiation_score, trust_score, strengths, suggestions, custom_answers, submission_deadline, rejection_deadline')
             .eq('mission_id', ms.id)
             .eq('panel_id', p.id)
             .limit(1);
@@ -286,18 +308,13 @@ export default function ActiveMission() {
               if (ms.image_urls?.length > 0) {
                 const { data: anns } = await supabase.from('feedback_annotations').select('*').eq('feedback_id', fb.id).order('created_at');
                 setAnnotations(anns || []);
-                setViewedImages(new Set(ms.image_urls.map((_, i) => i)));
-                if (fb.suggestions) {
-                  const overallMatch = fb.suggestions.match(/\[총평\]\n([\s\S]*)$/);
-                  if (overallMatch) setOverallComment(overallMatch[1].trim());
-                  const dimMap = { '명확성': 'clarity', '관련성': 'relevance', '가치': 'value', '차별화': 'differentiation', '신뢰': 'trust' };
-                  const newSkipped = { clarity: false, relevance: false, value: false, differentiation: false, trust: false };
-                  fb.suggestions.split('\n').forEach(line => {
-                    const m = line.match(/^\[(.+?) - 해당 없음\]$/);
-                    if (m && dimMap[m[1]]) newSkipped[dimMap[m[1]]] = true;
-                  });
-                  setSkippedDims(newSkipped);
-                }
+                // 재작성 시작: 모든 이미지를 다시 확인하도록 게이트 초기화([0]만 본 것으로) — 총평 섹션은 전수확인 후 개방
+                setViewedImages(new Set([0]));
+                // 총평·"해당 없음"·추가질문 복원 (원본 제출본 = suggestions/custom_answers)
+                const sub = parseImageSubmission(fb);
+                if (sub.overallComment) setOverallComment(sub.overallComment);
+                if (sub.skippedDims)    setSkippedDims(sub.skippedDims);
+                if (sub.customAnswers)  setCustomAnswers(sub.customAnswers);
               } else if (['preference', 'pricing', 'email'].includes(ms.type)) {
                 const tbl = ms.type === 'preference' ? 'preference_responses' : ms.type === 'pricing' ? 'pricing_responses' : 'email_responses';
                 const { data: subResp } = await supabase.from(tbl).select('*').eq('mission_id', ms.id).eq('panel_id', p.id).single();
@@ -388,19 +405,34 @@ export default function ActiveMission() {
                   .eq('feedback_id', fb.id)
                   .order('created_at');
                 setAnnotations(anns || []);
+                const isRewriteDraft = Boolean(fb.rejection_deadline); // 재작성 재진입 vs 최초 draft 구분
                 // 실제로 확인한 이미지만 복원: 저장된 viewedImages + 어노테이션이 있는 이미지(확실히 본 것) 합집합
                 // (구: 저장물이 있으면 전체를 봤다고 간주 → 안 본 이미지도 통과시켜 총평 게이트가 조기 개방되던 버그 D-141)
                 const restoredViewed = new Set([0]);
-                (anns || []).forEach(a => { if (typeof a.image_index === 'number') restoredViewed.add(a.image_index); });
+                // 재작성 draft는 모든 이미지 재확인을 강제 — 어노테이션 보유 이미지를 '확인됨'으로 자동 통과시키지 않음
+                if (!isRewriteDraft) {
+                  (anns || []).forEach(a => { if (typeof a.image_index === 'number') restoredViewed.add(a.image_index); });
+                }
+                let sOverall = null, sCustom = null, sSkipped = null;
                 if (fb.strengths) {
                   try {
                     const s = JSON.parse(fb.strengths);
-                    if (Array.isArray(s.customAnswers)) setCustomAnswers(s.customAnswers);
-                    if (s.overallComment) setOverallComment(s.overallComment);
-                    if (s.skippedDims) setSkippedDims(prev => ({ ...prev, ...s.skippedDims }));
+                    if (Array.isArray(s.customAnswers)) sCustom = s.customAnswers;
+                    if (s.overallComment) sOverall = s.overallComment;
+                    if (s.skippedDims) sSkipped = s.skippedDims;
                     if (Array.isArray(s.viewedImages)) s.viewedImages.forEach(i => restoredViewed.add(i));
                   } catch {}
                 }
+                // 재작성 draft인데 자동저장(strengths)에 없는 항목은 원본 제출본(suggestions/custom_answers)에서 폴백 복원
+                if (isRewriteDraft) {
+                  const sub = parseImageSubmission(fb);
+                  if (sOverall == null) sOverall = sub.overallComment;
+                  if (sCustom == null)  sCustom  = sub.customAnswers;
+                  if (sSkipped == null) sSkipped = sub.skippedDims;
+                }
+                if (sCustom)  setCustomAnswers(sCustom);
+                if (sOverall) setOverallComment(sOverall);
+                if (sSkipped) setSkippedDims(prev => ({ ...prev, ...sSkipped }));
                 setViewedImages(restoredViewed);
               }
             }
@@ -504,9 +536,32 @@ export default function ActiveMission() {
 
   const handleResume = () => { setStep(1); };
 
+  // 현재 차원+이미지에 코멘트 미작성 영역이 있는지 (경고·차단 판단용)
+  const hasEmptyCommentAt = (dim, imgIdx) =>
+    annotations.some(a => a.dimension === dim && a.image_index === imgIdx && !(a.comment || '').trim());
+
+  // 차원 뱃지 전환 시도 — ①미작성 코멘트 있으면 차단+경고 ②선택 차원이 다른 이미지에만 있으면 그 이미지로 이동
+  const attemptSwitchDimension = (key) => {
+    if (key === activeDimension) return;
+    if (hasEmptyCommentAt(activeDimension, currentImageIdx)) { setCommentWarn(true); return; }
+    setCommentWarn(false);
+    setActiveDimension(key);
+    // 선택한 차원의 어노테이션이 현재 이미지에 없고 다른 이미지에 있으면 → 적어둔 이미지로 자연스럽게 이동
+    const onCurrent = annotations.some(a => a.dimension === key && a.image_index === currentImageIdx);
+    if (!onCurrent) {
+      const target = annotations.filter(a => a.dimension === key).map(a => a.image_index).sort((x, y) => x - y)[0];
+      if (target !== undefined && target !== currentImageIdx) {
+        setCurrentImageIdx(target);
+        setViewedImages(prev => { const s = new Set(prev); s.add(target); return s; });
+      }
+    }
+  };
+
   // 어노테이션 추가 (이미지 모드)
   const handleAddAnnotation = async (annotationData) => {
     if (!draftId || !mission || !panel) return;
+    // 직전 드래그한 영역의 코멘트를 안 적었으면 새 영역 추가 차단 + 경고 (먼저 코멘트 작성 또는 영역 삭제)
+    if (hasEmptyCommentAt(annotationData.dimension, annotationData.image_index)) { setCommentWarn(true); return; }
     const { data, error } = await supabase
       .from('feedback_annotations')
       .insert({
@@ -858,12 +913,13 @@ export default function ActiveMission() {
   /* ─── 자동 저장 배지 공용 엘리먼트 (서브·이미지 폼 헤더 우측) ─── */
   const autoSaveBadgeEl = (
     <div style={{
-      display: 'inline-flex', alignItems: 'center', gap: 7,
-      padding: '6px 12px', borderRadius: 999,
-      background: 'var(--surface)', border: '1px solid var(--border)',
-      fontSize: 12, fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap',
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      padding: '9px 16px', borderRadius: 999,
+      background: 'var(--green-dim)', border: '1px solid rgba(22,163,74,0.35)',
+      fontSize: 14, fontWeight: 700, color: '#1C7A39', whiteSpace: 'nowrap',
+      boxShadow: '0 1px 4px rgba(22,163,74,0.12)',
     }} title="현재 페이지를 벗어나도 작성 내용이 자동으로 저장됩니다.">
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 1.4s ease-in-out infinite' }} />
+      <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 1.4s ease-in-out infinite' }} />
       자동 저장 중
     </div>
   );
@@ -1422,8 +1478,10 @@ export default function ActiveMission() {
     const imageUrls = mission.image_urls;
     const curAnns   = annotations.filter(a => a.image_index === currentImageIdx && a.dimension === activeDimension);
 
+    // 코멘트 미작성(빈 코멘트) 영역이 하나라도 있으면 미완료 — 차원 완료·총평 진입·제출 모두 차단
+    const hasEmptyComment = annotations.some(a => !(a.comment || '').trim());
     const dimDone = Object.fromEntries(
-      Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k) || skippedDims[k]])
+      Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k && (a.comment || '').trim()) || skippedDims[k]])
     );
     const allDimsDone    = Object.values(dimDone).every(Boolean);
     const allImagesViewed = viewedImages.size >= imageUrls.length;
@@ -1433,7 +1491,7 @@ export default function ActiveMission() {
       if (q.type === 'text') return String(a).trim().length >= 10;
       return true;
     });
-    const canSubmitImage = allDimsDone && allImagesViewed && overallComment.trim().length >= 30 && lpQsAnswered;
+    const canSubmitImage = allDimsDone && allImagesViewed && !hasEmptyComment && overallComment.trim().length >= 30 && lpQsAnswered;
 
     return (
       <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 1400, animation: 'fadeUp 0.4s ease both' }}>
@@ -1467,7 +1525,7 @@ export default function ActiveMission() {
             return (
               <button
                 key={key}
-                onClick={() => setActiveDimension(key)}
+                onClick={() => attemptSwitchDimension(key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   padding: '7px 14px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 700,
@@ -1524,6 +1582,9 @@ export default function ActiveMission() {
               <button
                 key={i}
                 onClick={() => {
+                  // 현재 이미지에 코멘트 미작성 영역이 있으면 이미지 전환 차단 + 경고
+                  if (hasEmptyCommentAt(activeDimension, currentImageIdx)) { setCommentWarn(true); return; }
+                  setCommentWarn(false);
                   setCurrentImageIdx(i);
                   setViewedImages(prev => { const s = new Set(prev); s.add(i); return s; });
                 }}
@@ -1606,6 +1667,11 @@ export default function ActiveMission() {
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
                   코멘트 작성 ({curAnns.length}개 영역)
                 </div>
+                {commentWarn && curAnns.some(a => !(a.comment || '').trim()) && (
+                  <div style={{ marginBottom: 10, padding: '9px 12px', borderRadius: 'var(--radius)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', color: 'var(--red,#ef4444)', fontSize: 12.5, fontWeight: 600, lineHeight: 1.5 }}>
+                    ⚠️ 작성하지 않은 코멘트가 있습니다. 코멘트를 입력하거나 ✕로 영역을 삭제한 뒤 진행해 주세요.
+                  </div>
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {curAnns.map(ann => {
                     const meta = DIM_META[ann.dimension];
@@ -1638,7 +1704,8 @@ export default function ActiveMission() {
                           style={{
                             width: '100%', boxSizing: 'border-box',
                             padding: '8px 10px', borderRadius: 'var(--radius)',
-                            border: '1px solid var(--border)', background: 'var(--bg)',
+                            border: commentWarn && !(ann.comment || '').trim() ? '1.5px solid var(--red,#ef4444)' : '1px solid var(--border)',
+                            background: 'var(--bg)',
                             color: 'var(--text)', fontSize: 13, lineHeight: 1.6,
                             resize: 'vertical', fontFamily: 'inherit',
                           }}
@@ -1665,6 +1732,10 @@ export default function ActiveMission() {
               <div style={{ marginTop: 8, padding: '14px 16px', background: 'var(--surface)', border: '1.5px dashed var(--text-3)', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 600, color: 'var(--text-2)', textAlign: 'center', lineHeight: 1.6 }}>
                 5대 지표 작성 완료 및 모든 이미지 확인 후 총평 작성 가능
               </div>
+            ) : hasEmptyComment ? (
+              <div style={{ marginTop: 8, padding: '14px 16px', background: 'rgba(239,68,68,0.06)', border: '1.5px dashed rgba(239,68,68,0.45)', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 600, color: 'var(--red,#ef4444)', textAlign: 'center', lineHeight: 1.6 }}>
+                작성하지 않은 코멘트가 있어 총평으로 넘어갈 수 없습니다.<br />각 차원 탭에서 빈 코멘트를 채우거나 영역을 삭제해 주세요.
+              </div>
             ) : (
               <button
                 onClick={() => bottomSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -1681,7 +1752,7 @@ export default function ActiveMission() {
         </div>
 
         {/* ── 추가 질문 + 총평 + 제출 — 소재 아래 ── */}
-        {allDimsDone && allImagesViewed && (
+        {allDimsDone && allImagesViewed && !hasEmptyComment && (
           <div ref={bottomSectionRef} style={{ marginTop: 32, borderTop: '2px solid var(--border)', paddingTop: 28 }}>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: '#16a34a', marginBottom: 16, letterSpacing: '0.06em', fontWeight: 700 }}>
               ✓ 모든 차원 평가 완료 — 총평 및 추가 질문을 작성해 주세요
