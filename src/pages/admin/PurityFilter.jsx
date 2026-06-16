@@ -199,7 +199,9 @@ export default function PurityFilter() {
   }, []);
 
   useEffect(() => {
-    const pendingDeeplink = location.state?.feedbackId;
+    // 알림 클릭은 ?feedbackId 쿼리로 들어옴(location.state 불가) → 쿼리도 딥링크로 인정해야
+    // "첫 피드백 자동 선택"이 우측 상세를 덮어쓰지 않음 (마운트 시 읽어 StrictMode 2차 로드에도 안전)
+    const pendingDeeplink = location.state?.feedbackId || searchParams.get('feedbackId');
     async function load() {
       try {
       // 검토 대기(pending) 탭을 기본으로 로드. 승인/반려는 최근 300건으로 제한해 초기 로딩 부하 감소.

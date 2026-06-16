@@ -1,6 +1,7 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-16 (102 어드민 알림 딥링크 — 트리거/RPC 6종 action_url에 대상 id 부착: notify_admin_on_mission·notify_company_on_slots_full(missions?missionId), notify_admin_on_feedback_submitted(purity?feedbackId, p_feedback_id 파라미터 추가→DROP 2-param후 3-param 재생성+GRANT), notify_admin_on_new_panel·notify_admin_on_panel_resubmit(panels?panelId), notify_admin_on_bug_report(reports?id). 트리거함수 5종은 CREATE OR REPLACE라 트리거 재생성 불필요. D-146)
+최종 업데이트: 2026-06-16 (104 패널 반려 피드백 삭제 분리 — feedbacks.revision_dismissed 컬럼 신설 + dismiss_rejected_feedback이 dismissed→revision_dismissed로 SET 변경. [수정 필요] 탭 삭제=revision_dismissed(지급 거절 유지) / [지급 거절] 탭 삭제=dismissed(전체 숨김, delete_rejected_feedback 불변). 같은 dismissed 공유 시 [수정 필요] 삭제가 [지급 거절]까지 지워 모달 약속 위반하던 버그 수정)
+            2026-06-16 (102 어드민 알림 딥링크 — 트리거/RPC 6종 action_url에 대상 id 부착: notify_admin_on_mission·notify_company_on_slots_full(missions?missionId), notify_admin_on_feedback_submitted(purity?feedbackId, p_feedback_id 파라미터 추가→DROP 2-param후 3-param 재생성+GRANT), notify_admin_on_new_panel·notify_admin_on_panel_resubmit(panels?panelId), notify_admin_on_bug_report(reports?id). 트리거함수 5종은 CREATE OR REPLACE라 트리거 재생성 불필요. D-146)
             2026-06-16 (가입 휴대폰 인증 — 101 handle_new_user 재정의(INSERT에 phone·phone_verified 추가, metadata에서) + companies.phone_verified 컬럼 신설 / 103 save_my_phone(p_phone) SECURITY DEFINER RPC 신설: 본인 행(panels/companies/team_members)에만 phone·phone_verified 저장, VerifyPhone 게이트가 호출 + team_members.phone/phone_verified 컬럼 신설 / team_members self-UPDATE RLS=권한상승이라 컬럼한정 DEFINER RPC로 우회 D-144)
             2026-06-14 (100 무료 체험 결과 페이월 서버 차단 — get_company_trial_feedbacks(p_mission_id) SECURITY DEFINER RPC 신설: 오너/활성팀원 검증 후 무료체험+미언락이면 잠긴 패널(공개 2명 제외) 텍스트만 서버 마스킹(suggestions·strengths·custom_answers·annotation comment), 점수·구조 유지. Results.jsx의 feedbacks/annotations select('*') 직접로드를 이 RPC 경유로 전환 → 클라 CSS blur 페이월 우회 차단. D-136) / 2026-06-13 (098 어드민 RPC 7종 app_metadata 단독 게이트 전환 — admin_add_credits·complete_mission_and_refund·recalc_mission_consumed·admin_change_plan·admin_delete_trial_mission·admin_set_trial_public·admin_set_trial_mission_status, user_metadata 위조 권한상승 차단 + NULL-안전 NOT EXISTS, 어드민 app_metadata 동기화 self-contained, D-58/D-134 / 099 reserve_mission_credits 차액 차감 멱등화 — 재시도·연타 잔액 이중차감 방지 D-135) / 2026-06-13 (096/097 구독 결제 재설계 — companies +addon_credits·plan_started_at·next_billing_at·plan_billing_cycle / grant_plan_credits 5-param 재정의(누적 +=·다운그레이드 가드·앵커) / purchase_credits addon 누적 / admin_change_plan 앵커+addon_credits=0(097) / renew_due_subscriptions 신규(구독분 리셋·구매분 LEAST 보존·097 원자화) / 단일지갑+트래커 파생분리 D-129) / 2026-06-13 (095 패널 "C레벨/임원"→"헤드" + 연차 구간 재정의(주2~4·미5~7·시8~14·헤드15+) — admin_confirm_panel_experience 2-param 재정의(is_executive=years>=15 자동)·auto_increment·complete_mission_and_refund·recalc_mission_consumed(배율 ≥15→3.0/≥8→2.0/≥5→1.5)·unlock_free_trial_mission(크레딧 ≥15→6/≥8→4.5/≥5→3) 재정의 + 기존 임원<15 강등 백필 / experience 'N년' 통일·is_executive 파생 플래그화 / D-127) / 2026-06-13 (094 — missions.trial_results_seen_at(할인 48h 앵커, 보호컬럼) / unlock_free_trial_mission 재정의: 자동 공개 2명을 avg_score(5축 평균) 상위로 + 30% 첫 언락 할인(seen_at부터 48h, ROUND(정가×0.70,2)) / touch_trial_results_seen RPC / guard_mission_freemium_columns에 seen_at 추가 / D-126) / 2026-06-13 (089~092 — missions.trial_public_panel_ids(어드민 지정 공개2명) / unlock_free_trial_mission 090 메인1.5배(주1.5·미3·시4.5·C6) / admin_set_trial_public·admin_delete_trial_mission(free_trial_used 복구 D-124)·guard_mission_freemium_columns 트리거(결제컬럼 직접조작 차단 D-125)) / 2026-06-12 (085 무료 체험 Freemium — companies.free_trial_used·plan DEFAULT free_trial / missions.is_free_trial·trial_unlocked·unlock_cost / panels.is_expert / create_free_trial_mission·unlock_free_trial_mission RPC + 6개 재정의 / 087 언락 비용 동적 산정) / 2026-06-10 (084 Storage 버킷 UPDATE RLS 정책 추가 — panel-verification-docs·mission-assets, D-118) / 2026-06-12 (088 유저 삭제 cascade 사슬 복구 — companies/panels/missions 자식 FK 20개 ON DELETE CASCADE 전환, D-120 / 086 companies_plan_check 동기화 — plan에 'free_trial' 추가 + 구 'free' 이관, 가입 실패 수정 D-117 / 083_bug_reports_appeal_type — type CHECK에 'appeal' 추가 + notify 트리거 라벨 보정 / 082 패널 거절·재제출·차단 플로우)
 ※ 이 파일은 토큰 절약을 위해 2_Architecture.txt에서 분리됨
@@ -165,7 +166,9 @@
   payout_amount                NUMERIC(10,2)  DEFAULT NULL  ← 031 추가 (승인 시점 정산 금액 스냅샷 — 패널 경력 변경 이후에도 금액 불변)
   rejection_penalty_applied    BOOLEAN        NOT NULL DEFAULT FALSE  ← 031 추가 (반려 시 true, 재제출 후 재승인 시 HP +5 복원 트리거)
   deadline_alimtalk_sent       BOOLEAN        DEFAULT FALSE           ← 040 추가 (마감 1시간 전 알림톡 중복 발송 방지 플래그)
-  dismissed                    BOOLEAN        NOT NULL DEFAULT FALSE   ← 050 추가 (패널이 [수정 필요] 탭에서 숨긴 반려 피드백 — [지급 거절] 탭에는 유지)
+  dismissed                    BOOLEAN        NOT NULL DEFAULT FALSE   ← 050 추가, 104에서 의미 명확화 (패널 [지급 거절] 탭 삭제 = 전체 숨김. delete_rejected_feedback가 SET)
+  revision_dismissed           BOOLEAN        NOT NULL DEFAULT FALSE   ← 104 추가 (패널 [수정 필요] 탭 '삭제' = 수정 필요에서만 숨김·[지급 거절] 탭 유지. dismiss_rejected_feedback가 SET)
+                               ※ 두 삭제가 같은 dismissed를 공유하면 [수정 필요] 삭제 시 [지급 거절]에서도 사라져 모달 약속 위반 → 104에서 분리
   status                TEXT  ('draft'|'submitted'|'approved'|'rejected')
                                ※ draft: 수락 후 미완료 (패널이 수락하면 즉시 생성)
                                ※ CHECK 제약: feedbacks_status_check 로 4개 값 허용
@@ -713,11 +716,11 @@
     → 파일: supabase/migrations/034_feedback_timeout_slots.sql (최신: 035에서 재정의)
 
   dismiss_rejected_feedback(p_feedback_id UUID) RETURNS void
-    → SECURITY DEFINER — auth.uid() 기준 본인 rejected 피드백만 dismissed=true 처리
-    → feedbacks UPDATE SET dismissed=TRUE WHERE id=p_feedback_id AND panel_id=v_panel_id AND status='rejected'
-    → [수정 필요] 탭에서 숨김 처리 (지급 거절 탭에는 그대로 유지)
+    → SECURITY DEFINER — auth.uid() 기준 본인 rejected 피드백만 revision_dismissed=true 처리 (104에서 dismissed→revision_dismissed로 변경)
+    → feedbacks UPDATE SET revision_dismissed=TRUE WHERE id=p_feedback_id AND panel_id=v_panel_id AND status='rejected'
+    → [수정 필요] 탭에서만 숨김 ([지급 거절] 탭에는 그대로 유지 — 모달 약속 충족)
     → panel/Missions.jsx [수정 필요] 탭 '삭제' 버튼에서 호출 (실제 삭제 아님 — 숨김만)
-    → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql
+    → 파일: supabase/migrations/050_dismiss_rejected_feedback.sql (원본) + 104_split_revision_dismissed.sql (revision_dismissed 분리)
 
   delete_rejected_feedback(p_feedback_id UUID) RETURNS void
     → SECURITY DEFINER — auth.uid() 기준 본인 rejected 피드백만 소프트 딜리트

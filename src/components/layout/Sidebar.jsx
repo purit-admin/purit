@@ -186,6 +186,7 @@ export default function Layout({ role, children }) {
         .eq('panel_id', panelId)
         .eq('status', 'rejected')
         .eq('dismissed', false)
+        .eq('revision_dismissed', false)
         .or(`rejection_deadline.is.null,rejection_deadline.gte.${now}`);
       setRejectedCount(count || 0);
     }

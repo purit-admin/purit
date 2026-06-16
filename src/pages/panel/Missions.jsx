@@ -217,7 +217,7 @@ export default function MissionList() {
   const navigate = useNavigate();
   const location = useLocation();
   const [missions, setMissions]       = useState([]);
-  // feedbackMap: { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed } }
+  // feedbackMap: { [missionId]: { status, id, suggestions, rejection_deadline, submission_deadline, dismissed, revision_dismissed } }
   const [feedbackMap, setFeedbackMap] = useState({});
   const [panelId, setPanelId]               = useState(null);
   const [panelStatus, setPanelStatus]       = useState('active');
@@ -285,11 +285,11 @@ export default function MissionList() {
       // 만료된 draft/rejected 정리 (fire-and-forget 아님 — feedbacks 로드 전 완료 필요)
       await supabase.rpc('expire_panel_drafts').then(({ error: e }) => { if (e) console.warn('[expire_drafts]', e.message); });
 
-      const { data: myFeedbacks } = await supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline, submission_deadline, dismissed').eq('panel_id', p.id);
+      const { data: myFeedbacks } = await supabase.from('feedbacks').select('mission_id, status, id, suggestions, rejection_deadline, submission_deadline, dismissed, revision_dismissed').eq('panel_id', p.id);
 
       const map = {};
       (myFeedbacks || []).forEach(f => {
-        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline, submission_deadline: f.submission_deadline, dismissed: f.dismissed };
+        map[f.mission_id] = { status: f.status, id: f.id, suggestions: f.suggestions, rejection_deadline: f.rejection_deadline, submission_deadline: f.submission_deadline, dismissed: f.dismissed, revision_dismissed: f.revision_dismissed };
       });
       setFeedbackMap(map);
 
@@ -398,11 +398,11 @@ export default function MissionList() {
       setDismissing(false);
       return;
     }
-    // feedbackMap에서 dismissed 처리 → [수정 필요] 탭에서 즉시 사라짐
+    // feedbackMap에서 revision_dismissed 처리 → [수정 필요] 탭에서만 즉시 사라짐 ([지급 거절] 탭은 유지)
     setFeedbackMap(prev => {
       const next = { ...prev };
       for (const [mId, fb] of Object.entries(next)) {
-        if (fb.id === feedbackId) { next[mId] = { ...fb, dismissed: true }; break; }
+        if (fb.id === feedbackId) { next[mId] = { ...fb, revision_dismissed: true }; break; }
       }
       return next;
     });
@@ -430,7 +430,7 @@ export default function MissionList() {
     if (filter === 'needsRevision') return missions.filter(m => {
       const fb = feedbackMap[m.id];
       if (fb?.status !== 'rejected') return false;
-      if (fb.dismissed) return false;
+      if (fb.dismissed || fb.revision_dismissed) return false;
       // rejection_deadline이 설정되어 있고 이미 만료됐으면 목록에서 제외
       if (fb.rejection_deadline && new Date(fb.rejection_deadline) < new Date()) return false;
       return true;
@@ -523,6 +523,7 @@ export default function MissionList() {
   const rejectedCount = Object.values(feedbackMap).filter(f =>
     f.status === 'rejected' &&
     !f.dismissed &&
+    !f.revision_dismissed &&
     (!f.rejection_deadline || new Date(f.rejection_deadline) >= now)
   ).length;
 

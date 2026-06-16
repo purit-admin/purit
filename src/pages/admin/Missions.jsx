@@ -65,11 +65,6 @@ function MissionDetail({ mission, onFeedbackClick }) {
   const [detailPage, setDetailPage] = useState(1);
   const [detailFbs, setDetailFbs] = useState(mission.feedbacks || []);
 
-  let detailCareerLevels = [];
-  try {
-    const p = JSON.parse(mission.description || '{}');
-    detailCareerLevels = Array.isArray(p.careerLevels) ? p.careerLevels : [];
-  } catch {}
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
@@ -117,24 +112,6 @@ function MissionDetail({ mission, onFeedbackClick }) {
 
   return (
     <div style={{ marginTop: 6, marginBottom: 4, borderLeft: '3px solid var(--accent-dim)', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <Card style={{ padding: '14px 16px' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.07em', marginBottom: 8 }}>미션 정보</div>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{mission.title}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 2 }}>{mission.companies?.name || '—'}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-          패널 슬롯: {allFbs.length + drafts.length}/{mission.panel_count}건
-          {drafts.length > 0 && <span style={{ marginLeft: 6, color: 'var(--text-3)' }}>(작성중 {drafts.length}명)</span>}
-        </div>
-        {detailCareerLevels.length > 0 && (
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
-            {detailCareerLevels.map(key => (
-              <span key={key} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--bg-3)', color: 'var(--text-2)', fontWeight: 500 }}>
-                {CAREER_LABEL[key] ?? key}
-              </span>
-            ))}
-          </div>
-        )}
-      </Card>
       <Card style={{ padding: '14px 16px' }}>
         {detailLoading && <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>피드백 로딩 중...</div>}
         <SegmentFilter

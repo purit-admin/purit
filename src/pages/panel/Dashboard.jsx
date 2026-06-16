@@ -112,6 +112,7 @@ export default function PanelDashboard() {
           .select('id, mission_id, status, submission_deadline, rejection_deadline, missions(title)')
           .eq('panel_id', p.id)
           .in('status', ['draft', 'rejected'])
+          .eq('revision_dismissed', false)
           .not('submission_deadline', 'is', null)
           .or(`submission_deadline.lte.${inOneHour.toISOString()},rejection_deadline.lte.${inOneHour.toISOString()}`);
 
