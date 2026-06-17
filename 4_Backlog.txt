@@ -60,7 +60,7 @@
 **미션 타입별 결과 분기**
 - landing_page → feedbacks 5축 점수 (clarity/relevance/value/differentiation/trust)
   + 이미지 미션: 패널별 카드에 ImageAnnotator(readonly) + dimension별 코멘트 표시
-  + 페이지 하단: 전체 집계 5차원 평균
+  + 페이지 하단: 전체 집계 5대 지표 평균
 - preference → preference_responses WHERE mission_id=selected
   · A/B 선택 비율 바 + message_clarity + purchase_intent 평균
 - pricing → pricing_responses WHERE mission_id=selected
@@ -80,7 +80,7 @@
 
 ### 목표
 - 5개 dimension(clarity/relevance/value/differentiation/trust) 각각 최소 1개 이상 어노테이션 필수
-- 미충족 시 제출 버튼 비활성화 + "모든 차원에 최소 1개씩 어노테이션을 추가해주세요" 안내
+- 미충족 시 제출 버튼 비활성화 + "모든 지표에 최소 1개씩 어노테이션을 추가해주세요" 안내
 
 ================================================================
 ## [3] 미션 수정 기능

@@ -1,6 +1,6 @@
 /**
  * GreenCart 미션 — 패널 10명 피드백 자동 제출 스크립트
- * 각 패널: 5차원 이미지 어노테이션(좌표+점수+코멘트) + 총평 포함하여 submitted 상태로 제출
+ * 각 패널: 5대 지표 이미지 어노테이션(좌표+점수+코멘트) + 총평 포함하여 submitted 상태로 제출
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
@@ -21,7 +21,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-// ── 한국어 코멘트 풀 (차원별 × 고/중/저) ──────────────────────────────────
+// ── 한국어 코멘트 풀 (지표별 × 고/중/저) ──────────────────────────────────
 
 const COMMENTS = {
   clarity: {
@@ -277,7 +277,7 @@ async function main() {
     // 기존 어노테이션 삭제 (재시도 시 중복 방지)
     await supabase.from('feedback_annotations').delete().eq('feedback_id', feedbackId);
 
-    // 5개 차원 어노테이션 생성 (차원당 1~2개)
+    // 5개 지표 어노테이션 생성 (지표당 1~2개)
     const annotations = [];
     const dimAvgScores = {};
 
@@ -310,9 +310,9 @@ async function main() {
 
     const { error: annErr } = await supabase.from('feedback_annotations').insert(annotations);
     if (annErr) { console.error(`   ❌ 어노테이션 INSERT 실패: ${annErr.message}`); continue; }
-    console.log(`   ✅ 어노테이션 ${annotations.length}개 (5차원)`);
+    console.log(`   ✅ 어노테이션 ${annotations.length}개 (5대 지표)`);
 
-    // suggestions 텍스트 조합 (차원별 코멘트 + 총평)
+    // suggestions 텍스트 조합 (지표별 코멘트 + 총평)
     const suggestionLines = DIMENSIONS.map(dim => {
       const dimAnns = annotations.filter(a => a.dimension === dim);
       const comments = dimAnns.map(a => a.comment).join('\n');

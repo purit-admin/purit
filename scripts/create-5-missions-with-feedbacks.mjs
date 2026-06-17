@@ -190,7 +190,7 @@ const MISSIONS_DATA = [
   },
 ];
 
-// ── 공통 차원별 코멘트 풀 ──────────────────────────────────────────────────────
+// ── 공통 지표별 코멘트 풀 ──────────────────────────────────────────────────────
 
 const COMMENTS = {
   clarity: {
@@ -517,7 +517,7 @@ async function main() {
       // 기존 어노테이션 삭제 후 재생성
       await supabase.from('feedback_annotations').delete().eq('feedback_id', feedbackId);
 
-      // 5차원 어노테이션
+      // 5대 지표 어노테이션
       const annotations = [];
       const dimAvgScores = {};
 

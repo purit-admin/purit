@@ -29,8 +29,8 @@ function calcPurityScoreLocal(f) {
   return Math.min(100, Math.max(0, score));
 }
 
-// 차원별 코멘트 추출: [명확성] 또는 [명확성 / X점] 헤더 매칭된 코멘트만 반환.
-// 헤더 없는(차원 미상) 글은 전체를 오귀속하지 않도록 null 반환 → 호출측 filter에서 제외 (진단-D)
+// 지표별 코멘트 추출: [명확성] 또는 [명확성 / X점] 헤더 매칭된 코멘트만 반환.
+// 헤더 없는(지표 미상) 글은 전체를 오귀속하지 않도록 null 반환 → 호출측 filter에서 제외 (진단-D)
 function extractDimComment(f, dimKey) {
   const label = DIM_LABEL_MAP[dimKey];
   if (!label) return null;
@@ -68,10 +68,10 @@ const GUIDE_LEVELS = [
 ];
 const GUIDE_DESCS = {
   '최적화':    '5개 지표 모두 벤치마크를 상회합니다. 최적의 전환 소재에 가깝습니다.',
-  '우수':      '대부분의 지표가 양호합니다. 취약 차원 하나를 보완하면 큰 도약이 가능합니다.',
+  '우수':      '대부분의 지표가 양호합니다. 취약 지표 하나를 보완하면 큰 도약이 가능합니다.',
   '양호':      '핵심 지표는 안정적이지만 전환율을 더 끌어올릴 여지가 있습니다.',
-  '성장 가능': '취약한 차원이 전환율을 낮추고 있습니다. 집중 개선이 필요합니다.',
-  '개선 필요': '여러 차원에서 즉각적인 개선이 필요합니다. 우선순위부터 잡아보세요.',
+  '성장 가능': '취약한 지표가 전환율을 낮추고 있습니다. 집중 개선이 필요합니다.',
+  '개선 필요': '여러 지표에서 즉각적인 개선이 필요합니다. 우선순위부터 잡아보세요.',
 };
 const NEXT_ACTIONS = {
   clarity_score:         { text: '소재 A/B 테스트로 메시지 명확성을 높여보세요', path: '/company/preference', cta: '소재 비교 등록 →' },
@@ -83,22 +83,22 @@ const NEXT_ACTIONS = {
 
 const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
-// 차원 라벨 → 점수 컬럼 (라벨에 인라인 점수가 없을 때 폴백용)
+// 지표 라벨 → 점수 컬럼 (라벨에 인라인 점수가 없을 때 폴백용)
 const DIM_LABEL_TO_COL = { '명확성': 'clarity_score', '관련성': 'relevance_score', '가치': 'value_score', '차별화': 'differentiation_score', '신뢰': 'trust_score' };
 
-// 메인 의뢰 피드백(suggestions)을 "[차원] 헤더 + 코멘트" 블록으로 파싱 →
-// 차원별로 칭찬(4~5점)/지적(1~2점) 코멘트를 모아 "왜 강·약점인지"를 실제 문장으로 보여줌.
+// 메인 의뢰 피드백(suggestions)을 "[지표] 헤더 + 코멘트" 블록으로 파싱 →
+// 지표별로 칭찬(4~5점)/지적(1~2점) 코멘트를 모아 "왜 강·약점인지"를 실제 문장으로 보여줌.
 // 동일 문장은 묶어 count(언급 패널 수)로 집계. 두 저장 형식 모두 지원:
 //   ① 실제 패널 제출: "[명확성 / 4점] 코멘트"  (점수가 줄 안에 인라인)
-//   ② 시드/레거시:     "[명확성]\n코멘트"        (점수 없음 → 피드백 행의 차원 점수 컬럼에서 폴백)
-// (3점 중립·[총평]·[해당 없음]·차원 미매칭 줄은 점수 신호가 없어 제외)
+//   ② 시드/레거시:     "[명확성]\n코멘트"        (점수 없음 → 피드백 행의 지표 점수 컬럼에서 폴백)
+// (3점 중립·[총평]·[해당 없음]·지표 미매칭 줄은 점수 신호가 없어 제외)
 const KW_HEAD_RE = /^\[([^\]]+)\]\s*(.*)$/;
 function extractDimInsights(feedbacks) {
   // dimKey -> { praise: Map<text,{score,count}>, critique: Map<...> }
   const acc = {};
   DIMENSIONS.forEach(d => { acc[d.key] = { praise: new Map(), critique: new Map() }; });
   feedbacks.forEach(f => {
-    let curKey = null, curScore = null;   // 현재 블록의 차원 컬럼·점수
+    let curKey = null, curScore = null;   // 현재 블록의 지표 컬럼·점수
     const addComment = (text) => {
       const comment = text.trim();
       if (!curKey || curScore == null || !comment) return;
@@ -154,8 +154,8 @@ export default function Diagnosis() {
   const [scores, setScores] = useState({});
   const [distributions, setDistributions] = useState({});
   const [benchmarks, setBenchmarks] = useState({});
-  const [dimInsights, setDimInsights] = useState({}); // 차원별 칭찬/지적 코멘트
-  const [expandedDims, setExpandedDims] = useState(new Set()); // 더보기 펼친 차원 키
+  const [dimInsights, setDimInsights] = useState({}); // 지표별 칭찬/지적 코멘트
+  const [expandedDims, setExpandedDims] = useState(new Set()); // 더보기 펼친 지표 키
   const [missions, setMissions] = useState([]);
   const [allMissionIds, setAllMissionIds] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -511,7 +511,7 @@ export default function Diagnosis() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-                  가장 취약한 차원: <span style={{ color: worstDim.color }}>{worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)})</span>
+                  가장 취약한 지표: <span style={{ color: worstDim.color }}>{worstDim.label} ({(scores[worstDim.key] || 0).toFixed(1)})</span>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 14 }}>{worstDim.desc}</p>
                 {selectedIds.size === 1 && activeTab !== 'guide' && <Btn size="sm" variant="outline" onClick={() => handleTabChange('guide')}>전환 가이드 보기 →</Btn>}
@@ -523,7 +523,7 @@ export default function Diagnosis() {
             value={activeTab}
             onChange={handleTabChange}
             tabs={[
-              { key: 'overview', label: '차원별 점수' },
+              { key: 'overview', label: '지표별 점수' },
               { key: 'benchmark', label: '업계 벤치마크' },
               { key: 'keywords', label: '코멘트 인사이트' },
               { key: 'guide', label: '전환 가이드' },
@@ -635,7 +635,7 @@ export default function Diagnosis() {
               );
             };
 
-            // 차원 1개 카드 (worst=취약 강조, expandable=더보기)
+            // 지표 1개 카드 (worst=취약 강조, expandable=더보기)
             const renderDimCard = (key, ins, dimAvg, { worst = false, compact = false, expandable = false } = {}) => {
               const dim = DIMENSIONS.find(d => d.key === key);
               const { praise, critique } = ins;
@@ -671,7 +671,7 @@ export default function Diagnosis() {
             };
 
             if (isComparing) {
-              // 비교 모드: 의뢰별 차원 요약 (차원별 칭찬/지적 수 + 대표 지적 1건)
+              // 비교 모드: 의뢰별 지표 요약 (지표별 칭찬/지적 수 + 대표 지적 1건)
               return (
                 <div style={{ display: 'flex', gap: 16 }}>
                   {compareItems.map(({ data, color }) => {
@@ -715,19 +715,19 @@ export default function Diagnosis() {
               <Card style={{ padding: '40px', textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>분석할 코멘트가 없습니다</div>
-                <div style={{ fontSize: 13, color: 'var(--text-3)' }}>패널이 점수와 함께 남긴 코멘트가 쌓이면 차원별 강·약점이 여기에 표시됩니다.</div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)' }}>패널이 점수와 함께 남긴 코멘트가 쌓이면 지표별 강·약점이 여기에 표시됩니다.</div>
               </Card>
             );
 
-            // 점수 낮은 차원(취약)부터 정렬 — "무엇을 고칠지"가 위로
+            // 점수 낮은 지표(취약)부터 정렬 — "무엇을 고칠지"가 위로
             const ordered = [...DIMENSIONS].sort((a, b) => (scores[a.key] || 99) - (scores[b.key] || 99));
             const worstKey = ordered.find(d => (scores[d.key] || 0) > 0)?.key;
 
             return (
               <div>
                 <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20, lineHeight: 1.7 }}>
-                  각 차원에서 패널이 실제로 <b style={{ color: '#159143' }}>칭찬한 점(4~5점)</b>과 <b style={{ color: '#ca2121' }}>지적한 점(1~2점)</b>을 모았습니다.
-                  점수가 낮은 차원부터 정렬했으니, 위쪽 차원의 지적부터 개선해 보세요.
+                  각 지표에서 패널이 실제로 <b style={{ color: '#159143' }}>칭찬한 점(4~5점)</b>과 <b style={{ color: '#ca2121' }}>지적한 점(1~2점)</b>을 모았습니다.
+                  점수가 낮은 지표부터 정렬했으니, 위쪽 지표의 지적부터 개선해 보세요.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {ordered.map(d => renderDimCard(
@@ -769,15 +769,15 @@ export default function Diagnosis() {
               </Card>
             );
 
-            // 선택 의뢰 단독 점수 계산 (데이터 없는 차원은 0)
+            // 선택 의뢰 단독 점수 계산 (데이터 없는 지표은 0)
             const guideScores = {};
             DIMENSIONS.forEach(d => {
               const vals = guideFbs.map(f => f[d.key]).filter(Boolean);
               guideScores[d.key] = vals.length ? avg(vals) : 0;
             });
 
-            // 점수가 있는 차원만 대상 — 무데이터 차원이 음수로 점수를 끌어내리거나(가중치 재정규화)
-            // 취약차원으로 오선정되는 것 방지. 전 차원 무데이터면 폴백.
+            // 점수가 있는 지표만 대상 — 무데이터 지표이 음수로 점수를 끌어내리거나(가중치 재정규화)
+            // 취약지표으로 오선정되는 것 방지. 전 지표 무데이터면 폴백.
             const scoredDims = DIMENSIONS.filter(d => (guideScores[d.key] || 0) > 0);
             const totalW = scoredDims.reduce((s, d) => s + (GUIDE_WEIGHTS[d.key] || 0), 0);
             const cpScore = totalW > 0 ? Math.max(0, Math.min(100, Math.round(
@@ -786,7 +786,7 @@ export default function Diagnosis() {
             const level = GUIDE_LEVELS.find(l => cpScore >= l.min) || GUIDE_LEVELS[GUIDE_LEVELS.length - 1];
             const guideWorst = (scoredDims.length ? scoredDims : DIMENSIONS).reduce((w, d) => (guideScores[d.key] || 0) < (guideScores[w.key] || 0) ? d : w);
 
-            // 취약 차원에 점수를 낮게 준 코멘트부터(가장 날카로운 지적 우선), 동점이면 코멘트 품질 높은 순
+            // 취약 지표에 점수를 낮게 준 코멘트부터(가장 날카로운 지적 우선), 동점이면 코멘트 품질 높은 순
             const dimComments = guideFbs
               .map(f => ({ comment: extractDimComment(f, guideWorst.key), dimScore: f[guideWorst.key], quality: calcPurityScoreLocal(f) }))
               .filter(x => x.comment)
@@ -840,7 +840,7 @@ export default function Diagnosis() {
                   </div>
                 </Card>
 
-                {/* 취약 차원 인사이트 */}
+                {/* 취약 지표 인사이트 */}
                 <Card style={{ padding: '24px 28px', borderLeft: `4px solid ${guideWorst.color}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 15, fontWeight: 700 }}>⚡ 지금 집중할 한 가지</span>
@@ -853,7 +853,7 @@ export default function Diagnosis() {
 
                   {dimComments.length === 0 ? (
                     <div style={{ fontSize: 13, color: 'var(--text-3)', textAlign: 'center', padding: '20px 0' }}>
-                      이 차원에 해당하는 코멘트가 아직 없습니다.
+                      이 지표에 해당하는 코멘트가 아직 없습니다.
                     </div>
                   ) : (
                     <>

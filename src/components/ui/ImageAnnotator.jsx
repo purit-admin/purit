@@ -259,7 +259,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
           >
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>영역 설정</div>
 
-            {/* 선택된 차원 고정 표시 */}
+            {/* 선택된 지표 고정 표시 */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>평가 항목</div>
               <div style={{

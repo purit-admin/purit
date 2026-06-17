@@ -121,7 +121,7 @@ BEGIN
     WHERE f.mission_id = p_mission_id AND f.purity_passed = true
   ) s;
 
-  -- annotations: 위치/차원/점수 유지, 잠긴 패널 comment(원문 있을 때만) 마스킹
+  -- annotations: 위치/지표/점수 유지, 잠긴 패널 comment(원문 있을 때만) 마스킹
   SELECT COALESCE(jsonb_agg(row_obj ORDER BY (row_obj->>'created_at') ASC), '[]'::jsonb)
   INTO v_annotations
   FROM (

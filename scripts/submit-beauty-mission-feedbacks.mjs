@@ -25,7 +25,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-// ── 차원별 코멘트 풀 (뷰티/스킨케어 맥락) ──────────────────────────────────────
+// ── 지표별 코멘트 풀 (뷰티/스킨케어 맥락) ──────────────────────────────────────
 
 const COMMENTS = {
   clarity: {
@@ -368,7 +368,7 @@ async function main() {
     // 기존 어노테이션 삭제
     await supabase.from('feedback_annotations').delete().eq('feedback_id', feedbackId);
 
-    // 5차원 어노테이션 생성
+    // 5대 지표 어노테이션 생성
     const annotations = [];
     const dimAvgScores = {};
 

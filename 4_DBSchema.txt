@@ -491,8 +491,8 @@
     → 토큰으로 미션 조회 + purity_passed=true 피드백 집계 + 이미지 코멘트(어노테이션) + 서브 패널별 응답 반환
     → 인증 불필요 (SECURITY DEFINER), /share/:token 공개 페이지에서 사용. GRANT anon, authenticated
     → 반환 필드: title / type / description / image_urls / persona(TEXT) / created_at /
-                 feedback_count / share_permissions / scores(5차원) /
-                 feedbacks(익명 배열: idx·suggestions·★custom_answers·5차원점수) /
+                 feedback_count / share_permissions / scores(5대 지표) /
+                 feedbacks(익명 배열: idx·suggestions·★custom_answers·5대 지표점수) /
                  annotations(배열: dimension·x_pct·y_pct·w_pct·h_pct·comment·score·image_index) /
                  ★ sub_panel_responses(서브 의뢰 패널별 전체 응답 행 — 점수·코멘트(comment/key_comment)·custom_answers·panel_industry·panel_experience)
                    → 클라(ShareResult)가 Results 서브 렌더러로 직접 집계 (구 sub_responses 집계본 폐지)

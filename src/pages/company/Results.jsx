@@ -585,7 +585,7 @@ export function EmailResults({ responses, mission, panelProfiles, companyId, hel
   );
 }
 
-/* ─── 이미지 미션: 차원 탭 뷰 ─── */
+/* ─── 이미지 미션: 지표 탭 뷰 ─── */
 /* ─── 무료 체험 잠금 오버레이 ─── */
 function LockOverlay({ onUnlock, label = '🔒 잠금 해제 후 열람' }) {
   return (
@@ -680,7 +680,7 @@ function DimTabView({ dim, imageUrls, currentImageIdx, setCurrentImageIdx, allAn
         })()}
         {allDimAnns.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-            이 차원에 남겨진 이미지 코멘트가 없습니다.
+            이 지표에 남겨진 이미지 코멘트가 없습니다.
           </div>
         ) : (
           <div>
@@ -1624,7 +1624,7 @@ export default function Results() {
                   </Card>
                 )}
 
-                {/* 이미지 미션 — 차원 탭 뷰 */}
+                {/* 이미지 미션 — 지표 탭 뷰 */}
                 {hasImages && (
                   <div>
                     {/* 탭 버튼 */}

@@ -454,7 +454,7 @@ export default function ActiveMission() {
     load();
   }, [missionId, resubmitId]);
 
-  // 이미지 미션 자동 저장 (LP 질문 응답 + 총평 + 차원 건너뛰기)
+  // 이미지 미션 자동 저장 (LP 질문 응답 + 총평 + 지표 건너뛰기)
   useEffect(() => {
     if (!draftId || !hasImages || isSubMission || step < 1) return;
     clearTimeout(autoSaveTimer.current);
@@ -536,17 +536,17 @@ export default function ActiveMission() {
 
   const handleResume = () => { setStep(1); };
 
-  // 현재 차원+이미지에 코멘트 미작성 영역이 있는지 (경고·차단 판단용)
+  // 현재 지표+이미지에 코멘트 미작성 영역이 있는지 (경고·차단 판단용)
   const hasEmptyCommentAt = (dim, imgIdx) =>
     annotations.some(a => a.dimension === dim && a.image_index === imgIdx && !(a.comment || '').trim());
 
-  // 차원 뱃지 전환 시도 — ①미작성 코멘트 있으면 차단+경고 ②선택 차원이 다른 이미지에만 있으면 그 이미지로 이동
+  // 지표 뱃지 전환 시도 — ①미작성 코멘트 있으면 차단+경고 ②선택 지표이 다른 이미지에만 있으면 그 이미지로 이동
   const attemptSwitchDimension = (key) => {
     if (key === activeDimension) return;
     if (hasEmptyCommentAt(activeDimension, currentImageIdx)) { setCommentWarn(true); return; }
     setCommentWarn(false);
     setActiveDimension(key);
-    // 선택한 차원의 어노테이션이 현재 이미지에 없고 다른 이미지에 있으면 → 적어둔 이미지로 자연스럽게 이동
+    // 선택한 지표의 어노테이션이 현재 이미지에 없고 다른 이미지에 있으면 → 적어둔 이미지로 자연스럽게 이동
     const onCurrent = annotations.some(a => a.dimension === key && a.image_index === currentImageIdx);
     if (!onCurrent) {
       const target = annotations.filter(a => a.dimension === key).map(a => a.image_index).sort((x, y) => x - y)[0];
@@ -594,7 +594,7 @@ export default function ActiveMission() {
     setAnnotations(prev => prev.filter(a => a.id !== annId));
   };
 
-  // 차원 건너뛰기 토글 — 스킵 시 해당 차원 어노테이션 일괄 삭제
+  // 지표 건너뛰기 토글 — 스킵 시 해당 지표 어노테이션 일괄 삭제
   const toggleSkipDim = async (dim) => {
     const willSkip = !skippedDims[dim];
     if (willSkip && draftId) {
@@ -1478,7 +1478,7 @@ export default function ActiveMission() {
     const imageUrls = mission.image_urls;
     const curAnns   = annotations.filter(a => a.image_index === currentImageIdx && a.dimension === activeDimension);
 
-    // 코멘트 미작성(빈 코멘트) 영역이 하나라도 있으면 미완료 — 차원 완료·총평 진입·제출 모두 차단
+    // 코멘트 미작성(빈 코멘트) 영역이 하나라도 있으면 미완료 — 지표 완료·총평 진입·제출 모두 차단
     const hasEmptyComment = annotations.some(a => !(a.comment || '').trim());
     const dimDone = Object.fromEntries(
       Object.keys(DIM_META).map(k => [k, annotations.some(a => a.dimension === k && (a.comment || '').trim()) || skippedDims[k]])
@@ -1512,7 +1512,7 @@ export default function ActiveMission() {
           </div>
         )}
 
-        {/* 차원 선택 탭 — 전체 폭, split 위에 배치 */}
+        {/* 지표 선택 탭 — 전체 폭, split 위에 배치 */}
         <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8 }}>
           아래 탭을 클릭하고 이미지를 드래그하세요. 같은 탭에서 여러 번 드래그 할 수 있습니다.
         </p>
@@ -1559,7 +1559,7 @@ export default function ActiveMission() {
           })}
         </div>
 
-        {/* 현재 활성 차원 — 피드백 없음 체크박스 — 콘텐츠 너비만큼 */}
+        {/* 현재 활성 지표 — 피드백 없음 체크박스 — 콘텐츠 너비만큼 */}
         <div style={{ display: 'inline-flex', alignItems: 'center', marginBottom: 12, padding: '7px 12px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)', userSelect: 'none' }}>
             <input
@@ -1570,7 +1570,7 @@ export default function ActiveMission() {
             />
             <span>
               <strong style={{ color: DIM_META[activeDimension]?.color }}>{DIM_META[activeDimension]?.label}</strong>
-              {' '}차원에는 피드백할 내용이 없습니다
+              {' '}지표에는 피드백할 내용이 없습니다
             </span>
           </label>
         </div>
@@ -1734,7 +1734,7 @@ export default function ActiveMission() {
               </div>
             ) : hasEmptyComment ? (
               <div style={{ marginTop: 8, padding: '14px 16px', background: 'rgba(239,68,68,0.06)', border: '1.5px dashed rgba(239,68,68,0.45)', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 600, color: 'var(--red,#ef4444)', textAlign: 'center', lineHeight: 1.6 }}>
-                작성하지 않은 코멘트가 있어 총평으로 넘어갈 수 없습니다.<br />각 차원 탭에서 빈 코멘트를 채우거나 영역을 삭제해 주세요.
+                작성하지 않은 코멘트가 있어 총평으로 넘어갈 수 없습니다.<br />각 지표 탭에서 빈 코멘트를 채우거나 영역을 삭제해 주세요.
               </div>
             ) : (
               <button
@@ -1755,7 +1755,7 @@ export default function ActiveMission() {
         {allDimsDone && allImagesViewed && !hasEmptyComment && (
           <div ref={bottomSectionRef} style={{ marginTop: 32, borderTop: '2px solid var(--border)', paddingTop: 28 }}>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: '#16a34a', marginBottom: 16, letterSpacing: '0.06em', fontWeight: 700 }}>
-              ✓ 모든 차원 평가 완료 — 총평 및 추가 질문을 작성해 주세요
+              ✓ 모든 지표 평가 완료 — 총평 및 추가 질문을 작성해 주세요
             </div>
 
             {lpTypedQs.length > 0 && (

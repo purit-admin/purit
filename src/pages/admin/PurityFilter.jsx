@@ -1393,7 +1393,7 @@ export default function PurityFilter() {
             <textarea
               value={rejectNote}
               onChange={e => setRejectNote(e.target.value)}
-              placeholder="예) 피드백이 너무 짧고 구체적인 근거가 없습니다. 각 차원마다 30자 이상의 이유를 작성해 주세요."
+              placeholder="예) 피드백이 너무 짧고 구체적인 근거가 없습니다. 각 지표마다 30자 이상의 이유를 작성해 주세요."
               rows={4}
               style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--border)', padding: '10px 12px', fontSize: 13, color: 'var(--text)', lineHeight: 1.6, resize: 'vertical', fontFamily: 'var(--font-sans)', outline: 'none' }}
             />

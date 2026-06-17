@@ -35,7 +35,7 @@ const MISSION_DATA = {
   industry: 'SaaS/소프트웨어',
   productDescription: 'Purit는 기업이 실제 타겟 패널에게 마케팅 소재를 검증받는 CRO 플랫폼입니다. 주 타겟은 마케팅 비용 대비 성과가 떨어진다고 느끼는 B2B SaaS 마케터 및 스타트업 대표입니다.',
   assetType: 'image',
-  variantAText: '지금 쓰는 마케팅 비용, 얼마나 낭비되고 있나요?\nPurit로 실제 타겟에게 검증받고 전환율을 2배로 높이세요.\n✓ 48시간 내 피드백  ✓ 5차원 정량 분석  ✓ 패널 100% 검증',
+  variantAText: '지금 쓰는 마케팅 비용, 얼마나 낭비되고 있나요?\nPurit로 실제 타겟에게 검증받고 전환율을 2배로 높이세요.\n✓ 48시간 내 피드백  ✓ 5대 지표 정량 분석  ✓ 패널 100% 검증',
   variantBText: '전환율 40% 개선, 데이터가 증명합니다.\n실제 구매 의사결정자 100명의 피드백으로\n랜딩페이지를 완성하세요.\n→ 지금 무료 체험',
   panelCount: 10,
   careerLevels: ['junior', 'middle', 'senior'],

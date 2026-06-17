@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
 종합 점수: ${overallScore.toFixed(2)}/5
 
 ${missionContext ? `[미션 컨텍스트]\n${missionContext}\n` : ''}
-[5차원 점수]
+[5대 지표 점수]
 ${scoreLines}
 
 [패널 코멘트 — 신뢰도 높은 순 최대 10개]

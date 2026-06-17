@@ -1,6 +1,7 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-16 (공유 페이지(ShareResult) 결과 화면과 완전 동일화 — 서브 의뢰는 Results 서브 렌더러 재사용(점수·총평·추가질문 드롭다운·뱃지)·서브 공개 토글 제거(항상 공개)·메인 이미지 sticky 고정·레이더 domain[0,5] 고정 / get_shared_mission 확장: 메인 feedbacks.custom_answers + 서브 sub_panel_responses(승인 패널만) 추가, 서브 게이트 무료체험 잠김만 / 공유 권한 토글 라벨 '코멘트'→'총평'·'어노테이션'→'이미지 코멘트'(메인 전용) / 전 포털 용어 '어노테이션'→'이미지 코멘트' 전수 교체 / 브랜드 'Purity/PURITY'→'Purit/PURIT' 사용자 노출 전수 교체 / migration 106 / D-149 공개RPC 재사용 시 원본화면 exclusion필터 복제 누락 누출 · D-150 CSS grid repeat(N,1fr)+고정폭 자식 오버플로) / 2026-06-16 (어드민 의뢰 완료 알림 body에 환불 크레딧액 포함 — "잔여 크레딧 N cr이 환불되었습니다"(환불 0이면 금액 문구 생략). admin/Missions가 complete_mission_and_refund 반환값 credits_refunded 사용) / 2026-06-16 (어드민 알림 딥링크 전면 보강 + 알림센터 탭 3→5 분리(의뢰/무료체험/피드백/패널/버그) — 발송측 action_url에 대상 id 부착(missions?missionId·trials?id·purity?feedbackId·panels?panelId·reports?id), 수신 페이지(PurityFilter·PanelManagement·BugReports)에 ?쿼리 수신 effect 추가, notify_admin_on_feedback_submitted에 p_feedback_id 추가 / migration 102 / D-146 알림 딥링크는 location.state 전달 불가·쿼리만 가능 함정)
+최종 업데이트: 2026-06-17 (전 포털 사용자노출 용어 '차원'→'지표' 전수 통일 — '5대 지표 진단' 명칭 일관화. 화면 노출 텍스트(기업 Diagnosis·Results / 패널 ActiveMission / 어드민 PurityFilter 반려 placeholder / 공유 ShareResult)·AI 리포트 프롬프트([5대 지표 점수])·코드 주석·테스트 스크립트·전 .txt 문서 본문 동반 치환. DB컬럼(clarity_score 등)·내부 식별자(dimension·DIMS·activeDimension 등 영문)·DIM 지표키는 불변. 빌드 검증 완료)
+            2026-06-16 (공유 페이지(ShareResult) 결과 화면과 완전 동일화 — 서브 의뢰는 Results 서브 렌더러 재사용(점수·총평·추가질문 드롭다운·뱃지)·서브 공개 토글 제거(항상 공개)·메인 이미지 sticky 고정·레이더 domain[0,5] 고정 / get_shared_mission 확장: 메인 feedbacks.custom_answers + 서브 sub_panel_responses(승인 패널만) 추가, 서브 게이트 무료체험 잠김만 / 공유 권한 토글 라벨 '코멘트'→'총평'·'어노테이션'→'이미지 코멘트'(메인 전용) / 전 포털 용어 '어노테이션'→'이미지 코멘트' 전수 교체 / 브랜드 'Purity/PURITY'→'Purit/PURIT' 사용자 노출 전수 교체 / migration 106 / D-149 공개RPC 재사용 시 원본화면 exclusion필터 복제 누락 누출 · D-150 CSS grid repeat(N,1fr)+고정폭 자식 오버플로) / 2026-06-16 (어드민 의뢰 완료 알림 body에 환불 크레딧액 포함 — "잔여 크레딧 N cr이 환불되었습니다"(환불 0이면 금액 문구 생략). admin/Missions가 complete_mission_and_refund 반환값 credits_refunded 사용) / 2026-06-16 (어드민 알림 딥링크 전면 보강 + 알림센터 탭 3→5 분리(의뢰/무료체험/피드백/패널/버그) — 발송측 action_url에 대상 id 부착(missions?missionId·trials?id·purity?feedbackId·panels?panelId·reports?id), 수신 페이지(PurityFilter·PanelManagement·BugReports)에 ?쿼리 수신 effect 추가, notify_admin_on_feedback_submitted에 p_feedback_id 추가 / migration 102 / D-146 알림 딥링크는 location.state 전달 불가·쿼리만 가능 함정)
             2026-06-16 (가입 휴대폰 인증 Mock OTP + /verify-phone 게이트 — 이메일 가입 폼 인라인 인증(metadata 전달→handle_new_user 저장)·Google 가입자는 가입 후 게이트(save_my_phone RPC)·RoleRoute가 user_metadata.phone_verified로 미인증 기업/패널 차단(admin 제외)·알림톡 전 사용자 도달 목적·migration 101/103 / D-144 team_members self-UPDATE RLS 권한상승 함정 / D-145 StrictMode useState 초기화 부작용)
             2026-06-16 (패널 알림에 '피드백 승인 취소'(PurityFilter reset 승인됨→검토대기 되돌리기) 추가 — actionUrl /panel/history, 보상 직결로 항상 발송 / 반려 취소 시 honor_points -5 복원 / 어드민 피드백·미션·패널 관리 3페이지 양방향 교차 이동 버튼 + 뒤로가기 복원)
             2026-06-13 (랜딩 / 디자인 전면 교체 — design_handoff 이식 + landing.css(.purit-landing 스코프)·Pretendard / "작동 방식(5분 등록·48시간)" 섹션만 기존 유지 / 카피 기업고객 관점 정리: 48시간 통일·시니어/헤드급·전환율40%·광고비800만원·후기 수치·CTA 안심 라인)
@@ -118,7 +119,7 @@
 - /share/:token : ShareResult.jsx (공개, 인증 불필요) ★ 결과 화면과 동일화 전면 개편 (migration 106)
   - 상단 로고·푸터 브랜드 표기 "PURIT"/"Purit" (구 "PURITY"/"Purity" 전수 교체, 브랜드 통일)
   - get_shared_mission(p_token) SECURITY DEFINER RPC 호출 (migration 106 확장 — 추가 질문 응답 포함)
-  - 미션 제목·페르소나·피드백 수·5차원 평균 점수(레이더+바) 표시
+  - 미션 제목·페르소나·피드백 수·5대 지표 평균 점수(레이더+바) 표시
     · 레이더는 PolarRadiusAxis domain=[0,5] 고정 (구: 축 미고정으로 최댓값이 끝까지 차 보이던 버그 수정)
   - 토큰 없거나 만료 시 404 화면
   - ★ 서브 의뢰(소재/가격/이메일): 결과 화면(Results)의 PreferenceResults/PricingResults/EmailResults 렌더러를
@@ -134,14 +135,14 @@
     · 이미지 코멘트 공개(show_annotations): 이미지 위 코멘트(어노테이션) 섹션 노출 여부 (구 라벨 '어노테이션' → '이미지 코멘트')
     · 무료 체험 미언락(is_free_trial AND NOT trial_unlocked) 시 서버가 강제 비공개 (페이월, D-136)
   - 이미지 코멘트 뷰어 (구 '이미지 어노테이션 뷰어'):
-    · 이미지 탭 (복수 이미지 시): 전환 시 강조·차원 필터 초기화
-    · 차원 탭 5개 항상 표시 (코멘트 없어도 숨기지 않음)
+    · 이미지 탭 (복수 이미지 시): 전환 시 강조·지표 필터 초기화
+    · 지표 탭 5개 항상 표시 (코멘트 없어도 숨기지 않음)
       - 탭 카운트: 전체 이미지 합산 건수 표시
-      - 코멘트 없는 차원: 회색 텍스트로 표시
+      - 코멘트 없는 지표: 회색 텍스트로 표시
     · 이미지(좌, sticky) + 코멘트 패널(우) 2열 레이아웃
-      - ImageAnnotator readonly 모드: 차원 탭 필터 적용 코멘트만 표시
+      - ImageAnnotator readonly 모드: 지표 탭 필터 적용 코멘트만 표시
       - 코멘트 클릭 → highlightedId로 해당 박스만 강조, 재클릭 해제
-    · ANN_DIMS: ImageAnnotator와 동일한 차원별 색상 사용
+    · ANN_DIMS: ImageAnnotator와 동일한 지표별 색상 사용
   ※ 용어 통일(전 포털): "어노테이션" → "이미지 코멘트" (기업·패널·어드민·공유 사용자 노출 문구 전수 교체, DB컬럼 feedback_annotations·내부 식별자는 불변)
 - /*/notifications : NotificationCenter.jsx (역할별 알림, 각 포털 공유)
   - 알림 클릭 시 action_url 페이지로 자동 이동 (읽음 처리 동시)

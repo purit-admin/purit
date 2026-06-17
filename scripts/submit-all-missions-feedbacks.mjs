@@ -3,8 +3,8 @@
  * 패널 1~10 완전한 피드백 자동 제출 스크립트
  *
  * 메인(LP검증):
- *   - 5차원 이미지 어노테이션 (좌표+점수+코멘트, 다중 이미지 분산)
- *   - 패널별 랜덤 skip 차원 (어노테이션 없이 넘어감)
+ *   - 5대 지표 이미지 어노테이션 (좌표+점수+코멘트, 다중 이미지 분산)
+ *   - 패널별 랜덤 skip 지표 (어노테이션 없이 넘어감)
  *   - LP 추가 질문 custom_answers (scale/radio/text)
  * 서브(preference/pricing/email):
  *   - 타입별 응답 테이블 INSERT
@@ -61,7 +61,7 @@ const PANEL_PROFILES = [
 ];
 
 // ══════════════════════════════════════════════════════════════
-// 코멘트 풀 — 메인(LP) 5차원
+// 코멘트 풀 — 메인(LP) 5대 지표
 // ══════════════════════════════════════════════════════════════
 
 const COMMENTS = {
@@ -365,7 +365,7 @@ async function submitMainFeedback(mission, panel, panelIdx) {
   for (let di = 0; di < DIMENSIONS.length; di++) {
     const dim = DIMENSIONS[di];
 
-    // skip 차원: 어노테이션 없이 넘어감 (패널별 1개 차원만 skip)
+    // skip 지표: 어노테이션 없이 넘어감 (패널별 1개 지표만 skip)
     if (profile.skipDim === dim) {
       dimAvgScores[dim] = null;
       console.log(`     ↷ ${DIM_LABELS[dim]} skip`);
@@ -404,7 +404,7 @@ async function submitMainFeedback(mission, panel, panelIdx) {
 
   // suggestions 조합
   const lines = DIMENSIONS.map(dim => {
-    if (profile.skipDim === dim) return `[${DIM_LABELS[dim]}]\n(해당 차원 검증할 내용 없음)`;
+    if (profile.skipDim === dim) return `[${DIM_LABELS[dim]}]\n(해당 지표 검증할 내용 없음)`;
     const anns = annotations.filter(a => a.dimension === dim);
     return `[${DIM_LABELS[dim]}]\n${anns.map(a => a.comment).join('\n')}`;
   });

@@ -304,7 +304,7 @@ export function Step3Animation() {
         <MockBar label="피드백 결과 대시보드" />
 
         <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 7, flex: 1, minHeight: 0 }}>
-          {/* 차원 탭 */}
+          {/* 지표 탭 */}
           <div style={{
             display: 'flex', gap: 3, flexWrap: 'nowrap', overflow: 'hidden',
             opacity: phase >= 1 ? 1 : 0,

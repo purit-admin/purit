@@ -346,7 +346,7 @@ export default function ShareResult() {
               </div>
             )}
 
-            {/* 차원 탭 */}
+            {/* 지표 탭 */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
               <button onClick={() => { setActiveDim('all'); setHighlightedId(null); }}
                 style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid',
