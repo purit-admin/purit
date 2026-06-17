@@ -5,6 +5,36 @@ import { supabase } from '../../lib/supabase';
 const INDUSTRIES = ['이커머스 마케터', 'B2B SaaS 세일즈', '스타트업 PM', 'B2B 영업', '퍼포먼스 마케터', '브랜드 마케터', 'CRO 전문가', '콘텐츠 마케터', '스타트업 대표', '그로스 마케터', '프로덕트 마케터(PMM)', 'CRM 마케터', 'SNS·소셜 마케터', 'SEO 전문가', 'UX/UI 디자이너', '마케팅 데이터 분석가', '기타'];
 const EXPERTISE  = ['랜딩페이지 전환', '카피라이팅', '가격 전략', 'B2B 세일즈 카피', 'UX 설계', '이메일 마케팅', 'SNS 광고', '고객 인터뷰', '데이터 분석'];
 
+// ── 아바타 개인화 (108) ──────────────────────────────────────────────────────
+// A) 이름 해시 컬러: 시드(panel.id)를 해시 → 디자인 톤 팔레트 중 하나로 자동 배정.
+//    이름을 바꿔도 색이 흔들리지 않도록 시드는 고정값(panel.id)을 사용. 글자색은 모두 흰색.
+const AVATAR_PALETTE = [
+  { from: '#10367D', to: '#0C2A62' }, // navy
+  { from: '#4F46E5', to: '#3730A3' }, // indigo
+  { from: '#0E7490', to: '#155E75' }, // teal
+  { from: '#047857', to: '#065F46' }, // emerald
+  { from: '#B45309', to: '#92400E' }, // amber-brown
+  { from: '#BE185D', to: '#9D174D' }, // pink
+  { from: '#7C3AED', to: '#5B21B6' }, // violet
+  { from: '#C2410C', to: '#9A3412' }, // orange
+  { from: '#0F766E', to: '#115E59' }, // teal-deep
+  { from: '#1D4ED8', to: '#1E3A8A' }, // blue
+  { from: '#9333EA', to: '#6B21A8' }, // purple
+  { from: '#DB2777', to: '#A21CAF' }, // fuchsia
+];
+function avatarColor(seed) {
+  const s = String(seed || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+}
+// B) 이모지 아바타: 패널이 직접 고르는 표현. 미선택 시 A(해시 컬러 + 이니셜)로 폴백.
+const AVATAR_EMOJIS = [
+  '🦊', '🐻', '🦉', '🐱', '🦁', '🐧', '🐰', '🐼',
+  '🦄', '🐲', '🦅', '🐺', '🐯', '🦝', '🐨', '🐸',
+  '🚀', '🎯', '🌟', '⚡', '💎', '🔥', '🎨', '🧠',
+];
+
 const BADGE_CATALOG = [
   { key: '영점_조준',    name: '영점 조준',    tier: 'rookie', hidden: false, desc: 'Purit Filter를 처음으로 통과했습니다.' },
   { key: '유효_타격',    name: '유효 타격',    tier: 'rookie', hidden: false, desc: '기업에게 "도움 됨" 평가를 처음 받았습니다.' },
@@ -187,6 +217,9 @@ export default function PanelProfile() {
   const [bankAccount, setBankAccount] = useState('');
   const [bankHolder, setBankHolder]   = useState('');
   const [selectedBadge, setSelectedBadge] = useState(null);
+  const [avatarEmoji, setAvatarEmoji] = useState(null);
+  const [avatarColor_, setAvatarColor_] = useState(null); // 선택 팔레트 인덱스(문자열) or null=자동
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [phone, setPhone]             = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [otpSent, setOtpSent]         = useState(false);
@@ -222,6 +255,8 @@ export default function PanelProfile() {
         setPhone(p.phone || '');
         setPhoneVerified(p.phone_verified || false);
         setSelectedBadge(p.selected_badge || null);
+        setAvatarEmoji(p.avatar_emoji || null);
+        setAvatarColor_(p.avatar_color ?? null);
         setNotifPrefs(p.notif_prefs || {});
         setOrig({
           name: p.name || '', industry: p.industry || '',
@@ -275,6 +310,29 @@ export default function PanelProfile() {
     setExpertise(prev =>
       prev.includes(e) ? prev.filter(x => x !== e) : prev.length >= 5 ? prev : [...prev, e]
     );
+
+  // 아바타 이모지 선택 — selected_badge와 동일한 낙관적 업데이트(실패 시 롤백) 패턴
+  const handleSelectAvatarEmoji = async (emoji) => {
+    if (!panel) return;
+    const prev = avatarEmoji;
+    const newVal = avatarEmoji === emoji ? null : emoji; // 같은 이모지 재클릭 → 해제(이니셜로)
+    setAvatarEmoji(newVal);
+    setShowAvatarPicker(false);
+    const { error } = await supabase.from('panels').update({ avatar_emoji: newVal }).eq('id', panel.id);
+    if (error) setAvatarEmoji(prev);
+    else setPanel(p => ({ ...p, avatar_emoji: newVal }));
+  };
+
+  // 아바타 배경색 선택 — 같은 색 재클릭 시 자동(해시)로 되돌림(null)
+  const handleSelectAvatarColor = async (idx) => {
+    if (!panel) return;
+    const prev = avatarColor_;
+    const newVal = avatarColor_ === String(idx) ? null : String(idx);
+    setAvatarColor_(newVal);
+    const { error } = await supabase.from('panels').update({ avatar_color: newVal }).eq('id', panel.id);
+    if (error) setAvatarColor_(prev);
+    else setPanel(p => ({ ...p, avatar_color: newVal }));
+  };
 
   const isDirty = orig ? (() => {
     if (tab === 'profile') return name !== orig.name || industry !== orig.industry || experience !== orig.experience || bio !== orig.bio || JSON.stringify([...expertise].sort()) !== JSON.stringify([...orig.expertise].sort());
@@ -343,13 +401,105 @@ export default function PanelProfile() {
 
       {/* Profile header */}
       <Card style={{ marginBottom: 24, padding: '24px', display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-        <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 26, fontWeight: 800, color: '#0A0A08', flexShrink: 0,
-        }}>
-          {(name || '?')[0]}
+        {/* 원형 아바타 — 이모지(선택) 또는 이름 해시 컬러 + 이니셜(기본). 클릭 시 이모지 피커 */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          {(() => {
+            // 선택색(유효 인덱스)이면 그 색, 아니면 panel.id 해시 자동색으로 폴백(범위 이탈·스테일 값 방어)
+            const c = (avatarColor_ != null && AVATAR_PALETTE[Number(avatarColor_)]) || avatarColor(panel?.id);
+            return (
+              <button
+                type="button"
+                onClick={() => setShowAvatarPicker(v => !v)}
+                title="아바타 변경"
+                style={{
+                  width: 64, height: 64, borderRadius: '50%', border: 'none', padding: 0,
+                  background: `linear-gradient(135deg, ${c.from}, ${c.to})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: avatarEmoji ? 32 : 26, fontWeight: 800,
+                  color: '#fff', cursor: 'pointer', lineHeight: 1,
+                }}
+              >
+                {avatarEmoji || (name || '?')[0]}
+              </button>
+            );
+          })()}
+          {/* 편집 표시 점 */}
+          <div style={{
+            position: 'absolute', right: 0, bottom: 0,
+            width: 20, height: 20, borderRadius: '50%', background: 'var(--accent)',
+            border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, color: '#fff', pointerEvents: 'none',
+          }}>✎</div>
+
+          {/* 이모지 피커 팝오버 */}
+          {showAvatarPicker && (
+            <>
+              <div onClick={() => setShowAvatarPicker(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 90 }} />
+              <div style={{
+                position: 'absolute', top: 72, left: 0, zIndex: 91,
+                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+                padding: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', width: 264,
+              }}>
+                {/* 배경색 선택 */}
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>배경색</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginBottom: 14 }}>
+                  {AVATAR_PALETTE.map((c, idx) => {
+                    const selected = avatarColor_ === String(idx);
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectAvatarColor(idx)}
+                        title={selected ? '자동(랜덤)으로 되돌리기' : '이 색으로'}
+                        style={{
+                          width: '100%', aspectRatio: '1', borderRadius: '50%', cursor: 'pointer',
+                          background: `linear-gradient(135deg, ${c.from}, ${c.to})`,
+                          border: selected ? '2px solid var(--text)' : '2px solid transparent',
+                          outline: selected ? '2px solid #fff' : 'none', outlineOffset: -4,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* 이모지 선택 */}
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>이모지</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
+                  {/* 기본(이니셜) 리셋 칸 */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectAvatarEmoji(avatarEmoji)}
+                    title="기본(이니셜)로"
+                    disabled={!avatarEmoji}
+                    style={{
+                      gridColumn: '1 / -1', height: 32, borderRadius: 8, cursor: avatarEmoji ? 'pointer' : 'default',
+                      border: '1px dashed var(--border)', background: 'transparent',
+                      fontSize: 12, fontWeight: 600, color: avatarEmoji ? 'var(--text-2)' : 'var(--text-3)',
+                      marginBottom: 4,
+                    }}
+                  >
+                    기본(이니셜)로 되돌리기
+                  </button>
+                  {AVATAR_EMOJIS.map(em => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => handleSelectAvatarEmoji(em)}
+                      style={{
+                        width: '100%', aspectRatio: '1', borderRadius: 8, cursor: 'pointer',
+                        border: avatarEmoji === em ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        background: avatarEmoji === em ? 'var(--accent-dim)' : 'var(--bg-2)',
+                        fontSize: 22, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>

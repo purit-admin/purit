@@ -1,6 +1,7 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-16 (106 get_shared_mission 확장 — 공유 페이지를 결과 화면과 동일화: 메인 feedbacks에 custom_answers 추가 + 서브 sub_panel_responses(패널별 전체 응답 행: 점수·코멘트·custom_answers·panel_industry/experience, 승인 패널만=결과화면 동일집합 D-149) 신규 반환·구 sub_responses 집계본 폐지. 서브는 show_comments 무관(공개 토글 없음)·무료체험 잠김만 비공개. GRANT anon/authenticated) / 2026-06-16 (105 명예 포인트 0바닥 가역 정확화 — feedback_helpfulness_ratings.applied_hp_delta·feedbacks.rejection_honor_delta 컬럼 신설 + rate_panel_feedback_helpfulness 재작성(실제 적용량 기록·역적용·FOR UPDATE) + reject_feedback_honor/restore_feedback_honor 신규 RPC(어드민 게이트). 0바닥 클램프가 가역 연산 되돌림 시 증발분 과다적립하던 버그 D-148 / 107 rate_panel_feedback_helpfulness 대상 소유권 검증 3종 추가(ref 실재·ref.panel_id==p_panel_id·미션 소유 기업 일치)로 셸 기업 honor 부풀리기 차단 니체-HonorIDOR — 별도 작업 106_shared_mission과 충돌로 107 부여)
+최종 업데이트: 2026-06-17 (108 패널 프로필 아바타 개인화 — panels.avatar_emoji·avatar_color 컬럼 신설. avatar_emoji=선택 이모지(NULL=이름 이니셜), avatar_color=AVATAR_PALETTE 인덱스 문자열 '0'~'11'(NULL=panel.id 해시 자동색). 본인 self-UPDATE RLS 경유(권한 컬럼 아님, D-144 무관)·본인 프로필 화면 전용으로 기업 비노출)
+            2026-06-16 (106 get_shared_mission 확장 — 공유 페이지를 결과 화면과 동일화: 메인 feedbacks에 custom_answers 추가 + 서브 sub_panel_responses(패널별 전체 응답 행: 점수·코멘트·custom_answers·panel_industry/experience, 승인 패널만=결과화면 동일집합 D-149) 신규 반환·구 sub_responses 집계본 폐지. 서브는 show_comments 무관(공개 토글 없음)·무료체험 잠김만 비공개. GRANT anon/authenticated) / 2026-06-16 (105 명예 포인트 0바닥 가역 정확화 — feedback_helpfulness_ratings.applied_hp_delta·feedbacks.rejection_honor_delta 컬럼 신설 + rate_panel_feedback_helpfulness 재작성(실제 적용량 기록·역적용·FOR UPDATE) + reject_feedback_honor/restore_feedback_honor 신규 RPC(어드민 게이트). 0바닥 클램프가 가역 연산 되돌림 시 증발분 과다적립하던 버그 D-148 / 107 rate_panel_feedback_helpfulness 대상 소유권 검증 3종 추가(ref 실재·ref.panel_id==p_panel_id·미션 소유 기업 일치)로 셸 기업 honor 부풀리기 차단 니체-HonorIDOR — 별도 작업 106_shared_mission과 충돌로 107 부여)
             2026-06-16 (104 패널 반려 피드백 삭제 분리 — feedbacks.revision_dismissed 컬럼 신설 + dismiss_rejected_feedback이 dismissed→revision_dismissed로 SET 변경. [수정 필요] 탭 삭제=revision_dismissed(지급 거절 유지) / [지급 거절] 탭 삭제=dismissed(전체 숨김, delete_rejected_feedback 불변). 같은 dismissed 공유 시 [수정 필요] 삭제가 [지급 거절]까지 지워 모달 약속 위반하던 버그 수정)
             2026-06-16 (102 어드민 알림 딥링크 — 트리거/RPC 6종 action_url에 대상 id 부착: notify_admin_on_mission·notify_company_on_slots_full(missions?missionId), notify_admin_on_feedback_submitted(purity?feedbackId, p_feedback_id 파라미터 추가→DROP 2-param후 3-param 재생성+GRANT), notify_admin_on_new_panel·notify_admin_on_panel_resubmit(panels?panelId), notify_admin_on_bug_report(reports?id). 트리거함수 5종은 CREATE OR REPLACE라 트리거 재생성 불필요. D-146)
             2026-06-16 (가입 휴대폰 인증 — 101 handle_new_user 재정의(INSERT에 phone·phone_verified 추가, metadata에서) + companies.phone_verified 컬럼 신설 / 103 save_my_phone(p_phone) SECURITY DEFINER RPC 신설: 본인 행(panels/companies/team_members)에만 phone·phone_verified 저장, VerifyPhone 게이트가 호출 + team_members.phone/phone_verified 컬럼 신설 / team_members self-UPDATE RLS=권한상승이라 컬럼한정 DEFINER RPC로 우회 D-144)
@@ -90,6 +91,8 @@
   is_expert               BOOLEAN     NOT NULL DEFAULT FALSE ← 085 추가 (무료 체험 선점용 전문가 패널 — 결과 "공개 2건" 우선순위 / get_panel_public_profiles 반환, scripts/create-expert-panels.mjs로 세팅)
   rejection_count         INTEGER     DEFAULT 0             ← 082 추가 (누적 심사 거절 횟수; 3 도달 시 banned)
   rejection_reason        TEXT                              ← 082 추가 (최근 거절 사유; 패널에게 표시, 재제출 시 NULL 클리어)
+  avatar_emoji            TEXT        DEFAULT NULL          ← 108 추가 (프로필 아바타 이모지; NULL=이름 이니셜 표시. 본인 프로필 화면 전용·기업 비노출)
+  avatar_color            TEXT        DEFAULT NULL          ← 108 추가 (아바타 배경색 = AVATAR_PALETTE 인덱스 문자열 '0'~'11'; NULL=panel.id 해시 자동색)
   ※ experience(TEXT)는 파생 필드로 유지: 095부터 헤드 포함 항상 'N년'으로 동기화(구 '임원' 특수텍스트 폐지)
      → 배율/크레딧을 연차 숫자 기반으로 통일. getExperienceMultiplier/CareerKey·보상·미션필터·기업타겟팅 등 다운스트림 코드 불변
      → 연차 밴드(095): 주니어 2~4(1.0×) / 미들 5~7(1.5×) / 시니어 8~14(2.0×) / 헤드 15+(3.0×). 내부 key 'clevel'(헤드) 유지
@@ -104,6 +107,7 @@
   ※ 080_portfolio_file_url.sql 에서 portfolio_file_url 컬럼 추가 (포트폴리오 링크/파일 분리)
   ※ 081_panel_experience_confirmation.sql 에서 experience_years / experience_confirmed_at / is_executive 컬럼 추가 + 기존 패널 백필
   ※ 082_panel_rejection_flow.sql 에서 rejection_count / rejection_reason 컬럼 추가 (심사 거절·재제출·영구차단 플로우)
+  ※ 108_panel_avatar_emoji.sql 에서 avatar_emoji / avatar_color 컬럼 추가 (프로필 아바타 개인화 — 이모지·배경색, 본인 self-UPDATE RLS 경유)
   ※ 095_panel_head_by_years.sql: is_executive=(years>=15) 자동 파생 + experience='N년' 정규화 백필 (헤드 개명·연차 구간 재정의·기존 임원<15 강등)
   suspend_until          TIMESTAMPTZ DEFAULT NULL              ← 078 추가 (기간제 정지 만료 시각; NULL=영구 정지 또는 비정지)
   ※ 신규 패널 status: handle_new_user 트리거(이메일)·create_oauth_user_profile RPC(OAuth) 모두 'pending'으로 생성
