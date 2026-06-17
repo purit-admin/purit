@@ -8,6 +8,9 @@ import { splitCredits } from '../../lib/credits';
 // 티어 랭크 — 하위 플랜 다운그레이드 차단용 (free_trial 0 < starter 1 < pro 2 < enterprise 3)
 const TIER_RANK = { free_trial: 0, starter: 1, pro: 2, enterprise: 3 };
 
+// Enterprise 영업 문의 수신 이메일 (별도 백엔드 채널 없음 — mailto로 직접 전송)
+const ENTERPRISE_EMAIL = 'purit.admin@gmail.com';
+
 const PLANS = [
   {
     id: 'starter',
@@ -96,7 +99,6 @@ export default function PricingPage() {
   const [msg, setMsg] = useState('');
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
   const [contactMsg, setContactMsg] = useState('');
-  const [contactSending, setContactSending] = useState(false);
   const [contactDone, setContactDone] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState(null); // { type, plan?, credits?, amountKrw }
   const [creditBalance, setCreditBalance] = useState(null);
@@ -158,25 +160,12 @@ export default function PricingPage() {
     setTimeout(() => setMsg(''), 3500);
   }
 
-  async function handleContactSubmit() {
-    if (!contactMsg.trim()) return;
-    setContactSending(true);
-    await supabase.from('notifications').insert({
-      user_id: (await supabase.auth.getUser()).data.user?.id,
-      type: 'info',
-      icon: '📧',
-      title: 'Enterprise 문의 접수',
-      body: `문의 내용: ${contactMsg.slice(0, 100)}`,
-      action_url: '/company/plans',
-      read: false,
-    });
-    setContactSending(false);
+  // Enterprise 문의는 별도 백엔드 수신 채널이 없어 메일 클라이언트로 직접 전송 (mailto)
+  function handleContactSubmit() {
+    const subject = encodeURIComponent('[Purit] Enterprise 플랜 도입 문의');
+    const body = encodeURIComponent(contactMsg.trim() || '팀 규모, 월 광고비, 원하는 기능 등을 알려주세요.');
+    window.location.href = `mailto:${ENTERPRISE_EMAIL}?subject=${subject}&body=${body}`;
     setContactDone(true);
-    setContactMsg('');
-    setTimeout(() => {
-      setShowEnterpriseModal(false);
-      setContactDone(false);
-    }, 2500);
   }
 
   const currentPlan = company?.plan?.toLowerCase() || '';
@@ -387,15 +376,18 @@ export default function PricingPage() {
             </div>
             {contactDone ? (
               <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>문의가 접수됐습니다</div>
-                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>영업팀이 1영업일 이내에 연락드립니다.</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>메일 작성 창을 열었습니다</div>
+                <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
+                  내용을 확인 후 <b>전송</b>해 주세요. 메일 앱이 열리지 않으면<br />
+                  아래 주소로 직접 보내주시면 됩니다: <b>{ENTERPRISE_EMAIL}</b>
+                </div>
               </div>
             ) : (
               <>
                 <div style={{ marginBottom: 20, padding: '16px', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 10 }}>직접 연락을 원하시면:</div>
-                  <a href="mailto:enterprise@purit.io" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text)', fontWeight: 700, textDecoration: 'none' }}>enterprise@purit.io</a>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 10 }}>Enterprise 도입 문의는 이메일로 받고 있습니다:</div>
+                  <a href={`mailto:${ENTERPRISE_EMAIL}`} style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text)', fontWeight: 700, textDecoration: 'none' }}>{ENTERPRISE_EMAIL}</a>
                 </div>
                 <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600 }}>문의 내용을 남겨주세요</div>
                 <textarea
@@ -405,8 +397,8 @@ export default function PricingPage() {
                   rows={4}
                   style={{ width: '100%', resize: 'vertical', marginBottom: 16, boxSizing: 'border-box' }}
                 />
-                <Btn variant="primary" style={{ width: '100%', justifyContent: 'center' }} disabled={!contactMsg.trim() || contactSending} onClick={handleContactSubmit}>
-                  {contactSending ? '전송 중…' : '문의 전송'}
+                <Btn variant="primary" style={{ width: '100%', justifyContent: 'center' }} disabled={!contactMsg.trim()} onClick={handleContactSubmit}>
+                  메일로 문의 보내기
                 </Btn>
               </>
             )}

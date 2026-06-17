@@ -12,7 +12,7 @@ const ROLE_PERMS = {
 
 export default function AccountSettings() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('team');
+  const [activeTab, setActiveTab] = useState('plan'); // 팀 관리 기능 숨김 — 기본 탭을 '플랜 & 결제'로
   const [members, setMembers] = useState([]);
   const [company, setCompany] = useState(null);
   const [invoices, setInvoices] = useState([]);
@@ -146,7 +146,7 @@ export default function AccountSettings() {
       <StatusTabs
         value={activeTab}
         onChange={setActiveTab}
-        tabs={[{ key: 'team', label: '팀 관리' }, { key: 'plan', label: '플랜 & 결제' }, { key: 'notifications', label: '알림 설정' }]}
+        tabs={[{ key: 'plan', label: '플랜 & 결제' }, { key: 'notifications', label: '알림 설정' }]}
         style={{ marginBottom: 28 }}
       />
 

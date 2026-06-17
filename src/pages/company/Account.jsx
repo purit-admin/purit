@@ -1,14 +1,37 @@
 ﻿import { useState, useEffect } from 'react';
-import { Card, Btn, StatusTabs } from '../../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Card, Btn, Badge, StatusTabs } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 
 const lbl = { display: 'flex', flexDirection: 'column', gap: 8 };
 const lblTxt = { fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' };
 
+// 알림 설정 — 대분류(category) > 소분류(item) 구조
+const NOTIF_CATEGORIES = [
+  {
+    title: '결과 공개 알림',
+    desc: '피드백 결과를 열람할 수 있게 됐을 때 받는 알림입니다.',
+    items: [
+      { key: 'missionComplete', label: '의뢰 완료 결과 공개',        desc: '어드민이 의뢰 완료 처리 후 피드백 결과를 열람할 수 있게 됐을 때' },
+      { key: 'earlyComplete',   label: '조기 종료 피드백 결과 공개', desc: '조기 종료된 의뢰의 피드백 검토가 완료돼 결과를 열람할 수 있게 됐을 때' },
+    ],
+  },
+  {
+    title: '의뢰 진행 알림',
+    desc: '진행 중인 의뢰의 상태가 바뀔 때 받는 알림입니다.',
+    items: [
+      { key: 'missionStatusChange', label: '의뢰 취소 · 재개 · 재진행', desc: '진행 중인 의뢰의 상태가 어드민에 의해 변경됐을 때' },
+    ],
+  },
+];
+
 export default function CompanyAccount() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('profile');
   const [company, setCompany] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [notifPrefs, setNotifPrefs] = useState({});
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [industry, setIndustry] = useState('');
@@ -41,6 +64,11 @@ export default function CompanyAccount() {
           setIndustry(co.industry || '');
           setWebsite(co.website || '');
           setOrig({ name: co.name || '', industry: co.industry || '', website: co.website || '' });
+          setNotifPrefs(co.notif_prefs || {});
+          const { data: invRes } = await supabase
+            .from('invoices').select('*').eq('company_id', co.id)
+            .order('invoice_date', { ascending: false });
+          if (invRes) setInvoices(invRes);
         }
       } catch (err) {
         console.error('[Account load]', err);
@@ -118,7 +146,7 @@ export default function CompanyAccount() {
     <div className="page-wrap" style={{ padding: '40px 48px', maxWidth: 720, animation: 'fadeUp 0.5s ease both' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-sans)', color: 'var(--text-2)', marginBottom: 8, letterSpacing: '0.1em' }}>COMPANY · ACCOUNT</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>내 계정</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>내 계정 & 설정</h1>
       </div>
 
       {/* 프로필 헤더 */}
@@ -141,7 +169,7 @@ export default function CompanyAccount() {
       <StatusTabs
         value={tab}
         onChange={handleTabClick}
-        tabs={[{ key: 'profile', label: '기업 프로필' }, { key: 'password', label: '비밀번호 변경' }]}
+        tabs={[{ key: 'profile', label: '기업 프로필' }, { key: 'password', label: '비밀번호 변경' }, { key: 'plan', label: '플랜 & 결제' }, { key: 'notifications', label: '알림 설정' }]}
         style={{ marginBottom: 24 }}
       />
 
@@ -236,6 +264,86 @@ export default function CompanyAccount() {
               {pwSaving ? '변경 중...' : '비밀번호 변경'}
             </Btn>
           </div>
+        </Card>
+      )}
+
+      {/* 플랜 & 결제 탭 */}
+      {tab === 'plan' && (
+        <div>
+          <Card style={{ marginBottom: 20, padding: '24px', borderColor: 'var(--accent)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>현재 플랜</div>
+                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{(company?.plan === 'free_trial' ? '무료체험' : company?.plan) || 'Starter'} 플랜</div>
+              </div>
+              <Btn size="sm" variant="outline" onClick={() => navigate('/company/plans')}>플랜 변경</Btn>
+            </div>
+          </Card>
+          <Card style={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>결제 내역</div>
+            {invoices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: 13 }}>결제 내역 없음</div>
+            ) : (
+              invoices.map((r, i) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < invoices.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 13, alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 12 }}>{r.invoice_date}</span>
+                    {r.payment_type === 'credits'
+                      ? <span>크레딧 <strong>{r.credits_amount}cr</strong> 충전</span>
+                      : <span>{r.plan} 플랜</span>
+                    }
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700 }}>₩{Number(r.amount).toLocaleString()}</span>
+                    <Badge type={r.status === 'paid' ? 'green' : 'red'}>{r.status === 'paid' ? '완료' : '미수금'}</Badge>
+                  </div>
+                </div>
+              ))
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* 알림 설정 탭 — 대분류 > 소분류 */}
+      {tab === 'notifications' && (
+        <Card>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>알림 설정</div>
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24 }}>알림을 끄면 해당 유형의 앱 알림이 발송되지 않습니다.</div>
+          {NOTIF_CATEGORIES.map((cat, ci) => (
+            <div key={cat.title} style={{ marginBottom: ci < NOTIF_CATEGORIES.length - 1 ? 28 : 0 }}>
+              {/* 대분류 헤더 */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{cat.title}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{cat.desc}</span>
+              </div>
+              {/* 소분류 토글 목록 */}
+              <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid var(--accent-dim)' }}>
+                {cat.items.map(({ key, label, desc }, ii) => {
+                  const on = notifPrefs[key] !== false;
+                  return (
+                    <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: ii < cat.items.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3 }}>{label}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{desc}</div>
+                      </div>
+                      <div
+                        onClick={async () => {
+                          if (!company) return;
+                          const next = { ...notifPrefs, [key]: !on };
+                          setNotifPrefs(next);
+                          const { error } = await supabase.from('companies').update({ notif_prefs: next }).eq('id', company.id);
+                          if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); }
+                        }}
+                        style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: on ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                      >
+                        <div style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </Card>
       )}
     </div>

@@ -458,14 +458,11 @@ async function main() {
     if (annErr) { console.error(`   ❌ 어노테이션 INSERT 실패: ${annErr.message}`); continue; }
     console.log(`   ✅ 어노테이션 ${annotations.length}개 (5대 지표, ${imageCount}장 분산)`);
 
-    // suggestions 텍스트 조합 (지표별 코멘트 + 총평)
-    const suggestionLines = DIMENSIONS.map(dim => {
-      const dimAnns = annotations.filter(a => a.dimension === dim);
-      return `[${DIM_LABELS[dim]}]\n${dimAnns.map(a => a.comment).join('\n')}`;
-    });
+    // suggestions 텍스트 조합 (어노테이션 1건 = 1줄, 실제 앱 제출 형식 "[명확성 / 4점] 코멘트" + 총평)
+    // ※ ActiveMission.jsx 제출 형식과 동일 — 인라인 점수가 있어야 PurityFilter '섹션 균형' 점수가 정상 집계됨
+    const annLines = annotations.map(a => `[${DIM_LABELS[a.dimension]} / ${a.score}점] ${a.comment}`).join('\n');
     const overallComment = pickOverall(i);
-    suggestionLines.push(`[총평]\n${overallComment}`);
-    const suggestionsText = suggestionLines.join('\n');
+    const suggestionsText = `${annLines}\n[총평]\n${overallComment}`;
 
     // custom_answers 생성 (LP 추가 질문)
     let customAnswers = null;

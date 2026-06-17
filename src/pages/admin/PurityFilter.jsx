@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
 import { getPanelReward } from '../../lib/honorLevels';
 import { resolveEmailGoal } from '../../lib/subMissionMeta';
+import { SUB_SPEC_KW, LP_SPEC_KW } from '../../lib/purityKeywords';
 
 const DIM = [
   { key: 'clarity_score',         label: '명확성' },
@@ -23,7 +24,7 @@ function calcSubPurityScore(sub, type) {
   // 코멘트 길이 (최대 45 — 단계적)
   score += comment.length >= 100 ? 45 : comment.length >= 50 ? 30 : comment.length >= 20 ? 15 : comment.length >= 5 ? 6 : 0;
   // 코멘트 내 구체적 키워드 (최대 20)
-  const specKw = comment.match(/가격|비용|디자인|메시지|CTA|전환|클릭|레이아웃|색상|브랜드|기능|혜택|경쟁사|수치|ROI/gi) || [];
+  const specKw = comment.match(SUB_SPEC_KW) || [];
   score += Math.min(specKw.length * 4, 20);
   // 지표 충실도 (최대 20 — 항목 제출 여부)
   if (type === 'preference') {
@@ -63,7 +64,7 @@ function calcPurityScore(fb) {
         return body.length >= 10;
       }).length;
   const balance  = sectionFill >= 4 ? 10 : sectionFill >= 2 ? 4 : 0;
-  const specKw   = all.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피|CTR|CVR|ROAS|노출|세션|바운스|히트맵|UX|UI|fold|above|below/gi) || [];
+  const specKw   = all.match(LP_SPEC_KW) || [];
   const specific = Math.min(specKw.length * 4, 25);
   const actKw    = all.match(/추천|바꿔|교체|추가|필요|개선|수정|변경|강화|재배치|삭제|줄여|늘려|이동|배치|고려|적용|테스트|실험|보완/gi) || [];
   const actionable = Math.min(actKw.length * 5, 25);
@@ -920,7 +921,7 @@ export default function PurityFilter() {
                     (() => {
                       const cmt = (subDataForScore?.comment || subDataForScore?.key_comment || '').trim();
                       const cLen = cmt.length >= 100 ? 45 : cmt.length >= 50 ? 30 : cmt.length >= 20 ? 15 : cmt.length >= 5 ? 6 : 0;
-                      const specKw = cmt.match(/가격|비용|디자인|메시지|CTA|전환|클릭|레이아웃|색상|브랜드|기능|혜택|경쟁사|수치|ROI/gi) || [];
+                      const specKw = cmt.match(SUB_SPEC_KW) || [];
                       const kwScore = Math.min(specKw.length * 4, 20);
                       const metricScore = missionType === 'preference'
                         ? (subDataForScore?.preference ? 7 : 0) + (subDataForScore?.message_clarity ? 7 : 0) + (subDataForScore?.purchase_intent ? 6 : 0)
@@ -961,7 +962,7 @@ export default function PurityFilter() {
                             const body = sec.replace(/^\[.+?\]\n?/, '').trim();
                             return body.length >= 10;
                           }).length;
-                      const specKw = all.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피|CTR|CVR|ROAS|노출|세션|바운스|히트맵|UX|UI|fold|above|below/gi) || [];
+                      const specKw = all.match(LP_SPEC_KW) || [];
                       const actKw  = all.match(/추천|바꿔|교체|추가|필요|개선|수정|변경|강화|재배치|삭제|줄여|늘려|이동|배치|고려|적용|테스트|실험|보완/gi) || [];
                       const aiKw   = all.match(/중요합니다|생각됩니다|분석됩니다|판단됩니다|여겨집니다|사료됩니다|향상될 것|효과적일 것|효율적일 것/gi) || [];
                       return [

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Bell, Plus, BarChart2, Layers, Columns2,
   Tag, Mail, FileText, Users, Activity, TrendingUp, Sparkles,
-  Settings, CreditCard, Search, PlayCircle, Wallet, UserCog,
+  CreditCard, Search, PlayCircle, Wallet, UserCog,
   Monitor, ClipboardList, ShieldCheck, PieChart, ChevronLeft, ChevronRight,
   LogOut, Menu, X as CloseIcon, Flag, Building2,
 } from 'lucide-react';
@@ -48,8 +48,7 @@ const NAV = {
     {
       group: '계정',
       items: [
-        { path: '/company/account', label: '내 계정', icon: UserCog },
-        { path: '/company/settings', label: '팀 & 설정', icon: Settings },
+        { path: '/company/account', label: '내 계정 & 설정', icon: UserCog },
         { path: '/company/plans', label: '플랜 & 가격', icon: CreditCard },
         { path: '/company/bug-reports', label: '버그/건의 현황', icon: Flag },
       ],

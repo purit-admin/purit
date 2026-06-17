@@ -5,6 +5,7 @@ import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
 import { sendNotification } from '../../lib/notify';
 import { getPanelReward, getCareerUnlockCredit } from '../../lib/honorLevels';
+import { LP_SPEC_KW } from '../../lib/purityKeywords';
 
 // 무료 체험 의뢰 통합 관리 — 미션 모니터링 + 피드백 승인/반려 + 미션 완료/취소
 // (PurityFilter·Missions와 동일 RPC 시퀀스를 자체 구현 — 두 페이지 회귀 차단)
@@ -55,7 +56,7 @@ function calcPurityScore(fb, imageUrls) {
       })()
     : (fb.suggestions || '').split('\n\n').filter(sec => sec.replace(/^\[.+?\]\n?/, '').trim().length >= 10).length;
   const balance = sectionFill >= 4 ? 10 : sectionFill >= 2 ? 4 : 0;
-  const specKw = all.match(/\d+|%|CTA|클릭|전환|스크롤|이탈|헤드라인|카피|CTR|CVR|ROAS|노출|세션|바운스|히트맵|UX|UI|fold|above|below/gi) || [];
+  const specKw = all.match(LP_SPEC_KW) || [];
   const specific = Math.min(specKw.length * 4, 25);
   const actKw = all.match(/추천|바꿔|교체|추가|필요|개선|수정|변경|강화|재배치|삭제|줄여|늘려|이동|배치|고려|적용|테스트|실험|보완/gi) || [];
   const actionable = Math.min(actKw.length * 5, 25);

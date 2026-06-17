@@ -42,7 +42,7 @@ const MISSION_DATA = {
   personaContext: '전환율 최적화에 관심이 많고, 마케팅 툴 도입 의사결정 경험이 있는 실무자',
   briefText: 'Purit는 실제 타겟 패널의 피드백으로 랜딩페이지 전환율을 높이는 CRO SaaS입니다. 이번 검증에서는 ①히어로 섹션의 첫인상, ②가치 제안의 명확성, ③CTA 버튼 클릭 충동, ④신뢰 요소 구성이 타겟 페르소나에게 얼마나 효과적으로 작동하는지 확인하고자 합니다.',
   focusAreas: ['첫인상 / 가독성', 'CTA 전환율', '핵심 메시지 명확성', '신뢰 요소', '타겟 일치도'],
-  panelCount: 15,
+  panelCount: 10,
   careerLevels: ['junior', 'middle'],
 };
 
