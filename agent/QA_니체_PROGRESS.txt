@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-17 (전환 가이드/진단 전수조사 — 진단-A(빈상태 기간/무데이터 분기)·진단-B(비교모드 기간필터 숨김)·진단-D(extractDimComment 폴백 제거 오귀속 차단) + 무데이터 차원 점수왜곡(D-153) 수정 완료 → DONE 5건. 진단-C(가이드 자동선택 빈화면)는 완료의뢰=승인≥1건 보장 확인되어 오진단 폐기 → 스킵. 신규 잔여 없음) / 2026-06-16 (5대 지표 진단 전수조사 — ①서브 의뢰 5축 화면 혼입 차단(Diagnosis·AIReport type 필터, D-152) ②벤치마크 범례 가로선 제거 ③키워드 분석→차원별 코멘트 인사이트 재설계(D-151) ④Dashboard "N건 기준" 카운트 정합 → DONE 4건. 신규 잔여 없음) / 2026-06-16 (메인 의뢰 이미지 피드백 전수조사 — 재작성 복원 완전화·이미지 전수확인 재강제·빈 코멘트 게이트·차원 자동이동 4건 수정 완료 → DONE / 잔여 관찰 2건(니체-뱃지색 P3·니체-총평정규식 보류) 등록) / 2026-06-13 (스케일 전수조사 — 저비용 3건(C/D/I) 수정 완료 → DONE / 나머지는 스케일 트리거 조건부 섹션 신설 등록)
+최종 업데이트: 2026-06-17 (전환 가이드/진단 전수조사 — 진단-A(빈상태 기간/무데이터 분기)·진단-B(비교모드 기간필터 숨김)·진단-D(extractDimComment 폴백 제거 오귀속 차단) + 무데이터 차원 점수왜곡(D-153) 수정 완료 → DONE 5건. 진단-C(가이드 자동선택 빈화면)는 완료의뢰=승인≥1건 보장 확인되어 오진단 폐기. 신규 잔여 없음 / 스킵·보류 섹션에서 오진단·해당없음·이미적용·이미수정 항목 일괄 삭제(25→8), 실제 의도적 보류만 유지) / 2026-06-16 (5대 지표 진단 전수조사 — ①서브 의뢰 5축 화면 혼입 차단(Diagnosis·AIReport type 필터, D-152) ②벤치마크 범례 가로선 제거 ③키워드 분석→차원별 코멘트 인사이트 재설계(D-151) ④Dashboard "N건 기준" 카운트 정합 → DONE 4건. 신규 잔여 없음) / 2026-06-16 (메인 의뢰 이미지 피드백 전수조사 — 재작성 복원 완전화·이미지 전수확인 재강제·빈 코멘트 게이트·차원 자동이동 4건 수정 완료 → DONE / 잔여 관찰 2건(니체-뱃지색 P3·니체-총평정규식 보류) 등록) / 2026-06-13 (스케일 전수조사 — 저비용 3건(C/D/I) 수정 완료 → DONE / 나머지는 스케일 트리거 조건부 섹션 신설 등록)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -106,61 +106,22 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 [N-8]  Landing 로그인 사용자 리다이렉트 없음  ⏭
 [N-9]  어드민 포털 전환 시 맥락 배너 없음  ⏭
 [니체-총평정규식]  ActiveMission parseImageSubmission 총평 추출 정규식 first-match — 어노테이션 코멘트에 literal "[총평]\n" 포함 시 조기 매칭 가능. 기존 Path A 코드(이번 도입 아님)·발생확률 극히 낮음 → 보류  ⏭
-[진단-C]  Diagnosis 전환 가이드 자동선택(missions[0])이 무데이터 의뢰면 빈 화면 — 오진단 폐기  ⏭ (완료(status='completed') 의뢰는 완료 처리 버튼 disabled={completeBlocked}(approved.length===0 포함)로 승인 피드백 ≥1건 보장 → 빈 가이드 발생 불가. 모달만 보고 트리거 버튼 가드 미확인한 규칙12 위반 오진단)
 
--- 5차 재검증 (2026-05-15) — 시스템 변경으로 해당 없음 판정 --
-[5차-A] PurityFilter approve/reject — 기업 알림 누락  ⏭ (어드민 "완료 처리" 시에만 기업에 알림 발송)
-[5차-B] PurityFilter bulkApprove/bulkReject — 기업 알림 누락  ⏭ (5차-A와 동일 사유)
-[5차-D] company/Dashboard 차트 — active 미션 승인 피드백 제외  ⏭ (PRD 수정됨: 완료 미션 피드백만 집계)
-[5차-H] Sidebar useEffect role 의존성 누락 — stale closure  ⏭ (어드민 계정만 포털 전환 가능)
-[5차-I] Sidebar 포털 전환 버튼 — navigationGuard 불필요 인터셉트  ⏭ (어드민 계정만 포털 전환 가능)
-[5차-O] company/Diagnosis feedbacks — active 미션 승인 피드백 제외  ⏭ (PRD 수정됨: 5차-D와 동일)
-[5차-P] company/Dashboard 서브 의뢰 긍정비율 — active 미션 응답 제외  ⏭ (PRD 수정됨: 5차-D와 동일)
-[5차-T] company/AIReport feedbacks — active 미션 승인 피드백 AI 분석 제외  ⏭ (PRD 수정됨: 5차-D와 동일)
-[5차-U] company/TimelineTracker 시계열 차트 — active 미션 제외  ⏭ (PRD: active 미션은 기업에게 피드백 비공개)
-
--- 어드민 포털 오판 항목 --
-[A-04] admin/Revenue.jsx — loadAll() try-catch 이미 적용됨  ⏭
-[A-15] admin/Missions.jsx — deleteMission() error 처리 이미 적용됨  ⏭
-[A-16] admin/Missions.jsx — setStatusError('') 초기화 이미 적용됨  ⏭
-[A-20] admin/Missions.jsx — deleteMission() D-65 위반 오진단. 실제 코드 이미 적용됨  ⏭
-[A-23] admin/Revenue.jsx — --red/--red-dim CSS 변수 미정의 오진단. 실제 정의됨  ⏭
-
--- 재검증 오판 항목 --
-[BUG-NEW-6] admin/Missions.jsx — complete_mission_and_refund 모달 D-65 재검증.
-            `const ok = await updateStatus(...); if (ok) setConfirmComplete(null)` 패턴 이미 적용됨.  ⏭
-
--- 검색 기능 --
+-- 검색 기능 (실제 미구현 · 스케일 도달 시 처리) --
 [검색-C] admin/Missions.jsx + PurityFilter.jsx — 검색 input 디바운스 없음.
           순수 클라이언트 필터·소규모 데이터로 성능 영향 없어 수정 보류  ⏭
           ※ 2026-06-13 스케일 조사 재평가: 보류 근거("소규모 데이터")는 데이터 1000건 근접 시 무효 —
             스케일-B/E 수정(서버 페이지네이션 전환) 시 함께 처리할 것 (PanelManagement은 300ms 디바운스 기적용 확인)
 
--- 비교 모드 --
-[Diag-C2] company/Diagnosis.jsx — toggleMission 4번째 의뢰 선택 후 compareMode 해제 의심.
-           실제 코드 확인 결과 이미 처리됨. 재현 불가  ⏭
-
--- 설계 의도 확인 후 오진단 처리 --
-[BUG-VD-1] VerifyDocs.jsx careerChoice 필수 강제 — 의도된 설계. 건강보험=연차 인증, LinkedIn/포트폴리오=직무 인증으로 둘 다 필수. PRD/Architecture 문서 수정 완료.  ⏭
-
--- OAuth LinkedIn 수정 보류 --
+-- OAuth LinkedIn 수정 보류 (LinkedIn 활성화 시 처리) --
 [OAuth-E] signInWithLinkedIn source 파라미터 누락 — LinkedIn 미활성화 상태라 기능적 버그 없음.
           LinkedIn 버튼 활성화 시 적용 필요  ⏭
-
 [OAuth-F] ?signup=google 하드코딩 — 현재 Google 단독 OAuth. LinkedIn 추후 활성화 시 변경 필요  ⏭
-
 [BUG-AUTH-2] AuthContext.jsx LinkedIn OAuth source 저장 누락 — OAuth-E와 동일 사유. LinkedIn 미활성화 상태.
              LinkedIn 기능 구현 시 함께 처리  ⏭
 
-
 -- 비활성 페이지 조사 스킵 --
 [ICPPulse/BrandTracking] 사이드바 비노출 페이지 (PRD 명시: 파일 유지만, 기능 미활성)  ⏭
-
-[신규-BugA] admin/BugReports.jsx — 페이지 전환 시 우측 상세 패널 selected 미초기화 (수평전개: [기업-버그보고-A])
-- 🚨 중요도: P3 — BugReports 페이지 전환 시 이전 페이지에서 선택한 항목이 우측에 계속 표시. 좌측 목록에 선택 강조 없어 어떤 항목인지 파악 불가. company/panel BugReports와 동일 버그.
-- 📍 위치: src/pages/admin/BugReports.jsx (lines 365, 373 페이지 버튼)
-- 🤦‍♂️ 현재: 페이지 ‹/› 버튼 onClick이 setPage만 호출, setSelected(null) 누락. (tab/typeFilter 핸들러는 이미 setSelected(null) 호출 중)
-- ✨ 기대: 페이지 버튼 onClick에 setSelected(null) 추가 → 이미 수정 완료 (2026-06-10)
 
 ================================================================
 ## 📊 현황 요약
@@ -173,7 +134,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
   🔵 스케일 6건 (스케일-A/B/E/F/G/H — 트리거 규모 도달 시 수정)
   ⚪ P4  0건
 
-스킵/보류: 25건 (진단-C 오진단 폐기 추가)
+스킵/보류: 8건 (오진단·해당없음·이미적용·이미수정 항목 일괄 삭제 — 실제 의도적 보류만 유지)
 
 완료 항목: QA_DONE.txt 참조 (총 232건)
 
