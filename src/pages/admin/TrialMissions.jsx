@@ -188,6 +188,8 @@ export default function TrialMissions() {
     if (error) { setStatusError('승인 실패: ' + error.message); setActing(false); return; }
     setDetailFbs(fbs => fbs.map(f => f.id === fb.id ? { ...f, ...payload } : f));
     if (fb.rejection_penalty_applied && fb.panel_id) supabase.rpc('restore_feedback_honor', { p_feedback_id: fb.id, p_panel_id: fb.panel_id });
+    // 승인 기반 뱃지 재계산 — PurityFilter와 동일 패턴(승인 시점 부여)
+    if (fb.panel_id) supabase.rpc('check_and_award_badges', { p_panel_id: fb.panel_id }).then(({ error: be }) => { if (be) console.warn('[check_and_award_badges]', be.message); });
     // 무료 미션이라 recalc_mission_consumed 생략 (credits_consumed는 언락이 관리)
     if (fb.panels?.user_id && fb.panels?.notif_prefs?.feedbackApproved !== false) {
       sendNotification(fb.panels.user_id, {
@@ -326,6 +328,9 @@ export default function TrialMissions() {
       const f = detailFbs.find(x => x.id === id);
       if (f?.rejection_penalty_applied && f?.panel_id) supabase.rpc('restore_feedback_honor', { p_feedback_id: f.id, p_panel_id: f.panel_id });
     });
+    // 승인 기반 뱃지 재계산 — 패널별 1회(중복 제거), PurityFilter bulkApprove와 동일 패턴
+    const approvedPanelIds = [...new Set(ids.map(id => detailFbs.find(x => x.id === id)?.panel_id).filter(Boolean))];
+    approvedPanelIds.forEach(pid => supabase.rpc('check_and_award_badges', { p_panel_id: pid }).then(({ error: be }) => { if (be) console.warn('[trial bulk_check_badges]', be.message); }));
     const notifRows = ids.map(id => detailFbs.find(x => x.id === id)).filter(Boolean)
       .filter(f => f.panels?.user_id && f.panels?.notif_prefs?.feedbackApproved !== false)
       .map(f => ({ user_id: f.panels.user_id, type: 'success', icon: '✅', title: '피드백 승인', body: `[${selMission?.title || '의뢰'}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, action_url: '/panel/history', target_role: 'panel', read: false }));

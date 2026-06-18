@@ -275,6 +275,15 @@ export default function PanelProfile() {
           .neq('status', 'draft')
           .gte('created_at', weekAgo);
         setWeeklyCount(wc || 0);
+
+        // 밀린 뱃지 따라잡기: 본인 패널 뱃지 재계산 후 갱신분만 반영
+        // (승인·도움됨 등 다른 화면의 부여 트리거를 놓쳤더라도 프로필 진입 시 보정 — 자기 패널만 부여 가능)
+        supabase.rpc('check_and_award_badges', { p_panel_id: p.id })
+          .then(async ({ error }) => {
+            if (error) { console.warn('[check_and_award_badges]', error.message); return; }
+            const { data: fresh } = await supabase.from('panels').select('badges').eq('id', p.id).single();
+            if (fresh?.badges) setPanel(prev => (prev ? { ...prev, badges: fresh.badges } : prev));
+          });
       }
       setLoading(false);
       } catch (err) {

@@ -358,6 +358,8 @@ export default function PurityFilter() {
       supabase.rpc('restore_feedback_honor', { p_feedback_id: fb.id, p_panel_id: fb.panel_id }).then(({ error: he }) => { if (he) console.warn('[honor_restore]', he.message); });
     }
     if (fb?.mission_id) supabase.rpc('recalc_mission_consumed', { p_mission_id: fb.mission_id }).then(({ error }) => { if (error) console.warn('[recalc_credits]', error.message); });
+    // 승인(Purit Filter 통과) 기반 뱃지 재계산 — 영점조준·제로데펙트·삼연타 등은 승인 시점에 부여돼야 즉시 반영됨
+    if (fb?.panel_id) supabase.rpc('check_and_award_badges', { p_panel_id: fb.panel_id }).then(({ error: be }) => { if (be) console.warn('[check_and_award_badges]', be.message); });
 
     const panelUserId = fb?.panels?.user_id;
     const missionTitle = fb?.missions?.title || '미션';
@@ -469,6 +471,10 @@ export default function PurityFilter() {
     setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved', payout_amount: payoutMap[f.id], rejection_penalty_applied: false } : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
+
+    // 승인 기반 뱃지 재계산 — 패널별 1회(중복 제거)
+    const approvedPanelIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.panel_id).filter(Boolean))];
+    approvedPanelIds.forEach(pid => supabase.rpc('check_and_award_badges', { p_panel_id: pid }).then(({ error: be }) => { if (be) console.warn('[bulk_check_badges]', be.message); }));
 
     // HP 복원 (반려 패널 재승인 시)
     ids.forEach(id => {
