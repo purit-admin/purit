@@ -550,7 +550,7 @@ export default function CompanyManagement() {
           value={sortBy}
           onChange={e => { setSortBy(e.target.value); setPage(1); }}
           style={{
-            marginLeft: 'auto', padding: '6px 10px', borderRadius: 8, fontSize: 12,
+            marginLeft: 'auto', width: 140, padding: '6px 10px', borderRadius: 8, fontSize: 12,
             border: '1px solid var(--border)', background: '#fff', color: 'var(--text)', outline: 'none',
           }}
         >

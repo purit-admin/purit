@@ -486,7 +486,7 @@ export default function AdminPanels() {
           value={sortBy}
           onChange={e => { setSortBy(e.target.value); setPage(1); }}
           style={{
-            marginLeft: 'auto', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+            marginLeft: 'auto', width: 140, padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
             border: '1px solid var(--border)', background: '#fff', color: 'var(--text)',
             cursor: 'pointer', outline: 'none',
           }}

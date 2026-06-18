@@ -19,6 +19,46 @@ const PRIMARY = '#10367D';
 const TEXT    = '#0F172A';
 const TEXT2   = '#475569';
 
+/* ─── 푸터 법적 고지 문서 (이용약관·개인정보처리방침·운영정책) ───
+   ※ 아래 본문은 표준 골격(placeholder)입니다. 실제 서비스 오픈 전
+     법무 검토를 거친 정식 문구로 교체하세요. */
+const LEGAL_DOCS = {
+  terms: {
+    title: '이용약관',
+    updated: '시행일: 2026년 1월 1일',
+    sections: [
+      { h: '제1조 (목적)', p: '본 약관은 Purit(이하 "회사")이 제공하는 전환율 최적화 패널 평가 서비스(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항, 이용 조건 및 절차를 규정함을 목적으로 합니다.' },
+      { h: '제2조 (정의)', p: '"이용자"란 본 약관에 따라 서비스를 이용하는 기업 회원 및 전문가 패널 회원을 말합니다. "크레딧"이란 서비스 내에서 의뢰 등록 시 사용되는 결제 수단을 말합니다.' },
+      { h: '제3조 (서비스의 제공)', p: '회사는 랜딩페이지·광고 소재·가격 페이지·이메일 등 마케팅 자산에 대한 검증된 전문가 패널의 평가 및 피드백을 제공합니다. 회사는 서비스의 내용을 변경할 수 있으며, 변경 시 사전 공지합니다.' },
+      { h: '제4조 (이용자의 의무)', p: '이용자는 타인의 정보를 도용하거나 허위 정보를 등록해서는 안 되며, 서비스를 통해 취득한 평가 결과를 부정한 목적으로 사용해서는 안 됩니다.' },
+      { h: '제5조 (결제 및 환불)', p: '크레딧의 결제, 사용, 환불은 회사가 별도로 정한 정책에 따릅니다. 의뢰가 정상적으로 완료되지 않은 경우 잔여 크레딧은 회사 정책에 따라 환불될 수 있습니다.' },
+      { h: '제6조 (책임의 제한)', p: '회사는 전문가 패널의 평가 의견을 중개하며, 평가 결과에 근거한 이용자의 의사결정 및 그 결과에 대해서는 책임을 지지 않습니다.' },
+    ],
+  },
+  privacy: {
+    title: '개인정보처리방침',
+    updated: '시행일: 2026년 1월 1일',
+    sections: [
+      { h: '1. 수집하는 개인정보 항목', p: '회사는 회원 가입 및 서비스 제공을 위해 이메일 주소, 휴대폰 번호를 수집하며, 전문가 패널의 경우 경력 증빙 서류(건강보험 자격득실 확인서, 포트폴리오 등)를 추가로 수집합니다.' },
+      { h: '2. 개인정보의 수집 및 이용 목적', p: '수집한 개인정보는 회원 식별 및 본인 확인, 서비스 제공, 알림(알림톡·이메일) 발송, 부정 이용 방지를 위해 이용됩니다.' },
+      { h: '3. 개인정보의 보유 및 이용 기간', p: '회원 탈퇴 시 지체 없이 파기함을 원칙으로 하며, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.' },
+      { h: '4. 개인정보의 제3자 제공', p: '회사는 이용자의 개인정보를 원칙적으로 외부에 제공하지 않습니다. 다만 법령에 근거하거나 이용자의 동의가 있는 경우에 한합니다.' },
+      { h: '5. 이용자의 권리', p: '이용자는 언제든지 자신의 개인정보에 대한 열람·정정·삭제·처리정지를 요구할 수 있습니다.' },
+      { h: '6. 개인정보 보호책임자', p: '개인정보 관련 문의: support@purit.io' },
+    ],
+  },
+  operation: {
+    title: '운영정책',
+    updated: '시행일: 2026년 1월 1일',
+    sections: [
+      { h: '1. 전문가 패널 평가 품질 기준', p: '전문가 패널은 성실하고 구체적인 평가를 제공해야 하며, 평가 내용은 회사의 검수(Purit Filter)를 거쳐 기업 회원에게 전달됩니다.' },
+      { h: '2. 부정 행위 제재', p: '허위 평가, 불성실 평가, 타인 명의 도용 등 부정 행위가 확인된 패널은 경고, 기간제 정지, 영구 정지의 단계적 제재를 받을 수 있습니다. 누적 반려가 일정 횟수를 초과하면 계정이 영구 정지될 수 있습니다.' },
+      { h: '3. 기업 의뢰 가이드라인', p: '기업 회원은 평가 대상 자산과 페르소나를 정확히 제공해야 하며, 평가 목적에 부합하지 않는 의뢰는 제한될 수 있습니다.' },
+      { h: '4. 분쟁 처리 및 이의 신청', p: '계정 제재 등 운영 조치에 대한 이의는 서비스 내 "버그/불편 신고 → 이의 신청" 채널을 통해 접수할 수 있으며, 회사는 접수된 이의를 검토하여 결과를 안내합니다.' },
+    ],
+  },
+};
+
 /* ─── 기존 "작동 방식" 섹션 스크롤 페이드인 훅 (유지) ─── */
 function useFadeIn(delay = 0) {
   const ref = useRef(null);
@@ -152,7 +192,7 @@ function ExpertCloud() {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) {
       nodes.forEach((tag, i) => {
-        if (i % 5 < 4) { tag.style.opacity = i % 5 === 0 ? '1' : '0.85'; tag.style.transform = 'translate(-50%,-50%) scale(1)'; }
+        if (i % 5 < 4) { tag.style.opacity = i % 5 === 0 ? '1' : '0.85'; tag.style.transform = 'translate(-50%,-50%)'; }
       });
       return;
     }
@@ -173,16 +213,17 @@ function ExpertCloud() {
       for (let k = 0; k < N; k++) {
         const pausedMs = paused[k] + (pauseStart[k] ? now - pauseStart[k] : 0);
         const phase = (((now - t0 - k * STAGGER - pausedMs) % T_CYCLE) + T_CYCLE) % T_CYCLE;
-        let op = 0, sc = 0.8, dy = 10;
+        let op = 0, dy = 12;
         if (phase < T_IN) {
-          const p1 = phase / T_IN; op = p1; sc = 0.8 + 0.2 * p1; dy = 10 * (1 - p1);
+          const p1 = phase / T_IN; op = p1; dy = 12 * (1 - p1);
         } else if (phase < T_IN + T_HOLD) {
-          op = 1; sc = 1; dy = 0;
+          op = 1; dy = 0;
         } else if (phase < T_IN + T_HOLD + T_OUT) {
-          const p2 = (phase - T_IN - T_HOLD) / T_OUT; op = 1 - p2; sc = 1 - 0.06 * p2; dy = -8 * p2;
+          const p2 = (phase - T_IN - T_HOLD) / T_OUT; op = 1 - p2; dy = -10 * p2;
         }
         nodes[k].style.opacity = op.toFixed(3);
-        nodes[k].style.transform = `translate(-50%,calc(-50% + ${dy.toFixed(1)}px)) scale(${sc.toFixed(3)})`;
+        // scale 제거: 텍스트 비트맵 확대/축소로 인한 흐림 방지(떠오름 dy + 페이드만 유지). dy는 정수 px로 스냅해 하프픽셀 흐림 최소화
+        nodes[k].style.transform = `translate(-50%,calc(-50% + ${Math.round(dy)}px))`;
       }
       raf = requestAnimationFrame(loop);
     };
@@ -202,7 +243,7 @@ function ExpertCloud() {
           key={i}
           ref={(el) => { tagsRef.current[i] = el; }}
           className={`expert-tag ${cred.c}`}
-          style={{ left: `${CLOUD_POS[i].x}%`, top: `${CLOUD_POS[i].y}%`, transform: 'translate(-50%,-50%) scale(.8)', opacity: 0 }}
+          style={{ left: `${CLOUD_POS[i].x}%`, top: `${CLOUD_POS[i].y}%`, transform: 'translate(-50%,-50%)', opacity: 0 }}
         >
           <span className="et-dot" />{cred.t}
         </div>
@@ -234,6 +275,7 @@ export default function Landing() {
   const rootRef = useRef(null);
   const [navScrolled, setNavScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [legalModal, setLegalModal] = useState(null); // null | 'terms' | 'privacy' | 'operation'
 
   const r5 = useFadeIn(0); // "작동 방식" 섹션 (유지분)
 
@@ -257,6 +299,16 @@ export default function Landing() {
     els.forEach(el => obs.observe(el));
     return () => obs.disconnect();
   }, []);
+
+  /* 법적 고지 모달: ESC 닫기 + 열렸을 때 배경 스크롤 잠금 */
+  useEffect(() => {
+    if (!legalModal) return;
+    const onKey = (e) => { if (e.key === 'Escape') setLegalModal(null); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [legalModal]);
 
   /* 앵커 스무스 스크롤 */
   const goTo = (id) => {
@@ -452,7 +504,7 @@ export default function Landing() {
 
             <article className="feat-card reveal">
               <span className="feat-no mono">02</span>
-              <h3>두 가지 안 비교</h3>
+              <h3>A/B 테스트</h3>
               <p>두 버전 중 이기는 쪽을, 이유까지 함께.</p>
               <div className="ab-mock">
                 <div className="ab-side"><span className="mono">A</span><i style={{ '--h': '52%' }} /><b>38%</b></div>
@@ -763,13 +815,13 @@ export default function Landing() {
             <div>
               <h4>제품</h4>
               <a onClick={() => goTo('features')}>페이지 종합 평가</a>
-              <a onClick={() => goTo('features')}>두 가지 안 비교</a>
+              <a onClick={() => goTo('features')}>A/B 테스트</a>
               <a onClick={() => goTo('features')}>가격 페이지 평가</a>
               <a onClick={() => goTo('features')}>이메일 평가</a>
             </div>
             <div>
               <h4>회사</h4>
-              <a onClick={() => goTo('filter')}>평가 걸러내기</a>
+              <a onClick={() => goTo('filter')}>Purit Filter</a>
               <a onClick={() => goTo('panel')}>참여 전문가</a>
               <a onClick={() => goTo('pricing')}>요금</a>
             </div>
@@ -783,9 +835,82 @@ export default function Landing() {
         </div>
         <div className="container foot-bottom">
           <span>© 2026 Purit. All rights reserved.</span>
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+            {[
+              { key: 'terms',     label: '이용약관' },
+              { key: 'privacy',   label: '개인정보처리방침' },
+              { key: 'operation', label: '운영정책' },
+            ].map(d => (
+              <a
+                key={d.key}
+                onClick={() => setLegalModal(d.key)}
+                style={{ fontSize: 13, color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none' }}
+              >
+                {d.label}
+              </a>
+            ))}
+          </div>
           <span className="mono">감이 아니라 데이터로 일하는 분들을 위해.</span>
         </div>
       </footer>
+
+      {/* ============ 법적 고지 모달 오버레이 ============ */}
+      {legalModal && (() => {
+        const doc = LEGAL_DOCS[legalModal];
+        if (!doc) return null;
+        return (
+          <div
+            onClick={() => setLegalModal(null)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1000,
+              background: 'rgba(15,23,42,0.55)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              style={{
+                background: '#fff', borderRadius: 16, width: '100%', maxWidth: 640,
+                maxHeight: '82vh', overflowY: 'auto',
+                boxShadow: '0 24px 60px rgba(15,23,42,0.28)',
+                fontFamily: 'Pretendard, system-ui, sans-serif',
+              }}
+            >
+              <div style={{
+                position: 'sticky', top: 0, background: '#fff',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                gap: 12, padding: '22px 24px 14px', borderBottom: '1px solid #EEF2F6',
+              }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: TEXT }}>{doc.title}</h3>
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: '#8598AA' }}>{doc.updated}</p>
+                </div>
+                <button
+                  onClick={() => setLegalModal(null)}
+                  aria-label="닫기"
+                  style={{
+                    flexShrink: 0, width: 32, height: 32, borderRadius: 8, border: 'none',
+                    background: '#F1F5F9', color: TEXT, fontSize: 18, cursor: 'pointer', lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ padding: '18px 24px 26px' }}>
+                {doc.sections.map((s, i) => (
+                  <div key={i} style={{ marginBottom: i < doc.sections.length - 1 ? 18 : 0 }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 700, color: TEXT }}>{s.h}</h4>
+                    <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.72, color: TEXT2 }}>{s.p}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

@@ -329,7 +329,7 @@
   position:absolute;white-space:nowrap;font-size:14.5px;font-weight:600;color:var(--ink);
   background:#fff;border:1px solid var(--line-2);border-radius:30px;padding:9px 16px;
   box-shadow:var(--shadow-s);display:flex;align-items:center;gap:9px;
-  will-change:transform,opacity;
+  will-change:opacity;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
 }
 .purit-landing .expert-tag .et-dot{width:8px;height:8px;border-radius:50%;background:var(--navy);flex:none}
 .purit-landing .expert-tag.t-green .et-dot{background:var(--pass)}
