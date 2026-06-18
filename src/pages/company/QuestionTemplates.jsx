@@ -401,7 +401,7 @@ export default function QuestionTemplates() {
               <Btn onClick={() => navigate(currentTab?.path)}>바로 의뢰 등록하기</Btn>
             </Card>
           ) : (
-            <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 20, alignItems: 'start' }}>
+            <div ref={gridRef} className="grid-1col-768" style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 20, alignItems: 'start' }}>
               {/* 템플릿 카드 그리드 (섹션 구분 렌더링) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {(() => {

@@ -1,5 +1,6 @@
 ﻿import { clsx } from 'clsx';
 import ReactDOM from 'react-dom';
+import { useState, useRef } from 'react';
 
 export const Btn = ({ children, variant = 'primary', size = 'md', onClick, disabled, style, className }) => {
   const base = {
@@ -103,7 +104,7 @@ export const Divider = ({ style }) => (
 // tabs: [{ key, label, count?, badge? }]  value: 현재 key  onChange(key)
 //   badge: ReactNode 또는 (active)=>ReactNode (활성 상태별 색상 분기 지원)
 export const StatusTabs = ({ tabs, value, onChange, style }) => (
-  <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid var(--border)', ...style }}>
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, marginBottom: 20, borderBottom: '1px solid var(--border)', ...style }}>
     {tabs.map(t => {
       const active = value === t.key;
       return (
@@ -155,10 +156,25 @@ export const EmptyState = ({ icon, title, desc }) => (
   </div>
 );
 
-export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel = '취소', onConfirm, onCancel, danger = false, errorMsg = '', width = 380 }) =>
-  ReactDOM.createPortal(
+export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel = '취소', onConfirm, onCancel, danger = false, errorMsg = '', width = 380 }) => {
+  // 확인 버튼 in-flight 비활성 — onConfirm(동기/비동기 모두)이 진행 중이면 재클릭 차단(연타 이중 처리 방어, D-22).
+  // 동기 ref(busyRef)로 setState 비동기 한계 보완. onConfirm이 성공 후 모달을 언마운트하면 finally는 무해.
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const handleConfirm = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await onConfirm?.();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+  return ReactDOM.createPortal(
     <div
-      onClick={onCancel}
+      onClick={busy ? undefined : onCancel}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
     >
       <div
@@ -170,10 +186,11 @@ export const ConfirmModal = ({ title, desc, confirmLabel = '확인', cancelLabel
         {desc && <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{desc}</div>}
         {errorMsg && <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600, marginBottom: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 6 }}>{errorMsg}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-          <Btn variant="secondary" onClick={onCancel}>{cancelLabel}</Btn>
-          <Btn variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>{confirmLabel}</Btn>
+          <Btn variant="secondary" onClick={onCancel} disabled={busy}>{cancelLabel}</Btn>
+          <Btn variant={danger ? 'danger' : 'primary'} onClick={handleConfirm} disabled={busy}>{confirmLabel}</Btn>
         </div>
       </div>
     </div>,
     document.body
   );
+};

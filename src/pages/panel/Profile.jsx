@@ -781,7 +781,7 @@ export default function PanelProfile() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* 요약 카드 */}
             <Card>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
+              <div className="stat-inline-three" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
                 {[
                   { label: '완료 미션',  value: panel?.total_missions || 0, unit: '개' },
                   { label: '이번 주 제출', value: weeklyCount,              unit: '건' },

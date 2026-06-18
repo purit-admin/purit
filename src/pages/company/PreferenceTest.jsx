@@ -655,7 +655,7 @@ export default function PreferenceTest() {
                 {/* 검증 유형 */}
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>검증 유형</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <div className="grid-2col-480" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                     {ASSET_TYPES.map(t => (
                       <div key={t.key} onClick={() => setAssetType(t.key)} style={{
                         padding: '12px 14px', borderRadius: 'var(--radius)',
@@ -1392,7 +1392,7 @@ export default function PreferenceTest() {
       {showDraftModal && ReactDOM.createPortal(
         <div onClick={e => e.stopPropagation()}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'var(--bg)', borderRadius: 16, padding: '28px 24px', width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ background: 'var(--bg)', borderRadius: 16, padding: '28px 24px', width: 380, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>작성 중인 내용이 있습니다</div>
             <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 12 }}>
               의뢰 등록을 완료하지 않았습니다.<br />임시 저장하고 나가시겠습니까?

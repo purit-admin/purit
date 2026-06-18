@@ -253,7 +253,7 @@ export default function ImageAnnotator({ imageUrl, imageIndex = 0, annotations =
             onClick={e => e.stopPropagation()}
             style={{
               background: 'var(--bg)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)', padding: 28, width: 380,
+              borderRadius: 'var(--radius-lg)', padding: 28, width: 380, maxWidth: '90vw',
               boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
             }}
           >

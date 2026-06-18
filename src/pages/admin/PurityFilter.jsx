@@ -1139,7 +1139,7 @@ export default function PurityFilter() {
                                 <span style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)' }}>전환 목표</span>
                                 <Badge type="blue">{resolveEmailGoal(pd).label}</Badge>
                               </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 12 }}>
+                              <div className="score-five-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 12 }}>
                                 {[
                                   { label: '목표 행동', value: subDataForScore.would_reply === true ? 'Yes' : subDataForScore.would_reply === false ? 'No' : '—' },
                                   { label: '후킹력', value: subDataForScore.hook_score ? `${subDataForScore.hook_score}/5` : '—' },
@@ -1278,7 +1278,7 @@ export default function PurityFilter() {
                     )}
 
                     {/* 5대 지표 점수 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 16 }}>
+                    <div className="score-five-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 16 }}>
                       {DIM.map(({ key, label }) => {
                         const val = fb[key] || 0;
                         const isSkipped = !val && fbSkippedLabels.has(label);

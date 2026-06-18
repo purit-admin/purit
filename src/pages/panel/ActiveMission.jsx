@@ -1341,7 +1341,7 @@ export default function ActiveMission() {
                 {parsedDesc.productDescription}
               </div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[['A', parsedDesc.variantA, parsedDesc.variantAImage, 'var(--blue)'], ['B', parsedDesc.variantB, parsedDesc.variantBImage, 'var(--accent)']].map(([label, text, imgUrl, color]) => (
                 <div key={label} onClick={() => setPrefChoice(label)} style={{ padding: '16px', borderRadius: 'var(--radius)', border: `2px solid ${prefChoice === label ? color : 'var(--border)'}`, background: 'var(--surface)', cursor: 'pointer', transition: 'all 0.15s' }}>
                   <div style={{ fontWeight: 800, fontSize: 16, color, marginBottom: 10 }}>소재 {label} {prefChoice === label ? '✓' : ''}</div>

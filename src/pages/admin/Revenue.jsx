@@ -87,7 +87,7 @@ export default function RevenueManagement() {
       </div>
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 28 }}>
+      <div className="kpi-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', marginBottom: 28 }}>
         {[
           { label: '이번 달 GMV', raw: monthlyGMV, accent: true },
           { label: '영업 마진율', value: `${marginRate}%`, sub: '목표 40%+' },
@@ -122,7 +122,7 @@ export default function RevenueManagement() {
       />
 
       {tab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div className="grid-1col-768" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <Card>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>월간 GMV / 마진 (만 원)</div>
             {chartData.length === 0 ? (

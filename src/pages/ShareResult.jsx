@@ -379,9 +379,9 @@ export default function ShareResult() {
               const dimAnns = activeDim === 'all' ? imgAnns : imgAnns.filter(a => a.dimension === activeDim);
               const withComment = dimAnns.filter(a => a.comment);
               return (
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div className="share-img-comment" style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                   {/* 이미지: sticky로 고정 — 코멘트를 스크롤해 내려도 항상 옆에 보이게 (코멘트 클릭 시 그 자리에서 강조) */}
-                  <div style={{ flex: 1, minWidth: 0, position: 'sticky', top: 60, alignSelf: 'flex-start', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
+                  <div className="share-img-col" style={{ flex: 1, minWidth: 0, position: 'sticky', top: 60, alignSelf: 'flex-start', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
                     <ImageAnnotator
                       imageUrl={data.image_urls[activeImg]}
                       imageIndex={activeImg}
@@ -392,7 +392,7 @@ export default function ShareResult() {
                     />
                   </div>
                   {withComment.length > 0 && (
-                    <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div className="share-comment-col" style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: '#8598AA', marginBottom: 2 }}>
                         코멘트 {withComment.length}개 · 클릭하면 해당 박스 강조
                       </div>

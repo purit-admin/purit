@@ -323,7 +323,7 @@ export default function PricingPage() {
                   );
                 })()}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+              <div className="grid-2col-480" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
                 {BUNDLES.map(amount => {
                   const isSelected = addonBundle === amount;
                   return (

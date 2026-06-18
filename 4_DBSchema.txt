@@ -571,7 +571,8 @@
     → NewMission.jsx 무료 분기에서 호출 (missions INSERT(draft) 직후) / GRANT authenticated
     → 파일: supabase/migrations/085_free_trial_freemium.sql
 
-  unlock_free_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 087→089→090→094→095 재정의 (최신 095)
+  unlock_free_trial_mission(p_mission_id UUID) RETURNS jsonb ★ 087→089→090→094→095→111 재정의 (최신 111)
+    → ★ 111 멱등화: missions 행 SELECT에 FOR UPDATE 추가 → 동시/연타 두 트랜잭션이 stale trial_unlocked=false를 읽고 둘 다 차감하던 이중 차감 차단(첫 커밋 후 두 번째는 already_unlocked). 095 본문(점수기반 공개·할인·경력크레딧) 불변. 파일 supabase/migrations/111_money_rpc_idempotency.sql
     → 잠긴 피드백 전체 언락 — 정가 = 잠긴 패널(공개분 제외)의 경력 크레딧 합
       공개분 ★094 점수기반: missions.trial_public_panel_ids 있으면 그 2명(089), 없으면 자동 ROW_NUMBER(avg_score DESC, panel_id ASC) rn≤2
         avg_score = 패널별 AVG((coalesce 5축)/5.0) — 호평(점수 상위) 2명 공개, 저점(치명적) 패널은 잠겨 티저 유발
@@ -625,7 +626,7 @@
   · handle_new_user(071→101) / create_oauth_user_profile(072) — companies INSERT plan='free_trial' (101에서 handle_new_user에 phone 추가)
   · admin_change_plan(025) / grant_plan_credits(079) — 허용목록·CASE에 'free_trial'(크레딧 0) 추가
   · notify_admin_on_mission(030) — NEW.is_free_trial이면 전 어드민에게 🔥 강한 알림(actionUrl /admin/trials?id=), 일반은 기존 LIMIT 1
-  · complete_mission_and_refund(018→095→098) — 어드민 전용(★ 098 app_metadata 단독 NOT EXISTS, D-58/D-134) / is_free_trial이면 환불·소비 재계산 없이 status='completed'만 (회계 격리, credits_consumed 보존)
+  · complete_mission_and_refund(018→095→098→111) — 어드민 전용(★ 098 app_metadata 단독 NOT EXISTS, D-58/D-134) / is_free_trial이면 환불·소비 재계산 없이 status='completed'만 (회계 격리, credits_consumed 보존) / ★ 111 멱등화: SELECT FOR UPDATE + status='completed'이면 credits_refunded:0 조기반환(어드민 더블클릭 이중 환불 차단)
   · recalc_mission_consumed(018) — is_free_trial이면 재계산 제외 조기반환 (승인 시 credits_consumed 덮어쓰기 방지, 언락 RPC가 관리)
   · get_panel_public_profiles(012) — 반환 컬럼에 is_expert 추가 (결과 "공개 2건" 정렬키, DROP 후 4컬럼 재생성)
   · get_shared_mission(106) — 무료 미언락 미션이면 share_permissions 강제 false (코멘트/이미지 코멘트 차단, 점수는 공개) + 서브 sub_panel_responses(승인 패널만)·메인 custom_answers 반환
@@ -669,14 +670,33 @@
     → 파일: 095_panel_head_by_years.sql (085/018 버전 대체)
     ※ complete_mission_and_refund(p_mission_id) — 동일 연차 밴드(095)로 소비 합산 후 status='completed'·환불. 무료 미션 회계 격리 불변(D-122)
 
-  complete_mission_and_refund(p_mission_id UUID) RETURNS jsonb
-    → 어드민 전용 (role='admin' 검사)
+  complete_mission_and_refund(p_mission_id UUID) RETURNS jsonb ★ 018→095→098→111
+    → 어드민 전용 (★ 098 app_metadata 단독 NOT EXISTS, D-58/D-134)
+    → ★ 111 멱등 가드: SELECT … FOR UPDATE + status='completed'이면 {already_completed:true, credits_refunded:0} 조기반환 → 어드민 완료버튼 더블클릭/동시 호출 시 이중 환불 차단(대칭 RPC reactivate_mission_and_reclaim(027)엔 가드 있었으나 complete만 누락이던 비대칭 보정)
     → purity_passed=true 패널의 experience 기반 실소비 크레딧 계산 (CEIL 없음, NUMERIC)
     → missions.status='completed', missions.credits_consumed=실소비
     → companies.credit_balance += GREATEST(0, credits_reserved - credits_consumed)
     → {success, credits_reserved, credits_consumed, credits_refunded} 반환
-    → admin/Missions.jsx 완료 처리 버튼에서 호출
-    → 파일: supabase/migrations/018_credits_numeric.sql (016 버전 대체)
+    → admin/Missions.jsx 완료 처리 버튼에서 호출 (ConfirmModal 확인버튼 in-flight 비활성으로 클라 더블클릭도 추가 방어)
+    → 파일: supabase/migrations/018_credits_numeric.sql → 095/098 → 111_money_rpc_idempotency.sql(멱등)
+
+  ─── 컬럼 가드 트리거 (112 — feedbacks/panels/companies 직접 조작 차단, 니체-SEC, D-160) ────
+  is_caller_admin() RETURNS boolean ★ 112 신규 (헬퍼)
+    → SECURITY DEFINER(authenticated는 auth.users SELECT 불가 → 소유자 권한 조회) / auth.uid()는 원호출자 반환
+    → raw_app_meta_data->>'role'='admin' EXISTS (★ app_metadata만 — user_metadata는 self-set 가능해 가드 우회 위험, D-58)
+    → GRANT authenticated, anon. 아래 3개 가드 트리거가 "어드민 client 직접 UPDATE 통과" 판별에 사용
+  guard_feedbacks_decision_columns() — BEFORE UPDATE ON feedbacks ★ 112
+    → 092 패턴(SECURITY INVOKER, current_user IN(authenticated,anon)으로 클라직접 vs DEFINER RPC 판별) + NOT is_caller_admin()
+    → 차단: purity_passed→true / payout_amount 변경 / rejection_penalty_applied→true (패널 self-approve·가짜 정산 차단)
+    → 통과: 패널 제출(purity_passed=false)·어드민 승인반려(is_caller_admin)·honor RPC(DEFINER)
+  guard_panels_privileged_columns() — BEFORE UPDATE ON panels ★ 112 (D-144 잔존분)
+    → 차단: honor_points·trust_score·is_expert·experience·experience_years·experience_confirmed_at·total_missions·status·rejection_count·rejection_reason
+    → 통과: 패널 본인 비보호 컬럼(avatar_emoji·avatar_color·selected_badge·notif_prefs·phone) / 어드민 PanelManagement(is_caller_admin) / DEFINER RPC(add_panel_honor_points·reject/restore_feedback_honor·recalc_panel_trust_score 109·admin_confirm_panel_experience·auto_increment·increment_panel_mission_count·check_and_award_badges)
+  guard_companies_money_columns() — BEFORE UPDATE ON companies ★ 112 (수평전개)
+    → 차단: credit_balance·plan·free_trial_used·addon_credits·plan_started_at·next_billing_at·plan_billing_cycle
+    → 통과: 기업 본인 비보호 컬럼(notif_prefs·프로필) / 결제·플랜 RPC 전부 DEFINER
+    → 파일: supabase/migrations/112_column_guard_triggers.sql
+    ※ 라이브 RLS(pg_policies) 확인 결과 feedbacks/panels/companies UPDATE 정책이 행 단위만 제한(예: companies_update USING user_id=auth.uid())·컬럼 무제한 = D-144 구멍 확정 → 트리거로 컬럼 보호
 
   reactivate_mission_and_reclaim(p_mission_id UUID) RETURNS jsonb
     → 어드민 전용 (raw_app_meta_data.role='admin' 검사)

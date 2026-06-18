@@ -479,6 +479,28 @@ input:focus, textarea:focus, select:focus {
   .share-two-col { grid-template-columns: 1fr !important; }
 }
 
+/* ─── 추가 반응형 유틸리티 (모바일 검수) ─── */
+/* 다중열 그리드 → 1열 강제 (≤768px). 데스크탑 열은 인라인 스타일이 제공 */
+@media (max-width: 768px) {
+  .grid-1col-768 { grid-template-columns: 1fr !important; }
+}
+/* KPI 4열 → 2열(≤768px) → 1열(≤480px) — 큰 숫자 카드용 */
+@media (max-width: 768px) { .kpi-grid-4 { grid-template-columns: repeat(2, 1fr) !important; } }
+@media (max-width: 480px) { .kpi-grid-4 { grid-template-columns: 1fr !important; } }
+/* 좁은 화면(≤480px)에서 2열로 — 작은 칩/버튼 묶음 */
+@media (max-width: 480px) {
+  .grid-2col-480 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+/* 공유 페이지 이미지+코멘트 2열 → 세로 스택 (≤768px) */
+@media (max-width: 768px) {
+  .share-img-comment { flex-direction: column !important; }
+  .share-img-comment .share-img-col {
+    position: static !important; max-height: none !important;
+    overflow: visible !important; width: 100% !important;
+  }
+  .share-img-comment .share-comment-col { width: 100% !important; }
+}
+
 /* ─── 공유 페이지 PDF 인쇄 ─── */
 @media print {
   .share-print-hide { display: none !important; }
