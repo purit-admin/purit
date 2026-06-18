@@ -1,6 +1,7 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-17 (전 포털 사용자노출 용어 '차원'→'지표' 전수 통일 — '5대 지표 진단' 명칭 일관화. 화면 노출 텍스트(기업 Diagnosis·Results / 패널 ActiveMission / 어드민 PurityFilter 반려 placeholder / 공유 ShareResult)·AI 리포트 프롬프트([5대 지표 점수])·코드 주석·테스트 스크립트·전 .txt 문서 본문 동반 치환. DB컬럼(clarity_score 등)·내부 식별자(dimension·DIMS·activeDimension 등 영문)·DIM 지표키는 불변. 빌드 검증 완료)
+최종 업데이트: 2026-06-18 (버그/불편 신고 — role을 신고 포털(pageUrl) 기준 저장 + 신고자 현황(company/panel BugReports) role 필터(.eq('role',…)) → 어드민(멀티 포털)이 한 포털서 보낸 신고가 타 포털 현황에 중복 노출되던 것 차단(일반 사용자는 user_id 분리로 이미 격리). bug_reports 어드민 DELETE 정책 추가(migration 113). 상세는 1_PRD_admin.txt 버그 리포트 섹션 참조)
+            2026-06-17 (전 포털 사용자노출 용어 '차원'→'지표' 전수 통일 — '5대 지표 진단' 명칭 일관화. 화면 노출 텍스트(기업 Diagnosis·Results / 패널 ActiveMission / 어드민 PurityFilter 반려 placeholder / 공유 ShareResult)·AI 리포트 프롬프트([5대 지표 점수])·코드 주석·테스트 스크립트·전 .txt 문서 본문 동반 치환. DB컬럼(clarity_score 등)·내부 식별자(dimension·DIMS·activeDimension 등 영문)·DIM 지표키는 불변. 빌드 검증 완료)
             2026-06-16 (공유 페이지(ShareResult) 결과 화면과 완전 동일화 — 서브 의뢰는 Results 서브 렌더러 재사용(점수·총평·추가질문 드롭다운·뱃지)·서브 공개 토글 제거(항상 공개)·메인 이미지 sticky 고정·레이더 domain[0,5] 고정 / get_shared_mission 확장: 메인 feedbacks.custom_answers + 서브 sub_panel_responses(승인 패널만) 추가, 서브 게이트 무료체험 잠김만 / 공유 권한 토글 라벨 '코멘트'→'총평'·'어노테이션'→'이미지 코멘트'(메인 전용) / 전 포털 용어 '어노테이션'→'이미지 코멘트' 전수 교체 / 브랜드 'Purity/PURITY'→'Purit/PURIT' 사용자 노출 전수 교체 / migration 106 / D-149 공개RPC 재사용 시 원본화면 exclusion필터 복제 누락 누출 · D-150 CSS grid repeat(N,1fr)+고정폭 자식 오버플로) / 2026-06-16 (어드민 의뢰 완료 알림 body에 환불 크레딧액 포함 — "잔여 크레딧 N cr이 환불되었습니다"(환불 0이면 금액 문구 생략). admin/Missions가 complete_mission_and_refund 반환값 credits_refunded 사용) / 2026-06-16 (어드민 알림 딥링크 전면 보강 + 알림센터 탭 3→5 분리(의뢰/무료체험/피드백/패널/버그) — 발송측 action_url에 대상 id 부착(missions?missionId·trials?id·purity?feedbackId·panels?panelId·reports?id), 수신 페이지(PurityFilter·PanelManagement·BugReports)에 ?쿼리 수신 effect 추가, notify_admin_on_feedback_submitted에 p_feedback_id 추가 / migration 102 / D-146 알림 딥링크는 location.state 전달 불가·쿼리만 가능 함정)
             2026-06-16 (가입 휴대폰 인증 Mock OTP + /verify-phone 게이트 — 이메일 가입 폼 인라인 인증(metadata 전달→handle_new_user 저장)·Google 가입자는 가입 후 게이트(save_my_phone RPC)·RoleRoute가 user_metadata.phone_verified로 미인증 기업/패널 차단(admin 제외)·알림톡 전 사용자 도달 목적·migration 101/103 / D-144 team_members self-UPDATE RLS 권한상승 함정 / D-145 StrictMode useState 초기화 부작용)
             2026-06-16 (패널 알림에 '피드백 승인 취소'(PurityFilter reset 승인됨→검토대기 되돌리기) 추가 — actionUrl /panel/history, 보상 직결로 항상 발송 / 반려 취소 시 honor_points -5 복원 / 어드민 피드백·미션·패널 관리 3페이지 양방향 교차 이동 버튼 + 뒤로가기 복원)
@@ -76,7 +77,12 @@
   · 제목 input + 상세 내용 textarea + 스크린샷 업로드(PNG/JPG, 5MB, bug-screenshots 버킷)
   · 스크린샷 업로드 실패 시 screenshot_url=null으로 graceful fallback — 신고 자체는 정상 제출
   · 제출 성공 → "리포트가 제출되었습니다!" 완료 화면 2.2초 후 자동 닫힘
-- DB: bug_reports 테이블 + DB 트리거(on_bug_report_insert) → 어드민 전체 자동 알림
+  · ★ role(신고 포털 구분값)은 "신고한 포털"(pageUrl 경로 /company·/panel·/admin) 기준으로 저장 — 계정 역할이 아님
+    (일반 사용자는 계정 역할=포털이라 동작 변화 없음. 어드민은 세 포털을 오가므로 신고 위치가 정확히 분류됨)
+- 신고자 본인 현황(company/panel BugReports '버그·건의 현황'): .eq('user_id') + .eq('role','company'|'panel') 필터
+  · 각 포털은 그 포털에서 보낸 리포트만 표시 — 어드민(멀티 포털)이 한 포털에서 보낸 신고가 다른 포털 현황에 중복 노출되던 것 방지
+  · 일반 기업·패널 계정은 user_id가 달라 RLS(select_own)로 이미 격리 — 이 현상은 어드민 전용이었음
+- DB: bug_reports 테이블 + DB 트리거(on_bug_report_insert) → 어드민 전체 자동 알림 / 어드민 DELETE 정책(migration 113)
 - 어드민 답변(admin_reply) 발송 → 신고자에게 💬 알림. actionUrl: 신고자 역할별 버그리포트 페이지 + ?id=<리포트id> 딥링크 ★ 082
   · 수신 페이지(panel/company BugReports)가 ?id로 해당 리포트 자동 열람 (bug_reports SELECT RLS로 본인 것만)
   · 거절/차단 패널도 게이트 허용 경로(/panel/bug-reports)라 답변 열람 가능

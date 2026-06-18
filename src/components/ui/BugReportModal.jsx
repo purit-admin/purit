@@ -47,9 +47,16 @@ export default function BugReportModal({ onClose, pageUrl }) {
       }
     }
 
+    // role은 "신고한 포털" 기준으로 저장 — 어드민이 여러 포털을 오가도 신고 위치가 정확히 분류됨
+    // (일반 사용자는 계정 역할=포털이라 동작 변화 없음). pageUrl 미상 시 계정 역할로 폴백.
+    const portalRole = pageUrl?.startsWith('/panel') ? 'panel'
+      : pageUrl?.startsWith('/admin') ? 'admin'
+      : pageUrl?.startsWith('/company') ? 'company'
+      : (role || 'company');
+
     const { error: insErr } = await supabase.from('bug_reports').insert({
       user_id: user.id,
-      role: role || 'company',
+      role: portalRole,
       type,
       page_url: pageUrl || '',
       title: title.trim(),

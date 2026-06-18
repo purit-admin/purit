@@ -63,12 +63,19 @@ export default function BugReports() {
   const [sendReplyError, setSendReplyError] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [checkedIds, setCheckedIds] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const deeplinkRef = useRef(false);
 
+  // 선택 삭제는 해결됨·기각 탭에서만 노출 (처리 완료된 리포트 정리 용도)
+  const canBulkDelete = tab === 'resolved' || tab === 'dismissed';
+
   useEffect(() => { loadAll(); }, []);
   useEffect(() => { loadTab(); }, [tab, page, typeFilter]);
+  // 탭·페이지·필터 전환 시 선택 초기화
+  useEffect(() => { setCheckedIds(new Set()); }, [tab, page, typeFilter]);
 
   // 알림 클릭 딥링크: ?id=xxx 쿼리 파라미터 처리
   // (알림은 문자열 URL로만 이동 → location.state를 못 받으므로 쿼리 경로가 필수)
@@ -171,6 +178,12 @@ export default function BugReports() {
       return;
     }
     setReports(rs => rs.filter(r => r.id !== reportId));
+    setCheckedIds(prev => {
+      if (!prev.has(reportId)) return prev;
+      const next = new Set(prev);
+      next.delete(reportId);
+      return next;
+    });
     setSelected(null);
     setMemo('');
     setAdminReply('');
@@ -219,6 +232,52 @@ export default function BugReports() {
       setSendReplyError('답변 전송에 실패했습니다. 다시 시도해 주세요.');
     }
     setSendingReply(false);
+  }
+
+  const pageIds = reports.map(r => r.id);
+  const allPageChecked = pageIds.length > 0 && pageIds.every(id => checkedIds.has(id));
+  const someChecked = checkedIds.size > 0;
+
+  function toggleOne(e, id) {
+    e.stopPropagation();
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll(e) {
+    e.stopPropagation();
+    if (allPageChecked) {
+      setCheckedIds(prev => {
+        const next = new Set(prev);
+        pageIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      setCheckedIds(prev => new Set([...prev, ...pageIds]));
+    }
+  }
+
+  async function deleteSelected() {
+    if (checkedIds.size === 0) return;
+    setDeleting(true);
+    const ids = [...checkedIds];
+    const { error } = await supabase.from('bug_reports').delete().in('id', ids);
+    if (!error) {
+      // setPage를 setReports updater 안에서 호출하면 StrictMode 이중 실행 시 page가 2씩 감소(D-145) → updater 밖에서 계산
+      const remaining = reports.filter(r => !ids.includes(r.id));
+      setReports(remaining);
+      setTotal(t => Math.max(0, t - ids.length));
+      if (selected && ids.includes(selected.id)) { setSelected(null); setMemo(''); setAdminReply(''); }
+      setCheckedIds(new Set());
+      if (remaining.length === 0 && page > 1) setPage(p => p - 1); // 페이지 비면 이전 페이지로(loadTab 재조회)
+      loadAll();
+    } else {
+      console.error('[BugReports deleteSelected]', error);
+    }
+    setDeleting(false);
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -286,20 +345,72 @@ export default function BugReports() {
             <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-3)' }}>리포트가 없습니다.</div>
           ) : (
             <>
+              {/* 선택 삭제 툴바 (해결됨·기각 탭 전용) */}
+              {canBulkDelete && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, minHeight: 32 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={allPageChecked}
+                      onChange={toggleAll}
+                      style={{ width: 15, height: 15, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>전체 선택</span>
+                  </label>
+                  {someChecked ? (
+                    <>
+                      <span style={{ fontSize: 12, color: 'var(--text-2)', marginLeft: 4 }}>
+                        {checkedIds.size}개 선택됨
+                      </span>
+                      <button
+                        onClick={deleteSelected}
+                        disabled={deleting}
+                        style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', fontSize: 12, cursor: deleting ? 'default' : 'pointer', fontWeight: 600 }}
+                      >
+                        {deleting ? '삭제 중…' : '삭제'}
+                      </button>
+                      <button
+                        onClick={() => setCheckedIds(new Set())}
+                        style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-3)', fontSize: 12, cursor: 'pointer' }}
+                      >
+                        선택 해제
+                      </button>
+                    </>
+                  ) : (
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-3)' }}>
+                      총 {total}개
+                    </span>
+                  )}
+                </div>
+              )}
+
               {reports.map(r => {
                 const tm = TYPE_META[r.type] || TYPE_META.other;
                 const isSelected = selected?.id === r.id;
+                const isChecked = checkedIds.has(r.id);
                 return (
                   <div
                     key={r.id}
                     onClick={() => handleSelect(r)}
                     style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10,
                       padding: '14px 16px', borderRadius: 12, marginBottom: 8,
-                      border: '1.5px solid ' + (isSelected ? 'var(--accent)' : 'var(--border)'),
-                      background: isSelected ? 'var(--accent-dim2)' : '#fff',
+                      border: '1.5px solid ' + (isSelected ? 'var(--accent)' : isChecked ? 'var(--accent-dim)' : 'var(--border)'),
+                      background: (isSelected || isChecked) ? 'var(--accent-dim2)' : '#fff',
                       cursor: 'pointer', transition: 'all 0.15s',
                     }}
                   >
+                    {/* 선택 체크박스 (해결됨·기각 탭 전용) */}
+                    {canBulkDelete && (
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={e => toggleOne(e, r.id)}
+                        onClick={e => e.stopPropagation()}
+                        style={{ marginTop: 2, width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
+                      />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
                     {/* 타입 뱃지 + 역할 */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{
@@ -347,6 +458,7 @@ export default function BugReports() {
                         </span>
                       </div>
                     )}
+                    </div>
                   </div>
                 );
               })}

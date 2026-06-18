@@ -59,6 +59,7 @@ export default function CompanyBugReports() {
         .from('bug_reports')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
+        .eq('role', 'company')
         .order('created_at', { ascending: false })
         .range(from, to);
       setReports(data || []);
