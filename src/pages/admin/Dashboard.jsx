@@ -36,7 +36,7 @@ export default function AdminDashboard() {
           supabase.from('panels').select('*', { count: 'exact', head: true }),
           supabase.from('feedbacks').select('*', { count: 'exact', head: true }).neq('status', 'draft'),
           supabase.from('feedbacks').select('*', { count: 'exact', head: true }).neq('status', 'draft').eq('purity_passed', true),
-          supabase.from('panels').select('id, name, industry, trust_score, honor_points, total_missions, status').order('created_at', { ascending: false }).limit(10),
+          supabase.from('panels').select('id, name, industry, trust_score, trust_score_count, honor_points, total_missions, status').order('created_at', { ascending: false }).limit(10),
           supabase.from('feedbacks').select('*', { count: 'exact', head: true }).eq('status', 'submitted').eq('purity_passed', false),
         ]);
 
@@ -163,8 +163,8 @@ export default function AdminDashboard() {
                 >
                   <td style={{ padding: '14px 20px', fontWeight: 600, color: C.text, fontSize: 14 }}>{p.name}</td>
                   <td style={{ padding: '14px 20px', fontSize: 13, color: C.text2 }}>{p.industry || '—'}</td>
-                  <td style={{ padding: '14px 20px', fontWeight: 700, color: (p.trust_score || 0) >= 80 ? '#22C55E' : (p.trust_score || 0) >= 60 ? C.primary : C.text2, fontSize: 14 }}>
-                    {p.trust_score || 0}
+                  <td style={{ padding: '14px 20px', fontWeight: 700, color: (p.trust_score_count || 0) < 3 ? C.text3 : (p.trust_score || 0) >= 80 ? '#22C55E' : (p.trust_score || 0) >= 60 ? C.primary : C.text2, fontSize: 14 }}>
+                    {(p.trust_score_count || 0) >= 3 ? (p.trust_score || 0) : '집계 중'}
                   </td>
                   <td style={{ padding: '14px 20px' }}>
                     {(() => {

@@ -43,6 +43,7 @@ function periodStart(period) {
 function getFlag(panel, stats) {
   const s = stats[panel.id];
   const trust = panel.trust_score || 0;
+  if ((panel.trust_score_count || 0) < 3) return 'none'; // 심사 3건 미만 — 표본 부족, 판정 보류(신규 위험 낙인 방지)
   if (trust < 40) return 'danger';
   if (s && s.total >= 3 && s.rejected / s.total > 0.5) return 'danger';
   if (trust >= 80 && s && s.total >= 3 && s.passRate >= 80) return 'star';
@@ -149,7 +150,7 @@ export default function AdminPanels() {
     try {
       const { data, error } = await supabase
         .from('panels')
-        .select('id, user_id, name, email, industry, experience, experience_years, experience_confirmed_at, is_executive, bio, expertise, trust_score, honor_points, honor_decay_applied_at, selected_badge, badges, streak_count, total_missions, status, suspend_until, rejection_count, rejection_reason, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
+        .select('id, user_id, name, email, industry, experience, experience_years, experience_confirmed_at, is_executive, bio, expertise, trust_score, trust_score_count, honor_points, honor_decay_applied_at, selected_badge, badges, total_missions, status, suspend_until, rejection_count, rejection_reason, phone, phone_verified, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url, created_at')
         .order('created_at', { ascending: false });
       if (!error) setPanels(data || []);
       setLoading(false);
@@ -182,7 +183,9 @@ export default function AdminPanels() {
         }
       });
       Object.values(stats).forEach(s => {
-        s.passRate = s.total > 0 ? Math.round(s.passed / s.total * 100) : 0;
+        // decided-only: 통과율 = 승인 / 심사 완료(승인+반려). 대기는 분모 제외(신뢰도 trust_score와 동일 기준)
+        const decided = s.passed + s.rejected;
+        s.passRate = decided > 0 ? Math.round(s.passed / decided * 100) : 0;
       });
       setFeedbackStats(stats);
     } catch (err) {
@@ -558,9 +561,13 @@ export default function AdminPanels() {
                       </td>
 
                       <td style={{ padding: '12px 14px' }}>
-                        <span style={{ fontWeight: 800, fontSize: 15, color: scoreColor(p.trust_score || 0) }}>
-                          {p.trust_score || 0}
-                        </span>
+                        {(p.trust_score_count || 0) >= 3 ? (
+                          <span style={{ fontWeight: 800, fontSize: 15, color: scoreColor(p.trust_score || 0) }}>
+                            {p.trust_score || 0}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 12, color: 'var(--text-3)' }} title="심사 3건부터 신뢰도 산정">집계 중</span>
+                        )}
                       </td>
 
                       <td style={{ padding: '12px 14px' }}>
@@ -577,9 +584,9 @@ export default function AdminPanels() {
                         {statsLoading ? '…' : s.total > 0 ? s.total : '—'}
                       </td>
 
-                      {/* 통과율 미니 바 */}
+                      {/* 통과율 미니 바 — 심사 완료(승인+반려) 0건이면 '—'(대기만 있는 경우 0% 오표시 방지) */}
                       <td style={{ padding: '12px 14px' }}>
-                        {statsLoading ? '…' : s.total > 0 ? (
+                        {statsLoading ? '…' : (s.passed + s.rejected) > 0 ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <div style={{ width: 44, height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
                               <div style={{
@@ -788,10 +795,12 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginBottom: 5 }}>
             <span>TRUST SCORE</span>
-            <span style={{ color: scoreColor(panel.trust_score || 0), fontWeight: 700 }}>{panel.trust_score || 0}</span>
+            <span style={{ color: (panel.trust_score_count || 0) >= 3 ? scoreColor(panel.trust_score || 0) : 'var(--text-3)', fontWeight: 700 }}>
+              {(panel.trust_score_count || 0) >= 3 ? (panel.trust_score || 0) : `집계 중 (${panel.trust_score_count || 0}/3)`}
+            </span>
           </div>
           <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: `${panel.trust_score || 0}%`, height: '100%', background: scoreColor(panel.trust_score || 0), borderRadius: 3 }} />
+            <div style={{ width: (panel.trust_score_count || 0) >= 3 ? `${panel.trust_score || 0}%` : '0%', height: '100%', background: scoreColor(panel.trust_score || 0), borderRadius: 3 }} />
           </div>
         </div>
 

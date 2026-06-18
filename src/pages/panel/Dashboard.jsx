@@ -206,7 +206,8 @@ export default function PanelDashboard() {
 
   const name        = panel?.name || '패널';
   const trustScore  = panel?.trust_score || 0;
-  const streakCount = panel?.streak_count || 0;
+  const trustCount  = panel?.trust_score_count || 0;
+  const trustEnough = trustCount >= 3; // 심사 3건부터 신뢰도 산정(표본 부족 시 0%/100% 극단 방지)
   const weeklyCount = histFeedbacks.filter(f => {
     if (!f.created_at) return false;
     return new Date(f.created_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -278,9 +279,9 @@ export default function PanelDashboard() {
                 {selectedBadgeMeta.name}
               </span>
             )}
-            {streakCount >= 2 && (
+            {weeklyCount >= 2 && (
               <span style={{ fontSize: 13, color: C.primary, fontWeight: 600 }}>
-                🔥 {streakCount}회 연속
+                🔥 이번 주 {weeklyCount}회
               </span>
             )}
           </div>
@@ -358,20 +359,26 @@ export default function PanelDashboard() {
       <div style={{ background: C.cardBg, borderRadius: 16, padding: '20px 28px', marginBottom: 20, boxShadow: C.shadow }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: C.text2 }}>내 신뢰도</span>
-          <span style={{ fontSize: 18, fontWeight: 800, color: trustScore >= 80 ? '#22C55E' : trustScore >= 60 ? C.primary : C.text2 }}>
-            {trustScore}%
-          </span>
+          {trustEnough ? (
+            <span style={{ fontSize: 18, fontWeight: 800, color: trustScore >= 80 ? '#22C55E' : trustScore >= 60 ? C.primary : C.text2 }}>
+              {trustScore}%
+            </span>
+          ) : (
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.text3 }}>집계 중</span>
+          )}
         </div>
         <div style={{ height: 6, borderRadius: 99, background: '#E2E8F0', overflow: 'hidden' }}>
           <div style={{
             height: '100%', borderRadius: 99,
-            width: `${trustScore}%`,
+            width: trustEnough ? `${trustScore}%` : '0%',
             background: trustScore >= 80 ? '#22C55E' : trustScore >= 60 ? C.primary : '#94a3b8',
             transition: 'width 0.6s ease',
           }} />
         </div>
         <div style={{ fontSize: 12, color: C.text3, marginTop: 6 }}>
-          Purit Filter 통과율 기준 — 높을수록 우선 미션 배정
+          {trustEnough
+            ? 'Purit Filter 통과율 기준 — 높을수록 우선 미션 배정'
+            : `심사 완료 ${trustCount}/3건 — 3건부터 신뢰도가 산정됩니다`}
         </div>
       </div>
 

@@ -8,7 +8,17 @@
 --
 -- 해결: 승인/반려 지점(PurityFilter 5곳 + TrialMissions 2곳 등)에 클라 호출을 흩뿌리는 대신
 --       feedbacks.status 변경 시 DB가 자동으로 trust_score만 재계산하는 트리거로 단일화(D-35 회피).
---       trust_score = 승인 / (승인+반려) × 100 — 심사 완료분만 분모(통과율 정의에 부합).
+--       trust_score = 승인(purity_passed) / 심사 완료(승인+반려) × 100  [decided-only]
+--       ※ 분모에 심사 대기(submitted)를 넣으면 대기 건이 점수를 희석(예: 승인3+대기5=38%)해
+--         실제 통과만 한 패널이 저점·위험으로 오판 → 심사 완료분만 분모로 둠.
+--       ※ admin/PanelManagement.jsx loadStats 의 s.passRate 도 동일하게 decided-only로 맞춰
+--         '전체' 기간에서 '신뢰도'(trust_score)와 '통과율'(s.passRate)이 일치(꼬임 방지).
+--
+--       trust_score_count: 심사 완료 건수(승인+반려)를 같이 저장 → 프론트가 "표본 부족"을 판정.
+--         3건 미만이면 0%/100% 극단·신규 위험 낙인 대신 "집계 중" 표시(표시 전용 임계).
+
+-- ── 동반 카운트 컬럼 (표본 수 = trust_score 분모, 표시 임계용) ────────────────
+ALTER TABLE panels ADD COLUMN IF NOT EXISTS trust_score_count INT DEFAULT 0;
 
 -- ── trust_score 전용 재계산 함수 (badges·tier·streak 미변경) ──────────────────
 CREATE OR REPLACE FUNCTION recalc_panel_trust_score(p_panel_id UUID)
@@ -18,22 +28,24 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_approved INT;
-  v_decided  INT;
+  v_passed  INT;
+  v_decided INT;
 BEGIN
   IF p_panel_id IS NULL THEN RETURN; END IF;
 
+  -- decided-only: passed=승인(purity_passed), decided=심사 완료(승인+반려). 대기(submitted) 제외
   SELECT
-    COUNT(*) FILTER (WHERE status = 'approved'),
+    COUNT(*) FILTER (WHERE purity_passed = true),
     COUNT(*) FILTER (WHERE status IN ('approved', 'rejected'))
-    INTO v_approved, v_decided
+    INTO v_passed, v_decided
     FROM feedbacks
    WHERE panel_id = p_panel_id;
 
   UPDATE panels
      SET trust_score = CASE WHEN v_decided > 0
-                            THEN ROUND((v_approved::NUMERIC / v_decided) * 100)
-                            ELSE 0 END
+                            THEN ROUND((v_passed::NUMERIC / v_decided) * 100)
+                            ELSE 0 END,
+         trust_score_count = v_decided
    WHERE id = p_panel_id;
 END;
 $$;
@@ -65,12 +77,14 @@ CREATE TRIGGER on_feedback_status_trust
 
 -- ── 기존 패널 1회 백필 (동결돼 있던 값 즉시 정정) ────────────────────────────
 UPDATE panels p
-   SET trust_score = sub.ts
+   SET trust_score = sub.ts,
+       trust_score_count = sub.cnt
   FROM (
     SELECT panel_id,
+           COUNT(*) FILTER (WHERE status IN ('approved', 'rejected')) AS cnt,
            CASE WHEN COUNT(*) FILTER (WHERE status IN ('approved', 'rejected')) > 0
                 THEN ROUND(
-                       COUNT(*) FILTER (WHERE status = 'approved')::NUMERIC
+                       COUNT(*) FILTER (WHERE purity_passed = true)::NUMERIC
                        / COUNT(*) FILTER (WHERE status IN ('approved', 'rejected')) * 100)
                 ELSE 0 END AS ts
       FROM feedbacks

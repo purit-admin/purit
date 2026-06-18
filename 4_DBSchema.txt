@@ -1,6 +1,7 @@
 ================================================================
 4_DBSchema.txt — Purity MVP DB 스키마 & RPC 함수 목록
-최종 업데이트: 2026-06-17 (108 패널 프로필 아바타 개인화 — panels.avatar_emoji·avatar_color 컬럼 신설. avatar_emoji=선택 이모지(NULL=이름 이니셜), avatar_color=AVATAR_PALETTE 인덱스 문자열 '0'~'11'(NULL=panel.id 해시 자동색). 본인 self-UPDATE RLS 경유(권한 컬럼 아님, D-144 무관)·본인 프로필 화면 전용으로 기업 비노출)
+최종 업데이트: 2026-06-18 (109 패널 신뢰도 자동 재계산 — panels.trust_score_count INT DEFAULT 0 컬럼 신설(심사완료 건수=trust_score 분모·표시 임계) + recalc_panel_trust_score RPC + feedbacks AFTER UPDATE OF status 트리거 trg_recalc_trust_score 신설. trust_score를 승인/심사완료(decided-only)로 라이브 재계산(구 update_panel_gamification 제거로 동결됐던 것 복구) + 기존 패널 백필. streak_count/tier/last_mission_date는 레거시 동결(streak는 화면을 라이브 weeklyCount로 대체)로 정리. D-155)
+            2026-06-17 (108 패널 프로필 아바타 개인화 — panels.avatar_emoji·avatar_color 컬럼 신설. avatar_emoji=선택 이모지(NULL=이름 이니셜), avatar_color=AVATAR_PALETTE 인덱스 문자열 '0'~'11'(NULL=panel.id 해시 자동색). 본인 self-UPDATE RLS 경유(권한 컬럼 아님, D-144 무관)·본인 프로필 화면 전용으로 기업 비노출)
             2026-06-16 (106 get_shared_mission 확장 — 공유 페이지를 결과 화면과 동일화: 메인 feedbacks에 custom_answers 추가 + 서브 sub_panel_responses(패널별 전체 응답 행: 점수·코멘트·custom_answers·panel_industry/experience, 승인 패널만=결과화면 동일집합 D-149) 신규 반환·구 sub_responses 집계본 폐지. 서브는 show_comments 무관(공개 토글 없음)·무료체험 잠김만 비공개. GRANT anon/authenticated) / 2026-06-16 (105 명예 포인트 0바닥 가역 정확화 — feedback_helpfulness_ratings.applied_hp_delta·feedbacks.rejection_honor_delta 컬럼 신설 + rate_panel_feedback_helpfulness 재작성(실제 적용량 기록·역적용·FOR UPDATE) + reject_feedback_honor/restore_feedback_honor 신규 RPC(어드민 게이트). 0바닥 클램프가 가역 연산 되돌림 시 증발분 과다적립하던 버그 D-148 / 107 rate_panel_feedback_helpfulness 대상 소유권 검증 3종 추가(ref 실재·ref.panel_id==p_panel_id·미션 소유 기업 일치)로 셸 기업 honor 부풀리기 차단 니체-HonorIDOR — 별도 작업 106_shared_mission과 충돌로 107 부여)
             2026-06-16 (104 패널 반려 피드백 삭제 분리 — feedbacks.revision_dismissed 컬럼 신설 + dismiss_rejected_feedback이 dismissed→revision_dismissed로 SET 변경. [수정 필요] 탭 삭제=revision_dismissed(지급 거절 유지) / [지급 거절] 탭 삭제=dismissed(전체 숨김, delete_rejected_feedback 불변). 같은 dismissed 공유 시 [수정 필요] 삭제가 [지급 거절]까지 지워 모달 약속 위반하던 버그 수정)
             2026-06-16 (102 어드민 알림 딥링크 — 트리거/RPC 6종 action_url에 대상 id 부착: notify_admin_on_mission·notify_company_on_slots_full(missions?missionId), notify_admin_on_feedback_submitted(purity?feedbackId, p_feedback_id 파라미터 추가→DROP 2-param후 3-param 재생성+GRANT), notify_admin_on_new_panel·notify_admin_on_panel_resubmit(panels?panelId), notify_admin_on_bug_report(reports?id). 트리거함수 5종은 CREATE OR REPLACE라 트리거 재생성 불필요. D-146)
@@ -69,11 +70,12 @@
   bank_account      TEXT
   bank_holder       TEXT
   total_missions    INT   DEFAULT 0
-  tier              TEXT  DEFAULT 'ROOKIE'  (ROOKIE/PRO/EXPERT/ELITE — update_panel_gamification RPC 자동 계산, 레거시 호환용)
-  trust_score       INT   DEFAULT 0  (purity_passed 건수 / 전체 submitted × 100)
-  streak_count      INT   DEFAULT 0  (최근 7일 내 submitted 건수)
-  last_mission_date TIMESTAMPTZ
-  badges            TEXT[]  DEFAULT '{}'
+  tier              TEXT  DEFAULT 'ROOKIE'  (레거시 동결 — update_panel_gamification 제거 후 미갱신·표시처 없음)
+  trust_score       INT   DEFAULT 0  ← 109부터 라이브: 승인(purity_passed) / 심사완료(승인+반려) × 100 [decided-only]. on_feedback_status_trust 트리거가 자동 갱신 (구 update_panel_gamification 제거로 동결됐던 것 복구)
+  trust_score_count INT   DEFAULT 0  ← 109 추가 (심사완료 건수 = trust_score 분모; 프론트 표시 임계 — 3건 미만이면 '집계 중'·위험/우수 판정 보류로 1건 0%/100% 극단 방지)
+  streak_count      INT   DEFAULT 0  (레거시 동결 — update_panel_gamification 제거 후 미갱신. 화면은 라이브 weeklyCount(feedbacks 7일 비-draft)로 대체, 이 컬럼 미사용)
+  last_mission_date TIMESTAMPTZ      (레거시 동결 — 표시처 없음·무해)
+  badges            TEXT[]  DEFAULT '{}'  (check_and_award_badges 077이 라이브 갱신)
   phone             TEXT    (핸드폰 번호, 기업에게 비공개)
   phone_verified    BOOLEAN DEFAULT false
   honor_points           INT         NOT NULL DEFAULT 0   ← 015 추가 (10단계 레벨 기반 HP)
@@ -108,6 +110,7 @@
   ※ 081_panel_experience_confirmation.sql 에서 experience_years / experience_confirmed_at / is_executive 컬럼 추가 + 기존 패널 백필
   ※ 082_panel_rejection_flow.sql 에서 rejection_count / rejection_reason 컬럼 추가 (심사 거절·재제출·영구차단 플로우)
   ※ 108_panel_avatar_emoji.sql 에서 avatar_emoji / avatar_color 컬럼 추가 (프로필 아바타 개인화 — 이모지·배경색, 본인 self-UPDATE RLS 경유)
+  ※ 109_panel_trust_score_recalc.sql 에서 trust_score_count 컬럼 추가 (심사완료 건수 = trust_score 분모·표시 임계) + recalc_panel_trust_score RPC·trg_recalc_trust_score 트리거 신설(decided-only 라이브 재계산) + 백필
   ※ 095_panel_head_by_years.sql: is_executive=(years>=15) 자동 파생 + experience='N년' 정규화 백필 (헤드 개명·연차 구간 재정의·기존 임원<15 강등)
   suspend_until          TIMESTAMPTZ DEFAULT NULL              ← 078 추가 (기간제 정지 만료 시각; NULL=영구 정지 또는 비정지)
   ※ 신규 패널 status: handle_new_user 트리거(이메일)·create_oauth_user_profile RPC(OAuth) 모두 'pending'으로 생성
@@ -480,10 +483,15 @@
     → feedbacks DELETE (status='draft', 본인 panel) (DELETE RLS 없음 → RPC 필수)
     → 파일: supabase/migrations/004_cancel_feedback_rpc.sql
 
-  update_panel_gamification(p_panel_id UUID)
-    → trust_score / tier / streak_count / last_mission_date / badges 자동 계산·갱신
-    → 피드백 제출 성공 후 ActiveMission.jsx에서 호출
+  update_panel_gamification(p_panel_id UUID)  ※ [신규-J]에서 호출 제거 — 사용 안 함 (구 badges·tier까지 덮어써 19뱃지 시스템 check_and_award_badges와 충돌). trust_score는 아래 recalc로 대체
+    → (레거시) trust_score / tier / streak_count / last_mission_date / badges 자동 계산
     → 파일: supabase/migrations/009_gamification.sql
+
+  recalc_panel_trust_score(p_panel_id UUID)  ← 109 신규 (SECURITY DEFINER)
+    → panels.trust_score = 승인(purity_passed)/심사완료(승인+반려)×100 [decided-only] + trust_score_count = 심사완료 건수. trust_score만 갱신(badges/tier/streak 불변)
+    → 트리거 trg_recalc_trust_score()가 feedbacks AFTER UPDATE OF status(승인/반려/취소·일괄·체험 전 경로) 시 자동 호출 → 클라 호출 흩뿌림 없이 단일화(D-35/D-155)
+    → 분모는 admin/PanelManagement loadStats s.passRate와 동일 decided-only(대기 제외)로 '전체' 기간 신뢰도=통과율 정합. 3건 미만은 프론트가 '집계 중'
+    → 파일: supabase/migrations/109_panel_trust_score_recalc.sql
 
   get_panel_public_profiles(p_mission_id UUID) RETURNS TABLE(panel_id UUID, industry TEXT, experience TEXT)
     → 해당 미션의 feedbacks(status≠draft)를 제출한 패널의 공개 정보만 반환

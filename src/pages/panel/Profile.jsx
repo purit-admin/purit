@@ -228,6 +228,7 @@ export default function PanelProfile() {
   const [otpError, setOtpError]       = useState('');
 
   const [notifPrefs, setNotifPrefs] = useState({});
+  const [weeklyCount, setWeeklyCount] = useState(0); // 최근 7일 제출 수(라이브) — 구 streak_count 죽은 컬럼 대체
 
   const [orig, setOrig]           = useState(null);
   const [dirtyWarn, setDirtyWarn] = useState(false);
@@ -264,6 +265,16 @@ export default function PanelProfile() {
           expertise: p.expertise || [],
           bankName: p.bank_name || '', bankAccount: p.bank_account || '', bankHolder: p.bank_holder || '',
         });
+
+        // 이번 주 제출 수(라이브): 최근 7일 비-draft 피드백 — 구 streak_count(동결) 대체
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { count: wc } = await supabase
+          .from('feedbacks')
+          .select('id', { count: 'exact', head: true })
+          .eq('panel_id', p.id)
+          .neq('status', 'draft')
+          .gte('created_at', weekAgo);
+        setWeeklyCount(wc || 0);
       }
       setLoading(false);
       } catch (err) {
@@ -743,7 +754,8 @@ export default function PanelProfile() {
       {/* Achievement tab */}
       {tab === 'achievement' && (() => {
         const trustScore  = panel?.trust_score || 0;
-        const streakCount = panel?.streak_count || 0;
+        const trustCount  = panel?.trust_score_count || 0;
+        const trustEnough = trustCount >= 3; // 심사 3건부터 신뢰도 산정(표본 부족 시 0%/100% 극단 방지)
         const earnedSet   = new Set(panel?.badges || []);
         const earnedCount = BADGE_CATALOG.filter(b => earnedSet.has(b.key)).length;
 
@@ -763,7 +775,7 @@ export default function PanelProfile() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
                 {[
                   { label: '완료 미션',  value: panel?.total_missions || 0, unit: '개' },
-                  { label: '이번 주 제출', value: streakCount,              unit: '건' },
+                  { label: '이번 주 제출', value: weeklyCount,              unit: '건' },
                   { label: '취득 뱃지',  value: earnedCount,                unit: '개' },
                 ].map(item => (
                   <div key={item.label} style={{ textAlign: 'center', padding: '12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
@@ -775,11 +787,18 @@ export default function PanelProfile() {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>신뢰도 (Purit Filter 통과율)</span>
-                  <span style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-sans)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-3)' }}>{trustScore}%</span>
+                  {trustEnough
+                    ? <span style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-sans)', color: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : 'var(--text-3)' }}>{trustScore}%</span>
+                    : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-3)' }}>집계 중</span>}
                 </div>
                 <div style={{ height: 8, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 99, width: `${trustScore}%`, background: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : '#94a3b8', transition: 'width 0.6s ease' }} />
+                  <div style={{ height: '100%', borderRadius: 99, width: trustEnough ? `${trustScore}%` : '0%', background: trustScore >= 80 ? 'var(--green)' : trustScore >= 60 ? 'var(--accent)' : '#94a3b8', transition: 'width 0.6s ease' }} />
                 </div>
+                {!trustEnough && (
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6 }}>
+                    심사 완료 {trustCount}/3건 — 3건부터 신뢰도가 산정됩니다
+                  </div>
+                )}
               </div>
             </Card>
 
