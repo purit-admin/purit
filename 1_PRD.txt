@@ -1,6 +1,7 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-18 (버그/불편 신고 — role을 신고 포털(pageUrl) 기준 저장 + 신고자 현황(company/panel BugReports) role 필터(.eq('role',…)) → 어드민(멀티 포털)이 한 포털서 보낸 신고가 타 포털 현황에 중복 노출되던 것 차단(일반 사용자는 user_id 분리로 이미 격리). bug_reports 어드민 DELETE 정책 추가(migration 113). 상세는 1_PRD_admin.txt 버그 리포트 섹션 참조)
+최종 업데이트: 2026-06-18 (랜딩 푸터 법적 고지 모달 신규 — '이용약관·개인정보처리방침·운영정책' 링크 3종을 foot-bottom에 추가, 클릭 시 모달 오버레이(alert 아님)로 본문 표시. legalModal state 단일 전환·ESC/배경/× 닫기·body 스크롤 잠금·인라인 스타일(.purit-landing 스코프 무관). 본문은 LEGAL_DOCS 표준 골격(placeholder)→오픈 전 법무 검토 필요. 동반: 랜딩 떠다니는 전문가 태그(ExpertCloud) 흐림 수정·어드민 패널/기업 관리 정렬 드롭다운 너비 고정. 상세는 2_Architecture.txt 참조)
+            2026-06-18 (버그/불편 신고 — role을 신고 포털(pageUrl) 기준 저장 + 신고자 현황(company/panel BugReports) role 필터(.eq('role',…)) → 어드민(멀티 포털)이 한 포털서 보낸 신고가 타 포털 현황에 중복 노출되던 것 차단(일반 사용자는 user_id 분리로 이미 격리). bug_reports 어드민 DELETE 정책 추가(migration 113). 상세는 1_PRD_admin.txt 버그 리포트 섹션 참조)
             2026-06-17 (전 포털 사용자노출 용어 '차원'→'지표' 전수 통일 — '5대 지표 진단' 명칭 일관화. 화면 노출 텍스트(기업 Diagnosis·Results / 패널 ActiveMission / 어드민 PurityFilter 반려 placeholder / 공유 ShareResult)·AI 리포트 프롬프트([5대 지표 점수])·코드 주석·테스트 스크립트·전 .txt 문서 본문 동반 치환. DB컬럼(clarity_score 등)·내부 식별자(dimension·DIMS·activeDimension 등 영문)·DIM 지표키는 불변. 빌드 검증 완료)
             2026-06-16 (공유 페이지(ShareResult) 결과 화면과 완전 동일화 — 서브 의뢰는 Results 서브 렌더러 재사용(점수·총평·추가질문 드롭다운·뱃지)·서브 공개 토글 제거(항상 공개)·메인 이미지 sticky 고정·레이더 domain[0,5] 고정 / get_shared_mission 확장: 메인 feedbacks.custom_answers + 서브 sub_panel_responses(승인 패널만) 추가, 서브 게이트 무료체험 잠김만 / 공유 권한 토글 라벨 '코멘트'→'총평'·'어노테이션'→'이미지 코멘트'(메인 전용) / 전 포털 용어 '어노테이션'→'이미지 코멘트' 전수 교체 / 브랜드 'Purity/PURITY'→'Purit/PURIT' 사용자 노출 전수 교체 / migration 106 / D-149 공개RPC 재사용 시 원본화면 exclusion필터 복제 누락 누출 · D-150 CSS grid repeat(N,1fr)+고정폭 자식 오버플로) / 2026-06-16 (어드민 의뢰 완료 알림 body에 환불 크레딧액 포함 — "잔여 크레딧 N cr이 환불되었습니다"(환불 0이면 금액 문구 생략). admin/Missions가 complete_mission_and_refund 반환값 credits_refunded 사용) / 2026-06-16 (어드민 알림 딥링크 전면 보강 + 알림센터 탭 3→5 분리(의뢰/무료체험/피드백/패널/버그) — 발송측 action_url에 대상 id 부착(missions?missionId·trials?id·purity?feedbackId·panels?panelId·reports?id), 수신 페이지(PurityFilter·PanelManagement·BugReports)에 ?쿼리 수신 effect 추가, notify_admin_on_feedback_submitted에 p_feedback_id 추가 / migration 102 / D-146 알림 딥링크는 location.state 전달 불가·쿼리만 가능 함정)
             2026-06-16 (가입 휴대폰 인증 Mock OTP + /verify-phone 게이트 — 이메일 가입 폼 인라인 인증(metadata 전달→handle_new_user 저장)·Google 가입자는 가입 후 게이트(save_my_phone RPC)·RoleRoute가 user_metadata.phone_verified로 미인증 기업/패널 차단(admin 제외)·알림톡 전 사용자 도달 목적·migration 101/103 / D-144 team_members self-UPDATE RLS 권한상승 함정 / D-145 StrictMode useState 초기화 부작용)
@@ -117,6 +118,11 @@
   - 5가지 기준: 좌측 5축 리스트 + 우측 큰 레이더(Radar 컴포넌트, 선언형 SVG) / 비교표: Purit 열 하이라이트
   - 후기 3종(전환율 2배·CTR 3배·광고비 절반 수치 포함) / 요금 3플랜(Starter/Pro/Enterprise, 크레딧 기반)
   - CTA: "첫 신청은 무료예요" + 안심 라인 "첫 신청 무료 · 카드 등록 없음 · 비용 0원"
+  - 푸터 법적 고지 링크 3종 ★ 신규 (2026-06-18): foot-bottom 우측에 '이용약관 / 개인정보처리방침 / 운영정책'
+    · 클릭 시 모달 오버레이로 본문 표시 (alert 아님) — legalModal state(null|terms|privacy|operation) 단일 전환
+    · 닫기 3경로: 우상단 × 버튼 / 배경 클릭 / ESC 키 + 열렸을 때 body 스크롤 잠금 / 카드 내부 stopPropagation(D-19 패턴)
+    · 본문은 LEGAL_DOCS 상수(Landing.jsx 모듈 레벨)의 표준 골격(placeholder) — 오픈 전 법무 검토 정식 문구로 교체 필요(4_Backlog)
+    · 모달은 인라인 스타일(hex 색)로 .purit-landing 스코프와 무관하게 표시(D-131 전역 CSS 충돌 회피)
 - /login : Login.jsx (공개)
 - /signup : Signup.jsx (공개, role 선택 포함 + 이메일 가입 시 휴대폰 인증 Mock OTP)
 - /verify-phone : VerifyPhone.jsx ★ 신규 — 가입 후 휴대폰 인증 게이트 (로그인 필요·휴대폰 게이트 미적용)

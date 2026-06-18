@@ -1,6 +1,6 @@
 ================================================================
 3_Error_Log_archive.txt — 환경 특이적·일회성 해결 이슈 아카이브
-최종 업데이트: 2026-06-10
+최종 업데이트: 2026-06-18 (D-162 추가 — 랜딩 ExpertCloud transform scale()+will-change 텍스트 흐림)
 ================================================================
 
 ※ 조건부 로드 문서. 아래 항목은 환경 의존적이거나 한 번 해결된 후 일상 개발에서
@@ -8,7 +8,7 @@
   관련 영역(랜딩 애니메이션 / Windows 스크립트 / SQL 마이그레이션 편집 / 가입 파일 업로드)
   작업 시에만 Read 도구로 직접 로드할 것.
 
-  보관 항목: D-48, D-63, D-81, D-84, D-95
+  보관 항목: D-48, D-63, D-81, D-84, D-95, D-162
   ※ D 번호는 3_Error_Log.txt와 통합 네임스페이스 — 다른 문서의 [D-48] 등 교차참조는 이 파일을 가리킴.
 
 D-48. staggered 애니메이션을 setTimeout 체인으로 구현하면 누적 드리프트로 일괄 동기화 ✅ 해결
@@ -100,4 +100,23 @@ D-95. 파일 업로드가 포함된 가입 흐름에서 signOut 전에 업로드
              uploadErr가 발생해도 가입 흐름은 계속 진행(console.warn 후 path=null) — graceful fallback
      → 추가: private Storage 버킷에서는 getPublicUrl 무효 — path만 DB에 저장하고
              어드민 접근 시 createSignedUrl(path, 600)으로 10분 유효 signed URL 생성
+
+D-162. transform: scale() 애니메이션 + will-change:transform이 텍스트를 흐리게 렌더 ✅ 해결
+     → 증상: 랜딩 "참여 전문가" 섹션의 떠다니는 전문가 태그(ExpertCloud) 글자가 화질 나쁘게(뭉개져) 보임
+             — 특히 등장·퇴장 중(opacity<1, scale<1)인 옅은 태그가 더 흐림
+     → 원인 2가지:
+             1. transform에 scale(0.8→1.0→0.94)을 매 프레임 적용 → 브라우저가 텍스트를 한 번 비트맵으로
+                래스터화한 뒤 그 비트맵을 확대/축소함 → 글자 가장자리가 뭉개짐 (스케일이 1이 아닐 때 항상 발생)
+             2. .expert-tag에 will-change:transform → 요소가 영구 GPU 합성 레이어로 승격 + translate(-50%,…)의
+                -50%가 홀수 폭 요소에서 0.5px 위치를 만들어 합성 레이어 위 텍스트가 하프픽셀로 흐려짐
+     → 해결:
+             1. 애니메이션 transform에서 scale() 전면 제거 — 떠오름 dy(정수 px로 Math.round 스냅)+페이드(opacity)만 유지
+                (등장/퇴장 모션은 dy로 충분, 글자는 항상 원본 크기 1:1 → 비트맵 확대 없음)
+             2. .expert-tag will-change:transform → will-change:opacity 로 축소(transform 레이어 고착 제거)
+                + -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale 글자 안티앨리어싱 보강
+             3. reduce-motion 분기·초기 인라인 스타일에 남은 scale(1)/scale(.8)도 동반 제거(3곳 일관)
+     → 원칙: transform 애니메이션으로 텍스트 요소를 다룰 때 scale()은 흐림의 직접 원인 — 크기 변화가 꼭 필요하지
+             않으면 translate/opacity만 쓸 것. will-change:transform은 GPU 레이어를 만들어 -50% 센터링·하프픽셀과
+             결합 시 텍스트를 흐리게 하므로, 텍스트 가독성이 중요한 요소엔 will-change:transform을 피하고
+             이동량을 정수 px로 스냅할 것. (랜딩 애니메이션 영역 — 환경 특이적 아카이브)
 
