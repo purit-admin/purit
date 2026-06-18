@@ -1,0 +1,231 @@
+================================================================
+QA_니체_보안전수조사_인계.txt
+보안 전수조사(모든 페이지·라우트) — 단계별 진행 인계 문서
+최초 작성: 2026-06-18
+================================================================
+
+이 문서는 "보안 전수조사" 작업을 다음 세션의 니체(또는 작업자)가 맥락 없이도 이어서
+진행할 수 있도록 만든 단일 인계 문서입니다. 여기만 읽으면 왜 시작했고, 전체 계획이 뭐고,
+지금 어디까지 했고, 무엇을 주의해야 하는지 전부 파악됩니다.
+
+----------------------------------------------------------------
+## 0. 왜 이 조사를 시작했나 (배경)
+----------------------------------------------------------------
+- 사용자가 QA_수동테스트_체크리스트.txt "섹션 28. 보안 기본 검증"(28-1~28-5)을 수동 점검하던 중,
+  "보안 관련해서 더 있어야 할 부분을 모든 페이지·모든 라우트에서 싹 다 찾아서, 연동성·구조를
+  깨지 않는 방향으로 보고하라"고 지시.
+- 28번은 "트리거 컬럼 보호"(112/114) 수준만 검증돼 있었음. 그러나 그보다 한 층 위(SELECT 전면
+  개방·비보호 컬럼 UPDATE·INSERT 우회·RPC 권한 게이트·Storage·Edge Function)는 미점검이었음.
+- 4개 영역(RLS 정책 커버리지 / RPC 권한 게이트 / 클라 IDOR·누출 / Storage·라우트·인증)을
+  병렬 조사 → 확정 갭 11건 도출 → 라이브 DB(pg_policies/storage.buckets)로 핵심 갭 검증 완료.
+
+핵심 통찰(반드시 기억):
+  · 이 프로젝트는 RLS 정책·일부 제약이 마이그레이션 파일이 아니라 Supabase 대시보드에서
+    "수동 생성"된 관행이 있음(086 사례, 3_Error_Log D-1 문서와 실 DB 불일치 확인됨).
+    → 따라서 "코드(migration)만 보고 RLS를 단정하면 안 됨." 반드시 운영 DB pg_policies로 교차확인.
+  · RLS 정책은 같은 cmd(SELECT 등)에 여러 개가 있으면 OR로 결합됨 → 가장 느슨한 정책 하나가
+    나머지 제한을 전부 무력화함. (panels SELECT=true 가 본인/어드민 정책을 무력화했던 게 그 예)
+
+----------------------------------------------------------------
+## 1. 전체 로드맵 (1~5단계) + 현재 상태
+----------------------------------------------------------------
+난이도(쉬운 것 → 큰 작업) 순서로 묶음. 사용자 선호 = 빠른 성과부터.
+
+[1단계] ✅ 완료·실행됨 (migration 115·116, 2026-06-18, SQL Editor 수동 실행 확인)
+   SQL 1파일·클라 코드 무변경·깨지는 경로 없음 4~5건:
+   #1 panels SELECT=true → 본인+어드민
+   #5 서브응답 3종 UPDATE=USING(true) → 본인 패널+어드민
+   #6 missions freemium INSERT 우회 → 트리거 BEFORE INSERT OR UPDATE 대칭화
+   #8 어드민 RPC NULL 게이트(D-134) → is_caller_admin()
+   #9 check_and_award_badges user_metadata(D-58) → is_caller_admin()  (116)
+
+[2단계] ⬜ 미착수 — feedbacks 읽기/쓰기 강화 (중간 난이도, SECURITY DEFINER 헬퍼 필요)
+   #2 feedbacks SELECT = auth.role()='authenticated' → 로그인 유저가 전체 피드백(점수·정산액·
+      panel_id·코멘트) 열람. OR 결합이라 옆의 자사/본인 제한 정책을 무력화.
+   #3 feedbacks UPDATE = auth.role()='authenticated' → 타인 피드백의 비보호 컬럼(점수·코멘트·
+      suggestions) 임의 변조 가능(112 트리거는 purity_passed·payout_amount만 보호).
+   ※ 서브응답 3종 SELECT=USING(true) 도 같은 부류 누출 → 2단계에서 feedbacks와 함께 처리 권장.
+
+[3단계] ⬜ 미착수 — missions SELECT 강화 (복잡, 정책 설계 필요)
+   #4 missions SELECT = true + auth.role()='authenticated' → 타사 의뢰(초안 포함)·페르소나·
+      가격전략 열람.
+   ※ 최대 장애물: 패널은 미션 소유주가 아니지만 (a)모집중(active) 둘러보기 (b)수락할 미션 상세
+      (c)본인 feedbacks에 조인된 미션 정보(제목·보상)를 읽어야 함 → 단순 자사限定으로 좁히면
+      패널 6개 경로가 깨짐.
+
+[4단계] ⬜ 미착수 — Edge Function 인증 (함수 코드 + 재배포 필요)
+   #10 send-invite-email: Authorization 검증 없음 + inviteUrl 미이스케이프 → 임의 이메일 스팸·
+       피싱·Resend 비용. (현재 팀초대 UI는 휴면이나 함수가 배포돼 있으면 악용 가능)
+   #11 generate-ai-report: 로그인은 확인하나 mission 소유권 미검증 → 타인 mission_id로 호출 시
+       Anthropic API 비용 유발 + 타인 ai_reports 덮어쓰기.
+
+[5단계] ⬜ 미착수 — Storage 버킷 private 전환 (큰 작업·화면 영향 큼, 별도 분리)
+   #7 mission-assets(public=true)·bug-screenshots(public=true) → 기업 소재 이미지·신고 스크린샷이
+      URL만 알면 비로그인 열람 가능. 경로 일부 추측 가능(bug-screenshots는 {uid}/{timestamp}).
+      private 전환 + createSignedUrl 경유로 바꿔야 하는데 결과·공유 화면이 직접 URL을 써서
+      영향 범위가 큼 → 맨 마지막 별도 작업.
+
+----------------------------------------------------------------
+## 2. 1단계 상세 (완료 내역 — 무엇을 어떻게 바꿨나)
+----------------------------------------------------------------
+파일: supabase/migrations/115_tighten_select_and_insert_guards.sql
+      supabase/migrations/116_fix_badge_rpc_app_metadata.sql
+둘 다 SQL Editor 수동 실행 완료. 112의 is_caller_admin() 헬퍼에 의존(112 선행 적용됨).
+
+#1 panels SELECT:
+   - DO 블록으로 panels 의 모든 cmd='SELECT' 정책을 이름 무관 일괄 DROP(대시보드 수동 정책 이름을
+     몰라도 안전) → panels_select_own_or_admin 단일 정책 재생성:
+     USING (user_id = auth.uid() OR public.is_caller_admin())
+   - cmd='ALL'(본인 self)·066 어드민 UPDATE 정책은 SELECT가 아니라 보존됨.
+   - 보존 근거: 기업은 panels 직접 SELECT 안 함(get_panel_public_profiles DEFINER RPC 경유).
+     anon 직접 읽기 경로 없음. 패널=본인, 어드민=헬퍼 통과.
+
+#5 서브응답 3종 UPDATE(preference/pricing/email_responses):
+   - DO 블록으로 각 테이블 cmd='UPDATE' 정책 일괄 DROP → 본인패널+어드민 정책 재생성:
+     USING/WITH CHECK (panel_id = (SELECT id FROM panels WHERE user_id=auth.uid()) OR is_caller_admin())
+   - INSERT(본인 panel_id)·SELECT(true) 정책은 미변경(SELECT는 2단계 대상).
+   - 보존 근거: 재제출(D-29)은 본인 panel_id UPDATE라 통과. 어드민도 헬퍼 통과.
+
+#6 missions freemium INSERT 가드:
+   - guard_mission_freemium_columns() 를 TG_OP 분기로 재작성:
+     · UPDATE 분기: 094 본문 그대로(NEW.X IS DISTINCT FROM OLD.X).
+     · INSERT 분기: is_free_trial/trial_unlocked/trial_public_panel_ids/credits_consumed/
+       credits_reserved/unlock_cost/trial_results_seen_at 가 "비-기본값"이면 RAISE.
+       (INSERT에서 IS DISTINCT FROM OLD 쓰면 OLD=NULL이라 정상 등록도 전부 막힘 → 그래서 분기 필수)
+   - 트리거를 BEFORE INSERT OR UPDATE 로 교체.
+   - 보존 근거: NewMission/PreferenceTest/PricingTest/ColdEmailTest 4폼 모두 등록 시 freemium 컬럼
+     미INSERT 확인(grep). 무료체험은 등록 후 create_free_trial_mission RPC(DEFINER)가 세팅 → 통과.
+     DEFINER RPC는 current_user≠authenticated 라 전부 가드 스킵.
+
+#8 어드민 RPC NULL 게이트(D-134):
+   - admin_delete_feedback(053)·decrement_mission_filled_count·restore_mission_slot(049)의
+     `(auth.jwt()->'app_metadata'->>'role') <> 'admin'` → `IF NOT public.is_caller_admin()` 로 교체.
+   - 본문 로직(반려 피드백+어노테이션 삭제 / 슬롯 ±1 LEAST·GREATEST 클램프)은 그대로.
+
+#9 check_and_award_badges(116):
+   - 077 본문 100% 유지, 호출자 검증 블록만 v_is_admin := public.is_caller_admin() 로 교체.
+   - 본인 폴백(p_panel_id가 본인 panel인지) 그대로. GRANT 동일.
+
+빌드: npm run build 통과(2798 모듈, src 무변경 — 순수 DB 마이그레이션).
+
+----------------------------------------------------------------
+## 3. 2~5단계 진행 시 설계 가이드 (구조 안 깨는 방향)
+----------------------------------------------------------------
+[2단계 feedbacks #2·#3] — 핵심: 클라 읽기 경로가 항상 "범위 한정"이라 좁혀도 안전.
+   읽기 경로(클라 매핑 완료): company=항상 mission_id(자사) / panel=항상 panel_id(본인) /
+   admin=전체(app_metadata 정책 통과).
+   권장 정책(OR 결합):
+     SELECT: panel_id IN (본인 panels) OR mission_id IN (자사 missions) OR is_caller_admin()
+     UPDATE: 위와 동일 + WITH CHECK
+   ⚠️ 함정: 정책 안의 서브쿼리 `mission_id IN (SELECT id FROM missions WHERE company_id=...)` 가
+      missions RLS(3단계에서 좁힐 예정)에 막혀 재귀/차단될 수 있음 → 074의 get_my_owned_company_ids()
+      같은 SECURITY DEFINER 헬퍼(RLS 우회)로 자사 mission_id 집합을 구하는 방식 권장.
+      필요 시 get_my_owned_mission_ids() / get_my_panel_id() 헬퍼 신설.
+   ⚠️ feedbacks SELECT 를 좁히면 panel 화면의 feedbacks→missions 중첩 조인이 영향받을 수 있으니
+      3단계와 함께 설계하는 게 안전(아래).
+   ⚠️ feedbacks SELECT 가 닫히면 28번 체크리스트의 "panels SELECT RLS는 본인 or admin 전용"
+      가정(D-28)이 비로소 실제로 성립함.
+
+[3단계 missions #4] — 핵심: 패널의 정당한 6경로 보존이 관건.
+   깨지는 경로(클라 매핑 완료):
+     · panel/Missions.jsx (모집중 active 목록 + 본인 진행중 id)
+     · panel/Dashboard.jsx (active 목록)
+     · panel/ActiveMission.jsx (수락할 미션 단건 id)
+     · panel/Dashboard·History·ActiveMission(draft)의 feedbacks→missions(...) 중첩 조인 3종
+       (본인 feedbacks에 붙은 "타사" 미션 정보를 PostgREST 조인으로 끌어옴 → 조인 대상 missions
+        SELECT 권한 없으면 필드가 null/누락됨)
+   권장 정책:
+     SELECT: company_id IN (자사) OR is_caller_admin()
+             OR status='active'                              -- 모집 공개(둘러보기·수락 상세)
+             OR id IN (본인 feedbacks가 존재하는 mission)     -- 중첩조인·정산내역(상태 무관)
+   ⚠️ "본인 feedbacks 존재 미션" 판정도 SECURITY DEFINER 헬퍼(get_my_feedback_mission_ids())로
+      구해야 feedbacks RLS와의 상호 의존(재귀)을 피함.
+   ⚠️ status='active' 공개는 active 미션의 모든 컬럼(share_token·share_permissions·결제 컬럼 등)을
+      패널에 노출시킴 → 민감 컬럼이 있으면 컬럼 마스킹 RPC로 빼는 것도 검토(과설계 주의, 현 노출
+      범위 점검 후 결정).
+
+[4단계 Edge Function #10·#11]
+   #10 send-invite-email: 함수 진입부에 generate-ai-report(31행) 패턴의 getUser() 인증 + 호출자가
+      해당 company 오너/팀원인지 확인 추가. inviteUrl origin 화이트리스트 검증·이스케이프.
+      ※ supabase secrets / 배포 필요. CORS '*' 도 함께 축소 검토.
+   #11 generate-ai-report: mission_id 수신 후 mission.company_id == 호출자 company.id || admin 명시
+      검증, 불일치 시 403. 빈도 제한도 고려.
+
+[5단계 Storage #7] — 큰 작업·별도.
+   mission-assets·bug-screenshots private 전환 + 정책을 마이그레이션 파일로 코드화(063 패턴 복제) +
+   화면(결과·공유·신고)에서 publicUrl → createSignedUrl 경유로 교체. bug-screenshots 파일명도
+   {timestamp} → randomUUID 권장. DELETE 정책 부재(고아 파일)도 함께 점검.
+
+----------------------------------------------------------------
+## 4. 운영 DB 확인 필요 (코드로 단정 불가 — 진행 전 pg_policies 재확인)
+----------------------------------------------------------------
+2~3단계 착수 전, SQL Editor에서 아래로 현 상태 재확인(1단계 적용 후 기준):
+  SELECT tablename, cmd, qual, with_check FROM pg_policies
+   WHERE schemaname='public' AND tablename IN ('feedbacks','missions')
+   ORDER BY tablename, cmd;
+이미 확정된 사실(2026-06-18 라이브 검증):
+  · feedbacks SELECT = (auth.role()='authenticated')  [열림 — 2단계 대상]
+  · feedbacks UPDATE = (auth.role()='authenticated')  [열림 — 2단계 대상]
+  · feedbacks INSERT = panel_id 소유 (114 트리거가 컬럼 보호)
+  · missions SELECT = true + (auth.role()='authenticated')  [열림 — 3단계 대상]
+  · missions ALL    = company_id 소유 / INSERT = company_id 소유 (115 트리거가 freemium 보호)
+  · 6개 테이블 모두 rowsecurity=true (RLS 활성)
+  · 버킷: mission-assets=public / bug-screenshots=public / panel-verification-docs=private
+
+----------------------------------------------------------------
+## 5. 반드시 지킬 패턴·유의사항 (이 작업 전용 학습)
+----------------------------------------------------------------
+P1. 어드민 판별은 무조건 is_caller_admin()(112) 또는 raw_app_meta_data EXISTS 형태.
+    · raw_user_meta_data 금지(사용자 self-set 가능 = 위조, D-58).
+    · `<> 'admin'`/`NOT(...='admin')` 금지(app_metadata NULL이 통과 = 새 구멍, D-134).
+    · is_caller_admin()은 SECURITY DEFINER·STABLE·app_metadata EXISTS·anon/authenticated GRANT.
+P2. 컬럼 보호 트리거는 INSERT·UPDATE 양쪽 대칭으로(D-163/114/115). 한쪽만 막으면 다른 경로로 우회.
+    · 단, INSERT 분기는 OLD가 NULL이라 "IS DISTINCT FROM OLD"가 정상행도 막음 → TG_OP 분기로
+      "비-기본값이면 차단" 형태로 짤 것(115 missions 가드가 그 예).
+P3. SELECT/UPDATE RLS는 같은 cmd 정책이 OR로 결합 → 좁힐 땐 느슨한 정책(true/authenticated)을
+    반드시 DROP. 정책 이름을 모르면 DO 블록으로 cmd별 일괄 DROP 후 재생성(115 패턴).
+P4. SECURITY DEFINER RPC는 RLS를 우회(current_user=postgres) → 정책을 좁혀도 정상 RPC 경로는 안 깨짐.
+    역으로, RLS 정책 서브쿼리가 다른 좁힌 테이블을 참조하면 재귀/차단될 수 있으니 DEFINER 헬퍼로 우회.
+P5. RLS는 "행"만 막고 "컬럼"은 못 막음(D-144/D-160). 행 단위로 열린 테이블의 민감 컬럼은
+    컬럼 가드 트리거로 따로 보호(112/114/115).
+P6. 비공개/잠긴 데이터를 CSS blur·클라 .filter로만 가리면 DevTools 우회됨(D-136). 서버(RPC/RLS)
+    마스킹·제외가 정답. 같은 데이터 인접 화면(진단·AI리포트 등) 수평전개 점검.
+P7. 클라이언트 코드는 가능하면 무변경 유지가 목표(연동성 보존). 정책·트리거·RPC 게이트만 손대서
+    정상 경로가 통과하도록 설계 → 1단계 전부 클라 무변경 달성. 2~3단계도 같은 목표.
+P8. 마이그레이션은 전부 SQL Editor 수동 실행(CLI db push 미사용). 파일 작성 != DB 적용.
+    번호는 archive 최신(100) 이후 migrations/ 직속에 이어서(현재 116까지 사용). 다음은 117.
+P9. is_caller_admin() 의존 전제 — 112가 운영 DB에 적용돼 있어야 함(확인됨). 신규 마이그레이션이
+    이 헬퍼를 쓸 때 주석에 "112 선행 전제" 명시.
+
+----------------------------------------------------------------
+## 6. 오탐 정리 (조사했으나 안전 — 재작업 불필요)
+----------------------------------------------------------------
+· 금전·어드민 RPC 14종(complete_mission_and_refund·admin_change_plan·admin_add_credits·
+  recalc_mission_consumed·admin_delete_trial_mission·admin_set_trial_public·
+  admin_set_trial_mission_status 등) — 098이 전부 NULL 안전 app_metadata 게이트로 덮어씀.
+  archive의 085/095/096/097 옛 정의는 098이 최종이라 무효(겁먹지 말 것).
+· owner 게이트 RPC(grant_plan_credits·purchase_credits·reserve_mission_credits·
+  create_free_trial_mission·unlock_free_trial_mission·touch_trial_results_seen) — id+user_id 검증.
+· rate_panel_feedback_helpfulness — 105/107에서 대상 소유권 3중 검증 완비.
+· 컬럼 가드(112) feedbacks/panels/companies BEFORE UPDATE + is_caller_admin — 정상.
+· save_panel_verification_docs(065)·save_my_phone(103)·get_company_trial_feedbacks(100) — 본인/
+  소유권 검증 완비. 무료체험 페이월(100/D-136)·get_shared_mission·ShareResult — 서버 마스킹 경유 안전.
+· panel-verification-docs 버킷 — private + 본인/어드민(063/084) — 안전.
+· RoleRoute가 user_metadata.role을 믿는 건 구조적이나 실제 데이터는 app_metadata RLS가 막음 →
+  "어드민 화면 껍데기 진입"에 그치고 데이터 권한상승 아님(심층방어 차원 개선 여지만, 우선순위 낮음).
+· anon GRANT는 get_shared_mission·peek_team_invite·is_caller_admin만 — 전부 의도된 공개/무해.
+
+----------------------------------------------------------------
+## 7. 다음 작업 시작점 (이어서 할 때)
+----------------------------------------------------------------
+1) §4 SQL로 feedbacks/missions 현 정책 재확인(1단계 적용 반영됐는지 + 변화 없는지).
+2) 2단계 착수: get_my_owned_company_ids()(074 존재) 재사용 + 필요 시 get_my_panel_id() 헬퍼 신설 →
+   feedbacks SELECT/UPDATE 정책 교체(migration 117). 서브응답 3종 SELECT도 같이 좁힐지 판단.
+   ⚠️ panel 화면 feedbacks→missions 중첩 조인 영향 때문에 2·3단계를 한 묶음으로 설계하는 것이
+      가장 안전(개별로 하면 중간 상태에서 패널 화면이 깨질 수 있음).
+3) 빌드 검증 + 클라 읽기 경로 재확인 후 사용자 승인 받고 SQL Editor 실행 요청.
+4) 완료 시 QA_니체_DONE.txt에 기록(미완료는 본 문서 [Nz단계] 상태만 갱신).
+
+작업 원칙(사용자 성향): 수정 전 설명 먼저 → 승인 후 수정 / 쉬운 것부터 / 핵심만 / 수정 후 검증·수평전개.
+존댓말 + 개발 용어 한국어 병기 필수.
+================================================================
