@@ -40,7 +40,7 @@ function loadEnv() {
 
 const env = loadEnv()
 const SUPABASE_URL = env.VITE_SUPABASE_URL
-const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY
+const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_SERVICE_ROLE_KEY
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('❌ VITE_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 가 .env.local 에 없습니다.')
@@ -105,7 +105,10 @@ function stamp() {
 }
 
 async function main() {
-  const outDir = path.join(ROOT, 'backups', stamp())
+  // 저장 위치: .env.local 의 BACKUP_DIR 가 있으면 거기(예: OneDrive 동기화 폴더 → 기기 독립),
+  //            없으면 프로젝트 내 backups/ (로컬, .gitignore 등록됨)
+  const baseDir = env.BACKUP_DIR ? path.resolve(env.BACKUP_DIR) : path.join(ROOT, 'backups')
+  const outDir = path.join(baseDir, stamp())
   fs.mkdirSync(outDir, { recursive: true })
   console.log('📦 백업 시작 →', outDir)
   console.log('   대상:', SUPABASE_URL)

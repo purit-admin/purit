@@ -15,7 +15,7 @@ const env = Object.fromEntries(
 
 const SUPA_URL = env.VITE_SUPABASE_URL;
 const ANON = env.VITE_SUPABASE_ANON_KEY;
-const SERVICE = env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE = env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 const admin = createClient(SUPA_URL, SERVICE, { auth: { autoRefreshToken: false, persistSession: false } });
 

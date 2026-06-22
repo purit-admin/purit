@@ -10,7 +10,7 @@ const envVars = Object.fromEntries(
     .filter(l => l.includes('=') && !l.startsWith('#'))
     .map(l => { const [k, ...v] = l.split('='); return [k.trim(), v.join('=').trim()]; })
 );
-const supabase = createClient(envVars.VITE_SUPABASE_URL, envVars.VITE_SUPABASE_SERVICE_ROLE_KEY, {
+const supabase = createClient(envVars.VITE_SUPABASE_URL, envVars.SUPABASE_SERVICE_ROLE_KEY || envVars.VITE_SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 

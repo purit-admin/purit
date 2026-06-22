@@ -39,27 +39,27 @@ QA_니체_보안전수조사_인계.txt
    #8 어드민 RPC NULL 게이트(D-134) → is_caller_admin()
    #9 check_and_award_badges user_metadata(D-58) → is_caller_admin()  (116)
 
-[2단계] ⬜ 미착수 — feedbacks 읽기/쓰기 강화 (중간 난이도, SECURITY DEFINER 헬퍼 필요)
+[2단계] ✅ 완료 (migration 117, 2026-06-22 SQL Editor 실행) — feedbacks 읽기/쓰기 강화 + 서브응답 SELECT(119)
    #2 feedbacks SELECT = auth.role()='authenticated' → 로그인 유저가 전체 피드백(점수·정산액·
       panel_id·코멘트) 열람. OR 결합이라 옆의 자사/본인 제한 정책을 무력화.
    #3 feedbacks UPDATE = auth.role()='authenticated' → 타인 피드백의 비보호 컬럼(점수·코멘트·
       suggestions) 임의 변조 가능(112 트리거는 purity_passed·payout_amount만 보호).
    ※ 서브응답 3종 SELECT=USING(true) 도 같은 부류 누출 → 2단계에서 feedbacks와 함께 처리 권장.
 
-[3단계] ⬜ 미착수 — missions SELECT 강화 (복잡, 정책 설계 필요)
+[3단계] ✅ 완료 (migration 117 묶음 — missions SELECT) + 118 missions UPDATE 추가 발견·차단(라이브 재검증, D-166)
    #4 missions SELECT = true + auth.role()='authenticated' → 타사 의뢰(초안 포함)·페르소나·
       가격전략 열람.
    ※ 최대 장애물: 패널은 미션 소유주가 아니지만 (a)모집중(active) 둘러보기 (b)수락할 미션 상세
       (c)본인 feedbacks에 조인된 미션 정보(제목·보상)를 읽어야 함 → 단순 자사限定으로 좁히면
       패널 6개 경로가 깨짐.
 
-[4단계] ⬜ 미착수 — Edge Function 인증 (함수 코드 + 재배포 필요)
+[4단계] ✅ 완료(#11 generate-ai-report 미션 소유권 게이트 추가·재배포) / #10 send-invite-email은 팀기능 제거 합의로 함수 보류(저위험)
    #10 send-invite-email: Authorization 검증 없음 + inviteUrl 미이스케이프 → 임의 이메일 스팸·
        피싱·Resend 비용. (현재 팀초대 UI는 휴면이나 함수가 배포돼 있으면 악용 가능)
    #11 generate-ai-report: 로그인은 확인하나 mission 소유권 미검증 → 타인 mission_id로 호출 시
        Anthropic API 비용 유발 + 타인 ai_reports 덮어쓰기.
 
-[5단계] ⬜ 미착수 — Storage 버킷 private 전환 (큰 작업·화면 영향 큼, 별도 분리)
+[5단계] ⏸️ 보류 (2026-06-22 결정) — Storage 버킷 private 전환. 경로가 3중 UUID(회사/미션/랜덤)·비열거라 효용<비용(12화면+데이터변환+공유 서버서명 부담). 대신 bug-screenshots 경로 Date.now()→randomUUID 값싼 강화만 적용. 민감 자료 저장·스케일 시 재검토
    #7 mission-assets(public=true)·bug-screenshots(public=true) → 기업 소재 이미지·신고 스크린샷이
       URL만 알면 비로그인 열람 가능. 경로 일부 추측 가능(bug-screenshots는 {uid}/{timestamp}).
       private 전환 + createSignedUrl 경유로 바꿔야 하는데 결과·공유 화면이 직접 URL을 써서

@@ -68,6 +68,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 권한 게이트: 본인 회사 미션이거나 어드민만 허용
+    //   이 함수는 service role 로 DB를 읽어 RLS 를 우회하므로 코드 레벨 소유권 검증이 필수.
+    //   누락 시 로그인한 임의 기업이 타사 mission_id 로 호출해 타사 피드백 기반 AI 리포트를
+    //   생성(피드백 내용 누출 + Anthropic API 비용)할 수 있음.
+    const isAdmin = (user.app_metadata as Record<string, unknown> | undefined)?.role === 'admin';
+    if (!isAdmin && (!companyId || mission.company_id !== companyId)) {
+      return new Response(JSON.stringify({ error: '권한이 없습니다.' }), {
+        status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (!companyId) companyId = mission.company_id;
 
     // 4. 피드백 조회 (purity_passed=true 우선, 없으면 전체)

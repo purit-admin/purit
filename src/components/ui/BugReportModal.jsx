@@ -35,7 +35,7 @@ export default function BugReportModal({ onClose, pageUrl }) {
     let screenshot_url = null;
     if (file) {
       const ext = file.name.split('.').pop();
-      const path = `${user.id}/${Date.now()}.${ext}`;
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('bug-screenshots')
         .upload(path, file);
