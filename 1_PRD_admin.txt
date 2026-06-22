@@ -1,6 +1,6 @@
 ================================================================
 1_PRD_admin.txt — Purity MVP 어드민(Admin) 포털 상세 정의
-최종 업데이트: 2026-06-18 (버그 리포트 선택 삭제 — 해결됨·기각 탭에 NotificationCenter 동일 UI(전체선택·N개선택·삭제·선택해제 툴바 + 카드 체크박스). bug_reports DELETE 정책 부재로 삭제 무음 실패하던 것 → migration 113 어드민 DELETE 정책(app_metadata.role). checkedIds Set·[tab,page,typeFilter] 선택 초기화·handleStatusChange가 checkedIds 정리·setPage는 updater 밖(StrictMode 이중 감소 D-161). 동반: BugReportModal role을 신고 포털 기준 저장→company/panel 현황 role 필터로 어드민 멀티 포털 중복 노출 차단)
+최종 업데이트: 2026-06-22 (수익 & 정산에 '이탈/해지' 탭 신규 — 구독 해지(120) 이탈 사유 통계 화면. 좌측 '이탈 사유 분포'(사유 6종 건수·비율 막대, 많은 순)+우측 '최근 해지 목록'(기업·플랜·사유·상세·종료예정·해지일). subscription_cancellations를 어드민 권한(is_caller_admin RLS)으로 select('*, companies(name)')·철회/재구독분은 RPC가 행 삭제하므로 자동 제외=실제 이탈만. StatusTabs 4탭(GMV/패널정산/기업청구/이탈해지). 빌드 검증 완료) / 2026-06-18 (버그 리포트 선택 삭제 — 해결됨·기각 탭에 NotificationCenter 동일 UI(전체선택·N개선택·삭제·선택해제 툴바 + 카드 체크박스). bug_reports DELETE 정책 부재로 삭제 무음 실패하던 것 → migration 113 어드민 DELETE 정책(app_metadata.role). checkedIds Set·[tab,page,typeFilter] 선택 초기화·handleStatusChange가 checkedIds 정리·setPage는 updater 밖(StrictMode 이중 감소 D-161). 동반: BugReportModal role을 신고 포털 기준 저장→company/panel 현황 role 필터로 어드민 멀티 포털 중복 노출 차단)
             2026-06-18 (피드백 승인 시 뱃지 재계산 — PurityFilter·TrialMissions 승인 RPC 시퀀스(개별·일괄)에 check_and_award_badges 추가(승인 패널 뱃지 즉시 부여, 일괄은 패널별 1회 중복제거). 체험 승인 누락 보강. D-156) / 2026-06-18 (패널 관리 Trust/통과율 정합 — migration 109. trust_score가 decided-only(승인/심사완료(승인+반려))로 라이브 재계산되며, loadStats s.passRate도 동일 decided-only로 맞춰 '전체' 기간 Trust=통과율 일치(대기 분모 제외로 희석 왜곡 제거). getFlag는 심사완료(trust_score_count) 3건 미만이면 'none'으로 위험/우수 판정 보류(신규 패널 위험 낙인 방지) — Trust 칸·상세는 '집계 중', 통과율 미니바는 심사완료 0건 시 '—'. admin/Dashboard 상위 패널 표도 동일 가드. D-155)
             2026-06-17 (피드백 관리·체험 관리 Purit Score '코멘트 구체성' 키워드 대폭 확장 + 공용 lib 추출 — 서브/메인 피드백에서 패널이 실제 쓰는 자연어 어휘(톤·카피·후킹·신뢰·명확·구체·설득·행동·첫인상·호기심 등)를 반영해, 구체적인 코멘트가 0점으로 고착되던 문제 해소(기존 키워드가 가격·CTA·ROAS 등 광고/LP 전문어에 편중). 키워드 정규식을 src/lib/purityKeywords.js(SUB_SPEC_KW·LP_SPEC_KW) 단일 출처로 추출 → PurityFilter(/admin/purity)·TrialMissions(/admin/trials)가 import 공유. 같은 calcPurityScore가 두 파일에 복제돼 한 곳만 고치면 같은 피드백 점수가 화면마다 달라지던 드리프트 차단(D-35/D-154). Purit Score는 어드민 검수 참고용 — purity_passed 승인/반려·정산 로직 불변, 점수 상향만 발생)
             2026-06-17 (용어 '차원'→'지표' 통일 — PurityFilter 반려 사유 입력 placeholder "각 차원마다…"→"각 지표마다…" 교체, '5대 지표 진단' 명칭 일관화. 내부 식별자 불변)
@@ -222,6 +222,10 @@ completeBlocked = allFbs.length === 0 || reviewing.length > 0
   · missions.status='completed' → "지급완료"(green) / 그 외 → "지급대기"(gold)
 - 청구서 탭: invoices 테이블 (D-65·D-69 패턴 준수)
 - 수익 탭: 기업별 크레딧 사용 현황 집계
+- 이탈/해지 탭 ★ 신규 (구독 해지 분석): subscription_cancellations select('*, companies(name)') (is_caller_admin RLS·limit 500)
+  · 좌: 이탈 사유 분포 — CHURN_REASON_LABELS 6종(가격부담·기능부족·낮은사용빈도·경쟁이동·일시중단·기타) 건수·비율 막대(많은 순)
+  · 우: 최근 해지 목록 테이블 — 기업명 / 플랜 / 사유 / 상세 코멘트 / 종료 예정일(effective_at) / 해지일(created_at)
+  · 누적 N건 표기, 철회·재구독분은 RPC(resume/grant_plan_credits)가 미완료 행 삭제하므로 목록에서 자동 제외(실제 이탈만)
 
 ================================================================
 ## 버그 리포트 (/admin/reports) — BugReports.jsx

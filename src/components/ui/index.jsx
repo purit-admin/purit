@@ -113,7 +113,7 @@ export const StatusTabs = ({ tabs, value, onChange, style }) => (
           background: 'transparent',
           color: active ? 'var(--text)' : 'var(--text-3)',
           borderBottom: active ? '2px solid var(--text)' : '2px solid transparent',
-          border: 'none', borderRadius: 0, transition: 'all 0.15s', cursor: 'pointer',
+          borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0, transition: 'all 0.15s', cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
         }}>
           {t.count != null ? <span>{t.label} ({t.count})</span> : t.label}

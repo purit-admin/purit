@@ -4,11 +4,22 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, L
 import { supabase } from '../../lib/supabase';
 import { getPanelReward } from '../../lib/honorLevels';
 
+// 이탈 사유 코드 → 표시 라벨 (CancelSubscriptionModal의 reason_code와 1:1)
+const CHURN_REASON_LABELS = {
+  price: '가격 부담',
+  missing_features: '기능 부족',
+  low_usage: '낮은 사용 빈도',
+  competitor: '경쟁 서비스 이동',
+  temporary: '일시 중단',
+  other: '기타',
+};
+
 export default function RevenueManagement() {
   const [tab, setTab] = useState('overview');
   const [gmvData, setGmvData] = useState([]);
   const [feedbackSettlements, setFeedbackSettlements] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [cancellations, setCancellations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmInvoice, setConfirmInvoice] = useState(null);
   const [invoiceError, setInvoiceError] = useState('');
@@ -20,7 +31,7 @@ export default function RevenueManagement() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [gmvRes, settRes, invRes] = await Promise.all([
+      const [gmvRes, settRes, invRes, cancRes] = await Promise.all([
         supabase.from('gmv_snapshots').select('*').order('year').order('month_num'),
         supabase
           .from('feedbacks')
@@ -30,10 +41,12 @@ export default function RevenueManagement() {
           .order('created_at', { ascending: false })
           .limit(500),
         supabase.from('invoices').select('*').order('invoice_date', { ascending: false }),
+        supabase.from('subscription_cancellations').select('*, companies(name)').order('created_at', { ascending: false }).limit(500),
       ]);
       if (!gmvRes.error) setGmvData(gmvRes.data || []);
       if (!settRes.error) setFeedbackSettlements(settRes.data || []);
       if (!invRes.error) setInvoices(invRes.data || []);
+      if (!cancRes.error) setCancellations(cancRes.data || []);
       setLoading(false);
     } catch (err) {
       console.error('[Revenue loadAll]', err);
@@ -117,6 +130,7 @@ export default function RevenueManagement() {
           { key: 'overview', label: 'GMV 차트' },
           { key: 'settlements', label: '패널 정산' },
           { key: 'invoices', label: '기업 청구' },
+          { key: 'churn', label: '이탈/해지' },
         ]}
         style={{ marginBottom: 24 }}
       />
@@ -280,6 +294,74 @@ export default function RevenueManagement() {
           )}
         </div>
       )}
+
+      {tab === 'churn' && (() => {
+        const total = cancellations.length;
+        const byReason = Object.keys(CHURN_REASON_LABELS)
+          .map(code => ({ code, label: CHURN_REASON_LABELS[code], count: cancellations.filter(c => c.reason_code === code).length }))
+          .sort((a, b) => b.count - a.count);
+        const fmtD = (ts) => ts ? new Date(ts).toLocaleDateString('ko-KR') : '—';
+        return (
+          <div>
+            <div style={{ marginBottom: 16, fontSize: 14, color: 'var(--text-2)' }}>
+              누적 해지 <strong style={{ color: 'var(--text)' }}>{total}건</strong>
+              <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>(철회·재구독분은 제외)</span>
+            </div>
+            {total === 0 ? (
+              <Card><div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>해지 내역 없음</div></Card>
+            ) : (
+              <div className="grid-1col-768" style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20 }}>
+                {/* 이탈 사유 분포 */}
+                <Card>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>이탈 사유 분포</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {byReason.map(r => {
+                      const pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
+                      return (
+                        <div key={r.code}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 5 }}>
+                            <span style={{ color: 'var(--text)', fontWeight: r.count ? 600 : 400 }}>{r.label}</span>
+                            <span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{r.count}건 · {pct}%</span>
+                          </div>
+                          <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 4 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+                {/* 최근 해지 목록 */}
+                <Card style={{ padding: 0, overflow: 'hidden' }}>
+                  <div className="table-scroll">
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                          {['기업', '플랜', '사유', '상세', '종료 예정', '해지일'].map(h => (
+                            <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cancellations.map((c, i) => (
+                          <tr key={c.id} style={{ borderBottom: i < cancellations.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                            <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 13 }}>{c.companies?.name || '—'}</td>
+                            <td style={{ padding: '12px 16px' }}><Badge type="gray">{c.plan} 플랜</Badge></td>
+                            <td style={{ padding: '12px 16px', fontSize: 13 }}>{CHURN_REASON_LABELS[c.reason_code] || c.reason_code}</td>
+                            <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-2)', maxWidth: 220, wordBreak: 'break-word' }}>{c.reason_text || '—'}</td>
+                            <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{fmtD(c.effective_at)}</td>
+                            <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{fmtD(c.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {confirmInvoice && (
         <ConfirmModal

@@ -6,11 +6,11 @@ import { supabase } from '../../lib/supabase';
 // 이탈 사유 — reason_code 는 DB(subscription_cancellations.reason_code)와 1:1
 const REASONS = [
   { code: 'price',            label: '가격이 부담돼요' },
-  { code: 'missing_features', label: '필요한 기능이 없어요' },
-  { code: 'low_usage',        label: '자주 사용하지 않아요' },
-  { code: 'competitor',       label: '다른 서비스를 사용하기로 했어요' },
-  { code: 'temporary',        label: '잠시만 중단하려고 해요' },
-  { code: 'other',            label: '기타' },
+  { code: 'missing_features', label: '필요한 기능이 부족해요' },
+  { code: 'low_usage',        label: '생각보다 자주 쓰지 않아요' },
+  { code: 'competitor',       label: '다른 서비스로 옮기려고 해요' },
+  { code: 'temporary',        label: '잠시 쉬어가려고 해요' },
+  { code: 'other',            label: '그 외 다른 이유' },
 ];
 
 function fmtDate(ts) {
@@ -104,19 +104,35 @@ export default function CancelSubscriptionModal({ planLabel, effectiveAt, onCanc
           <>
             <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>떠나시는 이유를 알려주세요</div>
             <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>더 나은 서비스를 만드는 데 큰 도움이 됩니다.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-              {REASONS.map(r => (
-                <label key={r.code} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', cursor: 'pointer',
-                  borderRadius: 'var(--radius)', fontSize: 14,
-                  border: `1px solid ${reason === r.code ? 'var(--accent)' : 'var(--border)'}`,
-                  background: reason === r.code ? 'var(--accent-dim, rgba(16,54,125,0.06))' : 'transparent',
-                  fontWeight: reason === r.code ? 600 : 400,
-                }}>
-                  <input type="radio" name="cancel-reason" checked={reason === r.code} onChange={() => setReason(r.code)} />
-                  {r.label}
-                </label>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {REASONS.map(r => {
+                const on = reason === r.code;
+                return (
+                  <button
+                    type="button"
+                    key={r.code}
+                    onClick={() => setReason(r.code)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+                      padding: '13px 16px', borderRadius: 10, cursor: 'pointer',
+                      border: `1.5px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
+                      background: on ? 'rgba(16,54,125,0.05)' : 'var(--surface)',
+                      fontSize: 14, fontWeight: on ? 600 : 500, color: 'var(--text)',
+                      transition: 'border-color .15s, background .15s',
+                    }}
+                  >
+                    <span style={{
+                      width: 18, height: 18, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box',
+                      border: `2px solid ${on ? 'var(--accent)' : '#CBD5E1'}`,
+                      background: on ? 'var(--accent)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {on && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                    </span>
+                    <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{r.label}</span>
+                  </button>
+                );
+              })}
             </div>
             <textarea
               value={detail}
