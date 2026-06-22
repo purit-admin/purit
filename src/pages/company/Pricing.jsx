@@ -203,7 +203,7 @@ export default function PricingPage() {
       {msg && (
         <div style={{
           marginBottom: 20, padding: '12px 20px', borderRadius: 'var(--radius)', fontSize: 13,
-          background: msg.includes('실패') ? 'var(--red-dim)' : 'var(--accent-dim, rgba(126,200,160,0.12))',
+          background: msg.includes('실패') ? 'var(--red-dim)' : 'var(--accent-dim, rgba(16,54,125,0.10))',
           color: msg.includes('실패') ? 'var(--red)' : 'var(--accent)',
           fontWeight: 600, textAlign: 'center',
         }}>{msg}</div>
@@ -241,7 +241,7 @@ export default function PricingPage() {
             background: plan.highlight ? 'linear-gradient(160deg, var(--surface), var(--bg-3))' : 'var(--surface)',
           }}>
             {currentPlan === plan.id && (
-              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--green, #7EC8A0)', color: '#0A0A08', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-sans)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
+              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-sans)', padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>
                 현재 플랜
               </div>
             )}
@@ -286,14 +286,14 @@ export default function PricingPage() {
               </div>
             </div>
             {/* 타겟팅 등급 */}
-            <div style={{ marginBottom: 16, padding: '9px 12px', background: plan.highlight ? 'rgba(126,200,160,0.08)' : 'var(--surface)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${plan.highlight ? 'var(--accent)' : plan.id === 'enterprise' ? 'var(--text-3)' : 'var(--border)'}` }}>
+            <div style={{ marginBottom: 16, padding: '9px 12px', background: plan.highlight ? 'rgba(16,54,125,0.06)' : 'var(--surface)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${plan.highlight ? 'var(--accent)' : plan.id === 'enterprise' ? 'var(--text-3)' : 'var(--border)'}` }}>
               <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', marginBottom: 3 }}>타겟팅 권한</div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', lineHeight: 1.4 }}>{plan.targeting}</div>
             </div>
             <div style={{ marginBottom: 24 }}>
               {plan.features.map((f, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', fontSize: 13, color: 'var(--text-2)', borderBottom: i < plan.features.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  <span style={{ color: 'var(--green)', flexShrink: 0 }}>✓</span>{f}
+                  <span style={{ color: 'var(--accent)', flexShrink: 0 }}>✓</span>{f}
                 </div>
               ))}
               {plan.notIncluded.map((f, i) => (
@@ -338,7 +338,7 @@ export default function PricingPage() {
                   <div style={{ fontWeight: 600, marginBottom: 3 }}>추가 크레딧 충전</div>
                   <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
                     1크레딧 = {unitPrice.toLocaleString()}원
-                    {discountLabel && <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 600 }}>{discountLabel}</span>}
+                    {discountLabel && <span style={{ marginLeft: 6, color: 'var(--accent)', fontWeight: 600 }}>{discountLabel}</span>}
                   </div>
                 </div>
                 {creditBalance != null && (() => {

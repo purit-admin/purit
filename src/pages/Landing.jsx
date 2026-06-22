@@ -651,8 +651,8 @@ export default function Landing() {
         {/* ============ COMPARISON ============ */}
         <section className="compare container">
           <div className="sec-head reveal">
-            <span className="eyebrow">왜 다른가</span>
-            <h2 className="sec-title">기존 방법과 비교하면</h2>
+            <span className="eyebrow">왜 Purit인가</span>
+            <h2 className="sec-title">기존 검증 방식과 무엇이 다를까요</h2>
           </div>
           <div className="compare-wrap reveal">
             <table className="compare-table">
@@ -667,35 +667,42 @@ export default function Landing() {
               </thead>
               <tbody>
                 <tr>
-                  <td>진짜 고객 같은 전문가</td>
+                  <td>현직 마케팅 전문가의 진단</td>
+                  <td className="col-hl"><span className="dot-check" /></td>
+                  <td><span className="x">×</span></td>
+                  <td><span className="x">×</span></td>
+                  <td><span className="x">×</span></td>
+                </tr>
+                <tr>
+                  <td>소재 강·약점 진단</td>
+                  <td className="col-hl"><span className="dot-check" /></td>
+                  <td><span className="tilde">△</span></td>
+                  <td><span className="x">×</span></td>
+                  <td><span className="x">×</span></td>
+                </tr>
+                <tr>
+                  <td>5대 지표 정량 점수 리포트</td>
                   <td className="col-hl"><span className="dot-check" /></td>
                   <td><span className="x">×</span></td>
                   <td><span className="tilde">△</span></td>
-                  <td><span className="dot-check" /></td>
-                </tr>
-                <tr>
-                  <td>점수로 보는 결과</td>
-                  <td className="col-hl"><span className="dot-check" /></td>
-                  <td><span className="x">×</span></td>
-                  <td><span className="dot-check" /></td>
                   <td><span className="tilde">△</span></td>
                 </tr>
                 <tr>
-                  <td>AI 답변 걸러내기</td>
+                  <td>AI·영혼 없는 응답 차단</td>
                   <td className="col-hl"><span className="dot-check" /></td>
                   <td><span className="x">×</span></td>
                   <td><span className="x">×</span></td>
                   <td><span className="x">×</span></td>
                 </tr>
                 <tr>
-                  <td>걸리는 시간</td>
+                  <td>결과 도착까지</td>
                   <td className="col-hl"><strong>48시간</strong></td>
                   <td>즉시~며칠</td>
                   <td>며칠</td>
                   <td>몇 주</td>
                 </tr>
                 <tr>
-                  <td>방문자 필요</td>
+                  <td>실제 트래픽·방문자 필요</td>
                   <td className="col-hl"><span className="dot-check none">필요 없음</span></td>
                   <td>필요 없음</td>
                   <td>필요 없음</td>

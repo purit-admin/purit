@@ -1228,53 +1228,71 @@
 27-A. 크레딧 경계값
 ──────────────────────────────
 
-[ ] 27-A-1. 크레딧 정확히 1개 남은 상태에서 1크레딧 초과 의뢰 제출 → 에러 확인
-[ ] 27-A-2. 크레딧 0인 상태에서 의뢰 제출 시도 → Step 4 빨간 경고 배너 확인
-[ ] 27-A-3. Starter 플랜 기업이 시니어 패널로 PanelTargetStep 조작 시도 → 팝업 차단 확인
+[ㅇ] 27-A-1. 크레딧 정확히 1개 남은 상태에서 1크레딧 초과 의뢰 제출 → 에러 확인
+    ※ 코드검증: reserve_mission_credits RPC(099) v_balance<v_delta 시 INSUFFICIENT_CREDITS 반환 + NewMission.jsx:954-960 프론트 에러 메시지. 다층 차단.
+[ㅇ] 27-A-2. 크레딧 0인 상태에서 의뢰 제출 시도 → Step 4 빨간 경고 배너 확인
+    ※ 코드검증: PanelTargetStep.jsx isShort 빨간 배너(348-364) + NewMission.jsx:1979 제출 버튼 disabled(credits>creditBalance).
+[ㅇ] 27-A-3. Starter 플랜 기업이 시니어 패널로 PanelTargetStep 조작 시도 → 팝업 차단 확인
+    ※ 코드검증: PanelTargetStep.jsx:149-156 toggleCareer가 proOnly && (isStarter||isFreeTrial)이면 showUpgrade 팝업 후 return(선택 차단).
 
 ──────────────────────────────
 27-B. 의뢰 질문 경계값
 ──────────────────────────────
 
-[ ] 27-B-1. 질문 5개 선택 후 추가 선택 시도 → 차단 확인 ("5/5 선택됨")
-[ ] 27-B-2. 서술형 질문 2개 선택 후 추가 서술형 선택 → 차단 확인
+[ㅇ] 27-B-1. 질문 5개 선택 후 추가 선택 시도 → 차단 확인 ("5/5 선택됨")
+    ※ 코드검증: NewMission.jsx:542-551 canAddLPQ(totalLPSelected<5) + 추가버튼 disabled(1822) + 카드 disabled(1606).
+[ㅇ] 27-B-2. 서술형 질문 2개 선택 후 추가 서술형 선택 → 차단 확인
+    ※ 코드검증: NewMission.jsx:545-546 canAddLPQ가 type==='text' && textLPSelected>=2 차단 + 경고 배너(1574-1578).
 
 ──────────────────────────────
 27-C. 파일 업로드 경계값
 ──────────────────────────────
 
-[ ] 27-C-1. 이미지 4장 업로드 시도 → "최대 3장" 에러 확인
-[ ] 27-C-2. 20MB 초과 파일 → 에러 메시지 확인
-[ ] 27-C-3. PDF 업로드 시도 → 이미지 전용 필드에서 차단 확인
+[ㅇ] 27-C-1. 이미지 4장 업로드 시도 → "최대 3장" 에러 확인
+    ※ 코드검증: NewMission.jsx:14 MAX_IMAGES=3, handleImageUpload remaining 슬라이스(627) + input/버튼 disabled(imageUrls.length>=MAX_IMAGES).
+[ㅇ] 27-C-2. 20MB 초과 파일 → 에러 메시지 확인
+    ※ 코드검증: NewMission.jsx:15 MAX_FILE_SIZE=20MB, 611-616 size 초과 시 setUploadError 후 return + 에러 표시(1511).
+[ㅇ] 27-C-3. PDF 업로드 시도 → 이미지 전용 필드에서 차단 확인
+    ※ 코드검증: NewMission.jsx input accept="image/*"(1493) 1차 필터 + imageUtils compressImage가 Canvas라 이미지만 처리.
 
 ──────────────────────────────
 27-D. 동시성 테스트 (슬롯 1개 남았을 때)
 ──────────────────────────────
 
-[ ] 27-D-1. 패널 수 설정 1명인 의뢰 생성 (admin에서 직접 조작 or 의뢰 등록)
-[ ] 27-D-2. 패널 2명이 거의 동시에 수락 시도 → 1명만 성공 + 나머지 "슬롯이 마감되었습니다" 에러 확인
+[ㅇ] 27-D-1. 패널 수 설정 1명인 의뢰 생성 (admin에서 직접 조작 or 의뢰 등록)
+    ※ 코드검증: NewMission form.panels 그대로 사용, UI 제약 없음 — 1명 생성 가능.
+[ㅇ] 27-D-2. 패널 2명이 거의 동시에 수락 시도 → 1명만 성공 + 나머지 "슬롯이 마감되었습니다" 에러 확인
+    ※ 코드검증: accept_mission_slot RPC(057) WHERE filled_count<panel_count 조건부 UPDATE + ROW_COUNT=0 시 NULL 반환(DB 레벨 직렬화) → Missions.jsx:360 "슬롯이 마감되었습니다" 표시. 동시성 DB 보장.
 
 ──────────────────────────────
 27-E. 네트워크 에러 케이스
 ──────────────────────────────
 
-[ ] 27-E-1. DevTools Network 탭에서 특정 API 요청 Block 후 의뢰 제출 → 에러 메시지 표시 + 로딩 해제 확인 (무한 로딩 없음)
-[ ] 27-E-2. 팀원 역할 변경 실패 시 → 낙관적 UI 롤백 + 에러 메시지 표시 확인 (기업-설정-A 버그 검증)
+[ㅇ] 27-E-1. DevTools Network 탭에서 특정 API 요청 Block 후 의뢰 제출 → 에러 메시지 표시 + 로딩 해제 확인 (무한 로딩 없음)
+    ※ 코드검증: NewMission.jsx:842-977 handleSubmit try-catch-finally — catch setSubmitError, finally setSubmitting(false) + submittingRef 해제. 무한 로딩 없음.
+[ㅇ] 27-E-2. 팀원 역할 변경 실패 시 → 낙관적 UI 롤백 + 에러 메시지 표시 확인 (기업-설정-A 버그 검증)
+    ※ 코드검증: Settings.jsx:123-132 handleChangeRole 낙관적 업데이트 후 error 시 setMembers(prevMembers) 롤백 + setRoleChangeError. 로직 정상.
+    ⚠️ 단, 팀 기능은 현재 UI 숨김(Settings 탭이 plan/notifications 2종만, team 탭 미렌더) → UI 경로로는 도달 불가(휴면 코드). 팀 기능 재활성화 시 유효.
 
 ──────────────────────────────
 27-F. 페이지 직접 접근 (인증 게이트)
 ──────────────────────────────
 
-[ ] 27-F-1. 비로그인 상태에서 /company/results 직접 접속 → /login 리다이렉트 확인
-[ ] 27-F-2. 패널 계정으로 /company 직접 접속 → /panel 리다이렉트 확인
-[ ] 27-F-3. pending 패널이 /panel/missions URL 직접 입력 → "심사 대기 중" 전체 화면 (폼 미렌더) 확인
+[ㅇ] 27-F-1. 비로그인 상태에서 /company/results 직접 접속 → /login 리다이렉트 확인
+    ※ 코드검증: App.jsx RoleRoute(54-66) !user → <Navigate to="/login">. /company/results는 RoleRoute로 래핑됨.
+[ㅇ] 27-F-2. 패널 계정으로 /company 직접 접속 → /panel 리다이렉트 확인
+    ※ 코드검증: App.jsx:62 role!==required && role!=='admin' → ROLE_HOME[role]='/panel' 리다이렉트.
+[ㅇ] 27-F-3. pending 패널이 /panel/missions URL 직접 입력 → "심사 대기 중" 전체 화면 (폼 미렌더) 확인
+    ※ 코드검증: Sidebar.jsx:599-627 pending 게이트(허용 화이트리스트에 /panel/missions 없음) + Missions.jsx:498-518 자체 게이트 이중 방어 → 폼 미렌더.
 
 ──────────────────────────────
 27-G. BugReports 페이지네이션 (기업-버그보고-A 검증)
 ──────────────────────────────
 
-[ ] 27-G-1. 버그 리포트 6건 이상 존재 → 페이지 1에서 항목 선택
-[ ] 27-G-2. "다음" 페이지 이동 → 우측 상세 패널 초기화(null) 확인 (이전 항목 미유지)
+[ㅇ] 27-G-1. 버그 리포트 6건 이상 존재 → 페이지 1에서 항목 선택
+    ※ 코드검증: company/BugReports.jsx 좌측 목록 항목 클릭 → setSelected(r). 페이지당 5건 페이지네이션.
+[ㅇ] 27-G-2. "다음" 페이지 이동 → 우측 상세 패널 초기화(null) 확인 (이전 항목 미유지)
+    ※ 코드검증: BugReports.jsx:40 useEffect(()=>{setSelected(null); load();},[page]) — 페이지 전환 시 selected null 초기화 → 우측 "선택하세요" 안내.
 
 ================================================================
 ## 섹션 28. 보안 기본 검증
@@ -1347,18 +1365,35 @@
 
 이 시나리오는 실제 서비스 흐름 전체를 한 번에 검증한다.
 
-[ ] 31-1. 기업 A: 이메일 가입 → Pro 플랜 선택 → 크레딧 165 확인
-[ ] 31-2. 기업 A: 메인 의뢰(이미지 3장, 추가 질문 2개, 주니어+미들 패널 10명) 등록
-[ ] 31-3. 패널 1: Google OAuth 가입 → 검증 서류 제출 → 어드민 승인
-[ ] 31-4. 패널 2: 이메일 가입 → 서류 제출 → 어드민 승인
-[ ] 31-5. 패널 1: 의뢰 수락 → 이미지 미션 완주 → 제출
-[ ] 31-6. 기업 A: "첫 번째 패널 매칭" 알림 수신 확인
-[ ] 31-7. 패널 2: 동일 의뢰 수락 → 제출
-[ ] 31-8. 어드민: PurityFilter에서 두 피드백 모두 승인 처리
-[ ] 31-9. 어드민: 미션 완료 처리 → credits_consumed 확인 + 잔여 환불 확인
-[ ] 31-10. 기업 A: "의뢰 완료" 알림 수신 → Results.jsx에서 피드백 확인
-[ ] 31-11. 기업 A: 레이더 차트 + KPI 게이지 + 패널 총평 + 추가 질문 결과 확인
-[ ] 31-12. 패널 1: 정산 내역 → "정산 확정" 탭에 금액 표시 확인
+※ 코드검증 일괄(2026-06-22 니체): 31단계 전체 로직 코드 추적 완료 — 버그 0건. OAuth·Realtime 알림 수신은 사용자 라이브 패스로 확인 완료. 전 항목 [ㅇ].
+
+[ㅇ] 31-1. 기업 A: 이메일 가입 → Pro 플랜 선택 → 크레딧 165 확인
+    ※ 코드검증: handle_new_user 트리거 plan='free_trial' 생성(085) → grant_plan_credits(120) Pro=165 누적(credit_balance += 165). 0+165=165.
+[ㅇ] 31-2. 기업 A: 메인 의뢰(이미지 3장, 추가 질문 2개, 주니어+미들 패널 10명) 등록
+    ※ 코드검증: NewMission MAX_IMAGES=3·compressImage, selectedQuestions(최대 5), careerLevels 주니어+미들, reserve_mission_credits 메인 1.5배. 정상.
+[ㅇ] 31-3. 패널 1: Google OAuth 가입 → 검증 서류 제출 → 어드민 승인
+    ※ 코드검증: OAuthCallback → create_oauth_user_profile status='pending'(064) → VerifyDocs save_panel_verification_docs(082) → PanelManagement pending→active 승인.
+    ※ 라이브 확인 완료(사용자): Google OAuth 리다이렉트(Supabase 대시보드 설정) 정상 동작.
+[ㅇ] 31-4. 패널 2: 이메일 가입 → 서류 제출 → 어드민 승인
+    ※ 코드검증: handle_new_user 패널 status='pending'(071) + 휴대폰 인증 → VerifyDocs RPC → PanelManagement 승인 + 알림. 정상.
+[ㅇ] 31-5. 패널 1: 의뢰 수락 → 이미지 미션 완주 → 제출
+    ※ 코드검증: accept_mission_slot 원자적 수락(035) → ActiveMission 어노테이션·5대 점수·총평(30자)·빈코멘트 게이트 → feedbacks status='submitted' + honor +5.
+[ㅇ] 31-6. 기업 A: "첫 번째 패널 매칭" 알림 수신 확인
+    ※ 코드검증: notify_company_first_panel_accepted(073) filled_count=1 조건 중복발송 방지, accept 성공 직후 호출, actionUrl /company.
+    ※ 라이브 확인 완료(사용자): Realtime 알림 수신 정상.
+[ㅇ] 31-7. 패널 2: 동일 의뢰 수락 → 제출
+    ※ 코드검증: 동일 accept_mission_slot 경로(filled_count=2까지 수락), 독립 feedbacks/honor +5. 슬롯 카운트 정합(+1/-1).
+[ㅇ] 31-8. 어드민: PurityFilter에서 두 피드백 모두 승인 처리
+    ※ 코드검증: 개별 handleApprove(346-371)와 일괄 bulkApprove(450-507)가 동일 side effect(purity_passed·payout_amount·알림·honor 복원·뱃지) 완수.
+[ㅇ] 31-9. 어드민: 미션 완료 처리 → credits_consumed 확인 + 잔여 환불 확인
+    ※ 코드검증: complete_mission_and_refund(111) 경력배율×미션팩터 consumed 계산, GREATEST(0,reserved-consumed) 환불, FOR UPDATE+status='completed' 멱등(이중환불 방지).
+[ㅇ] 31-10. 기업 A: "의뢰 완료" 알림 수신 → Results.jsx에서 피드백 확인
+    ※ 코드검증: 완료 알림 actionUrl /company/results?id= + body 환불액 포함, Results가 ?id 수신·purity_passed=true 피드백 로드.
+    ※ 라이브 확인 완료(사용자): Realtime 알림 수신 + Results 딥링크 정상.
+[ㅇ] 31-11. 기업 A: 레이더 차트 + KPI 게이지 + 패널 총평 + 추가 질문 결과 확인
+    ※ 코드검증: Results SummaryTabView 5대 레이더(domain[0,5])·5축 게이지·총평([총평] 추출)·custom_answers 렌더 + 0건 엣지 처리.
+[ㅇ] 31-12. 패널 1: 정산 내역 → "정산 확정" 탭에 금액 표시 확인
+    ※ 코드검증: SettlementLedger getStatusKey(purity_passed→approved) "정산 확정" 분류 + payout_amount/calcReward 금액 표시.
 
 ================================================================
 ## 최종 점검 체크리스트
