@@ -279,6 +279,12 @@ export default function CompanyAccount() {
               <Btn size="sm" variant="outline" onClick={() => navigate('/company/plans')}>플랜 변경</Btn>
             </div>
           </Card>
+          {company?.subscription_cancel_at_period_end && (
+            <div style={{ marginBottom: 20, padding: '14px 18px', borderRadius: 'var(--radius)', background: 'rgba(245,158,11,0.08)', border: '1px solid #F59E0B', fontSize: 13.5, color: 'var(--text)', lineHeight: 1.6 }}>
+              구독이 <strong>{company?.next_billing_at ? new Date(company.next_billing_at).toLocaleDateString('ko-KR') : '결제 주기 종료일'}</strong>에 해지될 예정입니다. 그때까지 모든 기능을 이용할 수 있어요.{' '}
+              <span onClick={() => navigate('/company/plans')} style={{ color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>구독 유지하기</span>
+            </div>
+          )}
           <Card style={{ padding: '20px 24px' }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>결제 내역</div>
             {invoices.length === 0 ? (

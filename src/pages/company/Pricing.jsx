@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Card, Badge, Btn, SegmentFilter } from '../../components/ui';
 import PaymentModal from '../../components/ui/PaymentModal';
+import CancelSubscriptionModal from '../../components/ui/CancelSubscriptionModal';
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { splitCredits } from '../../lib/credits';
@@ -10,6 +11,14 @@ const TIER_RANK = { free_trial: 0, starter: 1, pro: 2, enterprise: 3 };
 
 // Enterprise 영업 문의 수신 이메일 (별도 백엔드 채널 없음 — mailto로 직접 전송)
 const ENTERPRISE_EMAIL = 'purit.admin@gmail.com';
+
+// 결제 종료 예정일 표기 (YYYY.MM.DD)
+function fmtBilling(ts) {
+  if (!ts) return '결제 주기 종료일';
+  const d = new Date(ts);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
+}
 
 const PLANS = [
   {
@@ -104,6 +113,8 @@ export default function PricingPage() {
   const [creditBalance, setCreditBalance] = useState(null);
   const [creditAddon, setCreditAddon] = useState(0);
   const [addonBundle, setAddonBundle] = useState(null);
+  const [showCancel, setShowCancel] = useState(false);
+  const [resuming, setResuming] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -166,6 +177,23 @@ export default function PricingPage() {
     const body = encodeURIComponent(contactMsg.trim() || '팀 규모, 월 광고비, 원하는 기능 등을 알려주세요.');
     window.location.href = `mailto:${ENTERPRISE_EMAIL}?subject=${subject}&body=${body}`;
     setContactDone(true);
+  }
+
+  // 구독 해지 예약 철회
+  async function handleResume() {
+    if (resuming) return;
+    setResuming(true);
+    try {
+      const { error } = await supabase.rpc('resume_my_subscription');
+      if (error) throw error;
+      setCompany(c => ({ ...c, subscription_cancel_at_period_end: false, subscription_canceled_at: null }));
+      setMsg('구독 해지가 취소됐습니다. 계속 이용해주셔서 감사합니다.');
+    } catch (e) {
+      setMsg('처리 실패: ' + (e.message || ''));
+    } finally {
+      setResuming(false);
+      setTimeout(() => setMsg(''), 3500);
+    }
   }
 
   const currentPlan = company?.plan?.toLowerCase() || '';
@@ -417,6 +445,41 @@ export default function PricingPage() {
           billingCycle={paymentTarget.billingCycle || 'monthly'}
           onSuccess={handlePaymentSuccess}
           onClose={() => { setPaymentTarget(null); setChanging(''); }}
+        />
+      )}
+
+      {/* 구독 관리 — 해지 / 해지 예약 철회 (유료 플랜 오너 전용) */}
+      {teamRole === null && (currentPlan === 'starter' || currentPlan === 'pro') && (
+        <div style={{ marginTop: 32, textAlign: 'center' }}>
+          {company?.subscription_cancel_at_period_end ? (
+            <div style={{
+              display: 'inline-block', maxWidth: 560, padding: '14px 20px', borderRadius: 'var(--radius)',
+              background: 'rgba(245,158,11,0.08)', border: '1px solid #F59E0B', fontSize: 13.5, color: 'var(--text)', lineHeight: 1.7,
+            }}>
+              구독이 <strong>{fmtBilling(company?.next_billing_at)}</strong>에 해지될 예정입니다 — 그때까지 모든 기능을 이용할 수 있어요.
+              <div style={{ marginTop: 10 }}>
+                <Btn variant="primary" size="sm" disabled={resuming} onClick={handleResume}>
+                  {resuming ? '처리 중…' : '구독 유지하기'}
+                </Btn>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowCancel(true)} style={{
+              background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline',
+            }}>
+              구독 해지
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 해지 모달 */}
+      {showCancel && (
+        <CancelSubscriptionModal
+          planLabel={currentPlan === 'pro' ? 'Pro' : 'Starter'}
+          effectiveAt={company?.next_billing_at}
+          onCancelled={() => setCompany(c => ({ ...c, subscription_cancel_at_period_end: true }))}
+          onClose={() => setShowCancel(false)}
         />
       )}
 
