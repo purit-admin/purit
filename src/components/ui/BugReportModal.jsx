@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { X, ImagePlus } from 'lucide-react';
 import { Btn } from './index';
@@ -23,12 +23,15 @@ export default function BugReportModal({ onClose, pageUrl }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState('');
+  const submittingRef = useRef(false); // 연타 가드(동기) — setSubmitting 비동기 반영 한계 보완 (D-22)
 
   async function handleSubmit() {
     if (!title.trim() || !desc.trim()) {
       setErr('제목과 상세 내용을 입력해 주세요.');
       return;
     }
+    if (submittingRef.current) return; // 더블클릭 중복 INSERT 방지
+    submittingRef.current = true;
     setSubmitting(true);
     setErr('');
 
@@ -68,6 +71,7 @@ export default function BugReportModal({ onClose, pageUrl }) {
     if (insErr) {
       setErr('제출 중 오류가 발생했습니다. 다시 시도해 주세요.');
       setSubmitting(false);
+      submittingRef.current = false; // 실패 시 재시도 허용
       return;
     }
 

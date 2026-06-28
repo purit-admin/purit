@@ -154,8 +154,13 @@ export default function NotificationCenter({ role = 'company' }) {
       .delete()
       .in('id', ids);
     if (!error) {
-      setNotifs(ns => ns.filter(n => !ids.includes(n.id)));
+      const newNotifs = notifs.filter(n => !ids.includes(n.id));
+      setNotifs(newNotifs);
       setSelected(new Set());
+      // 페이지 비면 이전 페이지로 — 현재 탭 기준 재계산 후 page 클램프(빈 화면 방지)
+      const tabFilter = role === 'admin' ? (ADMIN_TABS.find(t => t.key === tab)?.filter ?? isMission) : (() => true);
+      const newTotalPages = Math.max(1, Math.ceil(newNotifs.filter(tabFilter).length / PAGE_SIZE));
+      if (page > newTotalPages) setPage(newTotalPages);
     } else {
       console.error('[deleteSelected]', error);
     }

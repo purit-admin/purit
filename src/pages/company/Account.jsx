@@ -84,10 +84,14 @@ export default function CompanyAccount() {
     if (teamRole !== null) return; // 팀원은 기업 프로필 수정 불가
     setMsg('');
     if (name.trim()) {
-      const { data: taken } = await supabase.rpc('check_company_name_taken', {
+      const { data: taken, error: chkErr } = await supabase.rpc('check_company_name_taken', {
         p_name: name.trim(),
         p_exclude_id: company.id,
       });
+      if (chkErr) {
+        setMsg('이름 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
       if (taken) {
         setMsg('이미 사용 중인 기업명입니다. 다른 이름을 입력해주세요.');
         return;

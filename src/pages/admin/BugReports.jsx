@@ -177,7 +177,9 @@ export default function BugReports() {
       setSaving(false);
       return;
     }
-    setReports(rs => rs.filter(r => r.id !== reportId));
+    // setReports updater 밖에서 remaining 계산 → page 클램프 (StrictMode 이중 감소 방지 D-161, deleteSelected와 동일 패턴)
+    const remaining = reports.filter(r => r.id !== reportId);
+    setReports(remaining);
     setCheckedIds(prev => {
       if (!prev.has(reportId)) return prev;
       const next = new Set(prev);
@@ -188,6 +190,7 @@ export default function BugReports() {
     setMemo('');
     setAdminReply('');
     setTotal(t => Math.max(0, t - 1));
+    if (remaining.length === 0 && page > 1) setPage(p => p - 1); // 페이지 비면 이전 페이지로(loadTab 재조회)
     setSaving(false);
     loadAll();
   }

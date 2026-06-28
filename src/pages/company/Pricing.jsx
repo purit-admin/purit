@@ -163,7 +163,7 @@ export default function PricingPage() {
         setCreditAddon(prev => (prev || 0) + added);
         setCompany(c => ({ ...c, credit_balance: newBalance, addon_credits: (c?.addon_credits || 0) + added }));
       }
-      setMsg(`크레딧이 충전됐습니다. 잔여 ${newBalance}cr`);
+      setMsg(newBalance != null ? `크레딧이 충전됐습니다. 잔여 ${newBalance}cr` : '크레딧이 충전됐습니다.');
     }
     setChanging('');
     setAddonBundle(null);

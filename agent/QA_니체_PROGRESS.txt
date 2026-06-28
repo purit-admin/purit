@@ -20,7 +20,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
   ⚠️ 111·112는 SQL Editor 수동 실행 필요(미실행 시 미적용). 실행 전 pg_policies 로 feedbacks/panels/companies UPDATE 정책 확인 권장.
 
 ================================================================
-## 🟡 P2 Major (2건)
+## 🟡 P2 Major (8건)
 ================================================================
 
 [완성도-C] 경력 미설정 패널에게 careerLevels 제한 미션 전부 노출
@@ -41,9 +41,93 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 
 
+[니체-AUTH-A] 비밀번호 재설정/찾기 기능 전무 — 비번 분실 시 영구 잠김
+- 📍 위치: src/pages/Login.jsx (Google 버튼 아래 '비밀번호 찾기' 링크 없음) / 전 코드베이스 resetPasswordForEmail 호출 0건(Grep 확인)
+- 🤦 현재: 이메일/비밀번호 가입자가 비번을 잊으면 복구 경로가 전혀 없음. 업계 표준(B2B SaaS)에서 '비밀번호 찾기'는 필수.
+           Supabase는 supabase.auth.resetPasswordForEmail() 기본 제공하나 미사용. 잠긴 사용자는 신규 가입 외 방법 없음(기존 의뢰·정산 데이터 접근 불가).
+- ✨ 기대: /login에 '비밀번호를 잊으셨나요?' 링크 + 재설정 요청 페이지(resetPasswordForEmail) + 재설정 완료 페이지(updateUser password) 추가.
+- ※ 미구현 기능 성격(Backlog 후보). 출시 전 필수 — 사용자 결정 필요.
+
+[니체-EMAIL-A] 이메일 의뢰 임시저장 재진입(대시보드→이메일폼)에서 '전환 목표' 복원 누락 → Step 0 진행 불가
+- 📍 위치: src/pages/company/ColdEmailTest.jsx:134-146 (editMode 마운트 useEffect)
+- 🤦 현재: saveDraft(308)는 conversionGoal/conversionGoalCustom을 저장하고, 같은 파일의 openDraftOrActiveForEdit(345-346)·restoreLocalDraft(257-258)는 복원함. 그러나 대시보드 임시저장 카드 클릭 → location.state.editMode 마운트 경로(134-146)만 conversionGoal 복원을 빠뜨림 → 빈 값('')으로 고착.
+           Step 0 '다음' 게이트(1053)가 !conversionGoal을 포함 → 저장했던 전환목표가 사라진 채 재선택해야만 진행 가능(데이터 유실+혼동, D-130/D-143 계열).
+- ✨ 기대: 134-146 복원 블록에 parsed.conversionGoal/parsed.conversionGoalCustom 복원 2줄 추가(다른 두 경로와 동일).
+- 🔍 수평전개: PreferenceTest editMode 마운트는 assetType/assetTypeCustom 정상 복원(163-164), PricingTest/NewMission 해당 필드 없음 → ColdEmailTest 단독 결함.
+
+[니체-DIAG-A] 5대 지표 진단·AI 리포트가 '삭제(dismissed)된 완료 의뢰'를 계속 집계
+- 📍 위치: src/pages/company/Diagnosis.jsx:225 / src/pages/company/AIReport.jsx:58, 61
+- 🤦 현재: 위 missions 조회가 status='completed'·is_free_trial≠true·type 필터까지만 걸고 .eq('dismissed', false)가 빠짐. 반면 Dashboard:362·Results:1043·NewMission:454·PreferenceTest:196·PricingTest:187·ColdEmailTest:177은 모두 dismissed 필터 보유(Grep 확인).
+           결과: 기업이 완료 의뢰를 '삭제'하면 결과·대시보드에선 사라지나 진단 차트(5대 지표·벤치마크·코멘트 인사이트)와 AI 리포트엔 그 피드백이 잔존 → "삭제했는데 진단 점수는 그대로"인 모순(화면 간 숫자 불일치).
+- ✨ 기대: Diagnosis load의 missions, AIReport의 latestMission+missionIds 두 쿼리 모두에 .eq('dismissed', false) 추가.
+- 🔍 수평전개: completed 미션 기준 집계 화면 전수 점검 — 누락은 정확히 이 2개 파일.
+
+[니체-ACC-A] 구글(OAuth) 가입 기업 계정은 비밀번호 변경이 영구 불가 (막다른 길)
+- 📍 위치: src/pages/company/Account.jsx:131 (handleChangePw)
+- 🤦 현재: 현재 비번 확인을 signInWithPassword({ email, password: curPw })로 수행. 구글 OAuth 가입 계정은 비밀번호가 없어 curPw가 무엇이든 signInErr → "현재 비밀번호가 올바르지 않습니다"로 차단 → 비밀번호 설정 자체 불가. 또 signInWithPassword는 세션 토큰을 재발급하는 부작용도 있음.
+- ✨ 기대: OAuth(provider=google) 계정은 비밀번호 탭 숨김 또는 "소셜 로그인 계정은 비밀번호 변경 불가" 안내. 이메일 계정만 허용.
+- 🔍 수평전개: 패널 Profile에도 동일 비번 변경 UI 있는지 확인 필요(별도).
+
+[니체-ADMIN-A] 무료체험 의뢰를 '미션 관리'에서 완료하면 '공개 2건 저장' 게이트가 우회됨
+- 📍 위치: src/pages/admin/Missions.jsx:185 (completeBlocked) + 무료체험 카드 완료 버튼
+- 🤦 현재: 무료체험 의뢰(is_free_trial)도 미션 관리 목록에 🎁뱃지로 노출(193)되고 active+승인피드백이면 '완료 처리' 활성. 그러나 completeBlocked는 allFbs/approved/reviewing/drafts만 검사 — TrialMissions에만 있는 trialCompleteBlocked(미언락+승인3명++공개2건 미저장 차단, TrialMissions:411)에 해당하는 검사가 없음. 서버 complete_mission_and_refund도 무료체험 분기에서 status만 바꿈.
+           결과: 어드민이 미션 관리(체험 의뢰 관리가 아닌)에서 무료체험 의뢰를 완료하면 공개 2건 수동지정 게이트가 조용히 건너뛰어짐. (자동 폴백 top-2 점수공개라 데이터 누출은 아님 — 운영 의도 무력화·일관성 결함)
+- ✨ 기대: 미션 관리 완료 게이트에도 무료체험+미언락+공개 2건 미저장 조건 추가 차단, 또는 무료체험은 미션 관리에서 완료 버튼 숨기고 TrialMissions로만 처리.
+- 🔍 수평전개: 같은 의뢰를 두 화면이 다루는 D-35 — 한쪽(TrialMissions)에만 게이트.
+
+[니체-ADMIN-B] 어드민 알림(?missionId=) 딥링크가 우측 미션 상세를 자동으로 펼치지 않음
+- 📍 위치: src/pages/admin/Missions.jsx:421-422 (쿼리 딥링크 effect)
+- 🤦 현재: location.state.missionId 경로(389)는 setSelectedMission(target)로 상세를 펼치나, 알림(문자열 URL)으로만 오는 searchParams.get('missionId') 경로(397-426)는 setHighlightId+scrollToMission만 하고 setSelectedMission 미호출. D-146대로 알림 클릭은 쿼리 경로를 타므로 어드민이 '새 의뢰/조기종료' 알림 클릭 시 카드만 강조되고 피드백 상세는 닫힌 채.
+- ✨ 기대: 쿼리 effect에도 setSelectedMission(target) 추가(PurityFilter는 양 경로 모두 setSelected 호출해 정합 — D-147 동형).
+
 ================================================================
-## 🟢 P3 Minor (2건)
+## 🟢 P3 Minor (9건)
 ================================================================
+
+[니체-LEDGER-A] 패널 정산 LEDGER 반려항목 삭제 후 page 미클램프 → 빈 페이지 (니체-NOTIF-A 형제)
+- 📍 위치: src/components/ui/SettlementLedger.jsx:87-100 (handleDeleteRejected)
+- 🤦 현재: delete_rejected_feedback 성공 후 setItems 필터만 하고 page 보정 없음. '지급 거절' 탭에서 2페이지+의 마지막 항목 삭제 시 빈 화면(Pagination total={filtered.length}만 줄고 page 그대로). 저빈도 — 본인 거절 정산 목록이라 다중 페이지가 드묾.
+- ✨ 기대: 삭제 후 filtered 재계산해 page > totalPages면 클램프(NotificationCenter deleteSelected와 동일 1줄).
+- ※ 2026-06-28 그룹 A 수정의 수평전개로 발견 — 그룹 A 범위 밖이라 수정 보류, 다음 회차 처리 예정.
+
+[니체-SET-A] 알림 설정 토글 저장 실패 시 사용자에게 표시 없음 (무음 롤백)
+- 📍 위치: src/pages/company/Settings.jsx:312-323 (notifications 탭 토글)
+- 🤦 현재: 토글 onClick이 낙관적 업데이트 후 update 실패 시 console.error + setNotifPrefs(notifPrefs) 롤백만. 토글이 슬며시 원위치로 돌아갈 뿐 "저장 실패" 안내 없음 → 사용자는 껐다고 믿지만 실제 켜진 상태. (롤백 값 자체는 정확 — 표시만 누락)
+- ✨ 기대: handleChangeRole(roleChangeError)처럼 에러 state로 실패 메시지 표시.
+- 🔍 수평전개: panel/Profile 알림설정·아바타 토글, company/Account 알림 탭 동일 무음 롤백 패턴 — 함께 처리 권장.
+
+[니체-BUG-B] company/panel 버그현황 딥링크 조회에 user_id/role 필터 누락 (방어 심층화)
+- 📍 위치: src/pages/company/BugReports.jsx:46 / src/pages/panel/BugReports.jsx (동일)
+- 🤦 현재: 딥링크(?id=) 조회가 .eq('id', focusId).single()만 — load()(61-62)엔 있는 .eq('user_id')·.eq('role') 필터 없음. 일반 사용자는 bug_reports SELECT RLS(select_own=user_id 본인)로 이미 차단되어 안전. 단 어드민은 RoleRoute가 전 포털 접근 허용+RLS 전체열람이라 /company·/panel/bug-reports에서 타 포털 리포트 id 딥링크 시 role 분류 의도가 깨짐(보안 누출 아님·표시 문제).
+- ✨ 기대: 딥링크 조회에도 user_id/role 필터 명시(코드·RLS 이중화). ※ 심각도 낮음 — RLS가 1차 방어.
+
+================================================================
+## 🟢 P3 Minor — (이전 등록분 + AUTH/ACC/PAY/PANEL)
+================================================================
+
+[니체-PANEL-A] 이미지 미션 자동저장 — 필드 '비움'이 저장 안 됨(저장/복원 비대칭)
+- 📍 위치: src/pages/panel/ActiveMission.jsx:458-474 (이미지 미션 자동저장 useEffect)
+- 🤦 현재: overallComment/skippedDims/viewedImages를 'truthy일 때만' toSave에 담고, toSave 비면 update 건너뜀(467). 패널이 총평을 썼다가 모두 지우거나 스킵을 전부 해제하면 그 '비움'이 DB(strengths)에 반영 안 됨 → 이어하기 재진입 시 복원 코드가 옛 값을 되살림. (최종 제출은 현재 state를 쓰므로 제출 결과 영향은 제한적 — 중간 재진입 혼동.)
+- ✨ 기대: 서브 미션 saveSubProgress(전체 객체 항상 저장)처럼, 비운 값도 명시적으로 기록(빈 문자열/빈 객체)해 복원 1:1 보장.
+- 🔍 수평전개: 서브 미션 자동저장은 전체 객체를 쓰므로 안전 — 비대칭은 이미지 미션 경로 단독.
+
+[니체-PANEL-B] 패널 Profile 휴대폰 재인증이 auth 메타데이터 미갱신 (DB↔메타 번호 불일치)
+- 📍 위치: src/pages/panel/Profile.jsx:405 (handleVerifyOtp) ↔ App.jsx:64 phone 게이트
+- 🤦 현재: 번호 변경 재인증 시 panels 테이블의 phone/phone_verified만 UPDATE하고 supabase.auth.updateUser({data:{phone…}}) 미호출. 정식 경로 VerifyPhone.jsx는 메타 갱신함. 게이트는 이미 true면 통과만 하므로 락아웃은 없으나 DB번호와 메타번호가 갈라져 알림톡/식별 혼선 소지.
+- ✨ 기대: handleVerifyOtp 성공 시 updateUser({data:{phone, phone_verified:true}}) 동반 호출.
+
+================================================================
+## 🟢 P3 Minor — (이전 등록분)
+================================================================
+
+[니체-AUTH-B] 기업 가입 시 '회사명' 미수집 → companies.name에 담당자 이름이 저장됨
+- 📍 위치: src/pages/Signup.jsx (EmailFields — company role 라벨 '담당자 이름'만, 회사명 input 없음) / supabase/migrations/101 handle_new_user (companies.name = COALESCE(metadata.name=담당자명, 이메일prefix))
+- 🤦 현재: B2B 서비스인데 가입 시 회사명을 받지 않음. companies.name 컬럼에 '담당자 이름'이 들어가 어드민 기업 관리·정산·구독해지 목록 등에서 회사가 사람 이름으로 표기됨.
+           (수동 체크리스트 1-A-2는 '회사명 입력'을 전제 — 의도와 구현 불일치)
+- ✨ 기대: 가입 폼에 '회사명' 필드 추가 → companies.name=회사명, 별도 contact_name=담당자명. 또는 company/Account에서 회사명 분리 편집 제공 여부 확인 후 결정.
+- 🔍 수평전개: company/Account(기업 프로필)에서 회사명/담당자명 분리 편집 가능한지 4단계에서 확인 예정.
+- ※ 의도적 단순화일 수 있음 — 사용자 확인 필요.
+
 
 [니체-BugDeep] 버그/건의 답변 딥링크 진입 시 좌측 목록 미강조
 - 📍 위치: src/pages/company/BugReports.jsx (line 42-49), src/pages/panel/BugReports.jsx (line 42-49)
@@ -127,13 +211,33 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 [ICPPulse/BrandTracking] 사이드바 비노출 페이지 (PRD 명시: 파일 유지만, 기능 미활성)  ⏭
 
 ================================================================
+## 👁 관찰 (확신 낮음 / 경미 — 2026-06-28 전수조사 트래커서 이관, 등록 보류분)
+================================================================
+※ 정식 버그로 확정하지 않은 저확신·경미 항목. 향후 관련 파일 작업 시 함께 점검 권장.
+
+- [관찰-1] NewMission 이미지 3장 초과 시 무음 무시 — handleImageUpload가 slice(0, remaining)로 초과분을 조용히 버림("3장까지만 추가됨" 안내 없음). 20MB 초과는 메시지 있음. 경미 UX.
+- [관찰-2] imageUtils.compressImage PNG는 quality 인자 무시(image/png 재인코딩) + 압축 전 원본 크기만 검증. Storage 한도 내면 기능 무해.
+- [관찰-3] AIReport 기존 리포트 조회 .single() error 무점검 — 0행이면 자연 폴백(aiRow=null)되나 RLS/네트워크 에러도 "리포트 없음"으로 뭉뚱그려짐. 기능 영향 없음.
+- [관찰-4] Pricing 다운그레이드 서버 에러(downgrade_not_allowed) 영문 코드 그대로 노출 — 클라 버튼 disabled로 1차 차단돼 도달 희박. 한국어 매핑하면 깔끔.
+- [관찰-5] Pricing 해지 모달 onCancelled가 next_billing_at 미갱신 — 서버가 그대로 두면 무해(서버 반환값 의존).
+- [관찰-6] Account 해지 배너 "구독 유지하기"가 실제 철회 아닌 /company/plans 이동만 — 텍스트가 즉시 철회를 암시해 오해 소지. "구독 관리 →" 등으로 명확화.
+- [관찰-7] admin/CompanyManagement 크레딧 위험 임계 3중 불일치 — 행 아이콘(<=0 danger,<10 warn) vs 통계카드/필터(<10 위험)로 같은 기업이 화면마다 다르게 분류. 표현 일관성.
+- [관찰-8] NotificationCenter Realtime INSERT 구독이 target_role 필터 누락 — 초기 load는 .or(target_role)인데 실시간 push는 user_id만. 어드민(멀티포털)이 한 포털 보는 중 타 target_role 알림이 끼어들 수 있음. 일반 사용자 무영향.
+- [관찰-9] cancel_my_subscription(migration 120:85,87) next_billing_at NULL 미방어 → 고아 사유행 누적 소지. 096 이후 가입은 항상 채워 발생 희박. 돈 탈취 없음.
+- [관찰-10] migration 117 feedbacks_update가 패널 본인 승인(approved) 피드백의 비보호 컬럼(점수·코멘트)을 사후 UPDATE 허용 — 클라 UI 없음·금전 무관(payout/purity는 112/114 트리거 보호). 재제출 흐름 위한 의도일 수 있음(확신 낮음).
+- [관찰-11] InviteAccept handleAccept 연타 가드 부재 — 팀기능 휴면이라 실사용 무영향. 휴면 해제 시 Settings handleInvite와 함께 처리.
+- [관찰-12] Landing 모바일 nav 라벨 불일치 — 데스크탑 "Purit Filter" vs 모바일 "사람이 직접"(같은 #filter 앵커). 워딩 통일.
+
+================================================================
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 5건 + 스케일 트리거 조건부 6건
+미완료 합계: 17건 + 스케일 트리거 조건부 6건
   🔴 P1  0건
-  🟡 P2  2건 (완성도-C, 완성도-D)
-  🟢 P3  3건 (니체-BugDeep, 니체-뱃지색, 니체-PAY-B)
+  🟡 P2  8건 (완성도-C, 완성도-D, 니체-AUTH-A, 니체-EMAIL-A, 니체-DIAG-A, 니체-ACC-A, 니체-ADMIN-A, 니체-ADMIN-B)
+  🟢 P3  9건 (니체-AUTH-B, 니체-PANEL-A, 니체-PANEL-B, 니체-SET-A, 니체-BUG-B, 니체-LEDGER-A, 니체-BugDeep, 니체-뱃지색, 니체-PAY-B)
+  ※ 니체-ACC-A(OAuth 비번변경 불가)는 company/Account·admin/Account·panel/Profile 3곳 공통 패턴(signInWithPassword 재인증) — 수정 시 일괄 처리.
+  ※ 2026-06-28 그룹 A 6건 수정 완료(니체-PAY-C·NOTIF-A·ADMIN-C·BUGMODAL-A·SEC-A·ACC-B) → QA_니체_DONE.txt. ⚠️ migration 122는 SQL Editor 수동 실행 필요.
   🔵 스케일 6건 (스케일-A/B/E/F/G/H — 트리거 규모 도달 시 수정)
   ⚪ P4  0건
 
