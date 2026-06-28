@@ -227,12 +227,16 @@ function MissionCard({ m, onUpdateStatus, onDelete, onRecalc, onCancelMission, o
           {/* 버튼 + 안내 문구 */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {m.status === 'active' && allFbs.length > 0 && (
+              {m.status === 'active' && allFbs.length > 0 && !m.is_free_trial && (
                 <Btn size="sm" variant="secondary"
                   disabled={completeBlocked}
                   onClick={(e) => { e.stopPropagation(); onCompleteMission(m); }}>
                   완료 처리
                 </Btn>
+              )}
+              {/* 무료체험 의뢰는 '공개 2건 지정' 게이트가 체험 관리에만 있어, 미션 관리에서 완료 시 우회됨 → 완료는 체험 관리로 일원화 (D-35) */}
+              {m.status === 'active' && allFbs.length > 0 && m.is_free_trial && (
+                <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, whiteSpace: 'nowrap' }}>🎁 체험 관리에서 완료</span>
               )}
               {m.status === 'active' && (
                 <Btn size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); onCancelMission(m.id); }}>취소</Btn>
@@ -419,6 +423,7 @@ export default function AdminMissions() {
     }
 
     setHighlightId(targetId);
+    setSelectedMission(target); // 알림(?missionId=) 딥링크에서도 우측 미션 상세를 자동으로 펼침 (location.state 경로와 정합 — D-147)
     scrollToMission(targetId); // 알림 딥링크 진입 시에도 해당 미션 카드로 자동 스크롤
     navigate(location.pathname, { replace: true });
     const t = setTimeout(() => setHighlightId(null), 3000);

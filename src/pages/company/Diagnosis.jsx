@@ -222,7 +222,7 @@ export default function Diagnosis() {
 
       // 무료 체험 미션 제외 — 부분 공개(페이월) 대상이라 코멘트가 키워드/진단 분석에 노출되면 안 됨 (니체-TRIAL-페이월 수평전개)
       // 메인 의뢰(landing_page)만 — 5대 지표 진단은 5축 점수(clarity/relevance/value/differentiation/trust) 전용이라 서브 의뢰(preference/pricing/email) 제외 (레거시 메인은 type=NULL)
-      const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).or('type.is.null,type.eq.landing_page').order('created_at', { ascending: false });
+      const { data: ms } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).eq('dismissed', false).or('type.is.null,type.eq.landing_page').order('created_at', { ascending: false });
       const msList = ms || [];
       const ids = msList.map(m => m.id);
       setMissions(msList);

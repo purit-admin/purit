@@ -49,6 +49,8 @@ export default function CompanyAccount() {
   const [confirmPw, setConfirmPw] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState('');
+  const [isOAuth, setIsOAuth] = useState(false); // 소셜 로그인(google 등) 계정 — 비밀번호 없음 → 비번 탭 숨김
+  const [notifError, setNotifError] = useState(''); // 알림 토글 저장 실패 안내 (무음 롤백 방지)
 
   useEffect(() => {
     async function load() {
@@ -56,6 +58,8 @@ export default function CompanyAccount() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         setEmail(user.email || '');
+        // 화이트리스트 판별 — 알려진 OAuth provider만 true, 이메일·레거시(미설정)는 false(탭 유지, 안전한 기본값)
+        setIsOAuth(['google', 'linkedin_oidc'].includes(user.app_metadata?.provider));
         const { company: co, teamRole: tr } = await resolveCompany(user.id);
         setTeamRole(tr);
         if (co) {
@@ -173,7 +177,7 @@ export default function CompanyAccount() {
       <StatusTabs
         value={tab}
         onChange={handleTabClick}
-        tabs={[{ key: 'profile', label: '기업 프로필' }, { key: 'password', label: '비밀번호 변경' }, { key: 'plan', label: '플랜 & 결제' }, { key: 'notifications', label: '알림 설정' }]}
+        tabs={[{ key: 'profile', label: '기업 프로필' }, ...(isOAuth ? [] : [{ key: 'password', label: '비밀번호 변경' }]), { key: 'plan', label: '플랜 & 결제' }, { key: 'notifications', label: '알림 설정' }]}
         style={{ marginBottom: 24 }}
       />
 
@@ -319,6 +323,7 @@ export default function CompanyAccount() {
         <Card>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>알림 설정</div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24 }}>알림을 끄면 해당 유형의 앱 알림이 발송되지 않습니다.</div>
+          {notifError && <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 16 }}>{notifError}</div>}
           {NOTIF_CATEGORIES.map((cat, ci) => (
             <div key={cat.title} style={{ marginBottom: ci < NOTIF_CATEGORIES.length - 1 ? 28 : 0 }}>
               {/* 대분류 헤더 */}
@@ -342,7 +347,8 @@ export default function CompanyAccount() {
                           const next = { ...notifPrefs, [key]: !on };
                           setNotifPrefs(next);
                           const { error } = await supabase.from('companies').update({ notif_prefs: next }).eq('id', company.id);
-                          if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); }
+                          if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); setNotifError('알림 설정 저장에 실패했습니다. 다시 시도해주세요.'); }
+                          else setNotifError('');
                         }}
                         style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: on ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
                       >

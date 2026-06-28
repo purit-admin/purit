@@ -43,7 +43,10 @@ export default function PanelBugReports() {
   useEffect(() => {
     if (!focusId) return;
     (async () => {
-      const { data } = await supabase.from('bug_reports').select('*').eq('id', focusId).single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      // 딥링크 조회에도 본인(user_id)·포털(role) 필터 명시 — RLS 1차 방어 + 코드 이중화 (어드민 멀티포털 분류 정합)
+      const { data } = await supabase.from('bug_reports').select('*').eq('id', focusId).eq('user_id', user.id).eq('role', 'panel').single();
       if (data) setSelected(data);
     })();
   }, [focusId]);

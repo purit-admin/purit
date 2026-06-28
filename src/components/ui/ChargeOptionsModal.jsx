@@ -15,10 +15,13 @@ const PLANS = [
   { id: 'starter', name: 'Starter', credits: 50,  priceKrw: 820000,  desc: '월 50 크레딧 · 최대 15명 · 주니어·미들' },
   { id: 'pro',     name: 'Pro',     credits: 165, priceKrw: 2380000, desc: '월 165 크레딧 · 시니어·헤드 · 추가 충전 14% 할인' },
 ];
+const TIER_RANK = { free_trial: 0, starter: 1, pro: 2, enterprise: 3 }; // Pricing.jsx와 동일 — 현재 플랜 이하(다운그레이드·동일) 구독 버튼 숨김
 const BUNDLES = [10, 30, 50, 100];
 const UNIT = 25000; // 1cr (정가)
 
-export default function ChargeOptionsModal({ needed = 0, currentBalance = 0, companyId, onSuccess, onClose }) {
+export default function ChargeOptionsModal({ needed = 0, currentBalance = 0, currentPlan = 'free_trial', companyId, onSuccess, onClose }) {
+  // 현재 플랜보다 상위 플랜만 노출 — 서버 grant_plan_credits가 다운그레이드를 막으므로(downgrade_not_allowed) 도달 불가 버튼 제거 (Pricing.jsx isDowngrade와 정합)
+  const availablePlans = PLANS.filter(p => TIER_RANK[p.id] > (TIER_RANK[currentPlan] ?? 0));
   const suggested = BUNDLES.find(b => b >= Math.max(0, needed - currentBalance)) || 100;
   const [bundle, setBundle] = useState(suggested);
   const [payTarget, setPayTarget] = useState(null); // { type, plan?, credits?, amountKrw }
@@ -50,10 +53,12 @@ export default function ChargeOptionsModal({ needed = 0, currentBalance = 0, com
           잠금 해제에 <strong style={{ color: 'var(--accent)' }}>{needed}크레딧</strong>이 필요합니다. (보유 {currentBalance}cr) 플랜을 구독하거나 크레딧을 충전하세요.
         </div>
 
-        {/* 플랜 구독 */}
+        {/* 플랜 구독 — 현재 플랜보다 상위 플랜이 있을 때만 노출 */}
+        {availablePlans.length > 0 && (
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>플랜 구독 — 매달 크레딧 제공</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-          {PLANS.map(p => (
+        )}
+        <div style={{ display: availablePlans.length > 0 ? 'flex' : 'none', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+          {availablePlans.map(p => (
             <button key={p.id} onClick={() => setPayTarget({ type: 'plan', plan: p.id, amountKrw: p.priceKrw })}
               style={{ textAlign: 'left', padding: '14px 16px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', transition: 'border-color 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
@@ -70,7 +75,7 @@ export default function ChargeOptionsModal({ needed = 0, currentBalance = 0, com
         {/* 크레딧만 충전 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-          <span style={{ fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>또는 크레딧만 충전</span>
+          <span style={{ fontSize: 12, color: 'var(--text-3)', flexShrink: 0 }}>{availablePlans.length > 0 ? '또는 크레딧만 충전' : '크레딧 충전'}</span>
           <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>

@@ -18,6 +18,7 @@ export default function AdminAccount() {
   const [confirmPw, setConfirmPw] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState('');
+  const [isOAuth, setIsOAuth] = useState(false); // 소셜 로그인(google 등) 계정 — 비밀번호 없음 → 비번 탭 숨김
 
   useEffect(() => {
     async function load() {
@@ -26,6 +27,8 @@ export default function AdminAccount() {
         if (!user) { setLoading(false); return; }
         setEmail(user.email || '');
         setName(user.user_metadata?.name || '');
+        // 화이트리스트 판별 — 알려진 OAuth provider만 true, 이메일·레거시(미설정)는 false(탭 유지)
+        setIsOAuth(['google', 'linkedin_oidc'].includes(user.app_metadata?.provider));
         setLoading(false);
       } catch (err) {
         console.error('[AdminAccount load]', err);
@@ -95,7 +98,7 @@ export default function AdminAccount() {
       <StatusTabs
         value={tab}
         onChange={(v) => { setTab(v); setMsg(''); setPwMsg(''); }}
-        tabs={[{ key: 'profile', label: '관리자 정보' }, { key: 'password', label: '비밀번호 변경' }]}
+        tabs={[{ key: 'profile', label: '관리자 정보' }, ...(isOAuth ? [] : [{ key: 'password', label: '비밀번호 변경' }])]}
         style={{ marginBottom: 24 }}
       />
 

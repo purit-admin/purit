@@ -55,10 +55,10 @@ export default function AIReport() {
 
       // 무료 체험 미션 제외 — 부분 공개(페이월) 대상이라 AI 리포트 분석에 섞이면 안 됨 (니체-TRIAL-페이월 수평전개)
       // 메인 의뢰(landing_page)만 — AI 리포트는 5축 점수 기반이라 서브 의뢰(preference/pricing/email) 제외 (레거시 메인은 type=NULL)
-      const { data: missions } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).or('type.is.null,type.eq.landing_page').order('created_at', { ascending: false }).limit(1);
+      const { data: missions } = await supabase.from('missions').select('id, title, created_at').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).eq('dismissed', false).or('type.is.null,type.eq.landing_page').order('created_at', { ascending: false }).limit(1);
       const latestMission = missions?.[0];
 
-      const missionIds = (await supabase.from('missions').select('id').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).or('type.is.null,type.eq.landing_page')).data?.map(m => m.id) || [];
+      const missionIds = (await supabase.from('missions').select('id').eq('company_id', co.id).eq('status', 'completed').neq('is_free_trial', true).eq('dismissed', false).or('type.is.null,type.eq.landing_page')).data?.map(m => m.id) || [];
       if (!missionIds.length) { setLoading(false); return; }
 
       if (latestMission?.id) setLatestMissionId(latestMission.id);

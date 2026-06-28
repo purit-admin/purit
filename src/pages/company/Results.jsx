@@ -1013,6 +1013,7 @@ export default function Results() {
   const [sharePermissions, setSharePermissions] = useState({ show_comments: true, show_annotations: true });
   const [panelProfiles, setPanelProfiles] = useState({});
   const [companyId, setCompanyId]         = useState(null);
+  const [companyPlan, setCompanyPlan]     = useState('free_trial'); // ChargeOptionsModal 다운그레이드 버튼 숨김용
   const [helpRatings, setHelpRatings]     = useState({});
   const [ratingInFlight, setRatingInFlight] = useState(new Set());
   const [mainPage, setMainPage]           = useState(1);
@@ -1035,6 +1036,7 @@ export default function Results() {
       const { company: co } = await resolveCompany(user.id);
       if (!co) { setLoading(false); return; }
       setCompanyId(co.id);
+      setCompanyPlan(co.plan || 'free_trial');
       setCreditBalance(co.credit_balance ?? 0);
       // completed는 전부 표시, cancelled는 어드민이 완료 처리(company_notified_at SET)한 경우만 표시
       // dismissed=true 의뢰는 기업 포털에서 숨김 처리
@@ -1608,6 +1610,7 @@ export default function Results() {
                   <ChargeOptionsModal
                     needed={unlockCost}
                     currentBalance={creditBalance}
+                    currentPlan={companyPlan}
                     companyId={companyId}
                     onSuccess={(newBalance) => { if (typeof newBalance === 'number') setCreditBalance(newBalance); setShowUnlockPay(false); handleUnlock(); }}
                     onClose={() => setShowUnlockPay(false)}

@@ -196,6 +196,7 @@ function ExperienceBar({ value, onChange }) {
 export default function PanelProfile() {
   const [panel, setPanel]       = useState(null);
   const [tab, setTab]           = useState('profile');
+  const [isOAuth, setIsOAuth]   = useState(false); // 소셜 로그인(google 등) 계정 — 비밀번호 없음 → 비번 탭 숨김
   const [saving, setSaving]     = useState(false);
   const [saved, setSaved]       = useState('');
   const [loading, setLoading]   = useState(true);
@@ -228,6 +229,9 @@ export default function PanelProfile() {
   const [otpError, setOtpError]       = useState('');
 
   const [notifPrefs, setNotifPrefs] = useState({});
+  const [notifError, setNotifError] = useState('');   // 알림 토글 저장 실패 안내 (무음 롤백 방지)
+  const [avatarError, setAvatarError] = useState(''); // 아바타 저장 실패 안내 (무음 롤백 방지)
+  const [badgeError, setBadgeError] = useState('');   // 대표 뱃지 저장 실패 안내 (무음 롤백 방지)
   const [weeklyCount, setWeeklyCount] = useState(0); // 최근 7일 제출 수(라이브) — 구 streak_count 죽은 컬럼 대체
 
   const [orig, setOrig]           = useState(null);
@@ -240,6 +244,8 @@ export default function PanelProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
       setEmail(user.email || '');
+      // 화이트리스트 판별 — 알려진 OAuth provider만 true, 이메일·레거시(미설정)는 false(탭 유지)
+      setIsOAuth(['google', 'linkedin_oidc'].includes(user.app_metadata?.provider));
 
       const { data: p } = await supabase
         .from('panels').select('*').eq('user_id', user.id).single();
@@ -339,8 +345,8 @@ export default function PanelProfile() {
     setAvatarEmoji(newVal);
     setShowAvatarPicker(false);
     const { error } = await supabase.from('panels').update({ avatar_emoji: newVal }).eq('id', panel.id);
-    if (error) setAvatarEmoji(prev);
-    else setPanel(p => ({ ...p, avatar_emoji: newVal }));
+    if (error) { setAvatarEmoji(prev); setAvatarError('아바타 저장에 실패했습니다. 다시 시도해주세요.'); }
+    else { setPanel(p => ({ ...p, avatar_emoji: newVal })); setAvatarError(''); }
   };
 
   // 아바타 배경색 선택 — 같은 색 재클릭 시 자동(해시)로 되돌림(null)
@@ -350,8 +356,8 @@ export default function PanelProfile() {
     const newVal = avatarColor_ === String(idx) ? null : String(idx);
     setAvatarColor_(newVal);
     const { error } = await supabase.from('panels').update({ avatar_color: newVal }).eq('id', panel.id);
-    if (error) setAvatarColor_(prev);
-    else setPanel(p => ({ ...p, avatar_color: newVal }));
+    if (error) { setAvatarColor_(prev); setAvatarError('아바타 저장에 실패했습니다. 다시 시도해주세요.'); }
+    else { setPanel(p => ({ ...p, avatar_color: newVal })); setAvatarError(''); }
   };
 
   const isDirty = orig ? (() => {
@@ -404,7 +410,11 @@ export default function PanelProfile() {
     await new Promise(r => setTimeout(r, 600));
     const { error } = await supabase.from('panels').update({ phone, phone_verified: true }).eq('id', panel.id);
     if (error) { setOtpError('저장 중 오류가 발생했습니다.'); }
-    else { setPhoneVerified(true); setOtpSent(false); setOtp(''); }
+    else {
+      // DB와 auth 메타데이터 번호를 함께 갱신 — VerifyPhone.jsx와 정합(메타↔DB 번호 불일치 방지)
+      await supabase.auth.updateUser({ data: { phone_verified: true, phone } });
+      setPhoneVerified(true); setOtpSent(false); setOtp('');
+    }
     setOtpLoading(false);
   };
 
@@ -461,6 +471,7 @@ export default function PanelProfile() {
                 background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
                 padding: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', width: 264,
               }}>
+                {avatarError && <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 600, marginBottom: 8 }}>{avatarError}</div>}
                 {/* 배경색 선택 */}
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>배경색</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginBottom: 14 }}>
@@ -558,7 +569,8 @@ export default function PanelProfile() {
         onChange={handleTabClick}
         tabs={[
           { key: 'profile', label: '기본 정보' }, { key: 'achievement', label: '성과' },
-          { key: 'payment', label: '정산 계좌' }, { key: 'password', label: '비밀번호' },
+          { key: 'payment', label: '정산 계좌' },
+          ...(isOAuth ? [] : [{ key: 'password', label: '비밀번호' }]),
           { key: 'notifications', label: '알림 설정' },
         ]}
         style={{ marginBottom: 24 }}
@@ -774,7 +786,8 @@ export default function PanelProfile() {
           const newVal = selectedBadge === key ? null : key;
           setSelectedBadge(newVal);
           const { error } = await supabase.from('panels').update({ selected_badge: newVal }).eq('id', panel.id);
-          if (error) setSelectedBadge(prev);
+          if (error) { setSelectedBadge(prev); setBadgeError('대표 뱃지 저장에 실패했습니다. 다시 시도해주세요.'); }
+          else setBadgeError('');
         };
 
         return (
@@ -815,6 +828,7 @@ export default function PanelProfile() {
             <Card>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>뱃지 컬렉션</div>
               <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>획득한 뱃지를 클릭해 대표 뱃지로 설정하세요. 닉네임 옆에 표시됩니다.</div>
+              {badgeError && <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 16 }}>{badgeError}</div>}
 
               {TIER_ORDER.map(tier => {
                 const tierBadges = BADGE_CATALOG.filter(b => b.tier === tier);
@@ -847,6 +861,7 @@ export default function PanelProfile() {
         <Card>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>알림 설정</div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>알림을 끄면 해당 유형의 앱 알림이 발송되지 않습니다.</div>
+          {notifError && <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 16 }}>{notifError}</div>}
           {[
             { key: 'feedbackApproved', label: '피드백 승인', desc: '제출한 피드백이 Purit Filter를 통과해 승인됐을 때' },
             { key: 'feedbackRejected', label: '피드백 반려', desc: '제출한 피드백이 기준 미달로 반려됐을 때 (재작성 안내 포함)' },
@@ -865,7 +880,8 @@ export default function PanelProfile() {
                     const next = { ...notifPrefs, [key]: !on };
                     setNotifPrefs(next);
                     const { error } = await supabase.from('panels').update({ notif_prefs: next }).eq('id', panel.id);
-                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); }
+                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); setNotifError('알림 설정 저장에 실패했습니다. 다시 시도해주세요.'); }
+                    else setNotifError('');
                   }}
                   style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: on ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
                 >

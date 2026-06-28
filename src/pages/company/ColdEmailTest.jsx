@@ -136,6 +136,8 @@ export default function ColdEmailTest() {
         if (parsed.content) setEmailText(parsed.content);
         if (parsed.productDescription) setProductDescription(parsed.productDescription);
         if (parsed.industry) setIndustry(parsed.industry);
+        if (parsed.conversionGoal) setConversionGoal(parsed.conversionGoal);
+        if (parsed.conversionGoalCustom) setConversionGoalCustom(parsed.conversionGoalCustom);
         if (Array.isArray(parsed.selectedQuestions)) {
           // 저장 시 합쳐진 질문을 local-(인라인 생성)/그 외로 다시 분리 복원 ('추가된 질문 목록' 취소 UI 복구)
           const isLocal = q => typeof q.id === 'string' && q.id.startsWith('local-');

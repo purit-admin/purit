@@ -29,6 +29,7 @@ export default function AccountSettings() {
   const [roleChangeError, setRoleChangeError] = useState('');
 
   const [notifPrefs, setNotifPrefs] = useState({});
+  const [notifError, setNotifError] = useState(''); // 알림 토글 저장 실패 안내 (무음 롤백 방지)
 
   useEffect(() => {
     load();
@@ -297,6 +298,7 @@ export default function AccountSettings() {
         <Card>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>알림 설정</div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>알림을 끄면 해당 유형의 앱 알림이 발송되지 않습니다.</div>
+          {notifError && <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 16 }}>{notifError}</div>}
           {[
             { key: 'missionComplete',    label: '의뢰 완료 결과 공개',        desc: '어드민이 의뢰 완료 처리 후 피드백 결과를 열람할 수 있게 됐을 때' },
             { key: 'missionStatusChange', label: '의뢰 취소 · 재개 · 재진행', desc: '진행 중인 의뢰의 상태가 어드민에 의해 변경됐을 때' },
@@ -315,7 +317,8 @@ export default function AccountSettings() {
                     const next = { ...notifPrefs, [key]: !on };
                     setNotifPrefs(next);
                     const { error } = await supabase.from('companies').update({ notif_prefs: next }).eq('id', company.id);
-                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); }
+                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); setNotifError('알림 설정 저장에 실패했습니다. 다시 시도해주세요.'); }
+                    else setNotifError('');
                   }}
                   style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: on ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
                 >

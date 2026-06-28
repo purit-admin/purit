@@ -95,6 +95,9 @@ export default function SettlementLedger({ feedbacks = [], panelData = null }) {
       return;
     }
     setItems(prev => prev.filter(f => f.id !== deleteTarget));
+    // 삭제 후 현재 탭 잔여 목록 기준으로 page 클램프 — 마지막 페이지 마지막 항목 삭제 시 빈 화면 방지 (D-170, setPage는 updater 밖 D-161)
+    const newTotalPages = Math.max(1, Math.ceil((filtered.length - 1) / PAGE_SIZE));
+    if (page > newTotalPages) setPage(newTotalPages);
     setDeleteTarget(null);
     setDeleting(false);
   };

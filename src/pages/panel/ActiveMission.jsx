@@ -459,12 +459,14 @@ export default function ActiveMission() {
     if (!draftId || !hasImages || isSubMission || step < 1) return;
     clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      const toSave = {};
-      if (customAnswers.length) toSave.customAnswers = customAnswers;
-      if (overallComment) toSave.overallComment = overallComment;
-      if (Object.values(skippedDims).some(Boolean)) toSave.skippedDims = skippedDims;
-      if (viewedImages.size > 1) toSave.viewedImages = [...viewedImages]; // 실제 확인한 이미지 인덱스 보존 (복원 시 게이트 정확도)
-      if (Object.keys(toSave).length === 0) return;
+      // 전체 객체를 항상 저장 — 비운 값(총평 삭제·스킵 전체 해제)도 명시적으로 기록해 복원과 1:1 대칭 보장
+      // (구: truthy일 때만 담아 '비움'이 DB에 반영 안 돼 재진입 시 옛 값이 되살아남, D-141 계열 / 서브 미션 saveSubProgress와 동일 방식)
+      const toSave = {
+        customAnswers,
+        overallComment,
+        skippedDims,
+        viewedImages: [...viewedImages], // 실제 확인한 이미지 인덱스 보존 (복원 시 게이트 정확도)
+      };
       supabase.from('feedbacks')
         .update({ strengths: JSON.stringify(toSave) })
         .eq('id', draftId)
@@ -1519,7 +1521,8 @@ export default function ActiveMission() {
         <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {Object.entries(DIM_META).map(([key, meta]) => {
             const count    = annotations.filter(a => a.dimension === key).length;
-            const done     = count > 0;
+            // 완료색은 '코멘트 있는 어노테이션 보유' 기준(dimDone와 동일) — 빈 코멘트만 있으면 미완료색+○ 표식 (제출 게이트와 시각 일치)
+            const done     = annotations.some(a => a.dimension === key && (a.comment || '').trim());
             const skipped  = skippedDims[key];
             const isActive = activeDimension === key;
             return (
