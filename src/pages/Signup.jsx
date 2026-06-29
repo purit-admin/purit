@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { requestOtp, confirmOtp } from '../lib/otp';
 
 const ACCENT  = '#10367D';
 const BG      = '#F8FAFC';
@@ -133,18 +134,22 @@ function PhoneVerifyBlock({ verifiedPhone, setVerifiedPhone }) {
     if (phone.replace(/\D/g, '').length < 10) { setOtpError('올바른 휴대폰 번호를 입력해 주세요.'); return; }
     sendingRef.current = true;
     setOtpError(''); setLoading(true);
-    await new Promise(r => setTimeout(r, 800)); // Mock 발송
-    setOtpSent(true); setLoading(false);
+    const res = await requestOtp(phone);
+    setLoading(false);
     sendingRef.current = false;
+    if (!res.ok) { setOtpError(res.error || '발송에 실패했습니다.'); return; }
+    setOtpSent(true);
   };
   const verify = async () => {
     if (verifyingRef.current) return;
     if (otp.length !== 6) { setOtpError('인증번호 6자리를 입력해 주세요.'); return; }
     verifyingRef.current = true;
     setOtpError(''); setLoading(true);
-    await new Promise(r => setTimeout(r, 600)); // Mock 검증 (6자리면 통과)
-    setVerifiedPhone(phone); setOtpSent(false); setOtp(''); setLoading(false);
+    const res = await confirmOtp(phone, otp);
+    setLoading(false);
     verifyingRef.current = false;
+    if (!res.ok) { setOtpError(res.error || '인증에 실패했습니다.'); return; }
+    setVerifiedPhone(phone); setOtpSent(false); setOtp('');
   };
 
   return (
@@ -181,14 +186,23 @@ function PhoneVerifyBlock({ verifiedPhone, setVerifiedPhone }) {
         </div>
       )}
       {otpError && <div style={{ fontSize: 12, color: '#C53030', marginTop: 6 }}>{otpError}</div>}
-      {!verified && otpSent && <div style={{ fontSize: 11, color: T3, marginTop: 6 }}>🧪 테스트 모드 · 6자리 아무 숫자나 입력하면 인증됩니다.</div>}
+      {!verified && otpSent && <div style={{ fontSize: 11, color: T3, marginTop: 6 }}>인증번호가 문자로 발송되었습니다. (5분 이내 입력)</div>}
     </div>
   );
 }
 
-function EmailFields({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, role, verifiedPhone, setVerifiedPhone }) {
+function EmailFields({ name, setName, companyName, setCompanyName, email, setEmail, password, setPassword, showPw, setShowPw, role, verifiedPhone, setVerifiedPhone }) {
   return (
     <>
+      {role === 'company' && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: T2, display: 'block', marginBottom: 7 }}>
+            회사명
+          </label>
+          <input type="text" placeholder="(주)회사명" value={companyName} onChange={e => setCompanyName(e.target.value)}
+            style={INPUT_STYLE} onFocus={onInputFocus} onBlur={onInputBlur} />
+        </div>
+      )}
       <div style={{ marginBottom: 14 }}>
         <label style={{ fontSize: 13, fontWeight: 600, color: T2, display: 'block', marginBottom: 7 }}>
           {role === 'company' ? '담당자 이름' : '이름'}
@@ -272,11 +286,11 @@ function PanelEmailStep({ name, setName, email, setEmail, password, setPassword,
   );
 }
 
-function CompanyEmailForm({ name, setName, email, setEmail, password, setPassword, showPw, setShowPw, verifiedPhone, setVerifiedPhone, error, successMsg, loading, busy, onSubmit, googleLoading, onGoogle }) {
+function CompanyEmailForm({ name, setName, companyName, setCompanyName, email, setEmail, password, setPassword, showPw, setShowPw, verifiedPhone, setVerifiedPhone, error, successMsg, loading, busy, onSubmit, googleLoading, onGoogle }) {
   return (
     <>
       <form onSubmit={onSubmit}>
-        <EmailFields name={name} setName={setName} email={email} setEmail={setEmail}
+        <EmailFields name={name} setName={setName} companyName={companyName} setCompanyName={setCompanyName} email={email} setEmail={setEmail}
           password={password} setPassword={setPassword} showPw={showPw} setShowPw={setShowPw}
           verifiedPhone={verifiedPhone} setVerifiedPhone={setVerifiedPhone} role="company" />
 
@@ -377,6 +391,7 @@ export default function Signup() {
 
   // Email form state
   const [name,     setName]     = useState('');
+  const [companyName, setCompanyName] = useState(''); // 기업 가입 시 회사명 (담당자명 name과 분리)
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [showPw,   setShowPw]   = useState(false);
@@ -405,6 +420,7 @@ export default function Signup() {
     setError('');
     setSuccessMsg('');
     setVerifiedPhone('');
+    setCompanyName('');
   }, [role]);
 
   const handleChooseMethod = method => {
@@ -426,14 +442,15 @@ export default function Signup() {
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
-    if (!name.trim())        { setError('이름을 입력해 주세요.'); return; }
+    if (role === 'company' && !companyName.trim()) { setError('회사명을 입력해 주세요.'); return; }
+    if (!name.trim())        { setError(role === 'company' ? '담당자 이름을 입력해 주세요.' : '이름을 입력해 주세요.'); return; }
     if (!email.trim())       { setError('이메일을 입력해 주세요.'); return; }
     if (password.length < 6) { setError('비밀번호는 6자 이상이어야 합니다.'); return; }
     if (!verifiedPhone)      { setError('휴대폰 인증을 완료해 주세요.'); return; }
 
     setLoading(true);
     try {
-      await signUp({ email, password, name, role, inviteToken, phone: verifiedPhone });
+      await signUp({ email, password, name, companyName: role === 'company' ? companyName.trim() : undefined, role, inviteToken, phone: verifiedPhone });
       await signOut();
       const loginMsg = inviteToken
         ? '가입이 완료되었습니다. 로그인하면 초대 수락 페이지로 이동합니다.'
@@ -446,7 +463,7 @@ export default function Signup() {
     }
   };
 
-  const emailFieldProps = { name, setName, email, setEmail, password, setPassword, showPw, setShowPw, verifiedPhone, setVerifiedPhone };
+  const emailFieldProps = { name, setName, companyName, setCompanyName, email, setEmail, password, setPassword, showPw, setShowPw, verifiedPhone, setVerifiedPhone };
   const formStatusProps = { error, successMsg, loading, busy };
 
   return (

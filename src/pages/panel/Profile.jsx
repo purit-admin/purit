@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { Card, Btn, Badge, StatusTabs } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
+import { requestOtp, confirmOtp } from '../../lib/otp';
 
 const INDUSTRIES = ['이커머스 마케터', 'B2B SaaS 세일즈', '스타트업 PM', 'B2B 영업', '퍼포먼스 마케터', '브랜드 마케터', 'CRO 전문가', '콘텐츠 마케터', '스타트업 대표', '그로스 마케터', '프로덕트 마케터(PMM)', 'CRM 마케터', 'SNS·소셜 마케터', 'SEO 전문가', 'UX/UI 디자이너', '마케팅 데이터 분석가', '기타'];
 const EXPERTISE  = ['랜딩페이지 전환', '카피라이팅', '가격 전략', 'B2B 세일즈 카피', 'UX 설계', '이메일 마케팅', 'SNS 광고', '고객 인터뷰', '데이터 분석'];
@@ -398,16 +399,18 @@ export default function PanelProfile() {
     if (!phone || phone.replace(/\D/g, '').length < 10) { setOtpError('올바른 번호를 입력해주세요.'); return; }
     setOtpLoading(true);
     setOtpError('');
-    await new Promise(r => setTimeout(r, 800));
-    setOtpSent(true);
+    const res = await requestOtp(phone);
     setOtpLoading(false);
+    if (!res.ok) { setOtpError(res.error || '발송에 실패했습니다.'); return; }
+    setOtpSent(true);
   };
 
   const handleVerifyOtp = async () => {
     if (otp.length !== 6) { setOtpError('인증번호 6자리를 입력해주세요.'); return; }
     setOtpLoading(true);
     setOtpError('');
-    await new Promise(r => setTimeout(r, 600));
+    const res = await confirmOtp(phone, otp);
+    if (!res.ok) { setOtpError(res.error || '인증에 실패했습니다.'); setOtpLoading(false); return; }
     const { error } = await supabase.from('panels').update({ phone, phone_verified: true }).eq('id', panel.id);
     if (error) { setOtpError('저장 중 오류가 발생했습니다.'); }
     else {

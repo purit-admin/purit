@@ -62,3 +62,29 @@ export async function sendAlimtalk(
     throw new Error(`Solapi ${res.status}: ${body}`);
   }
 }
+
+// ── 평문 SMS 발송 ─────────────────────────────────────────────
+// OTP 인증번호 등 알림톡 템플릿이 아닌 단문 SMS (같은 v4/send 엔드포인트, kakaoOptions 없음)
+export async function sendSms(to: string, text: string): Promise<void> {
+  const auth = await buildAuthHeader();
+
+  const res = await fetch('https://api.solapi.com/messages/v4/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': auth,
+    },
+    body: JSON.stringify({
+      message: {
+        to,
+        from: SOLAPI_SENDER,
+        text,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Solapi ${res.status}: ${body}`);
+  }
+}

@@ -23,8 +23,10 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signUp({ email, password, name, role: selectedRole, inviteToken, phone }) {
+  async function signUp({ email, password, name, companyName, role: selectedRole, inviteToken, phone }) {
     const metadata = { name, role: selectedRole };
+    // 기업 가입 시 회사명 → handle_new_user 트리거가 companies.name=회사명, contact_name=담당자명으로 분리 저장
+    if (companyName) metadata.company_name = companyName;
     // 초대 토큰이 있으면 포함 → handle_new_user 트리거가 companies 생성 건너뜀
     if (inviteToken) metadata.invite_token = inviteToken;
     // 휴대폰 인증(Mock) 완료 시 → 트리거가 panels/companies에 phone·phone_verified 저장

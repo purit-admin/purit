@@ -34,6 +34,7 @@ export default function CompanyAccount() {
   const [notifPrefs, setNotifPrefs] = useState({});
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [contactName, setContactName] = useState('');
   const [industry, setIndustry] = useState('');
   const [website, setWebsite] = useState('');
   const [loading, setLoading] = useState(true);
@@ -65,9 +66,10 @@ export default function CompanyAccount() {
         if (co) {
           setCompany(co);
           setName(co.name || '');
+          setContactName(co.contact_name || '');
           setIndustry(co.industry || '');
           setWebsite(co.website || '');
-          setOrig({ name: co.name || '', industry: co.industry || '', website: co.website || '' });
+          setOrig({ name: co.name || '', contactName: co.contact_name || '', industry: co.industry || '', website: co.website || '' });
           setNotifPrefs(co.notif_prefs || {});
           const { data: invRes } = await supabase
             .from('invoices').select('*').eq('company_id', co.id)
@@ -103,19 +105,19 @@ export default function CompanyAccount() {
     }
     setSaving(true);
     const { error } = await supabase.from('companies')
-      .update({ name, industry, website })
+      .update({ name, contact_name: contactName, industry, website })
       .eq('id', company.id);
     setSaving(false);
     setMsg(error ? '저장 실패: ' + error.message : '저장됐습니다.');
     if (!error) {
-      setCompany(c => ({ ...c, name, industry, website }));
-      setOrig({ name, industry, website });
+      setCompany(c => ({ ...c, name, contact_name: contactName, industry, website }));
+      setOrig({ name, contactName, industry, website });
     }
     setTimeout(() => setMsg(''), 3000);
   }
 
   const isDirty = orig && tab === 'profile'
-    ? (name !== orig.name || industry !== orig.industry || website !== orig.website)
+    ? (name !== orig.name || contactName !== orig.contactName || industry !== orig.industry || website !== orig.website)
     : false;
 
   const handleTabClick = (v) => {
@@ -197,7 +199,7 @@ export default function CompanyAccount() {
             >계속 편집</button>
             <button
               onClick={() => {
-                setName(orig.name); setIndustry(orig.industry); setWebsite(orig.website);
+                setName(orig.name); setContactName(orig.contactName); setIndustry(orig.industry); setWebsite(orig.website);
                 setTab(pendingTab); setPendingTab(null); setDirtyWarn(false); setMsg(''); setPwMsg('');
               }}
               style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
@@ -230,6 +232,10 @@ export default function CompanyAccount() {
             <label style={lbl}>
               <span style={lblTxt}>기업명</span>
               <input value={name} onChange={e => teamRole === null && setName(e.target.value)} placeholder="(주)회사명" disabled={teamRole !== null} style={teamRole !== null ? { opacity: 0.6 } : {}} />
+            </label>
+            <label style={lbl}>
+              <span style={lblTxt}>담당자 이름</span>
+              <input value={contactName} onChange={e => teamRole === null && setContactName(e.target.value)} placeholder="홍길동" disabled={teamRole !== null} style={teamRole !== null ? { opacity: 0.6 } : {}} />
             </label>
             <label style={lbl}>
               <span style={lblTxt}>이메일 (변경 불가)</span>

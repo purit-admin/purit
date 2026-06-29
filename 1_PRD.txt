@@ -1,6 +1,6 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-29 (랜딩 히어로·CTA 워딩 교정 — 메인 CTA 버튼 '무료로 시작하기'→'첫 의뢰 무료로 시작하기'(네비·모바일메뉴·히어로·하단 CTA 4곳, 비로그인 한정·로그인 시 '대시보드로 이동' 유지) + 히어로 서브문구 '...광고·페이지를 직접 보고, 전환을 막는 한 줄까지 진짜 사람이 짚어드립니다'→'...소재·페이지를 직접 보고, 장·단점과 수정 방향을 추천해 드립니다'. Landing.jsx 카피만·로직/스타일 무관)
+최종 업데이트: 2026-06-29 (가입 회사명 수집 + 휴대폰 OTP 정식화 — ① 니체-AUTH-B: 기업 가입 시 회사명을 안 받아 companies.name에 담당자 이름이 저장되던 문제 수정. companies.contact_name 컬럼 신설(담당자명 별도) + handle_new_user 트리거 재정의(name=company_name, 없으면 구 name→이메일prefix 폴백=하위호환). Signup.jsx 기업 폼에 '회사명' 칸 추가(role=company만)+검증, AuthContext.signUp companyName 파라미터, company/Account 기업 프로필에 '담당자 이름'(contact_name) 편집칸 추가(Google 가입자·기존 계정 보정). migration 123. ② 완성도-D: 휴대폰 OTP를 Mock(아무 6자리나 통과)→실제 SMS+서버 검증으로 정식화. phone_otps 테이블(코드·5분 만료·시도 5회 제한, RLS 전면 차단·Edge service_role만 접근) + Edge Function send-otp(재발송 60초/1시간5회 제한·6자리 생성·Solapi SMS)·verify-otp(만료·시도·일치 검증) + _shared/solapi.ts sendSms 추가 + src/lib/otp.js 공용 헬퍼(requestOtp·confirmOtp) → 클라 3곳(Signup·VerifyPhone·panel/Profile) 교체. migration 124. ⚠️ migration 123·124 실행 완료, send-otp/verify-otp 배포 완료(ACTIVE), Solapi SMS secrets(API_KEY/SECRET/SENDER_PHONE)·발신번호·충전은 사업자 등록 후 진행 예정(미설정 시 발송만 실패·검증 정상, ALIMTALK_SETUP.md C 섹션 참조). ※ OAuth 기업 가입은 회사명 미수집→Account 편집 / signUp phone_verified는 클라 신뢰(PRD 명시 목적=알림톡 도달, 보안 아님). D-174. 빌드 EXIT 0) / 2026-06-29 (랜딩 히어로·CTA 워딩 교정 — 메인 CTA 버튼 '무료로 시작하기'→'첫 의뢰 무료로 시작하기'(네비·모바일메뉴·히어로·하단 CTA 4곳, 비로그인 한정·로그인 시 '대시보드로 이동' 유지) + 히어로 서브문구 '...광고·페이지를 직접 보고, 전환을 막는 한 줄까지 진짜 사람이 짚어드립니다'→'...소재·페이지를 직접 보고, 장·단점과 수정 방향을 추천해 드립니다'. Landing.jsx 카피만·로직/스타일 무관)
             2026-06-29 (비밀번호 찾기/재설정 신규 — 이메일 가입자가 비번 분실 시 영구 잠김이던 것 해소. /forgot-password(ForgotPassword.jsx, resetPasswordForEmail·계정열거 방지 동일완료화면·submittingRef 연타가드)·/reset-password(ResetPassword.jsx, recovery 세션 status 3분기·6자+확인일치·updatePassword·signOut best-effort·변경후 /login 이동 시 D-97 successMsg 가드로 stale 세션 바운스 차단) 신규 + AuthContext requestPasswordReset/updatePassword 메서드 + Login '비밀번호를 잊으셨나요?' 링크 + 공용 라우트 2개(40→42). ⚠️ Supabase Redirect URLs에 {도메인}/reset-password 등록 완료(localhost:5173/** + purit-orpin.vercel.app/**). 동반: 패널 경력 미설정 시 careerLevels 제한 미션 노출 방어막(panel/Missions·Dashboard — 가드 밖으로 필터 이동). 상세는 2_Architecture.txt 참조)
             2026-06-22 (랜딩 비교표 문구·방향성 교정 — '왜 Purit인가 / 기존 검증 방식과 무엇이 다를까요'. 패널 정체성을 "고객 같은 전문가"→"마케팅 전문가(소재 효용성 판별)"로 재정의해 비교 행 교체: 6행(현직 마케팅 전문가의 진단=Purit만✓ / 소재 강·약점 진단 ✓△×× / 5대 지표 정량 점수 리포트 ✓×△△ — 일반 설문 ✓→△ 하향 / AI·영혼 없는 응답 차단=Purit만✓ / 결과 도착까지 48시간 / 실제 트래픽·방문자 필요). dot-check/x/tilde 클래스 재사용·신규 CSS 없음. Landing.jsx COMPARISON 섹션만 수정)
             2026-06-18 (랜딩 푸터 법적 고지 모달 신규 — '이용약관·개인정보처리방침·운영정책' 링크 3종을 foot-bottom에 추가, 클릭 시 모달 오버레이(alert 아님)로 본문 표시. legalModal state 단일 전환·ESC/배경/× 닫기·body 스크롤 잠금·인라인 스타일(.purit-landing 스코프 무관). 본문은 LEGAL_DOCS 표준 골격(placeholder)→오픈 전 법무 검토 필요. 동반: 랜딩 떠다니는 전문가 태그(ExpertCloud) 흐림 수정·어드민 패널/기업 관리 정렬 드롭다운 너비 고정. 상세는 2_Architecture.txt 참조)
@@ -43,6 +43,10 @@
              ★ 기업 가입 시 plan='free_trial'로 시작 (085) — 구 'starter' 자동 부여 폐지.
                무료 체험 = 첫 메인 의뢰 1회 무료(free_trial_used로 1회 제한). 상세는 1_PRD_company.txt 참조.
                (이메일=handle_new_user, OAuth=create_oauth_user_profile 둘 다 free_trial)
+             ★ 기업 가입 폼: '회사명' + '담당자 이름' 분리 입력 (니체-AUTH-B, 2026-06-29, migration 123)
+               companies.name=회사명, companies.contact_name=담당자명으로 분리 저장 (구: 담당자명이 name에 들어가 어드민 목록서 회사가 사람 이름으로 표기)
+               Signup.jsx 기업 폼만 '회사명' 칸 노출(패널은 '이름'만) → signUp companyName → metadata.company_name → handle_new_user 분리 저장
+               하위호환: company_name 없으면 name→이메일prefix 폴백 / OAuth 기업 가입은 폼 없어 회사명 미수집 → /company/account에서 회사명·담당자명 편집
              ★ 패널 이메일 가입: CREDS 스텝(검증 서류 첨부 UI) 제거 (2026-05-28) — 서류는 가입 후 /panel/verify-docs에서 제출
                (File 객체 sessionStorage 직렬화 불가 이슈 제거, 이메일 가입도 가입→로그인→/panel/verify-docs 흐름으로 통일)
                ★ /panel/verify-docs에서 본인 연차(자격득실 확인서 기준, 2년차 이상)도 함께 입력 → 어드민이 PanelManagement에서 확정 (2026-06-12)
@@ -55,15 +59,20 @@
   · OAuthCallback.jsx: 신규 유저면 role 읽어 user_metadata 업데이트 + companies/panels 레코드 수동 생성
   · 기존 유저(role 이미 있음)면 바로 대시보드 리다이렉트
   · Supabase 대시보드 URL Configuration에 /oauth/callback 허용 URL 등록 필요
-- 휴대폰 인증 (Mock OTP) ★ 신규 (migration 101/103, 2026-06-16)
+- 휴대폰 인증 (실제 SMS OTP) ★ 정식화 (완성도-D, 2026-06-29 — 구 Mock OTP migration 101/103 → migration 124 + Edge Function)
   · 가입 시 휴대폰 인증 필수 — 알림톡 도달 위해 전 사용자 휴대폰 확보 (보안 목적 아님: 패널은 서류 검증이 더 강함)
-  · 이메일 가입: Signup 폼에 휴대폰 입력 + "인증번호 받기"(800ms)+6자리 확인 → 인증 완료 전 가입 차단
+  · 이메일 가입: Signup 폼에 휴대폰 입력 + "인증번호 받기"+6자리 확인 → 인증 완료 전 가입 차단
     인증 번호를 signUp user_metadata(phone·phone_verified)로 전달 → handle_new_user 트리거가 panels/companies에 저장
   · Google 가입: 폼을 안 거치므로 가입 후 /verify-phone 게이트에서 본인 인증 → save_my_phone RPC(본인 행만)로 panels/companies/team_members에 저장
   · 게이트: RoleRoute가 user_metadata.phone_verified !== true 인 기업/패널을 /verify-phone로 (admin 제외).
     인증 시 supabase.auth.updateUser로 metadata.phone_verified 갱신 → 통과. 라우트마다 DB 조회 없이 metadata로 판별
     · /verify-phone(VerifyPhone.jsx)은 마운트 시 DB가 이미 phone_verified면 metadata만 동기화 후 통과(기존 인증 패널 재입력 불필요)
-  · Mock: 6자리 아무 숫자 통과 (실 SMS 게이트웨이 연동 전). 연타 가드(submittingRef) 적용
+  · ★ 정식 OTP 구조 (Mock 제거): phone_otps 테이블(코드·5분 만료·시도 5회·verified, RLS 전면 차단·Edge service_role만 접근)
+    · send-otp Edge Function: 번호 형식 검증 → 재발송 제한(60초 간격·1시간 5회) → 6자리 생성 → 5분 만료 저장 → Solapi 평문 SMS 발송(_shared/solapi.ts sendSms)
+    · verify-otp Edge Function: 최신 미인증 코드 조회 → 만료·시도횟수(5회) 검사 → 일치 시 verified=true (시도 선증가로 무차별 대입 방지)
+    · 클라 3곳(Signup PhoneVerifyBlock·VerifyPhone·panel/Profile)이 src/lib/otp.js(requestOtp·confirmOtp) 공유 — 모든 처리결과 200+{ok,error}로 한국어 메시지 전달(functions.invoke 비-2xx data 누락 회피, D-174)
+    · ⚠️ 실제 발송엔 Solapi SMS secrets(SOLAPI_API_KEY/SECRET/SENDER_PHONE)+발신번호 등록+충전 필요 — 사업자 등록 후 진행 예정(미설정 시 발송만 실패·검증 로직은 정상, ALIMTALK_SETUP.md C 섹션)
+    · ※ signUp metadata.phone_verified는 여전히 클라 신뢰(가입 트리거 미강제) — PRD 명시 목적이 알림톡 도달(보안 아님)이라 의도 내, 실 SMS+서버검증으로 UX는 정식화
 - 비밀번호 찾기/재설정 (이메일 가입자) ★ 신규 (2026-06-29)
   · 미구현이던 비번 분실 복구 경로 신설 — 잠긴 사용자가 신규 가입 외 방법이 없던 문제 해소
   · /forgot-password(ForgotPassword.jsx): 이메일 입력 → requestPasswordReset(AuthContext) → supabase.auth.resetPasswordForEmail

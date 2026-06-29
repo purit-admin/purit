@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { requestOtp, confirmOtp } from '../lib/otp';
 
 // 가입 후 휴대폰 인증 게이트 (Mock OTP)
 // Google(OAuth) 가입자 등 가입 폼에서 휴대폰을 받지 못한 사용자가 첫 진입 시 거치는 화면.
@@ -57,9 +58,11 @@ export default function VerifyPhone() {
     if (phone.replace(/\D/g, '').length < 10) { setError('올바른 휴대폰 번호를 입력해 주세요.'); return; }
     sendingRef.current = true;
     setError(''); setLoading(true);
-    await new Promise(r => setTimeout(r, 800)); // Mock 발송
-    setOtpSent(true); setLoading(false);
+    const res = await requestOtp(phone);
+    setLoading(false);
     sendingRef.current = false;
+    if (!res.ok) { setError(res.error || '발송에 실패했습니다.'); return; }
+    setOtpSent(true);
   };
 
   const verify = async () => {
@@ -67,7 +70,11 @@ export default function VerifyPhone() {
     if (otp.length !== 6) { setError('인증번호 6자리를 입력해 주세요.'); return; }
     verifyingRef.current = true;
     setError(''); setLoading(true);
-    await new Promise(r => setTimeout(r, 600)); // Mock 검증 (6자리면 통과)
+    const res = await confirmOtp(phone, otp);
+    if (!res.ok) {
+      setError(res.error || '인증에 실패했습니다.');
+      setLoading(false); verifyingRef.current = false; return;
+    }
     // 본인 행(panels/companies/team_members)에만 저장하는 SECURITY DEFINER RPC — 팀원(오너 행 없음)도 커버
     const { data, error: rpcErr } = await supabase.rpc('save_my_phone', { p_phone: phone });
     if (rpcErr || data === false) {
@@ -138,7 +145,7 @@ export default function VerifyPhone() {
         )}
 
         <div style={{ fontSize: 12, color: T3, marginTop: 18, textAlign: 'center', lineHeight: 1.5 }}>
-          🧪 테스트 모드 · 인증번호는 6자리 아무 숫자나 입력하면 통과됩니다.
+          입력하신 번호로 인증번호 문자가 발송됩니다. (5분 이내 입력)
         </div>
       </div>
     </div>

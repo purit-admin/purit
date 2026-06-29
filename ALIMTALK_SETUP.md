@@ -167,9 +167,83 @@ supabase/
 │   └── 041_pg_cron_deadline_alimtalk.sql   값 교체 후 실행 필요
 └── functions/
     ├── _shared/
-    │   └── solapi.ts                        Solapi 공통 헬퍼
+    │   └── solapi.ts                        Solapi 공통 헬퍼 (sendAlimtalk + sendSms)
     ├── send-alimtalk/
     │   └── index.ts                         notifications 웹훅 핸들러
     └── check-deadline-alimtalk/
         └── index.ts                         마감 임박 체커 (pg_cron 호출)
+```
+
+---
+---
+
+# C. 휴대폰 OTP 인증 (SMS) — 가입/프로필 본인 인증
+
+> 알림톡과 **별개 기능**이지만 같은 Solapi 계정·발신번호를 공유하므로 이 파일에 함께 정리.
+> 핵심: OTP는 **일반 SMS**라 카카오 채널·알림톡 템플릿이 **필요 없다.** (발신번호 + API Key + 충전만 있으면 작동)
+
+## C. 진행 현황
+
+| 단계 | 내용 | 상태 |
+|------|------|------|
+| C-1 | SQL 124 실행 (phone_otps 테이블) | ✅ 완료 |
+| C-2 | Edge Function 배포 (send-otp / verify-otp) | ✅ 완료 (ACTIVE) |
+| C-3 | 클라이언트 연동 (Signup·VerifyPhone·panel/Profile) | ✅ 완료 (코드 반영·빌드 통과) |
+| C-4 | Solapi SMS Secrets 3개 등록 | ⬜ **미완료** ← 사업자 등록 후 진행 예정 |
+| C-5 | Solapi 발신번호 등록 + 충전 | ⬜ **미완료** ← 사업자 등록 후 진행 예정 |
+
+> ⚠️ **현재 상태:** 코드·배포·DB는 전부 끝났으나 Solapi SMS 설정(C-4·C-5)이 없어 **실제 문자는 발송되지 않음.**
+> 가입 화면에서 "인증번호 받기" → "인증번호 발송에 실패했습니다" 표시됨 (정상 — Solapi 미설정 때문).
+
+## C. 동작 방식 (참고)
+
+- `send-otp`: 번호 형식 검증 → 재발송 제한(60초 간격·1시간 5회) → 6자리 코드 생성 → `phone_otps`에 5분 만료로 저장 → Solapi SMS 발송
+- `verify-otp`: 최신 미인증 코드 조회 → 만료·시도횟수(5회) 검사 → 일치 시 `verified=true`
+- `phone_otps` 테이블은 RLS 전면 차단 → 클라이언트 직접 접근 불가, Edge Function(service_role)만 접근
+
+## C-4 / C-5. Solapi 준비 (사업자 등록 후 진행)
+
+### 1) Solapi 가입
+- https://solapi.com 회원가입 → 콘솔 로그인
+
+### 2) 발신번호 등록 ⭐ (가장 중요·시간 소요)
+- 콘솔 **[발신번호 관리] → [발신번호 등록]**
+- 인증 방법:
+  - **개인 휴대폰** → **ARS 인증** (등록할 번호로 전화 → 인증번호 입력, 즉시 완료) — 가장 빠름
+  - **사업자 번호/유선** → 통신서비스 이용증명원 서류 제출 (영업일 1일 내외 심사)
+- 등록·인증한 번호 = `SOLAPI_SENDER_PHONE`
+
+### 3) API Key 발급
+- 콘솔 **[API Key 관리] → [API Key 생성]**
+- `API Key` = `SOLAPI_API_KEY`, `API Secret` = `SOLAPI_API_SECRET`
+- ⚠️ **Secret은 생성 시 한 번만 표시됨 — 반드시 복사 저장**
+
+### 4) 충전
+- 콘솔 **[캐시 충전]** (테스트는 만 원 정도면 충분)
+- SMS 단가: 건당 약 9~20원 (단문)
+
+### 5) Secrets 등록 (위 3개 확보 후 터미널 실행)
+```bash
+cd <프로젝트 루트>
+SUPABASE_ACCESS_TOKEN=<access_token> \
+  npx supabase secrets set \
+    SOLAPI_API_KEY=발급키 \
+    SOLAPI_API_SECRET=발급시크릿 \
+    SOLAPI_SENDER_PHONE=01012345678 \
+  --project-ref xdpfoevtlgjuhwzqtxrs
+```
+> 이 3개는 **알림톡(B-4)과 동일한 값** — 한 번 등록하면 OTP와 알림톡 SMS 폴백이 함께 작동.
+> (알림톡까지 쓰려면 B-4의 `SOLAPI_PF_ID` + 템플릿 ID들이 추가로 필요. OTP만은 위 3개로 충분.)
+
+## C. 관련 파일
+
+```
+supabase/
+├── migrations/
+│   └── 124_phone_otp.sql                    ✅ SQL Editor 실행 완료 (phone_otps 테이블)
+└── functions/
+    ├── _shared/solapi.ts                     sendSms 추가됨 (OTP용 평문 SMS)
+    ├── send-otp/index.ts                     ✅ 배포 완료 — 코드 생성·발송
+    └── verify-otp/index.ts                   ✅ 배포 완료 — 서버 검증
+src/lib/otp.js                                requestOtp / confirmOtp 공용 헬퍼 (클라 3곳 공유)
 ```
