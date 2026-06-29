@@ -1122,11 +1122,12 @@ export default function PricingTest() {
               const isDraft = m.status === 'draft';
               const filled = m.filled_count ?? 0;
               const isLive = m.status === 'active' && filled >= 1;
+              const isFull = m.status === 'active' && m.panel_count > 0 && filled >= m.panel_count;
               const statusBadgeType = isDraft ? 'gold'
-                : m.status === 'active' ? (filled === 0 ? 'gray' : 'green')
+                : m.status === 'active' ? (filled === 0 ? 'gray' : isFull ? 'blue' : 'green')
                 : m.status === 'completed' ? 'blue' : 'red';
               const statusBadgeLabel = isDraft ? '임시 저장'
-                : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
+                : m.status === 'active' ? (filled === 0 ? '매칭 대기' : isFull ? '검토 중' : '진행 중')
                 : m.status === 'completed' ? '완료' : '취소';
               return (
                 <Card key={m.id} style={{ cursor: 'pointer', border: isDraft ? '1px dashed #f59e0b' : undefined }}
@@ -1162,7 +1163,7 @@ export default function PricingTest() {
                         {filled}<span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}> / {m.panel_count || 0}</span>
                       </div>
                       <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ width: `${m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0}%`, height: '100%', background: isLive ? '#ef4444' : 'var(--accent)', borderRadius: 2 }} />
+                        <div style={{ width: `${m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0}%`, height: '100%', background: (isLive && !isFull) ? '#ef4444' : 'var(--accent)', borderRadius: 2 }} />
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(m.created_at).toLocaleDateString('ko-KR')} 등록</div>
                       {isDraft && (
@@ -1177,11 +1178,16 @@ export default function PricingTest() {
                           수정
                         </button>
                       )}
-                      {m.status === 'active' && filled >= 1 && (
+                      {m.status === 'active' && filled >= 1 && !isFull && (
                         <button onClick={e => { e.stopPropagation(); setTerminateTarget(m); }}
                           style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer' }}>
                           의뢰 조기 종료
                         </button>
+                      )}
+                      {isFull && (
+                        <span style={{ padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 8, background: 'rgba(16,54,125,0.07)', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                          ✓ 수집 완료 · 검토 대기
+                        </span>
                       )}
                       {(isDraft || m.status === 'completed' || m.status === 'cancelled') && (
                         <button onClick={e => { e.stopPropagation(); setDeleteTarget(m.id); }}

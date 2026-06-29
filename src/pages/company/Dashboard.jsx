@@ -140,15 +140,16 @@ function Pagination({ page, total, onPage }) {
 function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick, canEdit = true }) {
   const filled = m.filled_count ?? 0;
   const isLive = m.status === 'active' && filled >= 1;
+  const isFull = m.status === 'active' && m.panel_count > 0 && filled >= m.panel_count;
   const isDraft = m.status === 'draft';
   const pct = m.panel_count ? Math.min((filled / m.panel_count) * 100, 100) : 0;
 
   const statusBadgeType = isDraft ? 'gold'
-    : m.status === 'active' ? (filled === 0 ? 'gray' : 'green')
+    : m.status === 'active' ? (filled === 0 ? 'gray' : isFull ? 'blue' : 'green')
     : m.status === 'completed' ? 'blue'
     : (STATUS_COLOR[m.status] || 'gray');
   const statusBadgeLabel = isDraft ? '임시 저장'
-    : m.status === 'active' ? (filled === 0 ? '매칭 대기' : '진행 중')
+    : m.status === 'active' ? (filled === 0 ? '매칭 대기' : isFull ? '검토 중' : '진행 중')
     : (STATUS_LABEL[m.status] || m.status);
 
   const handleClick = () => {
@@ -224,7 +225,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick,
                 {filled}<span style={{ fontSize: 13, color: C.text3, fontWeight: 400 }}> / {m.panel_count}</span>
               </div>
               <div style={{ width: 80, height: 4, background: '#E2E8F0', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ width: `${pct}%`, height: '100%', background: isLive ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
+                <div style={{ width: `${pct}%`, height: '100%', background: (isLive && !isFull) ? '#ef4444' : C.primary, borderRadius: 2, transition: 'width 0.4s' }} />
               </div>
               <div style={{ fontSize: 11, color: C.text3 }}>
                 {new Date(m.created_at).toLocaleDateString('ko-KR')} 등록
@@ -242,7 +243,7 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick,
                   수정
                 </button>
               )}
-              {canEdit && m.status === 'active' && filled >= 1 && (
+              {canEdit && m.status === 'active' && filled >= 1 && !isFull && (
                 <button
                   onClick={e => { e.stopPropagation(); onTerminate(m); }}
                   style={{
@@ -254,6 +255,16 @@ function CompanyMissionCard({ m, navigate, onTerminate, onDelete, onActiveClick,
                 >
                   의뢰 조기 종료
                 </button>
+              )}
+              {isFull && (
+                <span style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 700,
+                  borderRadius: 8,
+                  background: 'rgba(16,54,125,0.07)', color: 'var(--text-2)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  ✓ 수집 완료 · 검토 대기
+                </span>
               )}
               {canEdit && m.status === 'completed' && (
                 <button
