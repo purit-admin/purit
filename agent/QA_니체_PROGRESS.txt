@@ -1,6 +1,6 @@
 ================================================================
 QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
-최종 업데이트: 2026-06-28 (2단계 5건 수정 — 니체-PAY-B(ChargeOptionsModal currentPlan prop·하위/동일 플랜 숨김+Results companyPlan 전달)·SET-A(알림 토글 저장실패 안내 — Settings·Account·Profile 알림 + Profile 아바타, 수평전개로 selected_badge 동반)·PANEL-A(이미지 자동저장 전체객체 항상저장으로 비움 복원 대칭)·ADMIN-A(무료체험은 미션관리 완료버튼 숨기고 체험관리로 일원화)·뱃지색(지표 탭 완료색 기준을 count>0→코멘트보유 dimDone로). 빌드 EXIT 0·DB 무관. P2 4→3·P3 5→1) / 2026-06-28 (니체-ACC-A 수정 — OAuth(구글) 계정 비밀번호 변경 탭 숨김. company/Account·admin/Account·panel/Profile 3곳에 isOAuth state + load()의 user.app_metadata.provider 화이트리스트(['google','linkedin_oidc']) 판별 + tabs 배열 password 조건부 제외. 화이트리스트라 이메일·레거시(provider 미설정)는 탭 유지=락아웃 위험 0, handleChangePw 죽은코드 무해 잔존. 빌드 EXIT 0·DB 무관. P2 5→4) / 2026-06-28 (1단계 쉬운수정 7건 — 니체-EMAIL-A(이메일의뢰 마운트복원 전환목표 2줄)·DIAG-A(진단·AI리포트 dismissed 필터 3쿼리)·ADMIN-B(미션관리 쿼리딥링크 setSelectedMission)·LEDGER-A(정산LEDGER 삭제후 page 클램프 D-170/D-161)·PANEL-B(Profile 폰재인증 updateUser 메타동반)·BUG-B(버그현황 딥링크 user_id/role 필터 company·panel) 수정 + 니체-BugDeep 오진단(좌측강조 이미구현 확인·규칙12) → DONE 7건. 빌드 EXIT 0·전부 클라 무관 DB. P2 8→5·P3 9→5) / 2026-06-17 (전환 가이드/진단 전수조사 — 진단-A(빈상태 기간/무데이터 분기)·진단-B(비교모드 기간필터 숨김)·진단-D(extractDimComment 폴백 제거 오귀속 차단) + 무데이터 지표 점수왜곡(D-153) 수정 완료 → DONE 5건. 진단-C(가이드 자동선택 빈화면)는 완료의뢰=승인≥1건 보장 확인되어 오진단 폐기. 신규 잔여 없음 / 스킵·보류 섹션에서 오진단·해당없음·이미적용·이미수정 항목 일괄 삭제(25→8), 실제 의도적 보류만 유지) / 2026-06-16 (5대 지표 진단 전수조사 — ①서브 의뢰 5축 화면 혼입 차단(Diagnosis·AIReport type 필터, D-152) ②벤치마크 범례 가로선 제거 ③키워드 분석→지표별 코멘트 인사이트 재설계(D-151) ④Dashboard "N건 기준" 카운트 정합 → DONE 4건. 신규 잔여 없음) / 2026-06-16 (메인 의뢰 이미지 피드백 전수조사 — 재작성 복원 완전화·이미지 전수확인 재강제·빈 코멘트 게이트·지표 자동이동 4건 수정 완료 → DONE / 잔여 관찰 2건(니체-뱃지색 P3·니체-총평정규식 보류) 등록) / 2026-06-13 (스케일 전수조사 — 저비용 3건(C/D/I) 수정 완료 → DONE / 나머지는 스케일 트리거 조건부 섹션 신설 등록)
+최종 업데이트: 2026-06-29 (AI 리포트 전수조사 — 사용자 제기 "미션 선택 불가" 포함 6건 발견. 니체-AIRPT-A(미션 선택 드롭다운 신설·load→loadMissions+loadReport 분리, 핵심)·B(폴백 전체합산→선택의뢰 단일집계로 제목↔내용 일치)·C(월한도 낙관적+1→실행수 재조회 정합)·E(빈상태 '자동생성' 오안내 수정+의뢰별 빈상태 분리) → DONE 4건. D(한도초과 충전버튼 미연동=결제PG Mock·쿼터백엔드 부재)·F(점수로직 클라/Deno Edge 런타임분리 중복)는 보류. 수평전개: Diagnosis는 미션선택 완비라 무관·낙관적카운터 grep 1곳뿐. 관찰-3 .single()→maybeSingle 동반. 빌드 EXIT 0·DB 무관·Edge 무재배포. 스킵/보류 8→10) / 2026-06-28 (2단계 5건 수정 — 니체-PAY-B(ChargeOptionsModal currentPlan prop·하위/동일 플랜 숨김+Results companyPlan 전달)·SET-A(알림 토글 저장실패 안내 — Settings·Account·Profile 알림 + Profile 아바타, 수평전개로 selected_badge 동반)·PANEL-A(이미지 자동저장 전체객체 항상저장으로 비움 복원 대칭)·ADMIN-A(무료체험은 미션관리 완료버튼 숨기고 체험관리로 일원화)·뱃지색(지표 탭 완료색 기준을 count>0→코멘트보유 dimDone로). 빌드 EXIT 0·DB 무관. P2 4→3·P3 5→1) / 2026-06-28 (니체-ACC-A 수정 — OAuth(구글) 계정 비밀번호 변경 탭 숨김. company/Account·admin/Account·panel/Profile 3곳에 isOAuth state + load()의 user.app_metadata.provider 화이트리스트(['google','linkedin_oidc']) 판별 + tabs 배열 password 조건부 제외. 화이트리스트라 이메일·레거시(provider 미설정)는 탭 유지=락아웃 위험 0, handleChangePw 죽은코드 무해 잔존. 빌드 EXIT 0·DB 무관. P2 5→4) / 2026-06-28 (1단계 쉬운수정 7건 — 니체-EMAIL-A(이메일의뢰 마운트복원 전환목표 2줄)·DIAG-A(진단·AI리포트 dismissed 필터 3쿼리)·ADMIN-B(미션관리 쿼리딥링크 setSelectedMission)·LEDGER-A(정산LEDGER 삭제후 page 클램프 D-170/D-161)·PANEL-B(Profile 폰재인증 updateUser 메타동반)·BUG-B(버그현황 딥링크 user_id/role 필터 company·panel) 수정 + 니체-BugDeep 오진단(좌측강조 이미구현 확인·규칙12) → DONE 7건. 빌드 EXIT 0·전부 클라 무관 DB. P2 8→5·P3 9→5) / 2026-06-17 (전환 가이드/진단 전수조사 — 진단-A(빈상태 기간/무데이터 분기)·진단-B(비교모드 기간필터 숨김)·진단-D(extractDimComment 폴백 제거 오귀속 차단) + 무데이터 지표 점수왜곡(D-153) 수정 완료 → DONE 5건. 진단-C(가이드 자동선택 빈화면)는 완료의뢰=승인≥1건 보장 확인되어 오진단 폐기. 신규 잔여 없음 / 스킵·보류 섹션에서 오진단·해당없음·이미적용·이미수정 항목 일괄 삭제(25→8), 실제 의도적 보류만 유지) / 2026-06-16 (5대 지표 진단 전수조사 — ①서브 의뢰 5축 화면 혼입 차단(Diagnosis·AIReport type 필터, D-152) ②벤치마크 범례 가로선 제거 ③키워드 분석→지표별 코멘트 인사이트 재설계(D-151) ④Dashboard "N건 기준" 카운트 정합 → DONE 4건. 신규 잔여 없음) / 2026-06-16 (메인 의뢰 이미지 피드백 전수조사 — 재작성 복원 완전화·이미지 전수확인 재강제·빈 코멘트 게이트·지표 자동이동 4건 수정 완료 → DONE / 잔여 관찰 2건(니체-뱃지색 P3·니체-총평정규식 보류) 등록) / 2026-06-13 (스케일 전수조사 — 저비용 3건(C/D/I) 수정 완료 → DONE / 나머지는 스케일 트리거 조건부 섹션 신설 등록)
 ※ 수정 완료 항목은 이 파일에서 삭제하고 QA_DONE.txt에 추가할 것
 ※ 스킵/보류 판정 항목은 하단 섹션으로 이동
 ================================================================
@@ -89,6 +89,10 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 [N-9]  어드민 포털 전환 시 맥락 배너 없음  ⏭
 [니체-총평정규식]  ActiveMission parseImageSubmission 총평 추출 정규식 first-match — 어노테이션 코멘트에 literal "[총평]\n" 포함 시 조기 매칭 가능. 기존 Path A 코드(이번 도입 아님)·발생확률 극히 낮음 → 보류  ⏭
 
+-- AI 리포트 (니체-AIRPT-A/B/C/E는 DONE — 아래 2건만 보류) --
+[니체-AIRPT-D]  AIReport 월 한도 초과 모달의 "충전하기"가 setChargeMsg("결제 기능이 곧 출시됩니다")만 띄우는 미연동 버튼(추가 10회 충전·크레딧 1개 차감 약속) → 한도 초과 시 막다른 길. 현재 결제 PG 자체가 Mock·"AI 리포트 추가 쿼터" 백엔드(쿼터 컬럼/RPC) 부재라 정식 구현은 결제 인프라 연동 시점 과제. 문구는 이미 정직한 placeholder("곧 출시")라 무음 실패 아님 → 결제 연동 시 함께 처리, 그 전까지 보류  ⏭
+[니체-AIRPT-F]  AIReport 5지표 평균·폴백 리포트 산정 로직이 클라(AIReport.jsx)와 Edge 함수(generate-ai-report/index.ts)에 복제(D-35 드리프트 위험). 단 둘은 런타임이 다름(브라우저 React src vs Deno Edge·별도 배포) — Deno가 src/lib를 직접 import 불가라 공유 모듈화에 별도 인프라 필요, 사용자 비노출·통합 고비용. "무리한 통합 금지"(D-154) 원칙에 따라 보류  ⏭
+
 -- 검색 기능 (실제 미구현 · 스케일 도달 시 처리) --
 [검색-C] admin/Missions.jsx + PurityFilter.jsx — 검색 input 디바운스 없음.
           순수 클라이언트 필터·소규모 데이터로 성능 영향 없어 수정 보류  ⏭
@@ -112,7 +116,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 - [관찰-1] NewMission 이미지 3장 초과 시 무음 무시 — handleImageUpload가 slice(0, remaining)로 초과분을 조용히 버림("3장까지만 추가됨" 안내 없음). 20MB 초과는 메시지 있음. 경미 UX.
 - [관찰-2] imageUtils.compressImage PNG는 quality 인자 무시(image/png 재인코딩) + 압축 전 원본 크기만 검증. Storage 한도 내면 기능 무해.
-- [관찰-3] AIReport 기존 리포트 조회 .single() error 무점검 — 0행이면 자연 폴백(aiRow=null)되나 RLS/네트워크 에러도 "리포트 없음"으로 뭉뚱그려짐. 기능 영향 없음.
+- [관찰-3] AIReport 기존 리포트 조회 — 2026-06-29 .single()→.maybeSingle() 교체(니체-AIRPT 작업 동반)로 0행 에러 콘솔노이즈 제거. RLS/네트워크 에러는 여전히 baseReport 폴백으로 뭉뚱그려지나 graceful·기능 영향 없음(잔여 경미).
 - [관찰-4] Pricing 다운그레이드 서버 에러(downgrade_not_allowed) 영문 코드 그대로 노출 — 클라 버튼 disabled로 1차 차단돼 도달 희박. 한국어 매핑하면 깔끔.
 - [관찰-5] Pricing 해지 모달 onCancelled가 next_billing_at 미갱신 — 서버가 그대로 두면 무해(서버 반환값 의존).
 - [관찰-6] Account 해지 배너 "구독 유지하기"가 실제 철회 아닌 /company/plans 이동만 — 텍스트가 즉시 철회를 암시해 오해 소지. "구독 관리 →" 등으로 명확화.
@@ -140,7 +144,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
   🔵 스케일 6건 (스케일-A/B/E/F/G/H — 트리거 규모 도달 시 수정)
   ⚪ P4  0건
 
-스킵/보류: 8건 (오진단·해당없음·이미적용·이미수정 항목 일괄 삭제 — 실제 의도적 보류만 유지)
+스킵/보류: 10건 (+ 니체-AIRPT-D 결제연동시 처리·니체-AIRPT-F 런타임분리 통합고비용)
 
 완료 항목: QA_DONE.txt 참조 (총 234건 — 2026-06-18 모바일 반응형 전수·전수조사 P1 4건 추가)
 

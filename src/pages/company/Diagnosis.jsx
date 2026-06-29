@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, StatusTabs, SegmentFilter } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
@@ -170,6 +170,8 @@ export default function Diagnosis() {
   const [guideLoading, setGuideLoading] = useState(false);
   // allBenchmarkFbs 제거 — 벤치마크는 DIMENSIONS 정적 상수 사용
 
+  const reqSeqRef = useRef(0);   // 비동기 응답 순서 토큰 — 빠른 칩 토글 시 stale 결과 반영 차단 (AIRPT-R1 수평전개)
+
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
@@ -189,11 +191,12 @@ export default function Diagnosis() {
 
   useEffect(() => {
     if (!allMissionIds.length) return;
+    const seq = ++reqSeqRef.current;
     if (compareMode && selectedIds.size >= 2 && selectedIds.size <= 3) {
-      loadCompare([...selectedIds].slice(0, 3));
+      loadCompare([...selectedIds].slice(0, 3), seq);
     } else {
       const ids = selectedIds.size === 0 ? allMissionIds : [...selectedIds];
-      loadFeedbacks(ids, missions);
+      loadFeedbacks(ids, missions, seq);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds, compareMode]);
@@ -228,7 +231,8 @@ export default function Diagnosis() {
       setMissions(msList);
       setAllMissionIds(ids);
 
-      await loadFeedbacks(ids, msList);
+      const seq = ++reqSeqRef.current;
+      await loadFeedbacks(ids, msList, seq);
       setLoading(false);
     } catch (err) {
       console.error('[Diagnosis load]', err);
@@ -236,7 +240,7 @@ export default function Diagnosis() {
     }
   }
 
-  async function loadFeedbacks(ids, msList) {
+  async function loadFeedbacks(ids, msList, seq) {
     if (!ids.length) { setHasData(false); return; }
 
     try {
@@ -247,6 +251,7 @@ export default function Diagnosis() {
         .eq('purity_passed', true);
 
       const myFeedbacks = myFbs || [];
+      if (seq != null && seq !== reqSeqRef.current) return;   // 더 최신 요청 진행 중 → stale 응답 폐기 (R1 수평전개)
       setCompareData(null);
       setRawFeedbacks(myFeedbacks);
 
@@ -266,7 +271,7 @@ export default function Diagnosis() {
     }
   }
 
-  async function loadCompare([idA, idB, idC]) {
+  async function loadCompare([idA, idB, idC], seq) {
     try {
       const mA = missions.find(m => m.id === idA);
       const mB = missions.find(m => m.id === idB);
@@ -279,6 +284,7 @@ export default function Diagnosis() {
       if (idC) requests.push(supabase.from('feedbacks').select('clarity_score,relevance_score,value_score,differentiation_score,trust_score,suggestions,strengths,weaknesses').eq('mission_id', idC).eq('purity_passed', true));
 
       const results = await Promise.all(requests);
+      if (seq != null && seq !== reqSeqRef.current) return;   // stale 비교 응답 폐기 (R1 수평전개)
       const fbsA = results[0].data || [];
       const fbsB = results[1].data || [];
       const fbsC = idC ? (results[2].data || []) : [];

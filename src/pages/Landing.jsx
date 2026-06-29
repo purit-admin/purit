@@ -339,7 +339,7 @@ export default function Landing() {
             ) : (
               <>
                 <button className="btn btn-ghost" onClick={() => navigate('/login')}>로그인</button>
-                <button className="btn btn-primary" onClick={startFree}>무료로 시작하기</button>
+                <button className="btn btn-primary" onClick={startFree}>첫 의뢰 무료로 시작하기</button>
               </>
             )}
           </div>
@@ -355,7 +355,7 @@ export default function Landing() {
           <a onClick={() => goTo('filter')}>사람이 직접</a>
           <a onClick={() => goTo('panel')}>참여 전문가</a>
           <a onClick={() => goTo('pricing')}>요금</a>
-          <a className="btn btn-primary btn-block" onClick={startFree}>무료로 시작하기</a>
+          <a className="btn btn-primary btn-block" onClick={startFree}>첫 의뢰 무료로 시작하기</a>
         </div>
       </header>
 
@@ -369,11 +369,11 @@ export default function Landing() {
               <h1 className="hero-title reveal">고객의 뒤로가기,<br />
                 <em className="accent">진짜 전문가</em>가<br />
                 <span className="nowrap">짚어줍니다</span></h1>
-              <p className="hero-sub reveal">현직 마케팅 전문가들이 당신의 광고·페이지를 직접 보고,<br />
-                전환을 막는 한 줄까지 진짜 사람이 짚어드립니다.</p>
+              <p className="hero-sub reveal">현직 마케팅 전문가들이 당신의 소재·페이지를 직접 보고,<br />
+                장·단점과 수정 방향을 추천해 드립니다.</p>
               <div className="hero-actions reveal">
                 <button className="btn btn-primary btn-lg" onClick={startFree}>
-                  {user ? '대시보드로 이동' : '무료로 시작하기'}
+                  {user ? '대시보드로 이동' : '첫 의뢰 무료로 시작하기'}
                 </button>
                 <a className="btn btn-line btn-lg" onClick={() => goTo('how')}>이용 방법 보기</a>
               </div>
@@ -795,7 +795,7 @@ export default function Landing() {
               <p>신용카드 없이 시작하세요. 진짜 사람의 평가를 이틀 안에.</p>
               <div className="cta-actions">
                 <button className="btn btn-primary btn-lg" onClick={startFree}>
-                  {user ? '대시보드로 이동' : '무료로 시작하기'}
+                  {user ? '대시보드로 이동' : '첫 의뢰 무료로 시작하기'}
                 </button>
                 <a className="btn btn-line-on-dark btn-lg" onClick={() => goTo('how')}>이용 방법 다시 보기</a>
               </div>
