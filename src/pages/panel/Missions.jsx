@@ -415,13 +415,12 @@ export default function MissionList() {
       const panelKey = panelExperience ? getExperienceCareerKey(panelExperience) : null;
       let list = missions.filter(m => {
         if (feedbackMap[m.id] || m.status !== 'active' || (m.filled_count || 0) >= (m.panel_count || 1)) return false;
-        if (panelKey) {
-          try {
-            const desc = JSON.parse(m.description || '{}');
-            const cl = desc.careerLevels;
-            if (Array.isArray(cl) && cl.length > 0 && !cl.includes(panelKey)) return false;
-          } catch { /* 파싱 실패 시 노출 */ }
-        }
+        try {
+          const desc = JSON.parse(m.description || '{}');
+          const cl = desc.careerLevels;
+          // 경력 제한 미션: 경력 미설정(panelKey=null) 패널에게는 미노출, 설정된 경우 등급 매칭 시만 노출
+          if (Array.isArray(cl) && cl.length > 0 && (!panelKey || !cl.includes(panelKey))) return false;
+        } catch { /* 파싱 실패 시 노출 */ }
         return true;
       });
       return list;

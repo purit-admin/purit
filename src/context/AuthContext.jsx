@@ -76,11 +76,25 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   }
 
+  // 비밀번호 재설정 메일 발송 — 링크 도착지(/reset-password)는 Supabase URL Configuration 허용 목록에 등록 필요
+  async function requestPasswordReset(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password',
+    });
+    if (error) throw error;
+  }
+
+  // 새 비밀번호 저장 — recovery 세션(메일 링크 클릭)으로 진입한 상태에서만 유효
+  async function updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
   const DEST = { company: '/company', panel: '/panel', admin: '/admin' };
   const dashboardPath = role ? (DEST[role] ?? '/') : '/';
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signUp, signIn, signInWithGoogle, signInWithLinkedIn, signOut, dashboardPath }}>
+    <AuthContext.Provider value={{ user, role, loading, signUp, signIn, signInWithGoogle, signInWithLinkedIn, signOut, requestPasswordReset, updatePassword, dashboardPath }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,7 @@
 ================================================================
 1_PRD.txt — Purity MVP 제품 정의서 (구현 기능 기준)
-최종 업데이트: 2026-06-22 (랜딩 비교표 문구·방향성 교정 — '왜 Purit인가 / 기존 검증 방식과 무엇이 다를까요'. 패널 정체성을 "고객 같은 전문가"→"마케팅 전문가(소재 효용성 판별)"로 재정의해 비교 행 교체: 6행(현직 마케팅 전문가의 진단=Purit만✓ / 소재 강·약점 진단 ✓△×× / 5대 지표 정량 점수 리포트 ✓×△△ — 일반 설문 ✓→△ 하향 / AI·영혼 없는 응답 차단=Purit만✓ / 결과 도착까지 48시간 / 실제 트래픽·방문자 필요). dot-check/x/tilde 클래스 재사용·신규 CSS 없음. Landing.jsx COMPARISON 섹션만 수정)
+최종 업데이트: 2026-06-29 (비밀번호 찾기/재설정 신규 — 이메일 가입자가 비번 분실 시 영구 잠김이던 것 해소. /forgot-password(ForgotPassword.jsx, resetPasswordForEmail·계정열거 방지 동일완료화면·submittingRef 연타가드)·/reset-password(ResetPassword.jsx, recovery 세션 status 3분기·6자+확인일치·updatePassword·signOut best-effort·변경후 /login 이동 시 D-97 successMsg 가드로 stale 세션 바운스 차단) 신규 + AuthContext requestPasswordReset/updatePassword 메서드 + Login '비밀번호를 잊으셨나요?' 링크 + 공용 라우트 2개(40→42). ⚠️ Supabase Redirect URLs에 {도메인}/reset-password 등록 완료(localhost:5173/** + purit-orpin.vercel.app/**). 동반: 패널 경력 미설정 시 careerLevels 제한 미션 노출 방어막(panel/Missions·Dashboard — 가드 밖으로 필터 이동). 상세는 2_Architecture.txt 참조)
+            2026-06-22 (랜딩 비교표 문구·방향성 교정 — '왜 Purit인가 / 기존 검증 방식과 무엇이 다를까요'. 패널 정체성을 "고객 같은 전문가"→"마케팅 전문가(소재 효용성 판별)"로 재정의해 비교 행 교체: 6행(현직 마케팅 전문가의 진단=Purit만✓ / 소재 강·약점 진단 ✓△×× / 5대 지표 정량 점수 리포트 ✓×△△ — 일반 설문 ✓→△ 하향 / AI·영혼 없는 응답 차단=Purit만✓ / 결과 도착까지 48시간 / 실제 트래픽·방문자 필요). dot-check/x/tilde 클래스 재사용·신규 CSS 없음. Landing.jsx COMPARISON 섹션만 수정)
             2026-06-18 (랜딩 푸터 법적 고지 모달 신규 — '이용약관·개인정보처리방침·운영정책' 링크 3종을 foot-bottom에 추가, 클릭 시 모달 오버레이(alert 아님)로 본문 표시. legalModal state 단일 전환·ESC/배경/× 닫기·body 스크롤 잠금·인라인 스타일(.purit-landing 스코프 무관). 본문은 LEGAL_DOCS 표준 골격(placeholder)→오픈 전 법무 검토 필요. 동반: 랜딩 떠다니는 전문가 태그(ExpertCloud) 흐림 수정·어드민 패널/기업 관리 정렬 드롭다운 너비 고정. 상세는 2_Architecture.txt 참조)
             2026-06-18 (버그/불편 신고 — role을 신고 포털(pageUrl) 기준 저장 + 신고자 현황(company/panel BugReports) role 필터(.eq('role',…)) → 어드민(멀티 포털)이 한 포털서 보낸 신고가 타 포털 현황에 중복 노출되던 것 차단(일반 사용자는 user_id 분리로 이미 격리). bug_reports 어드민 DELETE 정책 추가(migration 113). 상세는 1_PRD_admin.txt 버그 리포트 섹션 참조)
             2026-06-17 (전 포털 사용자노출 용어 '차원'→'지표' 전수 통일 — '5대 지표 진단' 명칭 일관화. 화면 노출 텍스트(기업 Diagnosis·Results / 패널 ActiveMission / 어드민 PurityFilter 반려 placeholder / 공유 ShareResult)·AI 리포트 프롬프트([5대 지표 점수])·코드 주석·테스트 스크립트·전 .txt 문서 본문 동반 치환. DB컬럼(clarity_score 등)·내부 식별자(dimension·DIMS·activeDimension 등 영문)·DIM 지표키는 불변. 빌드 검증 완료)
@@ -62,6 +63,17 @@
     인증 시 supabase.auth.updateUser로 metadata.phone_verified 갱신 → 통과. 라우트마다 DB 조회 없이 metadata로 판별
     · /verify-phone(VerifyPhone.jsx)은 마운트 시 DB가 이미 phone_verified면 metadata만 동기화 후 통과(기존 인증 패널 재입력 불필요)
   · Mock: 6자리 아무 숫자 통과 (실 SMS 게이트웨이 연동 전). 연타 가드(submittingRef) 적용
+- 비밀번호 찾기/재설정 (이메일 가입자) ★ 신규 (2026-06-29)
+  · 미구현이던 비번 분실 복구 경로 신설 — 잠긴 사용자가 신규 가입 외 방법이 없던 문제 해소
+  · /forgot-password(ForgotPassword.jsx): 이메일 입력 → requestPasswordReset(AuthContext) → supabase.auth.resetPasswordForEmail
+    (redirectTo = origin + '/reset-password'). 보안상 가입 여부와 무관하게 항상 동일한 "메일 보냄" 완료 화면(계정 열거 방지)
+    + submittingRef(동기 ref) 연타 가드(메일 중복 발송 차단)
+  · /reset-password(ResetPassword.jsx): 메일 링크 도착지. supabase-js가 URL 토큰을 자동 파싱해 recovery 세션 설정
+    → onAuthStateChange(PASSWORD_RECOVERY)/getSession으로 status 3분기('checking'/'ready'/'invalid', 4s 타임아웃 무효링크 처리)
+    → 새 비번(6자 이상)+확인 일치 → updatePassword(AuthContext, supabase.auth.updateUser) → signOut(best-effort) → /login 이동
+    · 변경 후 /login 이동 시 state.message 전달 → Login의 successMsg(D-97) 가드가 stale recovery 세션의 대시보드 바운스를 차단
+  · ⚠️ 운영 전제: Supabase Authentication > URL Configuration의 Redirect URLs에 {도메인}/reset-password 등록 필요
+    (현재 localhost:5173/** 및 purit-orpin.vercel.app/** 와일드카드로 등록 완료)
 - 세션: getSession() 초기 로드 + onAuthStateChange 실시간 구독
 - 접근 제어: RoleRoute 컴포넌트 — 비인증 시 /login 리다이렉트,
              역할 불일치 시 해당 역할 홈으로 리다이렉트,
@@ -131,6 +143,8 @@
     · 모달은 인라인 스타일(hex 색)로 .purit-landing 스코프와 무관하게 표시(D-131 전역 CSS 충돌 회피)
 - /login : Login.jsx (공개)
 - /signup : Signup.jsx (공개, role 선택 포함 + 이메일 가입 시 휴대폰 인증 Mock OTP)
+- /forgot-password : ForgotPassword.jsx ★ 신규 (공개, 비밀번호 재설정 메일 요청 — Login.jsx '비밀번호를 잊으셨나요?' 링크)
+- /reset-password : ResetPassword.jsx ★ 신규 (공개, 메일 링크 도착지 — recovery 세션 검증 후 새 비번 설정)
 - /verify-phone : VerifyPhone.jsx ★ 신규 — 가입 후 휴대폰 인증 게이트 (로그인 필요·휴대폰 게이트 미적용)
   - RoleRoute가 미인증 기업/패널을 여기로 리다이렉트 / VerifyPhoneRoute 가드(인증완료·admin은 홈으로)
   - Google 가입자·기존 미인증 사용자가 본인 인증 → save_my_phone RPC + updateUser metadata 갱신 후 홈 이동

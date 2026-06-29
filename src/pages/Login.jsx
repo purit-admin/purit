@@ -218,6 +218,13 @@ export default function Login() {
             </div>
           </div>
 
+          {/* 비밀번호 찾기 */}
+          <div style={{ textAlign: 'right', marginBottom: 14 }}>
+            <Link to="/forgot-password" style={{ fontSize: 13, color: T2, textDecoration: 'none' }}>
+              비밀번호를 잊으셨나요?
+            </Link>
+          </div>
+
           {/* 회원가입 완료 메시지 */}
           {successMsg && (
             <div style={{

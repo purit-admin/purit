@@ -8,6 +8,8 @@ import Signup from './pages/Signup';
 import OAuthCallback from './pages/OAuthCallback';
 import InviteAccept from './pages/InviteAccept';
 import VerifyPhone from './pages/VerifyPhone';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // Company pages
 import CompanyDashboard from './pages/company/Dashboard';
@@ -82,6 +84,8 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />
       <Route path="/share/:token" element={<ShareResult />} />
 <Route path="/invite" element={<InviteAccept />} />
