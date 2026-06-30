@@ -4,6 +4,7 @@ import { X, CreditCard, Landmark, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Btn } from './index';
 import ExitIntentModal from './ExitIntentModal';
+import { rpcErrorKo } from '../../lib/rpcErrors';
 
 const PLAN_LABEL = { free_trial: '무료체험', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
 const PLAN_CREDITS = { free_trial: 0, starter: 50, pro: 165, enterprise: 400 };
@@ -88,7 +89,7 @@ export default function PaymentModal({ type, plan, credits, amountKrw, companyId
       }
     } catch (e) {
       submittingRef.current = false;  // 실패 시 롤백 → 재시도 허용
-      setError(e.message || '결제 처리 중 오류가 발생했습니다.');
+      setError(rpcErrorKo(e, '결제 처리 중 오류가 발생했습니다.'));
     } finally {
       setIsProcessing(false);
     }

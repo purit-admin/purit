@@ -5,6 +5,7 @@ import CancelSubscriptionModal from '../../components/ui/CancelSubscriptionModal
 import { supabase } from '../../lib/supabase';
 import { resolveCompany } from '../../lib/resolveCompany';
 import { splitCredits } from '../../lib/credits';
+import { rpcErrorKo } from '../../lib/rpcErrors';
 
 // 티어 랭크 — 하위 플랜 다운그레이드 차단용 (free_trial 0 < starter 1 < pro 2 < enterprise 3)
 const TIER_RANK = { free_trial: 0, starter: 1, pro: 2, enterprise: 3 };
@@ -189,7 +190,7 @@ export default function PricingPage() {
       setCompany(c => ({ ...c, subscription_cancel_at_period_end: false, subscription_canceled_at: null }));
       setMsg('구독 해지가 취소됐습니다. 계속 이용해주셔서 감사합니다.');
     } catch (e) {
-      setMsg('처리 실패: ' + (e.message || ''));
+      setMsg(rpcErrorKo(e, '처리에 실패했습니다.'));
     } finally {
       setResuming(false);
       setTimeout(() => setMsg(''), 3500);

@@ -82,7 +82,11 @@ export default function NotificationCenter({ role = 'company' }) {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           }, (payload) => {
-            setNotifs(prev => [payload.new, ...prev]);
+            // Realtime filter는 단순 user_id만 거름 → 포털(target_role) 일치 여부는 콜백에서 확인
+            // (초기 load의 .or(target_role.eq.role, is.null)와 동일 기준: null=전 포털 공통은 통과)
+            const n = payload.new;
+            if (n.target_role && n.target_role !== role) return;
+            setNotifs(prev => [n, ...prev]);
           })
           .subscribe();
       } catch (err) {

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Btn } from './index';
 import { supabase } from '../../lib/supabase';
+import { rpcErrorKo } from '../../lib/rpcErrors';
 
 // 이탈 사유 — reason_code 는 DB(subscription_cancellations.reason_code)와 1:1
 const REASONS = [
@@ -50,7 +51,7 @@ export default function CancelSubscriptionModal({ planLabel, effectiveAt, onCanc
       setStep(4);
       onCancelled?.(data?.effective_at ?? effectiveAt);
     } catch (e) {
-      setErr('해지 처리 중 오류가 발생했습니다: ' + (e.message || ''));
+      setErr(rpcErrorKo(e, '해지 처리 중 오류가 발생했습니다.'));
       submittingRef.current = false;
       setSubmitting(false);
     }

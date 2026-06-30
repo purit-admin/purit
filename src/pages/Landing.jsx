@@ -352,7 +352,7 @@ export default function Landing() {
         </div>
         <div className="mobile-menu" hidden={!mobileOpen}>
           <a onClick={() => goTo('how')}>이용 방법</a>
-          <a onClick={() => goTo('filter')}>사람이 직접</a>
+          <a onClick={() => goTo('filter')}>Purit Filter</a>
           <a onClick={() => goTo('panel')}>참여 전문가</a>
           <a onClick={() => goTo('pricing')}>요금</a>
           <a className="btn btn-primary btn-block" onClick={startFree}>첫 의뢰 무료로 시작하기</a>

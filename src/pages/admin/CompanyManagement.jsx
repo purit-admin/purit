@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal, SegmentFilter } from '../../components/ui';
 import { ChevronLeft, ChevronRight, AlertTriangle, Star, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { rpcErrorKo } from '../../lib/rpcErrors';
 
 const PAGE_SIZE = 10;
 
@@ -24,16 +25,17 @@ const MISSION_STATUS_LABEL = {
   draft:     '임시 저장',
 };
 
+// 크레딧 위험도 단일 기준: 위험 <10 / 주의 10~19 / 정상 ≥20 (통계카드·필터와 동일)
 function creditColor(n) {
-  if (n <= 0)  return '#DC2626';
-  if (n < 10)  return '#F59E0B';
+  if (n < 10)  return '#DC2626';
+  if (n < 20)  return '#F59E0B';
   if (n < 30)  return 'var(--text-2)';
   return '#059669';
 }
 
 function getCompanyFlag(co) {
-  if ((co.credit_balance ?? 0) <= 0) return 'danger';
-  if ((co.credit_balance ?? 0) < 10) return 'warn';
+  if ((co.credit_balance ?? 0) < 10) return 'danger';
+  if ((co.credit_balance ?? 0) < 20) return 'warn';
   if (co.plan === 'pro' || co.plan === 'enterprise') return 'star';
   return 'none';
 }
@@ -92,7 +94,7 @@ function CompanyDetail({ co, stats, recent, onPlanChange, onAddCredits, onMissio
       p_plan: actionPlan,
     });
     if (error) {
-      setActionMsg({ type: 'err', text: '플랜 변경 실패: ' + error.message });
+      setActionMsg({ type: 'err', text: rpcErrorKo(error, '플랜 변경에 실패했습니다.') });
       setActionLoading(false);
       return;
     }
