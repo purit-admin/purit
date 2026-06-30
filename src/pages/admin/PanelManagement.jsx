@@ -807,7 +807,7 @@ function PanelDetail({ panel, stats: s, periodLabel, feedbacks, detailLoading, a
         {/* 메타 그리드 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {[
-            { label: '전체 완료 미션', value: `${panel.total_missions || 0}건` },
+            { label: '전체 제출 미션', value: `${panel.total_missions || 0}건` },
             { label: '가입일',        value: new Date(panel.created_at).toLocaleDateString('ko-KR') },
             { label: '최근 활동',     value: relativeTime(s.lastAt) },
             { label: '계정 상태',     value: status === 'active' ? '✅ 활성' : status === 'pending' ? '⏳ 심사중' : status === 'rejected' ? `📝 반려 (누적 ${panel.rejection_count || 0}회)` : status === 'banned' ? '🚫 영구 차단' : isTempSuspend ? '🕐 임시 정지' : '🚫 영구 정지' },

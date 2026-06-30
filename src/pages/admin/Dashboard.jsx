@@ -62,8 +62,11 @@ export default function AdminDashboard() {
     <div style={{ background: C.pageBg, minHeight: '100vh', padding: '40px 48px', color: C.text3, fontSize: 14 }}>불러오는 중...</div>
   );
 
-  const purityRate = stats.feedbacks > 0
-    ? Math.round((stats.passed / stats.feedbacks) * 100)
+  // 통과율은 '판정 완료'(승인+반려)분만 분모로 계산 — 아직 검수하지 않은 검토 대기(submitted)는 제외
+  const decided = Math.max(0, stats.feedbacks - stats.pending);
+  const rejectedCount = Math.max(0, decided - stats.passed);
+  const purityRate = decided > 0
+    ? Math.round((stats.passed / decided) * 100)
     : 0;
 
   const pendingFeedbacks = stats.pending;
@@ -81,7 +84,7 @@ export default function AdminDashboard() {
           { label: '총 의뢰',      value: String(stats.missions),  sub: '누적' },
           { label: '등록 패널',    value: String(stats.panels),    sub: '전체' },
           { label: '총 피드백',    value: String(stats.feedbacks), sub: '제출됨' },
-          { label: '검증 통과율',  value: `${purityRate}%`,       sub: 'Purit Filter', accent: true },
+          { label: '검증 통과율',  value: `${purityRate}%`,       sub: '판정 완료 기준', accent: true },
         ].map(s => (
           <div key={s.label} style={{ background: C.cardBg, borderRadius: 16, padding: '24px', boxShadow: C.shadow }}>
             <div style={{ fontSize: 12, color: C.text3, fontWeight: 500, marginBottom: 10 }}>{s.label}</div>
@@ -130,7 +133,8 @@ export default function AdminDashboard() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.text3, marginTop: 10 }}>
             <span>통과 {stats.passed}건</span>
-            <span>미통과 {stats.feedbacks - stats.passed}건</span>
+            <span>반려 {rejectedCount}건</span>
+            <span>검토 대기 {stats.pending}건</span>
           </div>
         </div>
       </div>
@@ -147,7 +151,7 @@ export default function AdminDashboard() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
-                {['이름', '직군', 'Trust Score', '등급', '완료 미션', '상태'].map(h => (
+                {['이름', '직군', 'Trust Score', '등급', '제출 미션', '상태'].map(h => (
                   <th key={h} style={{ padding: '12px 20px', textAlign: 'left', fontSize: 11, color: C.text3, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     {h}
                   </th>

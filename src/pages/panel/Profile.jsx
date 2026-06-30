@@ -559,7 +559,7 @@ export default function PanelProfile() {
           </div>
           <div style={{ display: 'flex', gap: 20 }}>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>완료 미션</div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>제출 미션</div>
               <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-sans)' }}>{panel?.total_missions || 0}</div>
             </div>
           </div>
@@ -799,7 +799,7 @@ export default function PanelProfile() {
             <Card>
               <div className="stat-inline-three" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
                 {[
-                  { label: '완료 미션',  value: panel?.total_missions || 0, unit: '개' },
+                  { label: '제출 미션',  value: panel?.total_missions || 0, unit: '개' },
                   { label: '이번 주 제출', value: weeklyCount,              unit: '건' },
                   { label: '취득 뱃지',  value: earnedCount,                unit: '개' },
                 ].map(item => (

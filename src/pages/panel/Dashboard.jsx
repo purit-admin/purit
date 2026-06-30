@@ -386,7 +386,7 @@ export default function PanelDashboard() {
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text2, marginBottom: 10 }}>미션 현황</div>
         <div className="dash-stat-grid-3">
           {[
-            { label: '완료 미션',   value: String(panel?.total_missions || 0), sub: '총 누적' },
+            { label: '제출 미션',   value: String(panel?.total_missions || 0), sub: '총 누적' },
             { label: '참여 가능',   value: String(missions.length),            sub: '현재 오픈 미션' },
             { label: '이번 주 활동', value: String(weeklyCount),               sub: '7일 내 제출', accent: weeklyCount >= 3 },
           ].map(s => (

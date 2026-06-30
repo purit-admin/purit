@@ -463,12 +463,23 @@ export default function PurityFilter() {
       .update({ purity_passed: true, status: 'approved', rejection_penalty_applied: false }).in('id', ids);
     if (error) { setStatusError('일괄 승인 실패: ' + error.message); setBulkActing(false); return; }
 
-    // payout_amount: 타입별 금액이 달라 개별 업데이트 필요 — 병렬 처리로 최소화
-    await Promise.all(ids.map(id =>
-      supabase.from('feedbacks').update({ payout_amount: payoutMap[id] }).eq('id', id)
-    ));
+    // payout_amount: 타입별 금액이 달라 개별 업데이트 필요 — 병렬 처리하되 실패 건을 검사
+    // (단일 approve는 1차 UPDATE에 payout을 함께 넣어 원자적이나, 일괄은 타입별 금액이 달라 2차 분리 불가피
+    //  → 2차 실패 시 승인은 됐는데 payout만 NULL로 남아 정산금이 폴백 재계산되는 무음 불일치 방지)
+    const payoutResults = await Promise.all(ids.map(async id => ({
+      id,
+      error: (await supabase.from('feedbacks').update({ payout_amount: payoutMap[id] }).eq('id', id)).error,
+    })));
+    const payoutFailIds = new Set(payoutResults.filter(r => r.error).map(r => r.id));
+    if (payoutFailIds.size > 0) {
+      setStatusError(`${payoutFailIds.size}건의 정산 금액 저장에 실패했습니다. 해당 피드백을 다시 승인 처리해 주세요. (승인 자체는 완료되었습니다.)`);
+    }
 
-    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved', payout_amount: payoutMap[f.id], rejection_penalty_applied: false } : f));
+    // 로컬 반영: 승인 상태는 전체 적용, payout_amount는 저장 성공분만 반영(실패분은 화면도 미반영 → DB와 일치 유지)
+    setFeedbacks(fbs => fbs.map(f => ids.includes(f.id)
+      ? { ...f, purity_passed: true, status: 'approved', rejection_penalty_applied: false,
+          ...(payoutFailIds.has(f.id) ? {} : { payout_amount: payoutMap[f.id] }) }
+      : f));
     const mIds = [...new Set(ids.map(id => feedbacks.find(f => f.id === id)?.mission_id).filter(Boolean))];
     mIds.forEach(mid => supabase.rpc('recalc_mission_consumed', { p_mission_id: mid }).then(({ error: e }) => { if (e) console.warn('[recalc]', e.message); }));
 

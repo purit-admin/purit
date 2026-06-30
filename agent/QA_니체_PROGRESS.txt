@@ -72,6 +72,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 [N-8]  Landing 로그인 사용자 리다이렉트 없음  ⏭
 [N-9]  어드민 포털 전환 시 맥락 배너 없음  ⏭
+[신규-C]  체험 의뢰 완료 게이트(admin/TrialMissions.jsx:411 trialCompleteBlocked)가 검토 대기(submitted)·작성중(draft)·승인0건을 안 막음 — 일반 미션(Missions.jsx:185 completeBlocked는 reviewing>0·drafts>0·approved===0 차단)과 비대칭. 단, 액션 주체가 어드민(내부 운영자 1명·신뢰된 단일 작업자)이고 '실수로 일찍 완료만 안 누르면' 문제 없음 + 미검수 피드백은 삭제 아닌 검수 큐 잔존(사후 처리 가능)이라 고객(기업·패널) 실질 피해 없음. 사용자 판단으로 보류 — 다중 어드민·고볼륨 운영 전환 시 재검토  ⏭
 [니체-총평정규식]  ActiveMission parseImageSubmission 총평 추출 정규식 first-match — 어노테이션 코멘트에 literal "[총평]\n" 포함 시 조기 매칭 가능. 기존 Path A 코드(이번 도입 아님)·발생확률 극히 낮음 → 보류  ⏭
 
 -- AI 리포트 (니체-AIRPT-A/B/C/E는 DONE — 아래 2건만 보류) --

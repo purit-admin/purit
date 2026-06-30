@@ -442,6 +442,17 @@ export default function MissionList() {
   const mainPaged    = mainFiltered.slice((mainPage - 1) * PAGE_SIZE, mainPage * PAGE_SIZE);
   const subPaged     = subFiltered.slice((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE);
 
+  // 삭제·수락취소 등으로 목록이 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로 보정 (빈 화면 방지, D-170)
+  // setPage를 다른 setState updater 안이 아닌 effect에서 호출 → StrictMode 이중 감소 회피(D-161)
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(mainFiltered.length / PAGE_SIZE));
+    if (mainPage > maxPage) setMainPage(maxPage);
+  }, [mainFiltered.length, mainPage]);
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(subFiltered.length / PAGE_SIZE));
+    if (subPage > maxPage) setSubPage(maxPage);
+  }, [subFiltered.length, subPage]);
+
   if (loading) return (
     <div style={{ padding: '40px 48px', color: 'var(--text-3)', fontSize: 14 }}>불러오는 중...</div>
   );
