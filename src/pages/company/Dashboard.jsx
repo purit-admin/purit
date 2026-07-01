@@ -453,8 +453,10 @@ export default function CompanyDashboard() {
   const overallScore  = radarData.reduce((acc, d) => acc + d.score, 0) / radarData.length;
   const gaugeValue    = chartFeedbacks.length > 0 ? Math.round((overallScore / 5) * 100) : 0;
   const gaugeData     = [{ name: '전환 지수', value: gaugeValue, fill: '#6366f1' }];
-  const mainSentiment = computeSentiment(missions, chartFeedbacks);
-  const subSentiment  = computeSubSentiment(missions, chartPrefResps, chartPriceResps, chartEmailResps);
+  // 긍부정 분포는 완료(completed) 의뢰만 — 데이터 소스(chartFeedbacks/서브 응답)가 완료 미션 한정이라 미완료 의뢰는 '—' 빈행으로만 떠 레이더·게이지와 어긋남
+  const completedMissions = missions.filter(m => m.status === 'completed');
+  const mainSentiment = computeSentiment(completedMissions, chartFeedbacks);
+  const subSentiment  = computeSubSentiment(completedMissions, chartPrefResps, chartPriceResps, chartEmailResps);
   const SENT_SIZE = 4;
   const mainSentSlice = mainSentiment.slice((mainSentPage - 1) * SENT_SIZE, mainSentPage * SENT_SIZE);
   const subSentSlice  = subSentiment.slice((subSentPage - 1) * SENT_SIZE, subSentPage * SENT_SIZE);

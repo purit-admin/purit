@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Badge, Btn, ConfirmModal, StatusTabs, SegmentFilter } from '../../components/ui';
 import { supabase } from '../../lib/supabase';
-import { getPanelReward, getExperienceCareerKey } from '../../lib/honorLevels';
+import { getPanelReward, getExperienceCareerKey, fmtSuspendRelease } from '../../lib/honorLevels';
 
 const DIFF_META = {
   easy:   { label: '쉬움',   color: 'var(--green)' },
@@ -222,6 +222,7 @@ export default function MissionList() {
   const [panelId, setPanelId]               = useState(null);
   const [panelStatus, setPanelStatus]       = useState('active');
   const [panelRejectionReason, setPanelRejectionReason] = useState('');
+  const [panelSuspendUntil, setPanelSuspendUntil] = useState(null);
   const [panelHasDocs, setPanelHasDocs]     = useState(false);
   const [panelHonorPoints, setPanelHonorPoints] = useState(0);
   const [panelExperience, setPanelExperience]   = useState('');
@@ -273,11 +274,12 @@ export default function MissionList() {
       if (!user) { setLoading(false); return; }
 
       const { data: p } = await supabase
-        .from('panels').select('id, honor_points, experience, status, rejection_reason, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url').eq('user_id', user.id).single();
+        .from('panels').select('id, honor_points, experience, status, rejection_reason, suspend_until, health_insurance_url, linkedin_url, portfolio_url, portfolio_file_url').eq('user_id', user.id).single();
       if (!p) { setLoading(false); return; }
       setPanelId(p.id);
       setPanelStatus(p.status || 'active');
       setPanelRejectionReason(p.rejection_reason || '');
+      setPanelSuspendUntil(p.suspend_until || null);
       setPanelHasDocs(!!(p.health_insurance_url || p.linkedin_url || p.portfolio_url || p.portfolio_file_url));
       setPanelHonorPoints(p.honor_points ?? 0);
       setPanelExperience(p.experience || '');
@@ -464,7 +466,7 @@ export default function MissionList() {
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 정지되었습니다</h2>
         <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
           관리자에 의해 계정 활동이 정지되었습니다.<br/>
-          문의사항은 운영팀에 연락해주세요.
+          {fmtSuspendRelease(panelSuspendUntil) || '문의사항은 운영팀에 연락해주세요.'}
         </p>
       </Card>
     </div>

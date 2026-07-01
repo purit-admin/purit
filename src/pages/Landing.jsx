@@ -741,7 +741,7 @@ export default function Landing() {
             <div className="sec-head reveal">
               <span className="eyebrow">요금</span>
               <h2 className="sec-title">팀 규모에 맞게 시작하세요</h2>
-              <p className="sec-lead">크레딧으로 이용해요. 쓴 만큼만 차감되고, 남으면 자동으로 돌려드려요.</p>
+              <p className="sec-lead">크레딧으로 이용해요. 의뢰마다 실제 참여한 만큼만 차감돼요.</p>
             </div>
             <div className="plan-grid">
               <article className="plan reveal">
@@ -766,7 +766,7 @@ export default function Landing() {
                   <li><span className="dot-check" /> 전문가 10~30명</li>
                   <li><span className="dot-check" /> 경력 많은 전문가 · 시니어·헤드급</li>
                   <li><span className="dot-check" /> AI 요약 결과 · 상세 분석</li>
-                  <li><span className="dot-check" /> 팀 함께 쓰기 · 여러 신청 비교</li>
+                  <li><span className="dot-check" /> 팀 함께 쓰기 · 여러 의뢰 비교</li>
                 </ul>
                 <a className="btn btn-primary btn-block" onClick={startFree}>Pro로 시작하기</a>
               </article>
@@ -791,7 +791,7 @@ export default function Landing() {
         <section className="cta">
           <div className="container">
             <div className="cta-inner reveal">
-              <h2>첫 신청은 무료예요</h2>
+              <h2>첫 의뢰는 무료예요</h2>
               <p>신용카드 없이 시작하세요. 진짜 사람의 평가를 이틀 안에.</p>
               <div className="cta-actions">
                 <button className="btn btn-primary btn-lg" onClick={startFree}>
@@ -800,7 +800,7 @@ export default function Landing() {
                 <a className="btn btn-line-on-dark btn-lg" onClick={() => goTo('how')}>이용 방법 다시 보기</a>
               </div>
               <p style={{ position: 'relative', marginTop: 20, fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>
-                첫 신청 무료 · 카드 등록 없음 · 비용 0원
+                첫 의뢰 무료 · 카드 등록 없음 · 비용 0원
               </p>
             </div>
           </div>

@@ -102,3 +102,14 @@ export function fmtKRW(n) {
   if (!n) return '0';
   return Math.round(n).toLocaleString();
 }
+
+// 기간제 정지 자동 해제 안내 문구 — suspend_until 없으면(영구정지) null 반환
+export function fmtSuspendRelease(suspendUntil) {
+  if (!suspendUntil) return null;
+  const until = new Date(suspendUntil);
+  if (isNaN(until.getTime())) return null;
+  const ms = until.getTime() - Date.now();
+  if (ms <= 0) return '곧 자동으로 정지가 해제됩니다.';
+  const days = Math.ceil(ms / 86400000);
+  return `${until.toLocaleDateString('ko-KR')}에 자동으로 정지가 해제됩니다 (약 ${days}일 후).`;
+}

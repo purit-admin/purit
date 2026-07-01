@@ -25,6 +25,7 @@ export default function NotificationCenter({ role = 'company' }) {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [notifError, setNotifError] = useState('');
 
   // 알림 종류별 탭 분류 — 어드민 운영 영역(미션/무료체험/피드백/패널/버그)과 1:1 매핑
   const isBug      = n => n.action_url?.startsWith('/admin/reports');
@@ -99,8 +100,8 @@ export default function NotificationCenter({ role = 'company' }) {
     return () => { if (subscription) supabase.removeChannel(subscription); };
   }, []);
 
-  // 탭/페이지 전환 시 선택 초기화
-  useEffect(() => { setSelected(new Set()); }, [tab, page]);
+  // 탭/페이지 전환 시 선택·에러 배너 초기화
+  useEffect(() => { setSelected(new Set()); setNotifError(''); }, [tab, page]);
 
   async function markAll() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -109,20 +110,24 @@ export default function NotificationCenter({ role = 'company' }) {
     if (ids.length === 0) return;
     const { error } = await supabase.from('notifications').update({ read: true }).in('id', ids);
     if (!error) {
+      setNotifError('');
       setNotifs(ns => ns.map(n => ids.includes(n.id) ? { ...n, read: true } : n));
       window.dispatchEvent(new CustomEvent('purit:notif-read'));
     } else {
       console.error('[markAll]', error.message);
+      setNotifError('읽음 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
   async function markOne(id, actionUrl) {
     const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
     if (!error) {
+      setNotifError('');
       setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
       window.dispatchEvent(new CustomEvent('purit:notif-read'));
     } else {
       console.error('[markOne]', error.message);
+      setNotifError('읽음 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
     if (actionUrl) navigate(actionUrl);
   }
@@ -158,6 +163,7 @@ export default function NotificationCenter({ role = 'company' }) {
       .delete()
       .in('id', ids);
     if (!error) {
+      setNotifError('');
       const newNotifs = notifs.filter(n => !ids.includes(n.id));
       setNotifs(newNotifs);
       setSelected(new Set());
@@ -167,6 +173,7 @@ export default function NotificationCenter({ role = 'company' }) {
       if (page > newTotalPages) setPage(newTotalPages);
     } else {
       console.error('[deleteSelected]', error);
+      setNotifError('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
     setDeleting(false);
   }
@@ -194,6 +201,12 @@ export default function NotificationCenter({ role = 'company' }) {
           <Btn size="sm" variant="ghost" onClick={markAll}>모두 읽음</Btn>
         )}
       </div>
+
+      {notifError && (
+        <div style={{ marginBottom: 16, fontSize: 13, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '8px 12px' }}>
+          {notifError}
+        </div>
+      )}
 
       {/* 어드민 탭 */}
       {role === 'admin' && (

@@ -215,7 +215,7 @@ export default function PreferenceTest() {
     }
   }
 
-  const shouldBlockNav = view === 'create' && Boolean(missionTitle || variantA || variantB || productDescription);
+  const shouldBlockNav = view === 'create' && Boolean(missionTitle || variantA || variantB || productDescription || industry || assetType);
   // 신규 등록·draft 활성화에서만 크레딧 차감 → active 의뢰 수정은 부족 게이트/경고 비활성
   const creditsChargedOnSubmit = !draftId || editIsDraft;
 

@@ -5,7 +5,7 @@ import SettlementLedger from '../../components/ui/SettlementLedger';
 import { supabase } from '../../lib/supabase';
 import {
   getHonorLevel, getNextLevel, getProgressPct, getPanelReward,
-  getExperienceCareerKey, HONOR_COLOR_META, fmtWon,
+  getExperienceCareerKey, HONOR_COLOR_META, fmtWon, fmtSuspendRelease,
 } from '../../lib/honorLevels';
 
 const BADGE_CATALOG_DASH = [
@@ -197,7 +197,7 @@ export default function PanelDashboard() {
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>계정이 정지되었습니다</h2>
         <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
           관리자에 의해 계정 활동이 정지되었습니다.<br/>
-          문의사항은 운영팀에 연락해주세요.
+          {fmtSuspendRelease(panel?.suspend_until) || '문의사항은 운영팀에 연락해주세요.'}
         </p>
       </Card>
     </div>

@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Btn, Badge, ConfirmModal, SegmentFilter } from '../../components/ui';
 import ImageAnnotator from '../../components/ui/ImageAnnotator';
 import { supabase } from '../../lib/supabase';
-import { getPanelReward } from '../../lib/honorLevels';
+import { getPanelReward, fmtSuspendRelease } from '../../lib/honorLevels';
 import { resolveAssetType, resolveEmailGoal } from '../../lib/subMissionMeta';
 
 
@@ -958,7 +958,7 @@ export default function ActiveMission() {
         <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
         <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>계정이 정지되었습니다</h2>
         <p style={{ color: 'var(--text-2)', marginBottom: 28, lineHeight: 1.7 }}>
-          관리자에 의해 계정 활동이 정지되었습니다.<br/>문의사항은 운영팀에 연락해주세요.
+          관리자에 의해 계정 활동이 정지되었습니다.<br/>{fmtSuspendRelease(panel?.suspend_until) || '문의사항은 운영팀에 연락해주세요.'}
         </p>
       </div>
     );

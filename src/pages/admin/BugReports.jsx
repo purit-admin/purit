@@ -58,6 +58,7 @@ export default function BugReports() {
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [adminReply, setAdminReply] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [sendReplyError, setSendReplyError] = useState('');
@@ -149,6 +150,7 @@ export default function BugReports() {
     setSelected(null);
     setMemo('');
     setAdminReply('');
+    setDeleteError('');
   }
 
   function handleTypeFilterChange(key) {
@@ -269,6 +271,7 @@ export default function BugReports() {
     const ids = [...checkedIds];
     const { error } = await supabase.from('bug_reports').delete().in('id', ids);
     if (!error) {
+      setDeleteError('');
       // setPage를 setReports updater 안에서 호출하면 StrictMode 이중 실행 시 page가 2씩 감소(D-145) → updater 밖에서 계산
       const remaining = reports.filter(r => !ids.includes(r.id));
       setReports(remaining);
@@ -279,6 +282,7 @@ export default function BugReports() {
       loadAll();
     } else {
       console.error('[BugReports deleteSelected]', error);
+      setDeleteError('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
     setDeleting(false);
   }
@@ -384,6 +388,12 @@ export default function BugReports() {
                       총 {total}개
                     </span>
                   )}
+                </div>
+              )}
+
+              {deleteError && (
+                <div style={{ marginBottom: 10, fontSize: 13, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '8px 12px' }}>
+                  {deleteError}
                 </div>
               )}
 

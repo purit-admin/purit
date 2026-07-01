@@ -732,7 +732,7 @@ export default function PricingTest() {
                     }}>{totalSelected}/5 선택됨</div>
                   </div>
                   <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
-                    아래 15개 질문 중 최대 5개를 골라 패널에게 발송하세요. 그룹 헤더를 클릭하면 질문 목록이 펼쳐집니다.
+                    아래 20개 질문 중 최대 5개를 골라 패널에게 발송하세요. 그룹 헤더를 클릭하면 질문 목록이 펼쳐집니다.
                   </p>
 
                   {/* 내 커스텀 질문 그룹 */}

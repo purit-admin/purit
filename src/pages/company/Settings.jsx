@@ -263,7 +263,7 @@ export default function AccountSettings() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>현재 플랜</div>
-                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{(company?.plan === 'free_trial' ? '무료체험' : company?.plan) || 'Starter'} 플랜</div>
+                <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{(company?.plan === 'free_trial' ? '무료체험' : (company?.plan ? company.plan.charAt(0).toUpperCase() + company.plan.slice(1) : 'Starter'))} 플랜</div>
               </div>
               <Btn size="sm" variant="outline" onClick={() => navigate('/company/plans')}>플랜 변경</Btn>
             </div>
@@ -279,7 +279,7 @@ export default function AccountSettings() {
                     <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-3)', marginRight: 12 }}>{r.invoice_date}</span>
                     {r.payment_type === 'credits'
                       ? <span>크레딧 <strong>{r.credits_amount}cr</strong> 충전</span>
-                      : <span>{r.plan} 플랜</span>
+                      : <span>{r.plan ? r.plan.charAt(0).toUpperCase() + r.plan.slice(1) : r.plan} 플랜</span>
                     }
                   </div>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

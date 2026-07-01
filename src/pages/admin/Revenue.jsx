@@ -265,7 +265,7 @@ export default function RevenueManagement() {
                         <td style={{ padding: '12px 18px' }}>
                           {inv.payment_type === 'credits'
                             ? <Badge type="blue">크레딧 {inv.credits_amount}cr</Badge>
-                            : <Badge type="gray">{inv.plan} 플랜</Badge>
+                            : <Badge type="gray">{inv.plan ? inv.plan.toUpperCase() : inv.plan} 플랜</Badge>
                           }
                         </td>
                         <td style={{ padding: '12px 18px' }}>
@@ -346,7 +346,7 @@ export default function RevenueManagement() {
                         {cancellations.map((c, i) => (
                           <tr key={c.id} style={{ borderBottom: i < cancellations.length - 1 ? '1px solid var(--border)' : 'none' }}>
                             <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 13 }}>{c.companies?.name || '—'}</td>
-                            <td style={{ padding: '12px 16px' }}><Badge type="gray">{c.plan} 플랜</Badge></td>
+                            <td style={{ padding: '12px 16px' }}><Badge type="gray">{c.plan ? c.plan.toUpperCase() : c.plan} 플랜</Badge></td>
                             <td style={{ padding: '12px 16px', fontSize: 13 }}>{CHURN_REASON_LABELS[c.reason_code] || c.reason_code}</td>
                             <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-2)', maxWidth: 220, wordBreak: 'break-word' }}>{c.reason_text || '—'}</td>
                             <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{fmtD(c.effective_at)}</td>
