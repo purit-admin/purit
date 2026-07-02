@@ -38,19 +38,25 @@ export default function VerifyPhone() {
   // 마운트 시 DB 상태 확인 — 이미 인증돼 있으면 metadata 동기화 후 통과
   useEffect(() => {
     let active = true;
+    // 안전망: DB 조회가 지연/실패해도 4초 후 입력 폼을 노출 (무한 로딩 방지, ResetPassword 패턴)
+    const timer = setTimeout(() => { if (active) setChecking(false); }, 4000);
     (async () => {
       if (!user) return;
-      const { data } = await supabase.from(table).select('phone, phone_verified').eq('user_id', user.id).maybeSingle();
-      if (!active) return;
-      if (data?.phone_verified) {
-        await supabase.auth.updateUser({ data: { phone_verified: true } });
-        navigate(home, { replace: true });
-        return;
+      try {
+        const { data } = await supabase.from(table).select('phone, phone_verified').eq('user_id', user.id).maybeSingle();
+        if (!active) return;
+        if (data?.phone_verified) {
+          await supabase.auth.updateUser({ data: { phone_verified: true } });
+          navigate(home, { replace: true });
+          return;
+        }
+        if (data?.phone) setPhone(data.phone);
+      } catch {
+        /* 네트워크/RLS 오류 — 스피너 고착 대신 입력 폼을 노출해 재인증 진행 */
       }
-      if (data?.phone) setPhone(data.phone);
-      setChecking(false);
+      if (active) setChecking(false);
     })();
-    return () => { active = false; };
+    return () => { active = false; clearTimeout(timer); };
   }, [user, table, home, navigate]);
 
   const sendOtp = async () => {

@@ -350,8 +350,10 @@ export default function PurityFilter() {
     const baseReward = getPanelReward(fb?.panels?.honor_points || 0, fb?.panels?.experience || '');
     const payoutAmount = isSub ? Math.round(baseReward * (4500 / 8000)) : baseReward;
     const updatePayload = { purity_passed: true, status: 'approved', payout_amount: payoutAmount, rejection_penalty_applied: false };
-    const { error } = await supabase.from('feedbacks').update(updatePayload).eq('id', id);
+    // status='submitted' 가드 + select — 다른 어드민 세션/탭이 이미 처리했으면 0행 반환 → 아래 recalc/honor 부수효과 이중 실행 차단(동시성, 니체2-E)
+    const { data: changed, error } = await supabase.from('feedbacks').update(updatePayload).eq('id', id).eq('status', 'submitted').select('id');
     if (error) { setStatusError('승인 실패: ' + error.message); setActing(false); return; }
+    if (!changed || changed.length === 0) { setStatusError('이미 다른 관리자가 처리한 피드백입니다. 목록을 새로고침해 주세요.'); setSelected(null); setActing(false); return; }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, ...updatePayload } : f));
 
     if (fb?.rejection_penalty_applied && fb?.panel_id) {
@@ -378,8 +380,10 @@ export default function PurityFilter() {
     const rejectionDeadline = new Date(Date.now() + hoursOffset * 60 * 60 * 1000).toISOString();
     const updatePayload = { purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline };
     if (note.trim()) updatePayload.suggestions = note.trim();
-    const { error } = await supabase.from('feedbacks').update(updatePayload).eq('id', id);
+    // status='submitted' 가드 + select — 다른 세션이 이미 처리했으면 0행 → decrement_mission_filled_count 슬롯 이중 차감 차단(동시성, 니체2-E)
+    const { data: changed, error } = await supabase.from('feedbacks').update(updatePayload).eq('id', id).eq('status', 'submitted').select('id');
     if (error) { setStatusError('반려 실패: ' + error.message); setActing(false); return; }
+    if (!changed || changed.length === 0) { setStatusError('이미 다른 관리자가 처리한 피드백입니다. 목록을 새로고침해 주세요.'); setSelected(null); setActing(false); return; }
     const noteUpdate = note.trim() ? { suggestions: note.trim() } : {};
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'rejected', rejection_penalty_applied: true, rejection_deadline: rejectionDeadline, ...noteUpdate } : f));
 
@@ -403,15 +407,24 @@ export default function PurityFilter() {
     setActing(true); setResetError('');
     const fb = feedbacks.find(f => f.id === id);
     const isRejectReversal = fb?.status === 'rejected';
+    const expectedStatus = fb?.status; // 'approved' | 'rejected' — 되돌리기 시점 상태
 
-    // 반려 취소 시: slot 복원을 먼저 — 실패하면 feedbacks 변경 없이 종료 (원자성 보장)
+    // 반려 취소 시: slot 복원을 먼저 — 실패하면 feedbacks 변경 없이 종료 (원자성 보장: 슬롯이 이미 찼으면 되돌리지 않음)
     if (isRejectReversal && fb?.mission_id) {
       const { error: slotErr } = await supabase.rpc('restore_mission_slot', { p_mission_id: fb.mission_id });
       if (slotErr) { setResetError('슬롯 복원 실패: ' + slotErr.message + '\n재시도하거나 수동으로 슬롯을 보정해 주세요.'); setActing(false); return; }
     }
 
-    const { error } = await supabase.from('feedbacks').update({ purity_passed: false, status: 'submitted', rejection_penalty_applied: false }).eq('id', id);
+    // 현재 상태 가드 + select — 다른 세션이 이미 되돌렸으면 0행 → 방금 복원한 슬롯을 원복하고 종료(동시성 이중 처리 차단, 니체2-E)
+    const { data: changed, error } = await supabase.from('feedbacks')
+      .update({ purity_passed: false, status: 'submitted', rejection_penalty_applied: false })
+      .eq('id', id).eq('status', expectedStatus).select('id');
     if (error) { setResetError('취소 실패: ' + error.message); setActing(false); return; }
+    if (!changed || changed.length === 0) {
+      if (isRejectReversal && fb?.mission_id) supabase.rpc('decrement_mission_filled_count', { p_mission_id: fb.mission_id }); // 방금 더한 슬롯 원복
+      setResetError('이미 다른 관리자가 처리한 피드백입니다. 목록을 새로고침해 주세요.');
+      setSelected(null); setActing(false); return;
+    }
     setFeedbacks(fbs => fbs.map(f => f.id === id ? { ...f, purity_passed: false, status: 'submitted', rejection_penalty_applied: false } : f));
 
     // 반려 취소 시 반려 패널티로 차감했던 HP(-5) 복원 — reject의 -5에 대칭 (approve의 복원과 동일 패턴)

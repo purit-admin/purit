@@ -376,9 +376,11 @@ export default function Diagnosis() {
     ? Object.fromEntries(DIMENSIONS.map(d => [d.key, avg(compareItems.map(({ data }) => data.scores[d.key] || 0))]))
     : scores;
 
-  const scoreValues = DIMENSIONS.map(d => activeScores[d.key] || 0);
-  const overallAvg = avg(scoreValues);
-  const worstDim = DIMENSIONS.reduce((worst, d) =>
+  // 무데이터(0점) 지표를 유효값으로 취급하면 종합점수가 깎이고 '가장 취약한 지표'가 오선정됨 (D-153)
+  // → 점수가 있는(>0) 지표만으로 평균·최저 계산 (guide 탭과 동일 기준), 전 지표 무데이터면 폴백
+  const scoredDims = DIMENSIONS.filter(d => (activeScores[d.key] || 0) > 0);
+  const overallAvg = scoredDims.length ? avg(scoredDims.map(d => activeScores[d.key])) : 0;
+  const worstDim = (scoredDims.length ? scoredDims : DIMENSIONS).reduce((worst, d) =>
     (activeScores[d.key] || 0) < (activeScores[worst.key] || 0) ? d : worst
   );
 

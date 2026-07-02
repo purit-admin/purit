@@ -450,7 +450,9 @@ export default function CompanyDashboard() {
   const chartEmailResps = periodCutoff ? emailResps.filter(r => new Date(r.created_at) >= periodCutoff) : emailResps;
 
   const radarData     = computeRadar(chartFeedbacks);
-  const overallScore  = radarData.reduce((acc, d) => acc + d.score, 0) / radarData.length;
+  // 무데이터(0점) 지표를 평균에 넣으면 게이지가 실제보다 낮게 희석됨 (D-153) → 점수 있는 지표만 평균
+  const scoredRadar   = radarData.filter(d => d.score > 0);
+  const overallScore  = scoredRadar.length ? scoredRadar.reduce((acc, d) => acc + d.score, 0) / scoredRadar.length : 0;
   const gaugeValue    = chartFeedbacks.length > 0 ? Math.round((overallScore / 5) * 100) : 0;
   const gaugeData     = [{ name: '전환 지수', value: gaugeValue, fill: '#6366f1' }];
   // 긍부정 분포는 완료(completed) 의뢰만 — 데이터 소스(chartFeedbacks/서브 응답)가 완료 미션 한정이라 미완료 의뢰는 '—' 빈행으로만 떠 레이더·게이지와 어긋남

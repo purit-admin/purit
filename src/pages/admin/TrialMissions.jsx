@@ -318,24 +318,37 @@ export default function TrialMissions() {
       const f = detailFbs.find(x => x.id === id); if (!f) return;
       payoutMap[id] = getPanelReward(f.panels?.honor_points || 0, f.panels?.experience || '');
     });
-    const { error } = await supabase.from('feedbacks')
-      .update({ purity_passed: true, status: 'approved', rejection_penalty_applied: false }).in('id', ids);
-    if (error) { setStatusError('일괄 승인 실패: ' + error.message); setBulkActing(false); return; }
-    await Promise.all(ids.map(id => supabase.from('feedbacks').update({ payout_amount: payoutMap[id] }).eq('id', id)));
-    setDetailFbs(fbs => fbs.map(f => ids.includes(f.id) ? { ...f, purity_passed: true, status: 'approved', payout_amount: payoutMap[f.id], rejection_penalty_applied: false } : f));
+    // 개별 approve처럼 payout_amount를 같은 UPDATE에 원자적으로 포함(행별). 상태와 정산금을 분리한
+    // 2차 UPDATE만 실패하면 payout_amount가 NULL로 남아 하류 정산(Revenue·SettlementLedger)이
+    // 승인 시점과 다른 금액으로 오재계산됨(D-176). 각 결과의 error를 수집해 실패분은 로컬 반영·부수효과에서 제외.
+    const results = await Promise.all(ids.map(id =>
+      supabase.from('feedbacks')
+        .update({ purity_passed: true, status: 'approved', payout_amount: payoutMap[id], rejection_penalty_applied: false })
+        .eq('id', id)
+        .then(({ error }) => ({ id, error }))
+    ));
+    const failedIds = new Set(results.filter(r => r.error).map(r => r.id));
+    const okIds = ids.filter(id => !failedIds.has(id));
+    if (okIds.length === 0) {
+      setStatusError('일괄 승인 실패: ' + (results.find(r => r.error)?.error?.message || '알 수 없는 오류'));
+      setBulkActing(false); return;
+    }
+    setDetailFbs(fbs => fbs.map(f => okIds.includes(f.id) ? { ...f, purity_passed: true, status: 'approved', payout_amount: payoutMap[f.id], rejection_penalty_applied: false } : f));
     // 무료 미션이라 recalc_mission_consumed 생략 (언락이 credits_consumed 관리)
-    ids.forEach(id => {
+    okIds.forEach(id => {
       const f = detailFbs.find(x => x.id === id);
       if (f?.rejection_penalty_applied && f?.panel_id) supabase.rpc('restore_feedback_honor', { p_feedback_id: f.id, p_panel_id: f.panel_id });
     });
     // 승인 기반 뱃지 재계산 — 패널별 1회(중복 제거), PurityFilter bulkApprove와 동일 패턴
-    const approvedPanelIds = [...new Set(ids.map(id => detailFbs.find(x => x.id === id)?.panel_id).filter(Boolean))];
+    const approvedPanelIds = [...new Set(okIds.map(id => detailFbs.find(x => x.id === id)?.panel_id).filter(Boolean))];
     approvedPanelIds.forEach(pid => supabase.rpc('check_and_award_badges', { p_panel_id: pid }).then(({ error: be }) => { if (be) console.warn('[trial bulk_check_badges]', be.message); }));
-    const notifRows = ids.map(id => detailFbs.find(x => x.id === id)).filter(Boolean)
+    const notifRows = okIds.map(id => detailFbs.find(x => x.id === id)).filter(Boolean)
       .filter(f => f.panels?.user_id && f.panels?.notif_prefs?.feedbackApproved !== false)
       .map(f => ({ user_id: f.panels.user_id, type: 'success', icon: '✅', title: '피드백 승인', body: `[${selMission?.title || '의뢰'}] 피드백이 승인되었습니다. 보상이 곧 지급됩니다.`, action_url: '/panel/history', target_role: 'panel', read: false }));
     if (notifRows.length) supabase.from('notifications').insert(notifRows).then(({ error: ne }) => { if (ne) console.warn('[trial bulk approve notif]', ne.message); });
-    setCheckedIds(new Set()); setBulkActing(false); setConfirmBulkApprove(false);
+    if (failedIds.size > 0) setStatusError(`${failedIds.size}건 승인에 실패했습니다. 남은 항목을 다시 시도해 주세요.`);
+    setCheckedIds(new Set([...failedIds])); // 실패분만 선택 유지(재시도), 성공분은 해제
+    setBulkActing(false); setConfirmBulkApprove(false);
   };
 
   const bulkReject = async () => {

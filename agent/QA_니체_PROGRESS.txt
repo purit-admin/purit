@@ -21,7 +21,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
   DB/RLS/RPC 조사(migration 101~125): 신규 P1/P2 결함 없음(111 금전멱등·107 IDOR·112/114/117/125 컬럼가드 견고).
 
 ================================================================
-## 🟡 P2 Major (7건 — 2026-07-01 전수조사 신규)
+## 🟡 P2 Major (3건 — 니체2-A + 2026-07-02 전수조사 신규 니체3-A·B)
 ================================================================
 
 [니체2-A] PurityFilter 반려 사유가 이미지(LP) 미션 패널 원본 피드백(suggestions)을 덮어씀 + 반려사유 표시 충돌  ✅니체 직접검증
@@ -32,51 +32,24 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
    · 어드민이 이미지 미션을 '사유 없이' 반려 → suggestions=패널 원본 유지 → Missions '수정 필요' 카드가 패널 '자기 피드백 원문'을 반려사유 자리에 노출(혼선, 실제 사유 없음).
 - ✨ 기대: 반려 사유는 suggestions가 아닌 별도 컬럼(admin_note 신설 또는 rejection_reason 재활용)에 저장. suggestions는 이미지 미션 원문 전용으로 보존. Missions 카드 반려사유 표시도 그 별도 컬럼 참조.
 - 🔍 수평전개: bulkReject는 note 미지원이라 무관. sub미션(preference/pricing/email)은 복원을 strengths JSON/sub_responses로 하므로 suggestions=사유 저장이 안전(충돌은 이미지 미션 한정).
+  ※ 사용자 지시로 이번 배치(#7)에서 제외 — DB 마이그레이션(별도 컬럼 분리) 수반 최난이도. 별도 진행 시 재개.
 
-[니체2-B] getFinalWeight 3개 이상 직급 선택 시 1.8 고정 → 서버 실소비(최대 3.0×) 대비 과소예약  ✅니체 직접검증
-- 🚨 중요도: P2 — 플랫폼 과소예약(수익 누수) + '예상 크레딧' 표시 불일치. 완료 환불이 GREATEST(0, 예약−소비)라 고객 초과차감은 없음(그래서 P1 아님).
-- 📍 위치: src/components/ui/PanelTargetStep.jsx:27-32(getFinalWeight: active.length>2면 return 1.8), calcCredits:40-44 → 4개 등록폼 reserve_mission_credits 인자(NewMission.jsx:892·948, PreferenceTest:503, PricingTest:476, ColdEmailTest:448). 서버: supabase/migrations/archive/095 recalc_mission_consumed + 111 complete_mission_and_refund(패널별 실배율 합, ≥15→3.0/≥8→2.0/≥5→1.5).
-- 🤦 현재 상황: 직급 1~2개 선택은 Math.max(배율)로 예약(상한=올바름)하나, 3개 이상 선택 시 1.8 고정. 예) 주+미+시 3직급·10명·메인 예약=10×1.8×1.5=27. 실제 시니어(2.0)만 매칭되면 서버 소비=10×2.0×1.5=30>27 → 완료 시 환불 0(클램프)이라 회사는 27만 내고 30어치를 받음. 문서/환불배너의 "최댓값 선차감 후 환불" 불변식을 3+ 케이스만 위반.
-- ✨ 기대: getFinalWeight 3+ 케이스도 Math.max(...active.map(c=>c.multiplier)) 사용(예약은 항상 상한이어야 환불이 성립·플랫폼 손실 없음). 1.8 매직넘버 제거.
-- 🔍 수평전개: calcPanelPayout(reward_amount 스냅샷)도 동일 getFinalWeight 사용 → 여러 직급 혼합 시 대표 보상액이 최고직급 기준으로 과대표기(니체2-P/W와 별개 표시 이슈).
+[니체3-A] ★최우선 ActiveMission 서브 미션 응답(INSERT/UPDATE) 무음 실패 → 가짜 '제출 완료' + 명예점수 지급 + 미션카운트 증가  ✅니체 직접검증
+- 🚨 중요도: P2 (P1 '데이터 미저장' 기준 충족 — 트리거는 쓰기 실패 시라 상시 아님) — 패널이 작성한 점수·코멘트(정산 심사 근거)가 통째로 유실되는데 화면은 성공·honor +5 지급. 어드민 결과엔 응답 안 뜸, 패널은 보상 못 받고 항의.
+- 📍 위치: src/pages/panel/ActiveMission.jsx:633·637·640(재제출 UPDATE)·647·651·655(최초 INSERT) — 6곳 전부 `{ error }` 미구조분해. 바로 아래 feedbacks.update만 fbError 잡음(:660-665).
+- 🤦 현재 상황: 서브 응답 테이블(preference/pricing/email_responses) 쓰기를 `await supabase.from(...).insert/update(...)`로만 호출하고 error 미검사 → RLS/네트워크/제약 실패해도 삼켜짐. 이후 feedbacks가 'submitted'로 flip(:663), increment_panel_mission_count(:669), postSubmitActions→honor +5(:671), setStep(6) 완료화면(:673). 이미지 미션 경로(handleSubmit)는 feedbacks 쓰기를 fbError로 잡으나 서브 경로만 핵심 데이터 쓰기가 무방비.
+- ✨ 기대: 서브 응답 insert/update를 `const { error: subErr } = await ...; if (subErr) throw subErr;`로 잡아 catch(submitError 표시)로 보내고, feedbacks flip·카운트·honor·완료화면 진행 차단.
+- 🔍 수평전개: 6곳 동일 결함(insert 3 + update 3). 이미지 경로 어노테이션 flush(:694-699)는 수시저장이라 위험 낮음(관찰 유지).
 
-[니체2-C] payout_amount NULL 폴백이 '현재' honor/경력으로 정산액 재계산 → 승인 시점 스냅샷과 불일치  (Panel 정산-1 + Admin2 REV-2 병합)  ⚠️재검증:축소
-- 🚨 중요도: P2→실질 P3 (재검증 결과 정상 승인건엔 미발생 — 아래) — Revenue KPI '패널 정산 대기' 총액·History·SettlementLedger 표시액이 흔들림(정산 정확성).
-- 📍 위치: src/pages/admin/Revenue.jsx:74-79(calcSettleAmt) / src/components/ui/SettlementLedger.jsx:80-85.
-- 🤦 현재 상황: payout_amount 스냅샷이 있으면 정확, NULL이면 getPanelReward(현재 honor, 현재 experience)로 재계산.
-- ⚠️ 재검증(2026-07-01): 정상 승인 3경로(PurityFilter approve :352 / TrialMissions 개별 :186 / bulkApprove 2차 :324) 모두 payout_amount를 기록함. 로드 쿼리는 purity_passed=true·status!='draft'. 따라서 NULL 재계산은 오직 (a)payout 컬럼 도입 이전 레거시 승인건 (b)니체2-D의 bulkApprove 2차 개별 UPDATE 부분 실패건에 한함 → 정상 신규 승인엔 미발생. 실질적으로 니체2-D 수정 시 대부분 해소, 레거시 행만 잔존.
-- ✨ 기대: 니체2-D 우선 처리 + (선택) payout_amount NULL 승인건을 '금액 확정 필요'로 표기.
-
-[니체2-D] TrialMissions 무료체험 일괄 승인 — payout_amount 2차 UPDATE 에러 미검사 (D-176 동형)
-- 🚨 중요도: P2 — 2차 UPDATE만 실패 시 화면은 성공 표시·DB payout_amount NULL → 하류 정산 오재계산(니체2-C로 전파).
-- 📍 위치: src/pages/admin/TrialMissions.jsx:321-325 (1차 purity_passed/status 일괄 UPDATE, 2차 각 payout_amount 개별 UPDATE의 error 미수집·즉시 로컬 성공 반영)
-- 🤦 현재 상황: PurityFilter bulkApprove(D-176이 지목)와 동형 함정이 TrialMissions bulkApprove에 잔존. 개별 approve(:187)는 1차 UPDATE에 payout_amount를 원자적으로 포함해 안전(단일/일괄 비대칭).
-- ✨ 기대: 2차 결과를 {id,error}로 수집 → 실패 id는 로컬 반영 제외 + 안내. 또는 개별처럼 1차에 payout_amount 포함.
-- 🔍 수평전개: PurityFilter bulkApprove와 나란히 대조 필요.
-
-[니체2-E] PurityFilter 개별 approve/reject/reset에 status 가드(.eq('status',…)) 부재 → 어드민 2인/2탭 동시 처리 시 이중 side-effect (동시성)
-- 🚨 중요도: P2 — 서로 다른 세션 동시 승인/반려/되돌리기 시 decrement/restore_mission_slot 이중 실행(슬롯 카운트 오염), honor RPC 재실행 가능. 클라 acting/busyRef는 같은 세션만 방어.
-- 📍 위치: src/pages/admin/PurityFilter.jsx:346-371(approve), 373-400(reject), 402~(reset) — feedbacks.update(...).eq('id',id)에 현재 상태 조건 없음.
-- 🤦 현재 상황: 이미 approved된 행도 다시 UPDATE 성공(에러 없음)→이어지는 slot/honor RPC 재실행. decrement_mission_filled_count는 반복 시 슬롯 이중 차감 위험.
-- ✨ 기대: UPDATE에 .eq('status','submitted')(승인/반려)·.eq('status','approved'|'rejected')(reset) 가드 + select()로 실제 변경 행 확인 후에만 side-effect. 또는 서버 RPC로 상태전이 원자화.
-- 🔍 수평전개: 규칙5 동시성 — 어드민 다중 운영 전환 시 심각도 상승.
-
-[니체2-H] Diagnosis 헤더 종합점수·'가장 취약한 지표'가 무데이터(0점) 지표를 유효값으로 취급 (D-153 계열)
-- 🚨 중요도: P2 — 기업이 보는 대표 요약 숫자·취약 지표 오선정. 같은 화면 guide 탭(scoredDims 재정규화)과 기준 불일치.
-- 📍 위치: src/pages/company/Diagnosis.jsx:379-383(overallAvg=avg(...||0), worstDim) vs guide :787-793(scored>0만). 표시 :512,520.
-- 🤦 현재 상황: computeForFbs가 데이터 없는 지표를 0으로 세팅 → 그 0이 종합점수를 깎고 worstDim을 '데이터 없는 지표'로 오선정. 메인 피드백은 5축 항상 채워져 실발생 드물지만 부분 무데이터 시 발생.
-- ✨ 기대: 헤더도 guide처럼 유효 점수(>0) 지표만으로 평균·worst 계산.
-- 🔍 수평전개: company/Dashboard 게이지(computeRadar 0 희석, :44-54,453-454) + Diagnosis compare 모드(:376) 동일 뿌리.
-
-[니체2-I] VerifyPhone 마운트 시 DB 조회 실패/지연 → 무한 로딩 (게이트라 앱 진입 차단)
-- 🚨 중요도: P2 — 엣지에서 화면 영구 공백. 휴대폰 인증 게이트라 앱 전체 진입 불가.
-- 📍 위치: src/pages/VerifyPhone.jsx:42-52 (maybeSingle의 error 미처리·catch·타임아웃 없음, checking=true면 return null)
-- 🤦 현재 상황: 네트워크/RLS 오류로 쿼리가 throw하거나 지연되면 checking 해제가 안 돼 스피너 고착. ResetPassword는 4s 타임아웃 방어가 있으나 여기엔 없음.
-- ✨ 기대: try/catch로 실패 시 setChecking(false)(입력 폼 노출) + 안전망 타임아웃(ResetPassword 4000ms 패턴).
-- 🔍 수평전개: 니체2-S(OAuthCallback 무한 스피너) 동일 계열.
+[니체3-B] 어드민 승인/반려 일괄·TrialMissions 핸들러 status 가드 부재 → 동시성 이중 side-effect (니체2-E 수평전개 누락)  ✅니체 직접검증
+- 🚨 중요도: P2 — 어드민 2인/2탭 동시 처리 시 slot(decrement/restore) 이중 실행·honor RPC 재적용(슬롯 카운트 오염). 니체2-E가 PurityFilter '단건' approve/reject/reset만 고치고 일괄·TrialMissions 경로를 비대칭으로 남김.
+- 📍 위치: (1) PurityFilter.jsx:549-550(bulkReject 1차 UPDATE `.in('id',ids)` status 가드 없음 → :560-568 무조건 decrement, :576-579 무조건 reject_feedback_honor) (2) TrialMissions.jsx:187(approve UPDATE)·211-214(doReject UPDATE→무조건 decrement)·359-360(bulkReject UPDATE) 전부 `.eq('id',…)`만.
+- 🤦 현재 상황: 이미 rejected/approved된 행도 재UPDATE 성공(에러 없음)→이어지는 slot/honor RPC 재실행. decrement_mission_filled_count 반복 시 슬롯 이중 차감.
+- ✨ 기대: 각 1차 UPDATE에 `.eq('status', 기대상태)`+`.select('id')` → 실제 변경 행만으로 deadline/decrement/honor/알림 수행(니체2-E 단건 패턴을 일괄·TrialMissions에 이식). 일괄은 select 반환 id 집합으로 부수효과 필터.
+- 🔍 수평전개: PurityFilter bulkApprove(:471-481)는 이미 payoutFailIds 수집 처리(니체2-D 확인). TrialMissions bulkApprove는 니체2-D로 payout은 잡았으나 status 가드는 별개(이 항목 포함).
 
 ================================================================
-## 🟢 P3 Minor (9건 — 2026-07-01 전수조사 신규)
+## 🟢 P3 Minor (13건 — 니체2-J·K·P·Q·R·S·U·V·W + 2026-07-02 신규 니체3-C·D·E·F)
 ================================================================
 
 [니체2-J] 4개 등록폼+QuestionTemplates 옵션형(radio) 질문 최소 2개 옵션 미검증 — 옵션 0~1개로 저장 가능(문구는 "선택지 최소 2개"). 위치: PreferenceTest.jsx:404-453 / ColdEmail·Pricing 동형 / QuestionTemplates.jsx:113-164(안내 :307). radio 저장·추가 시 options.length>=2 게이트 필요. 4파일 각자 복제(D-35).
@@ -97,6 +70,15 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 [니체2-W] SettlementLedger '정산 대기 중' 요약 카드에 예상 표식 없음 — 건별은 '(예상)' 있으나 카드는 확정값처럼 보임. 승인 전 레벨업 시 확정액과 달라짐(니체2-C 표시 측면). 위치: SettlementLedger.jsx 요약카드. 카드에도 '(예상)' 뉘앙스.
 
+-- 2026-07-02 전수조사 신규 P3 --
+[니체3-C] admin/Missions 미션 취소/재개 + Revenue 청구상태 변경 status 가드 부재 — 동시성 시 중복 알림/무음 재처리. 위치: admin/Missions.jsx:465(취소/재개 else 분기 `.update({status}).eq('id',id)` 가드 없음→:472/474 취소·재개 알림 중복 발송) / Revenue.jsx:57-66(handleInvoiceStatus 가드 없음, Mock 상태변경뿐이라 무해하나 PG 연동 시 위험). complete는 RPC 멱등(111)이라 안전. `.eq('status',기대)`+`.select()` 후 실제 변경 시에만 알림. TrialMissions cancelMission/resumeMission(:244·:276)도 동형.
+
+[니체3-D] admin/Missions deleteMission 삭제 후 페이지 클램프 부재 (D-170) — 취소 탭 마지막 페이지 마지막 미션 삭제 시 빈 화면. 위치: admin/Missions.jsx:502-513(setMissions filter만, mainPage/subPage 클램프 없음). BugReports deleteSelected 패턴(잔여 0 && page>1 → setPage(p-1), updater 밖) 이식.
+
+[니체3-E] NotificationCenter markOne 읽음 처리 실패 시에도 navigate → 방금 세팅한 에러 배너가 즉시 언마운트되어 안 보임 (니체2-F 무음실패 배너 취지 무력화). 위치: NotificationCenter.jsx:122-133(:130 setNotifError 후 :132 `if(actionUrl)navigate` 무조건 실행). markAll(:106-120)은 navigate 없어 배너 정상 노출=비대칭. 3포털 공용(company/panel/admin). 실패 시 navigate 스킵하거나 성공 시에만 이동. ※ 읽음 실패 자체는 경미(재시도 시 재읽음)·데이터 무결성 무관.
+
+[니체3-F] Results 도움됨 평가 실패 시 낙관적 롤백이 전체 스냅샷을 덮어써 다른 항목의 in-flight 낙관 업데이트 소실 + 무음 실패. 위치: Results.jsx:1207(prevRatings=helpRatings 전체 스냅샷)·1224(setHelpRatings(prevRatings) 통째 복원)·1223-1225(console.error만). ratingInFlight는 같은 key만 차단→다른 패널 도움됨 연속클릭 후 첫 RPC 실패 시 뒤 업데이트 소실(화면≠DB). 롤백을 `setHelpRatings(r=>({...r,[key]:wasValue}))` 함수형 + 실패 UI 통지. honor만 영향·재현 좁아 P3.
+
 ================================================================
 ## 👁 관찰 (확신 낮음/경미 — 2026-07-01 전수조사, 관련 파일 작업 시 함께 점검)
 ================================================================
@@ -111,6 +93,13 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 - AIReport 월 사용량(N/10) 상시 미노출 — 생성 클릭 후 초과 모달로만 인지. AIReport.jsx.
 - renew_due_subscriptions invoice amount=0(Mock) — 실 PG 연동 시 무청구 무한지급 되므로 재검토 인계(120/121, D-167).
 - admin/Missions '예약 크레딧' 통계 active만 합산인데 라벨에 한정 없음(CM-2) — CompanyManagement.jsx:428.
+-- 2026-07-02 전수조사 관찰 --
+- 기업 등록폼 active 의뢰 '수정' 이탈 시 이탈모달 '임시 저장 후 나가기'가 saveDraft early-return(`if(draftId&&!editIsDraft)return`)으로 no-op인데 navigate만 실행 → 수정중 내용 저장 없이 사라지나 버튼은 저장 약속(원본은 DB 보존, cosmetic). PreferenceTest:321·1411 / PricingTest:309 / ColdEmailTest:304. active 수정 시 문구 분기 검토.
+- Pricing 해지예약 배너 버튼 '구독 유지하기'(:464, 실제 resume_my_subscription 호출=동작 일치) vs Account '구독 관리 →'(단순 이동) 문구 불일치 — 도메인별 정합은 맞음, 통일 검토.
+- SECURITY DEFINER 함수 다수 `SET search_path` 누락(하드닝 갭, Supabase 린터 수준·직접 악용은 public 객체 생성권 없어 사실상 불가) — get_shared_mission(106, anon GRANT)·complete_mission_and_refund/unlock_free_trial_mission(111)·grant_plan_credits/admin_change_plan(120)·notify 트리거(102/110/122). 대부분 함수는 이미 붙임(규약 불일치). anon·금전 함수 우선 통일 권장.
+- ActiveMission 서브 '이어하기' 버튼 라벨: hasSavedProgress(:533-537) 판정이 점수/선택만 보고 총평 텍스트(prefComment 등)·customAnswers 제외 → 코멘트만 작성한 draft 재진입 시 '피드백 시작하기'로 표기(load가 state 복원하므로 데이터 손실 없음·cosmetic).
+- ImageAnnotator 오버레이 본문(:138-153) dimMeta[ann.dimension] 널가드 없음(팝업부 :266-273은 ?. 방어) — dimension은 5지표 고정이라 실데이터 미발생, 방어 널가드 저비용.
+- Login 역할 불일치 로그인 시 useEffect navigate가 불일치 가드 signOut 완료 전 실행돼 순간 대시보드 바운스 가능(RoleRoute 재차단·런타임 타이밍 의존, 저확신).
 
 
 ================================================================
@@ -158,6 +147,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 [N-9]  어드민 포털 전환 시 맥락 배너 없음  ⏭
 [신규-C]  체험 의뢰 완료 게이트(admin/TrialMissions.jsx:411 trialCompleteBlocked)가 검토 대기(submitted)·작성중(draft)·승인0건을 안 막음 — 일반 미션(Missions.jsx:185 completeBlocked는 reviewing>0·drafts>0·approved===0 차단)과 비대칭. 단, 액션 주체가 어드민(내부 운영자 1명·신뢰된 단일 작업자)이고 '실수로 일찍 완료만 안 누르면' 문제 없음 + 미검수 피드백은 삭제 아닌 검수 큐 잔존(사후 처리 가능)이라 고객(기업·패널) 실질 피해 없음. 사용자 판단으로 보류 — 다중 어드민·고볼륨 운영 전환 시 재검토  ⏭
 [니체-총평정규식]  ActiveMission parseImageSubmission 총평 추출 정규식 first-match — 어노테이션 코멘트에 literal "[총평]\n" 포함 시 조기 매칭 가능. 기존 Path A 코드(이번 도입 아님)·발생확률 극히 낮음 → 보류  ⏭
+[니체2-B]  getFinalWeight 3+ 직급 선택 시 배율 1.8 매직넘버 고정(과소예약) — 사용자 판단으로 수정 보류(안 고침, 2026-07-02). 근거: 완료 환불이 GREATEST(0, 예약−소비) 클램프라 고객 초과차감 없음, 플랫폼 수익 누수(내부 손실)만 발생. 파생 니체2-K(라운딩)는 1.8 경로일 때만 발생 → B 보류 시 K도 함께 잔존(별도 판단 대상). 위치: src/components/ui/PanelTargetStep.jsx:27-32. 배율 정책 재설계 시 재검토  ⏭
 
 -- AI 리포트 (니체-AIRPT-A/B/C/E는 DONE — 아래 2건만 보류) --
 [니체-AIRPT-D]  AIReport 월 한도 초과 모달의 "충전하기"가 setChargeMsg("결제 기능이 곧 출시됩니다")만 띄우는 미연동 버튼(추가 10회 충전·크레딧 1개 차감 약속) → 한도 초과 시 막다른 길. 현재 결제 PG 자체가 Mock·"AI 리포트 추가 쿼터" 백엔드(쿼터 컬럼/RPC) 부재라 정식 구현은 결제 인프라 연동 시점 과제. 문구는 이미 정직한 placeholder("곧 출시")라 무음 실패 아님 → 결제 연동 시 함께 처리, 그 전까지 보류  ⏭
@@ -192,10 +182,21 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 16건 + 스케일 트리거 조건부 6건 + 관찰 11건
+미완료 합계: 16건 + 스케일 트리거 조건부 6건 + 관찰 17건
   🔴 P1  0건
-  🟡 P2  7건 (니체2-A·B·C·D·E·H·I — 2026-07-01 전수조사, 니체2-F·G 완료)
-  🟢 P3  9건 (니체2-J·K·P·Q·R·S·U·V·W — 니체2-L/M/N/O/T 완료)
+  🟡 P2  3건 (니체2-A + 2026-07-02 전수조사 신규 니체3-A·B)
+  🟢 P3  13건 (니체2-J·K·P·Q·R·S·U·V·W + 2026-07-02 신규 니체3-C·D·E·F)
+  ※ 2026-07-02 전수조사(7개 조사관 병렬: 기업A·B·패널·어드민·인증·공용·DB) 시행 → 신규 확정 P2 2건·P3 4건·관찰 6건 등록. 니체 직접 코드 적대적 재검증(규칙12) 완료, 조사관 오탐 3건 폐기.
+    · 니체3-A(P2★최우선): ActiveMission 서브제출 응답 INSERT/UPDATE 무음 실패→가짜 완료+honor
+    · 니체3-B(P2): 어드민 승인/반려 일괄·TrialMissions status 가드 부재(니체2-E 수평전개 누락 — bulkReject·TrialMissions approve/doReject/bulkReject)
+    · 니체3-C~F(P3): admin/Missions·Revenue status가드 / deleteMission page클램프 / NotificationCenter markOne 배너소멸 / Results handleRate 전체스냅샷 롤백
+  ※ 2026-07-02 P2 5건 수정 완료(니체2-C·D·E·H·I) → QA_니체_DONE.txt. 빌드 EXIT 0·전부 클라 무관 DB.
+    - 니체2-I: VerifyPhone 무한로딩 try/catch+4s 타임아웃(ResetPassword 패턴)
+    - 니체2-H: Diagnosis 헤더·Dashboard 게이지 무데이터(0점) 지표 평균 제외(D-153) + 수평전개
+    - 니체2-D: TrialMissions 일괄승인 payout 행별 원자 UPDATE+error 수집(D-176), 수평전개로 PurityFilter는 이미 처리됨 확인
+    - 니체2-C: 니체2-D로 실질 해소(신규 승인 NULL 미발생·레거시 행만 잔존, 별도 수정 불필요)
+    - 니체2-E: PurityFilter approve/reject/reset에 status 가드+select 0행 방어(동시성, D-177 status축 클라 적용)
+  ※ 2026-07-02 니체2-B(3+직급 배율 1.8 과소예약) 사용자 판단으로 ⏭ 보류 이동(하단 스킵 섹션).
   ※ 2026-07-01 쉬운수정 7건 완료(니체2-F·G·L·M·N·O·T) → QA_니체_DONE.txt. 수평전개로 admin/Revenue 플랜명 소문자 2곳(니체2-M 동일 패턴) 동반 수정. 빌드 EXIT 0·전부 클라 무관 DB.
   ※ 2026-06-29 완성도-D(휴대폰 OTP 정식화: phone_otps 테이블·send-otp/verify-otp Edge·solapi sendSms·otp.js 헬퍼·클라 3곳 교체)·니체-AUTH-B(가입 회사명 수집: contact_name 컬럼·handle_new_user·Signup 회사명칸·Account 담당자명) 수정 완료 → QA_니체_DONE.txt. 빌드 EXIT 0. ⚠️ migration 123·124 SQL Editor 실행 + send-otp/verify-otp 배포 + Solapi SMS secrets 필요.
   ※ 2026-06-29 완성도-C 수정 완료(경력 미설정 패널 careerLevels 방어막 + Dashboard 수평전개) → QA_니체_DONE.txt. 빌드 EXIT 0·DB 무관. P2 3→2.
@@ -207,7 +208,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
   🔵 스케일 6건 (스케일-A/B/E/F/G/H — 트리거 규모 도달 시 수정)
   ⚪ P4  0건
 
-스킵/보류: 10건 (+ 니체-AIRPT-D 결제연동시 처리·니체-AIRPT-F 런타임분리 통합고비용)
+스킵/보류: 11건 (+ 니체2-B 배율 1.8 과소예약 사용자 보류 · 니체-AIRPT-D 결제연동시 처리·니체-AIRPT-F 런타임분리 통합고비용)
 
 완료 항목: QA_DONE.txt 참조 (총 395건 — 2026-06-30 기준, DONE 파일 `[`로 시작하는 항목 라인 실측)
 
