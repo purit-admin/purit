@@ -125,11 +125,13 @@ export default function NotificationCenter({ role = 'company' }) {
       setNotifError('');
       setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
       window.dispatchEvent(new CustomEvent('purit:notif-read'));
+      // 읽음 처리 성공 시에만 이동 (니체3-E) — 실패 후 무조건 navigate하면 방금 세팅한
+      // 에러 배너가 페이지 이동으로 즉시 사라져 사용자가 못 봄(니체2-F 무음실패 배너 취지 무력화).
+      if (actionUrl) navigate(actionUrl);
     } else {
       console.error('[markOne]', error.message);
       setNotifError('읽음 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     }
-    if (actionUrl) navigate(actionUrl);
   }
 
   function toggleOne(e, id) {

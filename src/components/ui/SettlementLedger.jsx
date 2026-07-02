@@ -137,7 +137,7 @@ export default function SettlementLedger({ feedbacks = [], panelData = null }) {
         <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>{approved.length}건</div>
       </div>
       <div style={{ background: 'var(--surface)', padding: '24px 28px' }}>
-        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>정산 대기 중</div>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-sans)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>정산 대기 중 (예상)</div>
         <div style={{ lineHeight: 1, marginBottom: 6 }}>
           <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>KRW</div>
           <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>{Math.round(totalPending).toLocaleString()}</div>

@@ -507,9 +507,21 @@ export default function AdminMissions() {
       return;
     }
     setDeleteError('');
-    setMissions(ms => ms.filter(m => m.id !== id));
+    const remaining = missions.filter(m => m.id !== id);
+    setMissions(remaining);
     setSelectedMission(prev => prev?.id === id ? null : prev);
     setConfirmDelete(null);
+    // 삭제 후 페이지 클램프 (D-170) — 마지막 페이지의 마지막 항목 삭제 시 빈 화면 방지.
+    // 현재 탭(filter)·검색어 적용 후 잔여 건수로 총 페이지 재계산 → 초과 시 setPage 클램프.
+    // setPage는 setMissions updater '밖'에서 호출(StrictMode 이중 감소 회피, D-161).
+    const remFiltered = filter === 'all' ? remaining : remaining.filter(m => m.status === filter);
+    const remSearched = searchQuery.trim()
+      ? remFiltered.filter(m => (m.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
+      : remFiltered;
+    const remMainPages = Math.max(1, Math.ceil(remSearched.filter(m => !m.type || m.type === 'landing_page').length / PAGE_SIZE));
+    const remSubPages  = Math.max(1, Math.ceil(remSearched.filter(m => ['preference', 'pricing', 'email'].includes(m.type)).length / PAGE_SIZE));
+    if (mainPage > remMainPages) setMainPage(remMainPages);
+    if (subPage > remSubPages) setSubPage(remSubPages);
   };
 
   const recalcCredits = async (id) => {

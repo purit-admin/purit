@@ -49,7 +49,7 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 - 🔍 수평전개: PurityFilter bulkApprove(:471-481)는 이미 payoutFailIds 수집 처리(니체2-D 확인). TrialMissions bulkApprove는 니체2-D로 payout은 잡았으나 status 가드는 별개(이 항목 포함).
 
 ================================================================
-## 🟢 P3 Minor (13건 — 니체2-J·K·P·Q·R·S·U·V·W + 2026-07-02 신규 니체3-C·D·E·F)
+## 🟢 P3 Minor (9건 — 니체2-J·K·P·Q·U·V + 니체3-C·F·G)
 ================================================================
 
 [니체2-J] 4개 등록폼+QuestionTemplates 옵션형(radio) 질문 최소 2개 옵션 미검증 — 옵션 0~1개로 저장 가능(문구는 "선택지 최소 2개"). 위치: PreferenceTest.jsx:404-453 / ColdEmail·Pricing 동형 / QuestionTemplates.jsx:113-164(안내 :307). radio 저장·추가 시 options.length>=2 게이트 필요. 4파일 각자 복제(D-35).
@@ -60,24 +60,21 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 
 [니체2-Q] 플랜 크레딧/가격 상수 다중 하드코딩 드리프트(D-35) — 현재 값은 일치하나 단일출처 아님. 위치: PaymentModal.jsx:10(PLAN_CREDITS) / ChargeOptionsModal.jsx:14-17(가격) / PanelTargetStep.jsx:589,596 / Pricing.jsx:32·153 / CompanyManagement PLAN_CREDITS. lib/plans.js 단일출처화 권장.
 
-[니체2-R] 패널 Missions '수락 취소' 워딩 불일치 (좁은 엣지 케이스) — ⚠️도달조건 정정(2026-07-01): 완료/취소 미션은 기본 미노출(로드 쿼리 :298-302가 status='active'만 + 내 draft/rejected 미션만 id로 추가). 따라서 "종료 미션 + 수락취소" 노출은 오직 '수락(draft 생성) → 제출 전에 미션이 완료/취소됨' 케이스뿐. 이때 inProgress 탭(:428 status='draft')에 남아 '의뢰가 종료되었습니다'+'수락 취소' 동시 노출(:181-190). ActiveMission missionEnded는 '초안 삭제하기'인데 여기만 '수락 취소'라 워딩 불일치. 발생 빈도 낮음·워딩만 → P3 하위. 종료 미션 draft는 '초안 삭제'로 워딩 통일.
-
-[니체2-S] OAuthCallback 세션 미도착 시 '로그인 처리 중...' 무한 표시(타임아웃 폴백 부재) — Google이 error 없이 세션 없이 콜백된 경우. 위치: OAuthCallback.jsx:139-151. N초 후 안내 + /login 버튼(ResetPassword 타임아웃 패턴). 니체2-I 계열.
-
 [니체2-U] Revenue 정산 대기 KPI/총액 limit 500 무음 과소집계 — 이미 등록된 [스케일-F]와 동일 축(승인 피드백 500 초과분 누락). 위치: Revenue.jsx:42·85·107·186. 도달 전 무증상 → 스케일-F로 일괄 처리.
 
 [니체2-V] 긍정/중립/부정 점수 임계 화면별 혼재 — Diagnosis 종합 4/3(:512)·Results 카드 4/3(:763)·Dashboard '3.5 이상 긍정'(:667). 같은 3.4점이 화면마다 다른 색/판정. 전 포털 단일 기준 통일 검토.
 
-[니체2-W] SettlementLedger '정산 대기 중' 요약 카드에 예상 표식 없음 — 건별은 '(예상)' 있으나 카드는 확정값처럼 보임. 승인 전 레벨업 시 확정액과 달라짐(니체2-C 표시 측면). 위치: SettlementLedger.jsx 요약카드. 카드에도 '(예상)' 뉘앙스.
-
 -- 2026-07-02 전수조사 신규 P3 --
-[니체3-C] admin/Missions 미션 취소/재개 + Revenue 청구상태 변경 status 가드 부재 — 동시성 시 중복 알림/무음 재처리. 위치: admin/Missions.jsx:465(취소/재개 else 분기 `.update({status}).eq('id',id)` 가드 없음→:472/474 취소·재개 알림 중복 발송) / Revenue.jsx:57-66(handleInvoiceStatus 가드 없음, Mock 상태변경뿐이라 무해하나 PG 연동 시 위험). complete는 RPC 멱등(111)이라 안전. `.eq('status',기대)`+`.select()` 후 실제 변경 시에만 알림. TrialMissions cancelMission/resumeMission(:244·:276)도 동형.
-
-[니체3-D] admin/Missions deleteMission 삭제 후 페이지 클램프 부재 (D-170) — 취소 탭 마지막 페이지 마지막 미션 삭제 시 빈 화면. 위치: admin/Missions.jsx:502-513(setMissions filter만, mainPage/subPage 클램프 없음). BugReports deleteSelected 패턴(잔여 0 && page>1 → setPage(p-1), updater 밖) 이식.
-
-[니체3-E] NotificationCenter markOne 읽음 처리 실패 시에도 navigate → 방금 세팅한 에러 배너가 즉시 언마운트되어 안 보임 (니체2-F 무음실패 배너 취지 무력화). 위치: NotificationCenter.jsx:122-133(:130 setNotifError 후 :132 `if(actionUrl)navigate` 무조건 실행). markAll(:106-120)은 navigate 없어 배너 정상 노출=비대칭. 3포털 공용(company/panel/admin). 실패 시 navigate 스킵하거나 성공 시에만 이동. ※ 읽음 실패 자체는 경미(재시도 시 재읽음)·데이터 무결성 무관.
+[니체3-C] admin/Missions 미션 취소/재개 + Revenue 청구상태 변경 status 가드 부재 — 동시성 시 중복 알림/무음 재처리. 위치: admin/Missions.jsx:465(취소/재개 else 분기 `.update({status}).eq('id',id)` 가드 없음→:472/474 취소·재개 알림 중복 발송) / Revenue.jsx:57-66(handleInvoiceStatus 가드 없음, Mock 상태변경뿐이라 무해하나 PG 연동 시 위험). complete는 RPC 멱등(111)이라 안전. `.eq('status',기대)`+`.select()` 후 실제 변경 시에만 알림. TrialMissions cancelMission/resumeMission(:244·:276)도 동형. ※ 니체3-D 수평전개 관찰: admin/Missions 상태변경(updateStatus/reactivateCompleted)이 탭 이동 시 페이지 클램프 부재로 D-170 빈페이지도 유발 가능 — status 가드 작업 시 setMainPage/subPage 클램프 동반 처리 권장(deleteMission 클램프는 니체3-D로 완료).
 
 [니체3-F] Results 도움됨 평가 실패 시 낙관적 롤백이 전체 스냅샷을 덮어써 다른 항목의 in-flight 낙관 업데이트 소실 + 무음 실패. 위치: Results.jsx:1207(prevRatings=helpRatings 전체 스냅샷)·1224(setHelpRatings(prevRatings) 통째 복원)·1223-1225(console.error만). ratingInFlight는 같은 key만 차단→다른 패널 도움됨 연속클릭 후 첫 RPC 실패 시 뒤 업데이트 소실(화면≠DB). 롤백을 `setHelpRatings(r=>({...r,[key]:wasValue}))` 함수형 + 실패 UI 통지. honor만 영향·재현 좁아 P3.
+
+-- 2026-07-02-c 쉬움 5건 수정 후 수평전개 전수조사(4개 조사관 병렬, 니체 직접 규칙12 재검증) 신규 P3 --
+[니체3-G] ★D-170 페이지 클램프 누락 8파일 전수 (니체3-D 수평전개 — 삭제·상태변경으로 목록 줄 때 빈 화면) — 검증완료: reference 클램프(panel/Missions.jsx:449-456 useEffect `if(page>maxPage)setPage(maxPage)` deps [filtered.length,page])가 아래 8파일엔 전무(grep 확인). 3개 축:
+  ① admin/PurityFilter.jsx: approve/reject/reset(단건)+bulkApprove/bulkReject가 status 변경으로 피드백을 현재 탭(pending/approved/rejected)서 뺌, listPage 클램프·useEffect 없음(:642 slice, 종료부 setListPage 없음).
+  ② admin/PanelManagement.jsx(:216 updatePanel→:316 setPanels): 상태변경이 statusFilter서 이탈, page 클램프 없음 / admin/CompanyManagement.jsx(:446 handlePlanChange·:454 handleAddCredits): plan/credit 변경이 planFilter/creditFilter서 이탈, page 클램프 없음(좁은 경로).
+  ③ company 미션목록 5파일(listFilter/missionFilter 기본 'active'·PAGE_SIZE=5): company/Dashboard.jsx(handleTerminate·handleDeleteMission→mainMissionPage/subMissionPage) / NewMission·PreferenceTest·PricingTest·ColdEmailTest(handleDeleteMission missions 제거·handleTerminate status→cancelled→listPage). 전부 클램프 전무.
+  ✨ 기대: 전 파일에 panel/Missions:449-456 useEffect 패턴 이식(filtered.length 기준 재계산·setPage는 updater 밖 D-161). ※ 이 useEffect 방식은 삭제+상태변경 모두 자동 커버 → admin/Missions도 이 방식으로 통일하면 니체3-C의 '상태변경 페이지 클램프' 부분과 방금 니체3-D(수동 클램프)를 함께 흡수 가능(권장). 심각도 P3(빈 화면·경미).
 
 ================================================================
 ## 👁 관찰 (확신 낮음/경미 — 2026-07-01 전수조사, 관련 파일 작업 시 함께 점검)
@@ -93,6 +90,9 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 - AIReport 월 사용량(N/10) 상시 미노출 — 생성 클릭 후 초과 모달로만 인지. AIReport.jsx.
 - renew_due_subscriptions invoice amount=0(Mock) — 실 PG 연동 시 무청구 무한지급 되므로 재검토 인계(120/121, D-167).
 - admin/Missions '예약 크레딧' 통계 active만 합산인데 라벨에 한정 없음(CM-2) — CompanyManagement.jsx:428.
+-- 2026-07-02-c 쉬움5건 수평전개 전수조사 관찰 --
+- admin/Revenue KPI '패널 정산 대기' 확정형 KRW에 '(예상)' 뉘앙스 없음 — 단 패널측 SettlementLedger 대기(submitted 미승인·getPanelReward 추정)와 '다른 풀'(Revenue는 purity_passed=true·payout_amount 승인 스냅샷 확정분)이라 더 확정적. calcSettleAmt(:74-79) payout null 폴백 추정만 예외. settlements 탭에 '실제 지급은 미션 완료 후' 안내 존재 → 저신뢰, 통일 시 '(예상 포함)' 정도만 검토·현행 유지 가능. (니체3-I/니체2-W와 축 다름)
+- InviteAccept.jsx:26-56 init() async 로더에 outer try/catch 부재 → getUser() throw 시 status='loading' 영구 고착(공개 진입 관문) — 무한로딩 조사관 P2 보고분이나, 팀원 초대 기능이 의도적 UI 숨김(휴면 라우트)이라 초대 링크 생성 경로 자체가 없어 도달 불가 → 상시 인지 사실([팀 기능 휴면])상 미등록. 팀 기능 재활성화 시 ShareResult:173-175 catch 패턴 이식 필요.
 -- 2026-07-02 전수조사 관찰 --
 - 기업 등록폼 active 의뢰 '수정' 이탈 시 이탈모달 '임시 저장 후 나가기'가 saveDraft early-return(`if(draftId&&!editIsDraft)return`)으로 no-op인데 navigate만 실행 → 수정중 내용 저장 없이 사라지나 버튼은 저장 약속(원본은 DB 보존, cosmetic). PreferenceTest:321·1411 / PricingTest:309 / ColdEmailTest:304. active 수정 시 문구 분기 검토.
 - Pricing 해지예약 배너 버튼 '구독 유지하기'(:464, 실제 resume_my_subscription 호출=동작 일치) vs Account '구독 관리 →'(단순 이동) 문구 불일치 — 도메인별 정합은 맞음, 통일 검토.
@@ -182,10 +182,13 @@ QA_PROGRESS.txt — 미완료 버그 목록 & 스킵/보류 목록
 ## 📊 현황 요약
 ================================================================
 
-미완료 합계: 16건 + 스케일 트리거 조건부 6건 + 관찰 17건
+미완료 합계: 12건 + 스케일 트리거 조건부 6건 + 관찰 19건
   🔴 P1  0건
   🟡 P2  3건 (니체2-A + 2026-07-02 전수조사 신규 니체3-A·B)
-  🟢 P3  13건 (니체2-J·K·P·Q·R·S·U·V·W + 2026-07-02 신규 니체3-C·D·E·F)
+  🟢 P3  9건 (니체2-J·K·P·Q·U·V + 니체3-C·F·G)
+  ※ 2026-07-02-c 수평전개 신규 중 쉬운 2건 수정 완료(니체3-H notif_prefs 스냅샷롤백·니체3-I 예상크레딧 라벨) → QA_니체_DONE.txt. 빌드 EXIT 0·전부 클라 무관 DB. 수평전개 grep 재확인 잔존 0. P3 11→9.
+  ※ 2026-07-02-c 쉬움 5건 수정 완료(니체3-D·니체2-S·니체3-E·니체2-W·니체2-R) → QA_니체_DONE.txt. 빌드 EXIT 0·전부 클라 무관 DB. P3 13→8.
+  ※ 2026-07-02-c 위 5건 수평전개 전수조사(4개 조사관 병렬: D-170·무한로딩·배너소멸/롤백·워딩/추정값, 니체 직접 규칙12 재검증) → 신규 확정 P3 3건(니체3-G D-170 8파일·니체3-H notif_prefs 스냅샷롤백·니체3-I 예상크레딧 라벨) 등록. 관찰 2건(Revenue KPI 예상표식·InviteAccept 무한로딩[팀 휴면 미등록]). 오탐 0.
   ※ 2026-07-02 전수조사(7개 조사관 병렬: 기업A·B·패널·어드민·인증·공용·DB) 시행 → 신규 확정 P2 2건·P3 4건·관찰 6건 등록. 니체 직접 코드 적대적 재검증(규칙12) 완료, 조사관 오탐 3건 폐기.
     · 니체3-A(P2★최우선): ActiveMission 서브제출 응답 INSERT/UPDATE 무음 실패→가짜 완료+honor
     · 니체3-B(P2): 어드민 승인/반려 일괄·TrialMissions status 가드 부재(니체2-E 수평전개 누락 — bulkReject·TrialMissions approve/doReject/bulkReject)

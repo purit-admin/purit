@@ -186,7 +186,7 @@ function MissionCard({ m, mode, feedbackId, rejectionDeadline, submissionDeadlin
                 <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>의뢰가 종료되었습니다</span>
               )}
               <Btn size="sm" variant="ghost" onClick={() => setModal({ type: 'cancel', mission: m })}
-                style={{ fontSize: 11, color: 'var(--text-3)' }}>수락 취소</Btn>
+                style={{ fontSize: 11, color: 'var(--text-3)' }}>{m.status === 'active' ? '수락 취소' : '초안 삭제'}</Btn>
             </div>
           )}
           {mode === 'needsRevision' && (() => {
@@ -644,19 +644,26 @@ export default function MissionList() {
         document.body
       )}
 
-      {/* ── 수락 취소 모달 ── */}
-      {modal?.type === 'cancel' && (
-        <ConfirmModal
-          title="수락을 취소할까요?"
-          desc={`작성 중이던 피드백 초안이 모두 삭제됩니다.\n이 미션은 다시 참여가능 목록으로 돌아갑니다.`}
-          confirmLabel={confirming ? '처리 중...' : '수락 취소'}
-          cancelLabel="계속 작성하기"
-          danger
-          onConfirm={handleConfirmCancel}
-          onCancel={() => { setModal(null); setCancelError(''); }}
-          errorMsg={cancelError}
-        />
-      )}
+      {/* ── 수락 취소 / 초안 삭제 모달 ── */}
+      {modal?.type === 'cancel' && (() => {
+        // 종료된 의뢰(status!=='active')의 초안은 '수락 취소'가 아니라 '초안 삭제'로 워딩 통일 (니체2-R)
+        // — 이미 종료돼 참여 목록으로 되돌아갈 수 없으므로 ActiveMission missionEnded('초안 삭제하기')와 일치시킴.
+        const missionEnded = modal.mission?.status !== 'active';
+        return (
+          <ConfirmModal
+            title={missionEnded ? '초안을 삭제할까요?' : '수락을 취소할까요?'}
+            desc={missionEnded
+              ? `작성 중이던 피드백 초안이 삭제됩니다.\n이미 종료된 의뢰라 다시 참여할 수 없습니다.`
+              : `작성 중이던 피드백 초안이 모두 삭제됩니다.\n이 미션은 다시 참여가능 목록으로 돌아갑니다.`}
+            confirmLabel={confirming ? '처리 중...' : (missionEnded ? '초안 삭제' : '수락 취소')}
+            cancelLabel={missionEnded ? '닫기' : '계속 작성하기'}
+            danger
+            onConfirm={handleConfirmCancel}
+            onCancel={() => { setModal(null); setCancelError(''); }}
+            errorMsg={cancelError}
+          />
+        );
+      })()}
 
       {/* ── 헤더 ── */}
       <div style={{ marginBottom: 32 }}>

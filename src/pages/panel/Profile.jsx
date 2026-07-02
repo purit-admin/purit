@@ -883,7 +883,8 @@ export default function PanelProfile() {
                     const next = { ...notifPrefs, [key]: !on };
                     setNotifPrefs(next);
                     const { error } = await supabase.from('panels').update({ notif_prefs: next }).eq('id', panel.id);
-                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(notifPrefs); setNotifError('알림 설정 저장에 실패했습니다. 다시 시도해주세요.'); }
+                    // 실패한 key만 함수형으로 원복 (니체3-H) — 전체 스냅샷 복원은 다른 토글 in-flight 낙관 반영까지 덮어써 화면≠DB
+                    if (error) { console.error('[notif pref]', error.message); setNotifPrefs(p => ({ ...p, [key]: on })); setNotifError('알림 설정 저장에 실패했습니다. 다시 시도해주세요.'); }
                     else setNotifError('');
                   }}
                   style={{ width: 44, height: 24, borderRadius: 12, cursor: 'pointer', background: on ? 'var(--accent)' : 'var(--border-light)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}

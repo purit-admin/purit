@@ -147,7 +147,16 @@ export default function OAuthCallback() {
       if (session) processSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    // 타임아웃 폴백 (니체2-S) — Google이 error 없이 세션도 안 보내면 '로그인 처리 중...'이
+    // 영영 멈춤. 일정 시간 내 아무 처리도 시작되지 않으면(handledRef=false) 안내 + 복귀 버튼 노출.
+    // 처리가 시작(handledRef=true)됐거나 이미 에러가 뜬 경우엔 건드리지 않음 (ResetPassword 타임아웃 패턴).
+    const timeoutId = setTimeout(() => {
+      if (!handledRef.current) {
+        setError('로그인 응답이 지연되고 있습니다. 네트워크 상태를 확인 후 다시 시도해 주세요.');
+      }
+    }, 8000);
+
+    return () => { subscription.unsubscribe(); clearTimeout(timeoutId); };
   }, []);
 
   return (

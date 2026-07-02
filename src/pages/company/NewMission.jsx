@@ -1917,7 +1917,7 @@ export default function NewMission() {
                   ['타겟 페르소나', `${form.personaAgeMin}~${form.personaAgeMax}세, ${personaIncomeStr || '소득 무관'}, ${form.personaRole || '—'}`],
                   ['패널 수', `${form.panels}명`],
                   ['커리어 레벨', careerLevels.map(k => CAREER_LEVELS.find(c => c.key === k)?.label).filter(Boolean).join(', ') || '—'],
-                  ['예상 크레딧', `${calcCredits(form.panels, careerLevels, 'main')} 크레딧`],
+                  ['최대 예상 크레딧', `${calcCredits(form.panels, careerLevels, 'main')} 크레딧`],
                   ['검증 포커스', form.focusAreas.join(', ') || '—'],
                   ...(allLPSelected.length > 0 ? [['추가 질문', `${allLPSelected.length}개 선택`]] : []),
                 ].map(([k, v]) => (
@@ -1937,7 +1937,10 @@ export default function NewMission() {
                     </div>
                   </div>
                 )}
-                <div style={{ marginTop: 24, padding: 16, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
+                <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                  실제 매칭된 패널의 직급 비율에 따라 소모량은 줄어들 수 있으며, 차액 크레딧은 완료 후 즉시 환불됩니다.
+                </div>
+                <div style={{ marginTop: 12, padding: 16, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
                   ⚡ 의뢰 등록 후 패널이 매칭되어 피드백을 시작합니다. Purit Filter를 통과한 피드백만 전달됩니다.
                 </div>
                 <div style={{ marginTop: 10, padding: '14px 16px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius)', lineHeight: 1.75 }}>
