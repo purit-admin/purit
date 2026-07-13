@@ -252,18 +252,6 @@ function ExpertCloud() {
   );
 }
 
-/* ─── 브랜드 마름모 로고 ─── */
-function BrandMark() {
-  return (
-    <span className="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 32 32" fill="none">
-        <path d="M16 2.5 28.5 16 16 29.5 3.5 16 16 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="M16 9 23 16 16 23 9 16 16 9Z" fill="currentColor" />
-      </svg>
-    </span>
-  );
-}
-
 /* ════════════════════════════════════════════════════════════
    MAIN
 ════════════════════════════════════════════════════════════ */
@@ -324,7 +312,6 @@ export default function Landing() {
       <header className={`nav${navScrolled ? ' scrolled' : ''}`} id="nav">
         <div className="nav-inner">
           <span className="brand" onClick={() => navigate('/')}>
-            <BrandMark />
             <span className="brand-name">Purit</span>
           </span>
           <nav className="nav-links" aria-label="주요 메뉴">
@@ -813,7 +800,6 @@ export default function Landing() {
         <div className="container foot-inner">
           <div className="foot-brand">
             <span className="brand" onClick={() => navigate('/')}>
-              <BrandMark />
               <span className="brand-name">Purit</span>
             </span>
             <p>진짜 전문가가 당신의 광고와 페이지를 직접 보고 평가해드려요.</p>
